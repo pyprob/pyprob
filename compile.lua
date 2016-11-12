@@ -24,7 +24,7 @@ cmd:option('--version', false, 'display version information')
 -- training options
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--device', 1, 'sets the device (GPU) to use')
-cmd:option('--log', '../../data/compile-log', 'file for logging')
+cmd:option('--log', './data/compile-log', 'file for logging')
 cmd:option('--batchSize', 128, 'training batch size')
 cmd:option('--validSize', 256, 'validation set size')
 cmd:option('--validInterval', 500, 'validation interval (traces)')
@@ -56,7 +56,7 @@ cmd:option('--obsSmooth', false, 'smooth the observe embedding by a 5x5, std=0.5
 cmd:option('--resume', '', 'resume training of an existing artifact')
 cmd:option('--resumeLatest', false, 'resume the training of the latest artifact file starting with the name given with --artifact')
 cmd:option('--server', '127.0.0.1:5555', 'address and port of the Anglican server')
-cmd:option('--artifact', '../../data/compile-artifact', 'file name prefix to save the artifact')
+cmd:option('--artifact', './data/compile-artifact', 'file name prefix to save the artifact')
 
 cmd:text()
 
