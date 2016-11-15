@@ -1,5 +1,4 @@
 # Torch library for Compiled Inference in the Probabilistic Programming System Anglican
-
 ## Paper
 - [Inference Compilation and Probabilistic Programming](https://arxiv.org/abs/1610.09900)
 
