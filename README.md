@@ -27,7 +27,7 @@ Include the dependencies for [Anglican](http://www.robots.ox.ac.uk/~fwood/anglic
                ...])
 ```
 
-In your Clojure file, remember to `require` the following in order to be able to define Anglican queries and perform CSIS:
+In your Clojure file, remember to `require` the following in order to be able to define Anglican queries and perform inference using CSIS:
 ```
 (:require ...
           anglican.csis.csis
@@ -42,21 +42,21 @@ After you've defined your probabilistic program in [Anglican language](http://ww
 
 The typical workflow consists of these steps:
 
-1. Define a function to combine observes
-2. Start a Clojure-Torch [ZeroMQ](http://zeromq.org/) connection from the Clojure side
-3. Train the neural network in Torch
-4. Stop the training of the neural network
-5. Stop the Clojure-Torch ZeroMQ connection
+#### Define a function to combine observes
+#### Start a Clojure-Torch [ZeroMQ](http://zeromq.org/) connection from the Clojure side
+#### Train the neural network in Torch
+#### Stop the training of the neural network
+#### Stop the Clojure-Torch ZeroMQ connection
 
 ### Inference: Compiled Sequential Importance Sampling
 After you've compiled your query by training up a neural network, you can perform inference using the Compiled Sequential Importance Sampling algorithm. You will hopefully need much fewer particles in comparison to Sequential Monte Carlo to perform inference.
 
 The typical workflow consists of these steps:
 
-1. Start a Torch-Clojure ZeroMQ connection from the Torch side
-2. Run inference from Clojure
-3. Stop the Torch-Clojure ZeroMQ connection
-3. Evaluate inference in Clojure
+#### Start a Torch-Clojure ZeroMQ connection from the Torch side
+#### Run inference from Clojure
+#### Stop the Torch-Clojure ZeroMQ connection
+#### Evaluate inference in Clojure
 
 ## Documentation
 - [Documentation for the Clojure side](http://tuananhle.co.uk/anglican-csis-doc/)
