@@ -1,4 +1,4 @@
-# Torch library for compiled inference in Anglican
+# Torch library for Compiled Inference in the Probabilistic Programming System Anglican
 
 ## Dependencies
 - [Torch](http://torch.ch/)
