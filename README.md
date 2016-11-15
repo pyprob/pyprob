@@ -1,5 +1,8 @@
 # Torch library for Compiled Inference in the Probabilistic Programming System Anglican
 
+## Paper
+- [Inference Compilation and Probabilistic Programming](https://arxiv.org/abs/1610.09900)
+
 ## Dependencies
 - [Torch](http://torch.ch/)
 - [Torch Autograd](https://github.com/twitter/torch-autograd)
