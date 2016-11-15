@@ -57,3 +57,7 @@ The typical workflow consists of these steps:
 2. Run inference from Clojure
 3. Stop the Torch-Clojure ZeroMQ connection
 3. Evaluate inference in Clojure
+
+## Documentation
+- [Documentation for the Clojure side](http://tuananhle.co.uk/anglican-csis-doc/)
+- Documentation for the Torch side: Run `compile.lua` and `infer.lua` with the `--help` flag.
