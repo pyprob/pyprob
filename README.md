@@ -12,11 +12,11 @@
 
 ## Usage
 
-General info about the software setup...
+This repository contains the Torch files required to perform the compilation stage in the compiled inference scheme. In our setup, probabilistic program definition and inference is done in the [Anglican Probabilistic Programming System](http://www.robots.ox.ac.uk/~fwood/anglican/) and the inference compilation is done in [Torch](http://torch.ch/). The communication between these two is facilitated by [ZeroMQ](http://zeromq.org/).
 
 We provide a minimal example in a [Gorilla worksheet](http://gorilla-repl.org/). To load it, run `lein gorilla` from the `examples` folder and load the worksheet `worksheet/minimal.clj`.
 
-Check out a more in-depth [tutorial](TODO).
+See an explanation of a typical workflow below (can be followed in conjunction with the minimal example). Check out a more in-depth [tutorial](TODO). Experiments from the paper are [here](TODO).
 
 ### Setting up Leiningen Project
 Include the dependencies for [Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/index.html) and the Compiled Sequential Importance Sampling (CSIS) backend in your Leiningen `project.clj` file:
@@ -43,10 +43,19 @@ After you've defined your probabilistic program in [Anglican language](http://ww
 The typical workflow consists of these steps:
 
 #### Define a function to combine observes
+TODO
+
 #### Start a Clojure-Torch [ZeroMQ](http://zeromq.org/) connection from the Clojure side
+TODO
+
 #### Train the neural network in Torch
+TODO
+
 #### Stop the training of the neural network
+TODO
+
 #### Stop the Clojure-Torch ZeroMQ connection
+TODO
 
 ### Inference: Compiled Sequential Importance Sampling
 After you've compiled your query by training up a neural network, you can perform inference using the Compiled Sequential Importance Sampling algorithm. You will hopefully need much fewer particles in comparison to Sequential Monte Carlo to perform inference.
@@ -54,9 +63,16 @@ After you've compiled your query by training up a neural network, you can perfor
 The typical workflow consists of these steps:
 
 #### Start a Torch-Clojure ZeroMQ connection from the Torch side
+TODO
+
 #### Run inference from Clojure
+TODO
+
 #### Stop the Torch-Clojure ZeroMQ connection
+TODO
+
 #### Evaluate inference in Clojure
+TODO
 
 ## Documentation
 - [Documentation for the Clojure side](http://tuananhle.co.uk/anglican-csis-doc/)
