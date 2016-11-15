@@ -2,7 +2,7 @@
 ## Paper
 - [Inference Compilation and Probabilistic Programming](https://arxiv.org/abs/1610.09900)
 
-## Installation
+## Dependencies
 - [Clojure](http://clojure.org/guides/getting_started)
 - [Leiningen](http://leiningen.org/#install)
 - [Anglican CSIS](https://github.com/tuananhle7/anglican-csis)
