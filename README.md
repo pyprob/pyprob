@@ -52,6 +52,7 @@ The typical workflow consists of these steps:
 After you've compiled your query by training up a neural network, you can perform inference using the Compiled Sequential Importance Sampling algorithm. You will hopefully need much fewer particles in comparison to Sequential Monte Carlo to perform inference.
 
 The typical workflow consists of these steps:
+
 1. Start a Torch-Clojure ZeroMQ connection from the Torch side
 2. Run inference from Clojure
 3. Stop the Torch-Clojure ZeroMQ connection
