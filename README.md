@@ -19,7 +19,7 @@ We provide a minimal example in a [Gorilla worksheet](http://gorilla-repl.org/).
 Check out a more in-depth [tutorial](TODO).
 
 ### Setting up Leiningen Project
-Include the dependencies for [Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/index.html) and the CSIS backend in your Leiningen `project.clj` file:
+Include the dependencies for [Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/index.html) and the Compiled Sequential Importance Sampling (CSIS) backend in your Leiningen `project.clj` file:
 ```
 :dependencies [...
                [anglican "1.0.0"]
