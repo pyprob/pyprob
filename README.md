@@ -1,6 +1,6 @@
 # Torch library for Compiled Inference in the Probabilistic Programming System Anglican
 ## Paper
-- [Inference Compilation and Probabilistic Programming](https://arxiv.org/abs/1610.09900)
+- [Inference Compilation and Universal Probabilistic Programming](https://arxiv.org/abs/1610.09900)
 
 ## Dependencies
 - [Clojure](http://clojure.org/guides/getting_started)
