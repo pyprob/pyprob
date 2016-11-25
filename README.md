@@ -63,52 +63,20 @@ In your Clojure file, remember to `require` the following in order to be able to
 ```
 
 #### Compilation: Training Neural Networks
-After you've defined your probabilistic program in [Anglican language](http://www.robots.ox.ac.uk/~fwood/anglican/language/index.html), you can compile it.
+After you've defined your probabilistic program in [Anglican language](http://www.robots.ox.ac.uk/~fwood/anglican/language/index.html), you can compile it. The typical workflow consists of these steps:
 
-The typical workflow consists of these steps:
-
-##### Define a function to combine observes
-Specify a function `combine-observes-fn` (you can name it anything) that combines observes from a sample in a form suitable for Torch. This will be used in the next step when starting the Clojure-Torch connection.
-
-In order to write this function, you'll need to look at how a typical `observes` object from your query looks like. This can be done by running `(sample-observes-from-prior q q-args)` where `q` is your query name and `q-args` are the arguments to the query.
-
-##### Start a Clojure-Torch [ZeroMQ](http://zeromq.org/) connection from the Clojure side
-Start a Clojure-Torch connection from Torch via running:
-```
-(def torch-connection (start-torch-connection q q-args combine-observes-fn))
-```
-Remember to bind this to a variable, in this case `torch-connection`, which will be used later to stop this connection. You can provide optional arguments such as TCP endpoint port.
-
-##### Train the neural network in Torch
-To train the neural net, `cd` to the root folder and run
-```
-th compile --help
-```
-to find out what options to run with.
-
-##### Stop the training of the neural network
-This can be done by `Ctrl+C` from the terminal. How long should I train? There aren't any theoretical minima. If all your random variables are discrete, the minimum should be around 0. Otherwise, just iterate between Compilation and Inference.
-
-##### Stop the Clojure-Torch ZeroMQ connection
-To stop the Clojure-Torch server from Clojuser, use the previously bound `torch-connection` as follows:
-```
-(stop-torch-connection torch-connection)
-```
+1. **Define a function to combine observes.**
+Specify a function `combine-observes-fn` (you can name it anything) that combines observes from a sample in a form suitable for Torch. This will be used in the next step when starting the Clojure-Torch connection. In order to write this function, you'll need to look at how a typical `observes` object from your query looks like. This can be done by running `(sample-observes-from-prior q q-args)` where `q` is your query name and `q-args` are the arguments to the query.
+2. **Start a Clojure-Torch [ZeroMQ](http://zeromq.org/) connection from the Clojure side.** Use `start-torch-connection` function in Clojure ([docs](http://tuananhle.co.uk/anglican-csis-doc/anglican.csis.network.html#var-start-torch-connection)). Remember to bind this to a variable which will be used later to stop this connection. E.g. `(def torch-connection (start-torch-connection q q-args combine-observes-fn))`.
+3. **Train the neural network in Torch.** `cd` to the root folder and run `th compile.lua`. Run `th compile.lua --help` to see and possibly override default options.
+4. **Stop the training of the neural network.** This can be done by `Ctrl+C` from the terminal. How long should I train? There aren't any theoretical bounds for the loss. If all your random variables are discrete, the minimum should be around 0. Otherwise, just iterate between Compilation and Inference.
+5. **Stop the Clojure-Torch ZeroMQ connection.** To stop the Clojure-Torch server from Clojure, use the previously bound `torch-connection`. E.g. `(stop-torch-connection torch-connection)`.
 
 #### Inference: Compiled Sequential Importance Sampling
-After you've compiled your query by training up a neural network, you can perform inference using the Compiled Sequential Importance Sampling algorithm. You will hopefully need much fewer particles in comparison to Sequential Monte Carlo to perform inference.
+After you've compiled your query by training up a neural network, you can perform inference using the Compiled Sequential Importance Sampling algorithm. You will hopefully need much fewer particles in comparison to Sequential Monte Carlo to perform inference. The typical workflow consists of these steps:
 
-The typical workflow consists of these steps:
-
-##### Run inference from Clojure
-`cd` to the root folder and run
-```
-th infer --help
-```
-to find out what options to run with. Stop this process by `Ctrl+C` after you're done performing inference in Clojure.
-
-##### Evaluate inference in Clojure
-To get 10 particles from the CSIS inference algorithm, run
+1. **Run inference from Clojure.** `cd` to the root folder and run `th infer.lua`. Run `th infer.lua --help` to see and possibly override default options. Stop this process by `Ctrl+C` after you're done performing inference in Clojure in the next step.
+2. **Evaluate inference in Clojure.** To get 10 particles from the CSIS inference algorithm, run
 ```
 (def num-particles 10)
 (def csis-states (take num-particles (infer :csis q q-args)))
