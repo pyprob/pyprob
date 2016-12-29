@@ -12,12 +12,13 @@ $ lein install
 - [Torch Autograd](https://github.com/twitter/torch-autograd#install)
 - Torch packages via [LuaRocks](https://luarocks.org/):
 ```
-$ luarocks install nn
-$ luarocks install nngraph
-$ luarocks install lzmq # https://github.com/zeromq/lzmq
-$ luarocks install lua-messagepack
 $ luarocks install ansicolors
-$ # etc (TODO)
+$ luarocks install cephes
+$ luarocks install hash
+$ luarocks install https://raw.github.com/jucor/torch-distributions/master/distributions-0-0.rockspec
+$ luarocks install lzmq
+$ luarocks install lua-messagepack
+$ luarocks install rnn
 ```
 
 ## Usage
@@ -32,7 +33,7 @@ Download one of the artifacts and unzip it to the `data/` folder:
 
 From the root folder of this repository, run
 ```
-th infer.lua --cuda --latest
+th infer.lua --cuda --artifact data/wikipedia.t7 --model data/wikipedia.clj
 ```
 
 ### I just want to cluster some points
