@@ -202,11 +202,9 @@ function getBatchTraces(data)
                 samples[m][timeStep].max = vv['proposal-extra-params'][2]
             elseif proposalType == 'mvn' then
                 samples[m][timeStep].dim = vv['proposal-extra-params'][1]
-            elseif proposalType == 'mvndiag1proposal' then
+            elseif proposalType == 'mvnmeanvar' then
                 samples[m][timeStep].dim = vv['proposal-extra-params'][1]
-            elseif proposalType == 'mvndiag2proposal' then
-                samples[m][timeStep].dim = vv['proposal-extra-params'][1]
-            elseif proposalType == 'mvndiag3proposal' then
+            elseif proposalType == 'mvnmeanvars' then
                 samples[m][timeStep].dim = vv['proposal-extra-params'][1]
             end
 
@@ -391,17 +389,23 @@ function reconfigurePrototype(batch)
                             :add(nn.View(-1 ,dim, dim))
                     )
                     layer:add(p)
-                elseif proposalType == 'mvndiag1proposal' then
+                elseif proposalType == 'mvnmeanvar' then
                     local dim = samples[timeStep]['dim']
                     local p = nn.ConcatTable()
                     p:add(nn.Linear(artifact.lstmDim, dim))
-                    p:add(
-                        nn.Sequential()
-                            :add(nn.Linear(artifact.lstmDim, 1))
-                            :add(nn.SoftPlus())
-                    )
+                    p:add(nn.Constant(0.001))
                     layer:add(p)
-                elseif proposalType == 'mvndiag2proposal' then
+                -- elseif proposalType == 'mvnmeanvar' then
+                --     local dim = samples[timeStep]['dim']
+                --     local p = nn.ConcatTable()
+                --     p:add(nn.Linear(artifact.lstmDim, dim))
+                --     p:add(
+                --         nn.Sequential()
+                --             :add(nn.Linear(artifact.lstmDim, 1))
+                --             :add(nn.SoftPlus())
+                --     )
+                --     layer:add(p)
+                elseif proposalType == 'mvnmeanvars' then
                     local dim = samples[timeStep]['dim']
                     local p = nn.ConcatTable()
                     p:add(nn.Linear(artifact.lstmDim, dim))
@@ -410,12 +414,6 @@ function reconfigurePrototype(batch)
                             :add(nn.Linear(artifact.lstmDim, dim))
                             :add(nn.SoftPlus())
                     )
-                    layer:add(p)
-                elseif proposalType == 'mvndiag3proposal' then
-                    local dim = samples[timeStep]['dim']
-                    local p = nn.ConcatTable()
-                    p:add(nn.Linear(artifact.lstmDim, dim))
-                    p:add(nn.Constant(0.001))
                     layer:add(p)
                 elseif proposalType == 'normal' or proposalType == 'laplace' then
                     layer:add(nn.Linear(artifact.lstmDim, 2))
@@ -921,18 +919,28 @@ function proposalLoss(proposalOutput, subBatch)
 
                 logpdf = logpdf + dists.mvnLogpdf(value, mean, cov)
             end
-        elseif proposalType == 'mvndiag1proposal' then
+        -- elseif proposalType == 'mvnmeanvar' then
+        --     for trace = 1, numTraces do
+        --         local value = subBatch[trace]['samples'][timeStep].value
+        --         local dim = subBatch[trace]['samples'][timeStep].dim
+        --
+        --         local mean = proposalOutput[timeStep][1][trace]
+        --         local var = proposalOutput[timeStep][2][trace]
+        --         local cov = var[1] * moveToCuda(torch.eye(dim))
+        --
+        --         logpdf = logpdf + dists.mvnLogpdf(value, mean, cov)
+        --     end
+        elseif proposalType == 'mvnmeanvar' then
             for trace = 1, numTraces do
                 local value = subBatch[trace]['samples'][timeStep].value
                 local dim = subBatch[trace]['samples'][timeStep].dim
-
                 local mean = proposalOutput[timeStep][1][trace]
-                local var = proposalOutput[timeStep][2][trace]
+                local var = proposalOutput[timeStep][2]
                 local cov = var[1] * moveToCuda(torch.eye(dim))
 
                 logpdf = logpdf + dists.mvnLogpdf(value, mean, cov)
             end
-        elseif proposalType == 'mvndiag2proposal' then
+        elseif proposalType == 'mvnmeanvars' then
             for trace = 1, numTraces do
                 local value = subBatch[trace]['samples'][timeStep].value
                 local dim = subBatch[trace]['samples'][timeStep].dim
@@ -947,16 +955,6 @@ function proposalLoss(proposalOutput, subBatch)
                     -- Can't assign values
                     cov[d][d] = vars[d].value
                 end
-
-                logpdf = logpdf + dists.mvnLogpdf(value, mean, cov)
-            end
-        elseif proposalType == 'mvndiag3proposal' then
-            for trace = 1, numTraces do
-                local value = subBatch[trace]['samples'][timeStep].value
-                local dim = subBatch[trace]['samples'][timeStep].dim
-                local mean = proposalOutput[timeStep][1][trace]
-                local var = proposalOutput[timeStep][2]
-                local cov = var[1] * moveToCuda(torch.eye(dim))
 
                 logpdf = logpdf + dists.mvnLogpdf(value, mean, cov)
             end

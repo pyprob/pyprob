@@ -233,12 +233,12 @@ while true do
         local proposalParamsMsg = nil
         if proposalType == 'mvn' then
             proposalParamsMsg = {proposalOutput[1][1]:totable(), proposalOutput[2][1]:totable()}
-        elseif proposalType == 'mvndiag1proposal' then
-            proposalParamsMsg = {proposalOutput[1][1]:totable(), proposalOutput[2][1][1]}
-        elseif proposalType == 'mvndiag2proposal' then
-            proposalParamsMsg = {proposalOutput[1][1]:totable(), proposalOutput[2][1]:totable()}
-        elseif proposalType == 'mvndiag3proposal' then
+        -- elseif proposalType == 'mvnmeanvar' then
+        --     proposalParamsMsg = {proposalOutput[1][1]:totable(), proposalOutput[2][1][1]}
+        elseif proposalType == 'mvnmeanvar' then
             proposalParamsMsg = {proposalOutput[1][1]:totable(), proposalOutput[2][1]}
+        elseif proposalType == 'mvnmeanvars' then
+            proposalParamsMsg = {proposalOutput[1][1]:totable(), proposalOutput[2][1]:totable()}
         else
             proposalParamsMsg = proposalOutput[1]:totable()
         end
