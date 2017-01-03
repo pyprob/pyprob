@@ -6,4 +6,5 @@
   :plugins [[lein-gorilla "0.3.6"]]
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [anglican "1.0.0"]
-                 [anglican-csis "0.1.0-SNAPSHOT"]])
+                 [anglican-csis "0.1.0-SNAPSHOT"]]
+  :java-source-paths ["src"])
