@@ -1,7 +1,23 @@
-# Example of Compiled Inference in Anglican
+# Examples of Compiled Inference
 
-See [the main repo](https://github.com/tuananhle7/torch-csis) for detailed instructions.
+## Compilation
+Run with the following flags:
+```
+lein run -- -m compile -n queries.minimal -q minimal -o COMPILE-combine-observes-fn -a COMPILE-query-args
+```
 
-## Usage
-- Run the Gorilla-REPL by running `lein gorilla`.
-- Load the worksheet `worksheets/minimal.clj` to go through a minimal example of compiling a query and running inference using the compiled artifact.
+Then run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+```
+th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmbDim 16 --lstmDim 16
+```
+
+## Inference
+Run with the following flags:
+```
+lein run -- -m infer -n queries.minimal -q minimal -Z "[[1 2]]"
+```
+
+This must be run while running the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+```
+th infer.lua --latest
+```

@@ -1,0 +1,1 @@
+([:dependencies ([org.clojure/clojure "1.8.0"] [org.clojure/tools.cli "0.3.5"] [anglican/anglican "1.0.0"] [anglican-csis/anglican-csis "0.1.0-SNAPSHOT"] [org.clojure/tools.nrepl "0.2.10" :exclusions ([org.clojure/clojure])] [clojure-complete/clojure-complete "0.2.3" :exclusions ([org.clojure/clojure])])])

@@ -15,8 +15,8 @@
             [anglican.stat :refer [collect-by collect-results]]
             [clojure.core.matrix :as m]
             [clojure.core.matrix.linear :as mlin]
-            [gmm-helpers :refer [normalize move-to-unit-box gridify]]
-            [helpers :refer [empirical-MAP]]
+            [helpers.gmm :refer [normalize move-to-unit-box gridify]]
+            [helpers.general :refer [empirical-MAP]]
             [gorilla-repl.image :as image]
             [clojure.java.shell :refer [sh]])
   (:use [anglican emit runtime]
@@ -85,9 +85,9 @@
                                res
                                (let [smp (first smps)
                                      fixed-smp (assoc smp
-                                                 :time-index 
+                                                 :time-index
                                                  (inc (count res)))
-                                     fixed-smp (assoc fixed-smp 
+                                     fixed-smp (assoc fixed-smp
                                                  :sample-instance
                                                  (inc
                                                    (count
@@ -112,6 +112,14 @@
 ;; =>
 ;;; {"type":"html","content":"<span class='clj-var'>#&#x27;gmm-fixed-number-of-clusters/torch-connection</span>","value":"#'gmm-fixed-number-of-clusters/torch-connection"}
 ;; <=
+
+;; **
+;;; Now, run `compile.lua` from the [Torch side](https://github.com/tuananhle7/torch-csis) until you're happy, e.g.:
+;;; 
+;;; `th compile.lua --batchSize 16 --validSize 16 --validInterval 128 --obsEmb lenet --obsEmbDim 8 --lstmDim 4 --obsSmooth`
+;;; 
+;;; When you're happy, you can stop the training by running the following (also, end Torch training via Ctrl-C):
+;; **
 
 ;; @@
 ;; Stop the Torch connection
@@ -145,10 +153,10 @@
 (def ground-means (map :value (:samples smp)))
 (def observe-embedder-input (gridify (move-to-unit-box data) grid-dimensions))
 
-(.save (OxCaptcha. (first grid-dimensions) (second grid-dimensions)) 
+(.save (OxCaptcha. (first grid-dimensions) (second grid-dimensions))
        (int-array (map #(int (* 255 %)) (flatten observe-embedder-input)))
-       (first grid-dimensions) 
-       (second grid-dimensions) 
+       (first grid-dimensions)
+       (second grid-dimensions)
        "tmp.png")
 (image/image-view (ImageIO/read (File. "tmp.png")))
 ;; @@

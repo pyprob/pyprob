@@ -1,4 +1,4 @@
-(ns gmm-helpers
+(ns helpers.gmm
   (:require [clojure.core.matrix :as m]))
 
 (defn normalize

@@ -1,4 +1,4 @@
-(ns helpers)
+(ns helpers.general)
 
 (defn- min-index [v]
   (let [length (count v)]
