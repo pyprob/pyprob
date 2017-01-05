@@ -1,10 +1,7 @@
 (ns queries.captcha-wikipedia
   (:require [anglican.runtime :refer :all]
             [anglican.emit :refer [defquery with-primitive-procedures]]
-            anglican.csis.csis
-            [helpers.captcha :refer [levenshtein-normalized]]
-            [helpers.captcha-wikipedia :refer [render render-to-file abc-dist abc-sigma letter-dict oxCaptcha]]
-            [clojure.core.matrix :as m]))
+            [helpers.captcha-wikipedia :refer [render abc-dist abc-sigma letter-dict]]))
 
 ;; QUERY
 (with-primitive-procedures [render abc-dist repeatedly]
