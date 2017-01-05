@@ -51,7 +51,7 @@
       ;; ABC observe
       (observe (abc-dist rendered-image abc-sigma) baseline-image)
       
-      ;; Retunrs
+      ;; Returns
       {:letters letters
        :font-size font-size
        :kerning kerning})))
@@ -98,7 +98,8 @@
 
 ;; @@
 (def directory (clojure.java.io/file "resources/wikipedia-dataset"))
-(def files (take 100 (rest (file-seq directory))))
+(def files (take 100 (filter #(= ".png" (apply str (take-last 4 (.getPath %))))
+                             (rest (file-seq directory)))))
 (def num-observes (count files))
 (def observes (doall (map vec (map (fn [f] (map vec (.load oxCaptcha (.getPath f)))) files))))
 (def ground-truth-letters (map (fn [f] (clojure.string/replace (.getName f) ".png" "")) files))
