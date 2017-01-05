@@ -32,11 +32,3 @@
   (:value (first observes)))
 
 (def COMPILE-query-args [nil])
-
-;; INFER stuff
-(def directory (clojure.java.io/file "resources/wikipedia-dataset"))
-(def files (take 100 (rest (file-seq directory))))
-(def num-observes (count files))
-(def observes (doall (map vec (map (fn [f] (map vec (.load oxCaptcha (.getPath f)))) files))))
-
-(def INFER-query-args [(first observes)])
