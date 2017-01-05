@@ -1,4 +1,4 @@
-# Tuan Anh Le
+# Tuan Anh Le (tuananh@robots.ox.ac.uk)
 # January 2017
 #
 # Python script which takes a filename of an 8-bit PNG file and outputs a matrix
