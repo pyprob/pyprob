@@ -147,7 +147,9 @@
                       (or (:compile-combine-observes-fn options) "nil")
                       (or (:compile-combine-samples-fn options) "nil")
                       (or (:compile-query-args options) "nil")
-                      (str (apply str (take 77 (str query-args))) "...")))
+                      (if query-args
+                        (str (apply str (take 77 (str query-args))) "...")
+                        "nil")))
              (start-torch-connection query
                                      query-args
                                      combine-observes-fn
@@ -182,9 +184,13 @@
                       query
                       tcp-endpoint
                       (or (:infer-query-args options) "nil")
-                      (str (apply str (take 77 (str query-args))) "...")
+                      (if query-args
+                        (str (apply str (take 77 (str query-args))) "...")
+                        "nil")
                       (or (:infer-observe-embedder-input options) "nil")
-                      (str (apply str (take 77 (str observe-embedder-input))) "...")
+                      (if observe-embedder-input
+                        (str (apply str (take 77 (str observe-embedder-input))) "...")
+                        "nil")
                       num-samples))
              (mapv #(println (str (get-result %) "," (get-log-weight %)))
                    (take num-samples states)))))
