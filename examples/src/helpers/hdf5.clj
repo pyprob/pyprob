@@ -1,6 +1,6 @@
 (ns helpers.hdf5
   (:require [clojure.core.matrix :as m]
-            [clj-hdf5.core :refer :all]
+            [clj-hdf5.core :as hdf5]
             [clojure.string :as str]))
 
 (defn- array-to-mat-vec [array]
@@ -15,9 +15,9 @@
 
   Returns hashmap of the same structure as the group structure with
   hashmap keys being group names."
-  (let [h5root (open (clojure.java.io/file filename))
-        datasets-and-paths (remove nil? (doall (walk h5root #(if (dataset? %)
-                                                               {:dataset (read %) :path (:path %)}
+  (let [h5root (hdf5/open (clojure.java.io/file filename))
+        datasets-and-paths (remove nil? (doall (hdf5/walk h5root #(if (hdf5/dataset? %)
+                                                               {:dataset (hdf5/read %) :path (:path %)}
                                                                nil))))
         result (reduce (fn [nn-params dataset-and-path]
                          (let [dataset (array-to-mat-vec (:dataset dataset-and-path))
@@ -26,7 +26,7 @@
                            (assoc-in nn-params path dataset)))
                        {}
                        datasets-and-paths)]
-    (close h5root)
+    (hdf5/close h5root)
     result))
 
 ;; Code for pre-generating random projection matrices
