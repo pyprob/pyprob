@@ -75,6 +75,8 @@
          data)))
 (def smp (first (anglican.csis.prior/sample-from-prior gmm-fixed [(repeatedly num-data-points rand) [1 1 1] [[-0.3 -0.2] [0.1 0.1] [0.7 0.0]] [0.005 0.005 0.005]])))
 (def data (map :value (:observes smp)))
+;; (clojure.string/join "\n" (mapv #(clojure.string/join "," %) data))
+;; (spit "resources/gmm-data/gmm.csv" (clojure.string/join "\n" (mapv #(clojure.string/join "," %) data)))
 (def ground-means (map :value (:samples smp)))
 
 (def INFER-observe-embedder-input (gridify (move-to-unit-box data) grid-dimensions))
