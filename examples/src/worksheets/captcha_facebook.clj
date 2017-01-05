@@ -17,11 +17,8 @@
             [helpers.captcha :refer [levenshtein-normalized]]
             [helpers.captcha-facebook :refer [render render-to-file abc-dist abc-sigma letter-dict oxCaptcha]]
             [helpers.general :refer [empirical-MAP]]
-            [anglican.stat :refer [collect-results]]
-            [clojure.core.matrix :as m]
-            [gorilla-repl.image :as image])
-  (:use [anglican emit runtime]
-        [gorilla-plot core])
+            [anglican.stat :refer [collect-results]])
+  (:use [anglican emit runtime])
   (:import [robots.OxCaptcha OxCaptcha]
            [javax.imageio ImageIO]
            [java.io File]))
