@@ -1,8 +1,7 @@
 (ns helpers.captcha-wikipedia
   (:require [helpers.captcha :refer [reduce-dim]]
             [anglican.runtime :refer :all])
-  (:import [robots.OxCaptcha OxCaptcha]
-           [java.io File]))
+  (:import [robots.OxCaptcha OxCaptcha]))
 
 ;; Renderer setup
 (def WIDTH 200) ; Width of CAPTCHA
