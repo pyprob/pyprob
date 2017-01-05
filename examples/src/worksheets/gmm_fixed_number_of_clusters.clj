@@ -12,7 +12,7 @@
             anglican.smc
             [anglican.csis.network :refer :all]
             [anglican.inference :refer [infer]]
-            [anglican.stat :refer [collect-by collect-results]]
+            [anglican.stat :refer [collect-results]]
             [clojure.core.matrix :as m]
             [clojure.core.matrix.linear :as mlin]
             [helpers.gmm :refer [normalize move-to-unit-box gridify]]
