@@ -79,10 +79,9 @@ Run:
 ```
 lein run -- \
 -m infer \
--n queries.gmm-fixed-number-of-clusters \
--q gmm-fixed-number-of-clusters \
--E INFER-observe-embedder-input \
--A INFER-query-args
+-n queries.captcha-wikipedia \
+-q captcha-wikipedia \
+-Z "[$(python src/helpers/png2matrix.py resources/wikipedia-dataset/agavelooms.png)]"
 ```
 
 At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
