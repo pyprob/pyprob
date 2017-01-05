@@ -1,6 +1,12 @@
 # Examples of Compiled Inference
 
-## Minimal
+## Jump to experiment
+1. [Minimal](#1-minimal)
+2. [Gaussian Mixture Model with fixed number of clusters](#2-gaussian-mixture-model-with-fixed-number-of-clusters)
+3. [Wikipedia's Captcha](#3-wikipedias-captcha)
+4. [Facebook's Captcha](#4-facebooks-captcha)
+
+## 1. Minimal
 ### Compilation
 Run:
 ```
@@ -23,7 +29,7 @@ At the same time, run the following from [torch-csis](https://github.com/tuananh
 th infer.lua --latest
 ```
 
-## Gaussian Mixture Model with fixed number of clusters
+## 2. Gaussian Mixture Model with fixed number of clusters
 ### Compilation
 Run:
 ```
@@ -57,7 +63,7 @@ At the same time, run the following from [torch-csis](https://github.com/tuananh
 th infer.lua --latest
 ```
 
-## Wikipedia's Captcha
+## 3. Wikipedia's Captcha
 ### Compilation
 Run:
 ```
@@ -89,7 +95,7 @@ At the same time, run the following from [torch-csis](https://github.com/tuananh
 th infer.lua --latest
 ```
 
-## Facebook's Captcha
+## 4. Facebook's Captcha
 ### Compilation
 Run:
 ```
