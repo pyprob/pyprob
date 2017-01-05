@@ -1,5 +1,11 @@
 # Examples of Compiled Inference
 
+## Jump to experiment
+- [Minimal](#minimal)
+- [Gaussian Mixture Model with fixed number of clusters](#gaussian-mixture-model-with-fixed-number-of-clusters)
+- [Wikipedia's Captcha](#wikipedias-captcha)
+- [Facebook's Captcha](#facebooks-captcha)
+
 ## Minimal
 ### Compilation
 Run:
