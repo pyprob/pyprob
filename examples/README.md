@@ -88,3 +88,35 @@ At the same time, run the following from [torch-csis](https://github.com/tuananh
 ```
 th infer.lua --latest
 ```
+
+## Facebook's Captcha
+### Compilation
+Run:
+```
+lein run -- \
+-m compile \
+-n queries.captcha-facebook \
+-q captcha-facebook \
+-o COMPILE-combine-observes-fn \
+-a COMPILE-query-args
+```
+
+At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+```
+th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --obsEmbDim 4 --lstmDim 4
+```
+
+### Inference
+Run:
+```
+lein run -- \
+-m infer \
+-n queries.captcha-facebook \
+-q captcha-facebook \
+-Z "[$(python src/helpers/png2matrix.py resources/facebook-dataset/2MsLet.png)]"
+```
+
+At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+```
+th infer.lua --latest
+```
