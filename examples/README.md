@@ -1,4 +1,4 @@
-# Examples of Compiled Inference
+# Examples of Inference Compilation and Universal Probabilistic Programming
 
 ## Contents
 1. [Minimal](#1-minimal)
