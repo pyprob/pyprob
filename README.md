@@ -1,4 +1,4 @@
-# Torch library for Compiled Inference in the Probabilistic Programming System Anglican
+# Torch library for Inference Compilation and Universal Probabilistic Programming
 
 Code for [Inference Compilation and Universal Probabilistic Programming](https://arxiv.org/abs/1610.09900).
 
