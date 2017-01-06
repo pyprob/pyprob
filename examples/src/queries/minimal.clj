@@ -15,5 +15,5 @@
     (observe (mvn [0 0] [[1 0] [0 1]]) obs)
     b))
 
-(defn COMPILE-combine-observes-fn [observes]
+(defn combine-observes-fn [observes]
   (:value (first observes)))

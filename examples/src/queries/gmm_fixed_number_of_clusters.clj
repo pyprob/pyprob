@@ -39,7 +39,7 @@
 (def grid-dimensions [100 100])
 
 ;; Takes in samples from the prior, sorts them according to their norm, renumbers the time index and sample instance.
-(defn COMPILE-combine-samples-fn [samples]
+(defn combine-samples-fn [samples]
   (let [sorted-samples (sort-by (comp mlin/norm :value) samples)
         renumbered-samples (loop [res []
                                   smps sorted-samples]
@@ -60,5 +60,5 @@
     renumbered-samples))
 
 ;; Takes in observes from the prior, puts the on the grid.
-(defn COMPILE-combine-observes-fn [observes]
+(defn combine-observes-fn [observes]
   (gridify (move-to-unit-box (mapv (comp vec :value) observes)) grid-dimensions))

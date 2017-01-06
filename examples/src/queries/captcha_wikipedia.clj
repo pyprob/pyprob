@@ -25,5 +25,5 @@
        :kerning kerning})))
 
 ;; COMPILE stuff
-(defn COMPILE-combine-observes-fn [observes]
+(defn combine-observes-fn [observes]
   (:value (first observes)))
