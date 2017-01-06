@@ -62,22 +62,3 @@
 ;; Takes in observes from the prior, puts the on the grid.
 (defn COMPILE-combine-observes-fn [observes]
   (gridify (move-to-unit-box (mapv (comp vec :value) observes)) grid-dimensions))
-(def COMPILE-query-args [(repeatedly num-data-points rand) hyperparameters])
-
-;; Observations
-(with-primitive-procedures [m/mmul m/identity-matrix]
-  (defquery gmm-fixed [data cluster-probs means vars]
-    (map #(let [cluster (sample "cluster" (discrete cluster-probs))
-                mean (nth means cluster)
-                var (nth vars cluster)]
-            (observe (mvn mean (mmul var (identity-matrix 2))) %)
-            cluster)
-         data)))
-(def smp (first (anglican.csis.prior/sample-from-prior gmm-fixed [(repeatedly num-data-points rand) [1 1 1] [[-0.3 -0.2] [0.1 0.1] [0.7 0.0]] [0.005 0.005 0.005]])))
-(def data (map :value (:observes smp)))
-;; (clojure.string/join "\n" (mapv #(clojure.string/join "," %) data))
-;; (spit "resources/gmm-data/gmm.csv" (clojure.string/join "\n" (mapv #(clojure.string/join "," %) data)))
-(def ground-means (map :value (:samples smp)))
-
-(def INFER-observe-embedder-input (gridify (move-to-unit-box data) grid-dimensions))
-(def INFER-query-args [data hyperparameters])

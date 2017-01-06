@@ -17,5 +17,3 @@
 
 (defn COMPILE-combine-observes-fn [observes]
   (:value (first observes)))
-
-(def COMPILE-query-args [[1 2]])

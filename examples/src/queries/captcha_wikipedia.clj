@@ -27,5 +27,3 @@
 ;; COMPILE stuff
 (defn COMPILE-combine-observes-fn [observes]
   (:value (first observes)))
-
-(def COMPILE-query-args [nil])
