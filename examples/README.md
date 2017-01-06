@@ -10,7 +10,12 @@
 ### Compilation
 Run:
 ```
-lein run -- -m compile -n queries.minimal -q minimal -o COMPILE-combine-observes-fn -a COMPILE-query-args
+lein run -- \
+-m compile \
+-n queries.minimal \
+-q minimal \
+-o COMPILE-combine-observes-fn \
+-x "[[1 2]]"
 ```
 
 At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
@@ -21,7 +26,11 @@ th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmbDim 16 
 ### Inference
 Run:
 ```
-lein run -- -m infer -n queries.minimal -q minimal -Z "[[1 2]]"
+lein run -- \
+-m infer \
+-n queries.minimal \
+-q minimal \
+-Z "[[1 2]]"
 ```
 
 At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
@@ -39,7 +48,7 @@ lein run -- \
 -q gmm-fixed-number-of-clusters \
 -o COMPILE-combine-observes-fn \
 -s COMPILE-combine-samples-fn \
--a COMPILE-query-args
+-x "[$(python src/helpers/io/csv2edn.py resources/gmm-data/gmm.csv) {:mu-0 [0 0] :Sigma-0 [[0.1 0] [0 0.1]]}]"
 ```
 
 At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
@@ -54,8 +63,8 @@ lein run -- \
 -m infer \
 -n queries.gmm-fixed-number-of-clusters \
 -q gmm-fixed-number-of-clusters \
--E INFER-observe-embedder-input \
--A INFER-query-args
+-Y "$(python src/helpers/io/csv2hst.py resources/gmm-data/gmm.csv)" \
+-Z "[$(python src/helpers/io/csv2edn.py resources/gmm-data/gmm.csv) {:mu-0 [0 0] :Sigma-0 [[0.1 0] [0 0.1]]}]"
 ```
 
 At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
@@ -72,7 +81,7 @@ lein run -- \
 -n queries.captcha-wikipedia \
 -q captcha-wikipedia \
 -o COMPILE-combine-observes-fn \
--a COMPILE-query-args
+-x "[nil]"
 ```
 
 At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
@@ -87,7 +96,7 @@ lein run -- \
 -m infer \
 -n queries.captcha-wikipedia \
 -q captcha-wikipedia \
--Z "[$(python src/helpers/png2matrix.py resources/wikipedia-dataset/agavelooms.png)]"
+-Z "[$(python src/helpers/io/png2edn.py resources/wikipedia-dataset/agavelooms.png)]"
 ```
 
 At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
@@ -104,7 +113,7 @@ lein run -- \
 -n queries.captcha-facebook \
 -q captcha-facebook \
 -o COMPILE-combine-observes-fn \
--a COMPILE-query-args
+-x "[nil]"
 ```
 
 At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
@@ -119,7 +128,7 @@ lein run -- \
 -m infer \
 -n queries.captcha-facebook \
 -q captcha-facebook \
--Z "[$(python src/helpers/png2matrix.py resources/facebook-dataset/2MsLet.png)]"
+-Z "[$(python src/helpers/io/png2edn.py resources/facebook-dataset/2MsLet.png)]"
 ```
 
 At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
