@@ -48,7 +48,7 @@ lein run -- \
 --namespace queries.gmm-fixed-number-of-clusters \
 --query gmm-fixed-number-of-clusters \
 --compile-combine-observes-fn combine-observes-fn \
--s combine-samples-fn \
+--compile-combine-samples-fn combine-samples-fn \
 --compile-query-args-value "[$(python src/helpers/io/csv2edn.py resources/gmm-data/gmm.csv) {:mu-0 [0 0] :Sigma-0 [[0.1 0] [0 0.1]]}]"
 ```
 
@@ -82,7 +82,7 @@ lein run -- \
 --namespace queries.gmm-variable-number-of-clusters \
 --query gmm-variable-number-of-clusters \
 --compile-combine-observes-fn combine-observes-fn \
--s combine-samples-fn \
+--compile-combine-samples-fn combine-samples-fn \
 --compile-query-args-value "[$(python src/helpers/io/csv2edn.py resources/gmm-data/gmm.csv) {:mu-0 [0 0] :Sigma-0 [[0.1 0] [0 0.1]]}]"
 ```
 
