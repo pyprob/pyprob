@@ -69,7 +69,7 @@ This will set up a Leiningen project with minimal dependencies in `project.clj`.
 ```
 Along with the probabilistic program defined via the `defquery`
 
-#### Compilation [TODO]
+### Compilation [TODO]
 After you've defined your probabilistic program in [Anglican language](http://www.robots.ox.ac.uk/~fwood/anglican/language/index.html), you can compile it. The typical workflow consists of these steps:
 
 1. **Define a function to combine observes.**
@@ -79,7 +79,7 @@ Specify a function `combine-observes-fn` (you can name it anything) that combine
 4. **Stop the training of the neural network.** This can be done by `Ctrl+C` from the terminal. How long should I train? There aren't any theoretical bounds for the loss. If all your random variables are discrete, the minimum should be around 0. Otherwise, just iterate between Compilation and Inference.
 5. **Stop the Clojure-Torch ZeroMQ connection.** To stop the Clojure-Torch server from Clojure, use the previously bound `torch-connection`. E.g. `(stop-torch-connection torch-connection)`.
 
-#### Inference [TODO]
+### Inference [TODO]
 After you've compiled your query by training up a neural network, you can perform inference using the Compiled Sequential Importance Sampling algorithm. You will hopefully need much fewer particles in comparison to Sequential Monte Carlo to perform inference. The typical workflow consists of these steps:
 
 1. **Run inference from Clojure.** `cd` to the root folder and run `th infer.lua`. Run `th infer.lua --help` to see and possibly override default options. Stop this process by `Ctrl+C` after you're done performing inference in Clojure in the next step.
