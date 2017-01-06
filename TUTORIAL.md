@@ -1,6 +1,8 @@
-# Tutorial for Compiled Inference
+# Tutorial for Inference Compilation and Universal Probabilistic Programming
 
-## Table of Contents
+This is a tutorial on setting up a system to compile inference for a probabilistic program. Check out the [main repo](https://github.com/tuananhle7/torch-csis) and [more examples](examples/README.md).
+
+## Contents
 - [Dependencies](#dependencies)
     - [Manual](#manual)
     - [Docker Image](#docker-image)

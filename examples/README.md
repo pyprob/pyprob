@@ -1,6 +1,6 @@
 # Examples of Compiled Inference
 
-## Jump to experiment
+## Contents
 1. [Minimal](#1-minimal)
 2. [Gaussian Mixture Model with fixed number of clusters](#2-gaussian-mixture-model-with-fixed-number-of-clusters)
 3. [Gaussian Mixture Model with variable number of clusters](#3-gaussian-mixture-model-with-variable-number-of-clusters)
