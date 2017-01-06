@@ -1,10 +1,12 @@
 # Torch library for Compiled Inference in the Probabilistic Programming System Anglican
 
-This repository contains the Torch files required to perform the compilation stage in the compiled inference scheme. In our setup, probabilistic program definition and inference is done in the [Anglican Probabilistic Programming System](http://www.robots.ox.ac.uk/~fwood/anglican/) and the inference compilation is done in [Torch](http://torch.ch/). The communication between these two is facilitated by [ZeroMQ](http://zeromq.org/).
+Code for [Inference Compilation and Universal Probabilistic Programming](https://arxiv.org/abs/1610.09900).
 
-For a walkthrough on how to set up a system to compile inference for a probabilistic program written in Anglican, check out the [tutorial](TUTORIAL.md).
+This repository contains the [Torch](http://torch.ch/) part required to perform the **compilation stage** in the compiled inference scheme. The **inference stage** is implemented as a [separate Clojure library](https://github.com/tuananhle7/anglican-csis), extending [Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/)'s inference. The interaction between these two is facilitated by [ZeroMQ](http://zeromq.org/).
 
-Check out the [documentation for the Clojure side](http://tuananhle.co.uk/anglican-csis-doc/). For documentation for the Torch side: run `compile.lua` and `infer.lua` with the `--help` flag.
+For a walkthrough on how to set up a system to compile inference for a probabilistic program written in Anglican, check out the [tutorial](TUTORIAL.md). Also check out [examples](examples/README.md).
+
+Check out the [documentation](http://tuananhle.co.uk/anglican-csis-doc/) of the [Clojure side](https://github.com/tuananhle7/anglican-csis). For documentation of the Torch side: run `compile.lua`, `infer.lua`, or `artifact-info.lua` with the `--help` flag.
 
 If you use this code in your work, please consider citing our [paper](https://arxiv.org/abs/1610.09900):
 ```
