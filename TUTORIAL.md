@@ -37,7 +37,7 @@ $ luarocks install rnn
 ### Docker Image
 
 ## Breaking Captcha
-The code for Captcha breaking that we will go through in this tutorial along with other examples can be found in the [examples folder](examples/). As a prerequisite, you will have to familiarize yourself with the [probabilistic programming in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/usage/index.html).
+The code for Captcha breaking that we will go through in this tutorial along with other examples can be found in the [examples folder](examples/). As a prerequisite, you will have to familiarize yourself with [probabilistic programming in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/usage/index.html).
 
 ### Writing the Probabilistic Program
 #### Setting up a Leiningen Project
