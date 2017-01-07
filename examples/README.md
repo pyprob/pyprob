@@ -16,7 +16,7 @@ This is a minimal example used to test if everything is running.
 ### Compilation
 Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode compile \
 --namespace queries.minimal \
 --query minimal \
@@ -26,13 +26,13 @@ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmbDim 16 --lstmDim 16
+$ th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmbDim 16 --lstmDim 16
 ```
 
 ### Inference
 Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode infer \
 --namespace queries.minimal \
 --query minimal \
@@ -41,7 +41,7 @@ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-th infer.lua --latest
+$ th infer.lua --latest
 ```
 
 ## 2. Gaussian Mixture Model with fixed number of clusters
@@ -50,7 +50,7 @@ Compiled artifact for this probabilistic program was used to produce plots in [F
 ### Compilation
 Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode compile \
 --namespace queries.gmm-fixed-number-of-clusters \
 --query gmm-fixed-number-of-clusters \
@@ -61,13 +61,13 @@ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmb lenet --obsEmbDim 8 --lstmDim 4 --obsSmooth
+$ th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmb lenet --obsEmbDim 8 --lstmDim 4 --obsSmooth
 ```
 
 ### Inference
 Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode infer \
 --namespace queries.gmm-fixed-number-of-clusters \
 --query gmm-fixed-number-of-clusters \
@@ -77,7 +77,7 @@ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-th infer.lua --latest
+$ th infer.lua --latest
 ```
 
 ## 3. Gaussian Mixture Model with variable number of clusters
@@ -86,7 +86,7 @@ Compiled artifact for this probabilistic program was used to produce plots in [F
 ### Compilation
 Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode compile \
 --namespace queries.gmm-variable-number-of-clusters \
 --query gmm-variable-number-of-clusters \
@@ -97,13 +97,13 @@ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmb lenet --obsEmbDim 8 --lstmDim 4 --obsSmooth
+$ th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmb lenet --obsEmbDim 8 --lstmDim 4 --obsSmooth
 ```
 
 ### Inference
 Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode infer \
 --namespace queries.gmm-variable-number-of-clusters \
 --query gmm-variable-number-of-clusters \
@@ -113,7 +113,7 @@ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-th infer.lua --latest
+$ th infer.lua --latest
 ```
 The code and data for clustering detector hits of images from the [PASCAL VOC 2007][pascal-voc-2007-link] dataset to reproduce [Figure 2 of the paper][paper-figure2-link] are in [examples/plots/gmm-variable-number-of-clusters/detector-hits-clustering][detector-hits-clustering-link]. We used [Hakan Bilen][hakan-bilen-link]'s and [Abishkek Dutta][abishkek-dutta-link]'s [MatConvNet][matconvnet-link] implementation of the [Fast R-CNN][fast-rcnn-link] detector. We are very grateful to Hakan for showing us how to use their code.
 
@@ -123,7 +123,7 @@ Compiled artifact for this probabilistic program was used to break [Wikipedia's 
 ### Compilation
 Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode compile \
 --namespace queries.captcha-wikipedia \
 --query captcha-wikipedia \
@@ -133,13 +133,13 @@ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --obsEmbDim 4 --lstmDim 4
+$ th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --obsEmbDim 4 --lstmDim 4
 ```
 
 ### Inference
 Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode infer \
 --namespace queries.captcha-wikipedia \
 --query captcha-wikipedia \
@@ -148,7 +148,7 @@ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-th infer.lua --latest
+$ th infer.lua --latest
 ```
 
 ## 5. Facebook's Captcha
@@ -157,7 +157,7 @@ Compiled artifact for this probabilistic program was used to break Facebook's Ca
 ### Compilation
 Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode compile \
 --namespace queries.captcha-facebook \
 --query captcha-facebook \
@@ -167,13 +167,13 @@ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --obsEmbDim 4 --lstmDim 4
+$ th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --obsEmbDim 4 --lstmDim 4
 ```
 
 ### Inference
 Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode infer \
 --namespace queries.captcha-facebook \
 --query captcha-facebook \
@@ -182,7 +182,7 @@ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-th infer.lua --latest
+$ th infer.lua --latest
 ```
 
 ## 6. Gorilla REPL Notebooks
