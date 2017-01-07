@@ -108,7 +108,7 @@ At the same time, run the following from [torch-csis][torch-csis-repo-link] root
 ```
 th infer.lua --latest
 ```
-The code and data for clustering detector hits of images from the [PASCAL VOC 2007][pascal-voc-2007-link] dataset to reproduce [Figure 2 of the paper][paper-figure2-link] are in [examples/plots/gmm-variable-number-of-clusters/detector-hits-clustering][detector-hits-clustering-link]. We used [Hakan Bilen][hakan-bilen-link]'s and [Abishkek Dutta][abishkek-dutta-link]'s [MatConvNet][matconvnet-link] implementation of the [Fast R-CNN][fast-rcnn-link] detector. We are very grateful to Hakan for showing and letting us how to use their code.
+The code and data for clustering detector hits of images from the [PASCAL VOC 2007][pascal-voc-2007-link] dataset to reproduce [Figure 2 of the paper][paper-figure2-link] are in [examples/plots/gmm-variable-number-of-clusters/detector-hits-clustering][detector-hits-clustering-link]. We used [Hakan Bilen][hakan-bilen-link]'s and [Abishkek Dutta][abishkek-dutta-link]'s [MatConvNet][matconvnet-link] implementation of the [Fast R-CNN][fast-rcnn-link] detector. We are very grateful to Hakan for showing us how to use their code.
 
 ## 4. Wikipedia's Captcha
 ### Compilation
