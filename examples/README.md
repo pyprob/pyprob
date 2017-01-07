@@ -186,7 +186,7 @@ $ th infer.lua --latest
 ```
 
 ## 6. Gorilla REPL Notebooks
-[Gorilla REPL][gorilla-repl-link] is a Jupyter-like, notebook-style Clojure REPL. All examples have a corresponding Gorilla REPL version. To open the notebooks, run
+[Gorilla REPL][gorilla-repl-link] is a Jupyter-like, notebook-style Clojure REPL. All above examples have a corresponding Gorilla REPL version. To open the notebooks, run
 ```
 $ lein gorilla
 ```
