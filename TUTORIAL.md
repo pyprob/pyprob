@@ -154,7 +154,7 @@ This starts the neural network training, getting data through the request client
 When satisfied, you cancel both processes in your command line to stop the compilation. Note that compilation can be resumed by running `th compile.lua --resume` with appropriate options. See `th compile.lua --help` for help.
 
 ### Inference
-To perform inference on a fresh Captcha png image, run:
+To perform inference on a fresh Captcha png image, say `resources/wikipedia-dataset/agavelooms.png`, run:
 ```
 lein run -- \
 --mode infer \
@@ -162,9 +162,9 @@ lein run -- \
 --query captcha-wikipedia \
 --infer-query-args-value "[$(python src/helpers/io/png2edn.py resources/wikipedia-dataset/agavelooms.png)]"
 ```
-This starts a ZeroMQ request server.
+This runs sequential importance sampling, requesting proposal parameters whenever required through the ZeroMQ request client.
 
-At the same time, start the corresponding reply server by running the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
+At the same time, start the corresponding ZeroMQ reply server by running the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
 ```
 th infer.lua --latest
 ```
