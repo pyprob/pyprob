@@ -87,7 +87,12 @@ How do these query-specific observations look like? You can output a sample from
 ```
 which corresponds to a sample from an `observe` statement when running the program.
 
-In our case, this vector will only have one element because our program has [only one observe statement](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L20). Hence [this is sufficient](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L28) as the function to combine observes. Remember the name of the function `combine-observes-fn` as we will use it later.
+In our case, this vector will only have one element because our program has [only one observe statement](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L20). Hence [this is sufficient](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L28) as the function to combine observes:
+```
+(defn combine-observes-fn [observes]
+  (:value (first observes)))
+```
+Remember the name of the function `combine-observes-fn` as we will use it later.
 
 #### Function to combine samples
 This function is optional and unnecessary in this Captcha example.
@@ -108,10 +113,25 @@ How do these query-specific samples look like? You can output a sample from the 
 which corresponds to a sample from an `sample` statement when running the program.
 
 #### Query arguments for compilation
+Query arguments for compilation can either:
+- specified in the query's namespace as a Clojure variable or
+- supplied as a command line argument in [edn format](https://github.com/edn-format/edn) during compilation when running the `main` function.
+
+In the Captcha case, the argument is a baseline Captcha but since this is ignored during compilation, `[nil]` is sufficient and can be easily supplied directly from the command line.
 
 #### Query arguments for inference
+Similarly to query arguments for compilation, query arguments for inference can also be either:
+- specified in the query's namespace as a Clojure variable or
+- supplied as a command line argument in [edn format](https://github.com/edn-format/edn) during inference when running the `main` function.
+
+In the Captcha case, we want to create a pipeline "png -> inference -> inference results". For this purpose, we create a Python script to convert `png` to `edn` in [src/helpers/io/png2edn.py](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/io/png2edn.py). We will see its usage [later](#inference).
 
 #### Observe embedder input
+This is optional and if unspecified, a value that will be passed to the *observe embedder* ([f_obs in Figure 3](https://arxiv.org/pdf/1610.09900v1.pdf#page=5)) is the first  of the [query arguments during inference](#query-arguments-for-inference).
+
+In the case of Captcha, first query argument _is_ the observe embedder input so we leave this unspecified. However, you can supply the observe embedder input directly; again either:
+- specified in the query's namespace as a Clojure variable or
+- supplied as a command line argument in [edn format](https://github.com/edn-format/edn) during inference when running the `main` function.
 
 ### Compilation [TODO]
 
