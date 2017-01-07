@@ -185,6 +185,12 @@ th infer.lua --latest
 
 ## Command Line Options
 ### Clojure
+Descriptions of command line options can be viewed using the `--help` option from the Leiningen project folder:
+```
+$ lein run -- --help
+```
+Here we provide the same, with links to different parts in the tutorial:
+
 Long opt | Short opt | Description
 --- | --- | ---
 `--help` | `-h` | Shows help
@@ -204,40 +210,12 @@ Long opt | Short opt | Description
 `--infer-query-args-value` | `-Z` | [Query arguments for inference in edn format](#query-arguments-for-inference)
 
 ### Torch
-Long opt | Description
---- | ---
-`--help` | display this help [false]
-`--version` | display version information [false]
-`--cuda` | use CUDA [false]
-`--device` | sets the device (GPU) to use [1]
-`--log` | file for logging [./data/compile-log]
-`--batchSize` | training batch size [128]
-`--validSize` | validation set size [256]
-`--validInterval` | validation interval (traces) [500]
-`--validNew` | renew and replace the validation set, if resuming an existing artifact [false]
-`--learningRate` | learning rate [0.0001]
-`--learningRateDecay ` | learning rate decay (only with --method sgd) [1e-07]
-`--weightDecay` | weight decay [0.0005]
-`--momentum` | momentum (only with --method sgd) [0.9]
-`--gradClip` | cutoff norm for gradient clipping [-1]
-`--dropout` | use dropout [false]
-`--method` | optimization method (adam, sgd) [adam]
-`--obsEmb` | observation embedding type (fc, lenet, cnn6, cnn7, vgg) [fc]
-`--obsEmbDim` | observation embedding dimension [512]
-`--smpEmb` | sample embedding type (fc) [fc]
-`--smpEmbDim` | sample embedding dimension [1]
-`--lstmDim` | number of hidden units in the lstm [512]
-`--lstmDepth` | number of stacked lstms [1]
-`--softMaxDim` | [256]
-`--softMaxBoost` | [20]
-`--dirichletDim` | [256]
-`--oneHotDim` | [64]
-`--noStandardize` | no standardization of the neural net input [false]
-`--obsSmooth` | smooth the observe embedding by a 5x5, std=0.5, gaussian kernel [false]
-`--resume` | resume training of an existing artifact []
-`--resumeLatest` | resume the training of the latest artifact file starting with the name given with --artifact [false]
-`--server` | address and port of the Anglican server [127.0.0.1:5555]
-`--artifact` | file name prefix to save the artifact [./data/compile-artifact]
+Descriptions of command line options can be viewed using the `--help` option from the [torch-csis][torch-csis-repo-link] root:
+```
+$ th compile.lua --help
+$ th infer.lua --help
+$ th artifact-info.lua --help
+```
 
 [examples-link]: examples/
 [actual-wikipedia-captcha-link]: https://en.wikipedia.org/w/index.php?title=Special:CreateAccount&returnto=Main+Page
