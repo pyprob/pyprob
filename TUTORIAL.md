@@ -37,55 +37,54 @@ $ luarocks install rnn
 ### Docker Image
 
 ## Breaking Captcha
-The code for Captcha breaking that we will go through in this tutorial along with other examples can be found in the [examples folder](examples/). As a prerequisite, you will have to familiarise yourself with the [probabilistic programming in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/usage/index.html).
+The code for Captcha breaking that we will go through in this tutorial along with other examples can be found in the [examples folder](examples/). As a prerequisite, you will have to familiarize yourself with the [probabilistic programming in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/usage/index.html).
 
 ### Writing the Probabilistic Program
-#### Setting up Leiningen Project
-Create a Leiningen project using the [anglican-csis template](https://github.com/tuananhle7/anglican-csis-template):
+#### Setting up a Leiningen Project
+Create a Leiningen project using the [anglican-csis template](https://github.com/tuananhle7/anglican-csis-template) (replace `examples` by your own project name):
 ```
-lein new anglican-csis myproject
+$ lein new anglican-csis examples
 ```
-This will set up a Leiningen project with minimal dependencies in `project.clj`. It will also create `core.clj` which sets up main entry point for this project, including all the flags to start and stop the compilation and inference servers. It will also create a minimal probabilistic program in `src/myproject/queries/minimal.clj`:
-```
-(ns queries.minimal
-  (:require [anglican.runtime :refer :all]
-            [anglican.emit :refer [defquery]]))
+This will set up a Leiningen project with
+- `project.clj` which contains the required dependencies and sets up the main entry point for this project
+- `src/examples/core.clj` which contains the `main` method, including all the flags to start and stop the compilation and inference servers to interact with the Torch part.
+- `src/queries/minimal.clj` with the namespace `queries.minimal` which contains a probabilistic program/query `minimal` along a function `combine-observes-fn` which will be needed for compiled inference.
+- `src/worksheets/minimal.clj` which is a Jupyter-like, Clojure-based [Gorilla notebook](http://gorilla-repl.org/). We will not cover the Gorilla-based workflow in this tutorial although you are welcome to try it in the [examples folder](examples/).
 
-(defquery minimal [obs]
-  (let [b (sample "b" (beta 1 1))
-        disc (sample "disc" (discrete [1 1 1 1 1]))
-        flp (sample "flp" (flip 0.5))
-        g (sample "g" (gamma 1 2))
-        mvnn (sample "mvnn" (mvn [0 0] [[1 0] [0 1]]))
-        n (sample "n" (normal 0 1))
-        p (sample "p" (poisson 5))
-        u-c (sample "u-c" (uniform-continuous 2.2 5.5))
-        u-d (sample "u-d" (uniform-discrete 2 5))]
-    (observe (mvn [0 0] [[1 0] [0 1]]) obs)
-    b))
+In general, you will have to create a Clojure namespace in a `.clj` file (usually inside `src/queries/`) with a subset of the following:
+- *Probabilistic program/query*
+- For the **compilation** part:
+    - *Function to combine observes*
+    - *Function to combine samples*
+    - *Query arguments.*
+- For the **inference** part:
+    - *Query arguments*
+    - *Observe embedder input*
 
-(defn combine-observes-fn [observes]
-  (:value (first observes)))
-```
-Along with the probabilistic program defined via the `defquery`
+For our purposes, let's create a file `src/queries/captcha_wikipedia.clj` with the namespace `queries.captcha-wikipedia`.
+
+#### Probabilistic program/query
+For Captcha purposes, we will have to set up some helper functions for rendering Captchas and calculating the approximate Bayesian computation likelihoods (which involves setting up a random projection matrix to reduce a 50x200 Captcha image to a 500-dimensional vector). These things are done in the following files:
+- [src/helpers/OxCaptcha.java](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/OxCaptcha.java) - an [open-source standalone Java-based Captcha renderer](https://github.com/gbaydin/OxCaptcha)
+- [resources/random-projection-matrices.h5](https://github.com/tuananhle7/torch-csis/blob/master/examples/resources/random-projection-matrices.h5) - precomputed random projection matrices in hdf5 format.
+- [src/helpers/hdf5.java](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/hdf5.clj) - functions for parsing random projection matrices from the hdf5 file.
+- [project.clj](https://github.com/tuananhle7/torch-csis/blob/master/examples/project.clj) - setting up dependencies for [hdf5](https://github.com/tuananhle7/torch-csis/blob/master/examples/project.clj#L8) and the [Java file](https://github.com/tuananhle7/torch-csis/blob/master/examples/project.clj#L9)
+- [src/helpers/captcha.clj](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha.clj) - method for [reducing dimensions](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha.clj#L20)
+- [src/helpers/captcha_wikipedia.clj](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha_wikipedia.clj) - setting up the [renderer](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha_wikipedia.clj#L12) and the [ABC likelihood](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha_wikipedia.clj#L37)
+
+We then use these helper functions to build our generative model in [src/queries/captcha_wikipedia.clj](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L7). This is just a standard Anglican `query` with one exception: you must specify each `sample` by its address as the first and distribution as the second distribution, e.g. `(sample "numletters" (uniform-discrete 8 11))` on [line 10](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L10). This requirement will be removed in future updates.
+
+#### Function to combine observes
+Specify a function `combine-observes-fn` (you can name it anything) that combines observes from a sample in a form suitable for Torch. This will be used in the next step when starting the Clojure-Torch connection. In order to write this function, you'll need to look at how a typical `observes` object from your query looks like. This can be done by running `(sample-observes-from-prior q q-args)` where `q` is your query name and `q-args` are the arguments to the query.
+
+#### Function to combine samples
+
+#### Query arguments for compilation
+
+#### Query arguments for inference
+
+#### Observe embedder input
 
 ### Compilation [TODO]
-After you've defined your probabilistic program in [Anglican language](http://www.robots.ox.ac.uk/~fwood/anglican/language/index.html), you can compile it. The typical workflow consists of these steps:
-
-1. **Define a function to combine observes.**
-Specify a function `combine-observes-fn` (you can name it anything) that combines observes from a sample in a form suitable for Torch. This will be used in the next step when starting the Clojure-Torch connection. In order to write this function, you'll need to look at how a typical `observes` object from your query looks like. This can be done by running `(sample-observes-from-prior q q-args)` where `q` is your query name and `q-args` are the arguments to the query.
-2. **Start a Clojure-Torch [ZeroMQ](http://zeromq.org/) connection from the Clojure side.** Use `start-torch-connection` function in Clojure ([docs](http://tuananhle.co.uk/anglican-csis-doc/anglican.csis.network.html#var-start-torch-connection)). Remember to bind this to a variable which will be used later to stop this connection. E.g. `(def torch-connection (start-torch-connection q q-args combine-observes-fn))`.
-3. **Train the neural network in Torch.** `cd` to the root folder and run `th compile.lua`. Run `th compile.lua --help` to see and possibly override default options.
-4. **Stop the training of the neural network.** This can be done by `Ctrl+C` from the terminal. How long should I train? There aren't any theoretical bounds for the loss. If all your random variables are discrete, the minimum should be around 0. Otherwise, just iterate between Compilation and Inference.
-5. **Stop the Clojure-Torch ZeroMQ connection.** To stop the Clojure-Torch server from Clojure, use the previously bound `torch-connection`. E.g. `(stop-torch-connection torch-connection)`.
 
 ### Inference [TODO]
-After you've compiled your query by training up a neural network, you can perform inference using the Compiled Sequential Importance Sampling algorithm. You will hopefully need much fewer particles in comparison to Sequential Monte Carlo to perform inference. The typical workflow consists of these steps:
-
-1. **Run inference from Clojure.** `cd` to the root folder and run `th infer.lua`. Run `th infer.lua --help` to see and possibly override default options. Stop this process by `Ctrl+C` after you're done performing inference in Clojure in the next step.
-2. **Evaluate inference in Clojure.** To get 10 particles from the CSIS inference algorithm, run
-```
-(def num-particles 10)
-(def csis-states (take num-particles (infer :csis q q-args)))
-(take 10 csis-states)
-```
