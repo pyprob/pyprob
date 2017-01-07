@@ -133,6 +133,38 @@ In the case of Captcha, first query argument _is_ the observe embedder input so 
 - specified in the query's namespace as a Clojure variable or
 - supplied as a command line argument in [edn format](https://github.com/edn-format/edn) during inference when running the `main` function.
 
-### Compilation [TODO]
+### Compilation
+To start a reply server in the [ZeroMQ request-reply socket pair](http://zguide.zeromq.org/page:all#Ask-and-Ye-Shall-Receive), we can run the project from the command line using the `lein run`:
+```
+lein run -- \
+--mode compile \
+--namespace queries.captcha-wikipedia \
+--query captcha-wikipedia \
+--compile-combine-observes-fn combine-observes-fn \
+--compile-query-args-value "[nil]"
+```
+This reply server supplies the Torch side with samples from the prior. See `lein run -- -h` for help.
 
-### Inference [TODO]
+At the same time, run another process from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
+```
+th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --obsEmbDim 4 --lstmDim 4
+```
+This starts the neural network training, getting data through the request client in the ZeroMQ request-reply socket pair.
+
+When satisfied, you cancel both processes in your command line to stop the compilation. Note that compilation can be resumed by running `th compile.lua --resume` with appropriate options. See `th compile.lua --help` for help.
+
+### Inference
+To perform inference on a fresh Captcha png image, run:
+```
+lein run -- \
+--mode infer \
+--namespace queries.captcha-wikipedia \
+--query captcha-wikipedia \
+--infer-query-args-value "[$(python src/helpers/io/png2edn.py resources/wikipedia-dataset/agavelooms.png)]"
+```
+This starts a ZeroMQ request server.
+
+At the same time, start the corresponding reply server by running the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
+```
+th infer.lua --latest
+```
