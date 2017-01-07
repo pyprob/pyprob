@@ -45,7 +45,7 @@
 (def grid-dimensions [100 100])
 
 ;; Takes in samples from the prior, sorts means and vars according to means' norm
-(defn COMPILE-combine-samples-fn [samples]
+(defn combine-samples-fn [samples]
   (let [mean-samples (filter #(= "mean" (:sample-address %)) samples)
         var-samples (filter #(= "var" (:sample-address %)) samples)
         var-mean-zip (map vector var-samples mean-samples)
@@ -75,5 +75,5 @@
     sorted-samples))
 
 ;; Takes in observes from the prior, puts the on the grid.
-(defn COMPILE-combine-observes-fn [observes]
+(defn combine-observes-fn [observes]
   (gridify (move-to-unit-box (mapv (comp vec :value) observes)) grid-dimensions))

@@ -75,9 +75,37 @@ For Captcha purposes, we will have to set up some helper functions for rendering
 We then use these helper functions to build our generative model in [src/queries/captcha_wikipedia.clj](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L7). This is just a standard Anglican `query` with one exception: you must specify each `sample` by its address as the first and distribution as the second distribution, e.g. `(sample "numletters" (uniform-discrete 8 11))` on [line 10](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L10). This requirement will be removed in future updates.
 
 #### Function to combine observes
-Specify a function `combine-observes-fn` (you can name it anything) that combines observes from a sample in a form suitable for Torch. This will be used in the next step when starting the Clojure-Torch connection. In order to write this function, you'll need to look at how a typical `observes` object from your query looks like. This can be done by running `(sample-observes-from-prior q q-args)` where `q` is your query name and `q-args` are the arguments to the query.
+The purpose of this function is to transform observations that are generated from the joint generative model of the latents and observations from a query-specific format to a clean N-D array consumable by the neural network's *observe embedder* ([f_obs in Figure 3](https://arxiv.org/pdf/1610.09900v1.pdf#page=5)).
+
+How do these query-specific observations look like? You can output a sample from the prior by running the
+[anglican.csis.network/sample-observes-from-prior](https://github.com/tuananhle7/anglican-csis/blob/master/src/anglican/csis/network.clj#L105) function from a REPL or a Gorilla notebook to see. More precisely, it is a vector of maps, each of which of the form
+```
+{:time-index <time-index>
+ :observe-address <observe-address>
+ :observe-instance <observe-instance>
+ :value <value>}
+```
+which corresponds to a sample from an `observe` statement when running the program.
+
+In our case, this vector will only have one element because our program has [only one observe statement](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L20). Hence [this is sufficient](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L28) as the function to combine observes. Remember the name of the function `combine-observes-fn` as we will use it later.
 
 #### Function to combine samples
+This function is optional and unnecessary in this Captcha example.
+
+The purpose of this is to transform the query-specific list of samples before feeding it to the LSTM. Such things might include reordering the sample values. This has been done in the [Gaussian Mixture Model](https://github.com/tuananhle7/torch-csis/tree/master/examples#2-gaussian-mixture-model-with-fixed-number-of-clusters) [examples](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/gmm_variable_number_of_clusters.clj#L48) to sort the cluster-specific latents (means and covariances) according to the mean's norm.
+
+How do these query-specific samples look like? You can output a sample from the prior by running the
+[anglican.csis.network/sample-samples-from-prior](https://github.com/tuananhle7/anglican-csis/blob/master/src/anglican/csis/network.clj#L111) function from a REPL or a Gorilla notebook to see. More precisely, it is a vector of maps, each of which of the form
+```
+{:time-index <time-index>
+ :sample-address <sample-address>
+ :sample-instance <sample-instance>
+ :prior-dist-str <prior-dist-str>
+ :proposal-name <proposal-name>
+ :proposal-extra-params <proposal-extra-params>
+ :value <value>}
+```
+which corresponds to a sample from an `sample` statement when running the program.
 
 #### Query arguments for compilation
 
