@@ -61,7 +61,7 @@ $ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-$ th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmb lenet --obsEmbDim 8 --lstmDim 4 --obsSmooth
+$ th compile.lua --cuda --batchSize 32 --validInterval 1000 --obsEmb lenet --obsEmbDim 20 --lstmDim 20 --oneHotDim 3 --obsSmooth --server
 ```
 
 ### Inference
@@ -97,7 +97,7 @@ $ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-$ th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmb lenet --obsEmbDim 8 --lstmDim 4 --obsSmooth
+$ th compile.lua  --cuda --obsEmb cnn6-96x96 --lstmDim 256 --obsSmooth --validInterval 5000 --batchSize 64 --obsEmbDim 256
 ```
 
 ### Inference
@@ -133,7 +133,7 @@ $ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-$ th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --obsEmbDim 4 --lstmDim 4
+$ th compile.lua --cuda --validInterval 10000 --obsEmb cnn6 --obsEmbDim 1024 --lstmDepth 2 --batchSize 64
 ```
 
 ### Inference
@@ -167,7 +167,7 @@ $ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-$ th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --obsEmbDim 4 --lstmDim 4
+$ th compile.lua --cuda --obsEmb cnn6 --obsEmbDim 1024 --lstmDepth 2 --batchSize 64 --validInterval 10000
 ```
 
 ### Inference
