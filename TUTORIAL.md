@@ -163,7 +163,7 @@ At the same time, run another process from [torch-csis][torch-csis-repo-link] ro
 ```
 th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --obsEmbDim 4 --lstmDim 4
 ```
-This starts the neural network training, getting data through the request client in the ZeroMQ request-reply socket pair. Torch will keep saving the compilation artifact (neural network architecture, parameters, etc.) in a file specified through the `--artifact` option. By default, it will be `./data/compile-artifact-<datetime>`.
+This starts the neural network training, getting data through the request client in the ZeroMQ request-reply socket pair. Torch will keep the artifact (neural network architecture, parameters, etc.) with the best validation loss so far in a file specified through the `--artifact` option. By default, it will be `./data/compile-artifact-<datetime>`.
 
 When satisfied, you cancel both processes in your command line to stop the compilation. Note that compilation can be resumed by running `th compile.lua --resume` with appropriate options. See `th compile.lua --help` for help.
 
