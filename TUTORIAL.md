@@ -10,6 +10,9 @@ This is a tutorial on setting up a system to compile inference for a probabilist
     - [Writing the Probabilistic Program](#writing-the-probabilistic-program)
     - [Compilation](#compilation)
     - [Inference](#inference)
+    - [Command Line Options](#command-line-options)
+        - [Clojure](#clojure)
+        - [Torch](#torch)
 
 ## Requirements
 ### Manual Installation
@@ -180,7 +183,7 @@ At the same time, start the corresponding ZeroMQ reply server by running the fol
 th infer.lua --latest
 ```
 
-### Command line options
+### Command Line Options
 #### Clojure
 Long opt | Short opt | Description
 --- | --- | ---
