@@ -180,6 +180,28 @@ At the same time, start the corresponding ZeroMQ reply server by running the fol
 th infer.lua --latest
 ```
 
+### Command line options
+#### Clojure
+Long opt | Short opt | Description
+--- | --- | ---
+`--help` | `-h` | Shows help
+`--mode` | `-m` | Choose between [compilation](#compilation) (`compile`) or [inference](#inference) (`infer`) mode
+`--namespace` | `-n` | Clojure namespace containing the probabilistic program and things needed for compiled inference
+`--query` | `-q` | Name of the [probabilistic program/query](#probabilistic-programquery) for compiled inference
+`--compile-tcp-endpoint` | `-t` | TCP address for the ZMQ [compilation](#compilation) reply server
+`--compile-combine-observes-fn` | `-o` | [Function to combine observes](#function-to-combine-observes)
+`--compile-combine-samples-fn` | `-o` | [Function to combine samples](#function-to-combine-samples)
+`--compile-query-args` | `-a` | [Query arguments for compilation as Clojure variable](#query-arguments-for-compilation)
+`--compile-query-args-value` | `-x` | [Query arguments for compilation in edn format](#query-arguments-for-compilation)
+`--infer-number-of-samples` | `-N` | [Number of samples from sequential importance sampling](#inference)
+`--infer-tcp-endpoint` | `-T` | TCP address for the ZMQ [inference](#inference) request client
+`--infer-observe-embedder-input` | `-E` | [Observe embedder input as Clojure variable](#observe-embedder-input)
+`--infer-observe-embedder-input-value` | `-Y` | [Observe embedder input in edn format](#observe-embedder-input-value)
+`--infer-query-args` | `-a` | [Query arguments for inference as Clojure variable](#query-arguments-for-inference)
+`--infer-query-args-value` | `-x` | [Query arguments for inference in edn format](#query-arguments-for-inference)
+
+#### Torch
+
 [examples-link]: examples/
 [actual-wikipedia-captcha-link]: https://en.wikipedia.org/w/index.php?title=Special:CreateAccount&returnto=Main+Page
 [anglican-link]: http://www.robots.ox.ac.uk/~fwood/anglican/usage/index.html
