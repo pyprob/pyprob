@@ -1,5 +1,7 @@
 # Examples of Inference Compilation and Universal Probabilistic Programming
 
+This is a Leiningen project containing several example probabilistic programs for compiled inference. Check out the [main repo](https://github.com/tuananhle7/torch-csis) and a more detailed  [tutorial](https://github.com/tuananhle7/torch-csis/blob/master/TUTORIAL.md).
+
 ## Contents
 1. [Minimal](#1-minimal)
 2. [Gaussian Mixture Model with fixed number of clusters](#2-gaussian-mixture-model-with-fixed-number-of-clusters)
@@ -19,7 +21,7 @@ lein run -- \
 --compile-query-args-value "[[1 2]]"
 ```
 
-At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
 ```
 th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmbDim 16 --lstmDim 16
 ```
@@ -34,7 +36,7 @@ lein run -- \
 --infer-query-args-value "[[1 2]]"
 ```
 
-At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
 ```
 th infer.lua --latest
 ```
@@ -52,7 +54,7 @@ lein run -- \
 --compile-query-args-value "[$(python src/helpers/io/csv2edn.py resources/gmm-data/gmm.csv) {:mu-0 [0 0] :Sigma-0 [[0.1 0] [0 0.1]]}]"
 ```
 
-At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
 ```
 th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmb lenet --obsEmbDim 8 --lstmDim 4 --obsSmooth
 ```
@@ -68,7 +70,7 @@ lein run -- \
 --infer-query-args-value "[$(python src/helpers/io/csv2edn.py resources/gmm-data/gmm.csv) {:mu-0 [0 0] :Sigma-0 [[0.1 0] [0 0.1]]}]"
 ```
 
-At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
 ```
 th infer.lua --latest
 ```
@@ -86,7 +88,7 @@ lein run -- \
 --compile-query-args-value "[$(python src/helpers/io/csv2edn.py resources/gmm-data/gmm.csv) {:mu-0 [0 0] :Sigma-0 [[0.1 0] [0 0.1]]}]"
 ```
 
-At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
 ```
 th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmb lenet --obsEmbDim 8 --lstmDim 4 --obsSmooth
 ```
@@ -102,7 +104,7 @@ lein run -- \
 --infer-query-args-value "[$(python src/helpers/io/csv2edn.py resources/gmm-data/gmm.csv) {:mu-0 [0 0] :Sigma-0 [[0.1 0] [0 0.1]]}]"
 ```
 
-At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
 ```
 th infer.lua --latest
 ```
@@ -119,7 +121,7 @@ lein run -- \
 --compile-query-args-value "[nil]"
 ```
 
-At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
 ```
 th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --obsEmbDim 4 --lstmDim 4
 ```
@@ -134,7 +136,7 @@ lein run -- \
 --infer-query-args-value "[$(python src/helpers/io/png2edn.py resources/wikipedia-dataset/agavelooms.png)]"
 ```
 
-At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
 ```
 th infer.lua --latest
 ```
@@ -151,7 +153,7 @@ lein run -- \
 --compile-query-args-value "[nil]"
 ```
 
-At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
 ```
 th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --obsEmbDim 4 --lstmDim 4
 ```
@@ -166,7 +168,7 @@ lein run -- \
 --infer-query-args-value "[$(python src/helpers/io/png2edn.py resources/facebook-dataset/2MsLet.png)]"
 ```
 
-At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis):
+At the same time, run the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
 ```
 th infer.lua --latest
 ```
