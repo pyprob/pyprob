@@ -52,14 +52,14 @@ This will set up a Leiningen project with
 - `src/worksheets/minimal.clj` which is a Jupyter-like, Clojure-based [Gorilla notebook](http://gorilla-repl.org/). We will not cover the Gorilla-based workflow in this tutorial although you are welcome to try it in the [examples folder](examples/).
 
 In general, you will have to create a Clojure namespace in a `.clj` file (usually inside `src/queries/`) with a subset of the following:
-- *Probabilistic program/query*
+- [*Probabilistic program/query*](#probabilistic-programquery)
 - For the **compilation** part:
-    - *Function to combine observes*
-    - *Function to combine samples*
-    - *Query arguments.*
+    - [*Function to combine observes*](#function-to-combine-observes)
+    - [*Function to combine samples*](#function-to-combine-samples)
+    - [*Query arguments*](#query-arguments-for-compilation)
 - For the **inference** part:
-    - *Query arguments*
-    - *Observe embedder input*
+    - [*Query arguments*](#query-arguments-for-inference)
+    - [*Observe embedder input*](#observe-embedder-input)
 
 For our purposes, let's create a file `src/queries/captcha_wikipedia.clj` with the namespace `queries.captcha-wikipedia`.
 
