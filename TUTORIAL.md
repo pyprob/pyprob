@@ -165,7 +165,7 @@ th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --o
 ```
 This starts the neural network training, getting data through the request client in the ZeroMQ request-reply socket pair. Torch will keep the artifact (neural network architecture, parameters, etc.) with the best validation loss so far in a file specified through the `--artifact` option. By default, it will be `./data/compile-artifact-<datetime>`.
 
-When satisfied, you cancel both processes in your command line to stop the compilation. Note that compilation can be resumed by running `th compile.lua --resume` with appropriate options. See `th compile.lua --help` for help.
+When satisfied, you cancel both processes in your command line to stop the compilation. Note that compilation can be resumed by running `th compile.lua --resume <artifact-name>` (or `th compile.lua --resumeLatest`) with appropriate additional options. See `th compile.lua --help` for help.
 
 ### Inference
 To perform inference on a fresh Captcha png image, say `resources/wikipedia-dataset/agavelooms.png`, run:
