@@ -8,7 +8,7 @@ This is a Leiningen project containing several example probabilistic programs fo
 3. [Gaussian Mixture Model with variable number of clusters](#3-gaussian-mixture-model-with-variable-number-of-clusters)
 4. [Wikipedia's Captcha](#4-wikipedias-captcha)
 5. [Facebook's Captcha](#5-facebooks-captcha)
-6. [Gorilla REPL Notebooks][#6-gorilla-repl-notebooks]
+6. [Gorilla REPL Notebooks](#6-gorilla-repl-notebooks)
 
 ## 1. Minimal
 This is a minimal example used to test if everything is running.
