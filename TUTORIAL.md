@@ -1,6 +1,6 @@
 # Tutorial for Inference Compilation and Universal Probabilistic Programming
 
-This is a tutorial on setting up a system to compile inference for a probabilistic program. Check out the [main repo](https://github.com/tuananhle7/torch-csis) and [more examples](examples/).
+This is a tutorial on setting up a system to compile inference for a probabilistic program. Check out the [main repo][torch-csis-repo-link] and [more examples][examples-link].
 
 ## Contents
 - [Requirements](#requirements)
@@ -15,7 +15,7 @@ This is a tutorial on setting up a system to compile inference for a probabilist
 ### Manual Installation
 - [Clojure](http://clojure.org/guides/getting_started): Anglican runs on Clojure.
 - [Leiningen](http://leiningen.org/#install): Package manager for Clojure.
-- [Anglican CSIS](https://github.com/tuananhle7/anglican-csis): Required for the CSIS extensions of Anglican (will be moved to Clojars soon)
+- [Anglican CSIS][anglican-csis-repo-link]: Required for the CSIS extensions of Anglican (will be moved to Clojars soon)
 ```
 $ git clone https://github.com/tuananhle7/anglican-csis.git
 $ cd anglican-csis
@@ -37,19 +37,21 @@ $ luarocks install rnn
 ### Docker Image
 
 ## Breaking Captcha
-The code for Captcha breaking that we will go through in this tutorial along with other examples can be found in the [examples folder](examples/). As a prerequisite, you will have to familiarize yourself with [probabilistic programming in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/usage/index.html).
+In this tutorial, we will go through a complete example of breaking [Wikipedia's Captcha][actual-wikipedia-captcha-link]. The code for this in the [examples folder][examples-link] which contains other examples in addition to this one. Depending on your time, you can either try to re-create things described in this tutorial or just look at the relevant code in the examples folder.
+
+As a prerequisite, you should familiarize yourself with [probabilistic programming in Anglican][anglican-link].
 
 ### Writing the Probabilistic Program
 #### Setting up a Leiningen Project
-Create a Leiningen project using the [anglican-csis template](https://github.com/tuananhle7/anglican-csis-template) (replace `examples` by your own project name):
+Create a Leiningen project using the [anglican-csis template][anglican-csis-template-link] (replace `examples` by your own project name):
 ```
 $ lein new anglican-csis examples
 ```
 This will set up a Leiningen project with
 - `project.clj` which contains the required dependencies and sets up the main entry point for this project
-- `src/examples/core.clj` which contains the `main` method, including all the flags to start and stop the compilation and inference servers to interact with the Torch part.
+- `src/examples/core.clj` which contains the `main` method to start the compilation and inference ZeroMQ sockets to interact with the Torch part and the relevant command line options.
 - `src/queries/minimal.clj` with the namespace `queries.minimal` which contains a probabilistic program/query `minimal` along a function `combine-observes-fn` which will be needed for compiled inference.
-- `src/worksheets/minimal.clj` which is a Jupyter-like, Clojure-based [Gorilla notebook](http://gorilla-repl.org/). We will not cover the Gorilla-based workflow in this tutorial although you are welcome to try it in the [examples folder](examples/).
+- `src/worksheets/minimal.clj` which is a Jupyter-like, Clojure-based [Gorilla notebook][gorilla-repl-link]. We will not cover the Gorilla-based workflow in this tutorial although you are welcome to try it in the [examples folder][examples-link].
 
 In general, you will have to create a Clojure namespace in a `.clj` file (usually inside `src/queries/`) with a subset of the following:
 - [*Probabilistic program/query*](#probabilistic-programquery)
@@ -61,24 +63,33 @@ In general, you will have to create a Clojure namespace in a `.clj` file (usuall
     - [*Query arguments*](#query-arguments-for-inference)
     - [*Observe embedder input*](#observe-embedder-input)
 
-For our purposes, let's create a file `src/queries/captcha_wikipedia.clj` with the namespace `queries.captcha-wikipedia`.
+
+Let's start by creating a file [`src/queries/captcha_wikipedia.clj`][captcha-wikipedia-clj-link] with the [namespace `queries.captcha-wikipedia`][captcha-wikipedia-clj-namespace-line-link].
 
 #### Probabilistic program/query
-For Captcha purposes, we will have to set up some helper functions for rendering Captchas and calculating the approximate Bayesian computation likelihoods (which involves setting up a random projection matrix to reduce a 50x200 Captcha image to a 500-dimensional vector). These things are done in the following files:
-- [src/helpers/OxCaptcha.java](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/OxCaptcha.java) - an [open-source standalone Java-based Captcha renderer](https://github.com/gbaydin/OxCaptcha)
-- [resources/random-projection-matrices.h5](https://github.com/tuananhle7/torch-csis/blob/master/examples/resources/random-projection-matrices.h5) - precomputed random projection matrices in hdf5 format.
-- [src/helpers/hdf5.java](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/hdf5.clj) - functions for parsing random projection matrices from the hdf5 file.
-- [project.clj](https://github.com/tuananhle7/torch-csis/blob/master/examples/project.clj) - setting up dependencies for [hdf5](https://github.com/tuananhle7/torch-csis/blob/master/examples/project.clj#L8) and the [Java file](https://github.com/tuananhle7/torch-csis/blob/master/examples/project.clj#L9)
-- [src/helpers/captcha.clj](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha.clj) - method for [reducing dimensions](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha.clj#L20)
-- [src/helpers/captcha_wikipedia.clj](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha_wikipedia.clj) - setting up the [renderer](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha_wikipedia.clj#L12) and the [ABC likelihood](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha_wikipedia.clj#L37)
+For Captcha purposes, we will set up helper functions for rendering Captchas and calculating the approximate Bayesian computation (ABC) likelihoods (which involves setting up a random projection matrix to reduce a 50x200 Captcha image to a 500-dimensional vector). These things are done in the following files:
+- [src/helpers/OxCaptcha.java][oxcaptcha-java-link] - an [open-source standalone Java-based Captcha renderer][oxcaptcha-github-link]
+- [resources/random-projection-matrices.h5][random-projection-matrices-h5-link] - pre-computed random projection matrices in [hdf5][hdf5-link] format.
+- [src/helpers/hdf5.clj][hdf5-clj-link] - functions for parsing random projection matrices from the hdf5 file.
+- [project.clj][project-clj-link] - setting up dependencies for [hdf5][project-clj-hdf5-line-link] and the [Java file][project-clj-java-line-link]
+- [src/helpers/captcha.clj][helpers-captcha-clj-link] - method for [reducing dimensions][helpers-captcha-clj-reducedim-line-link]
+- [src/helpers/captcha_wikipedia.clj][helpers-captcha-wikipedia-clj-link] - setting up the [renderer][helpers-captcha-wikipedia-clj-render-line-link] and the [ABC likelihood][helpers-captcha-wikipedia-clj-abc-line-link]
 
-We then use these helper functions to build our generative model in [src/queries/captcha_wikipedia.clj](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L7). This is just a standard Anglican `query` with one exception: you must specify each `sample` by its address as the first and distribution as the second distribution, e.g. `(sample "numletters" (uniform-discrete 8 11))` on [line 10](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L10). This requirement will be removed in future updates.
+We then use these helper functions to build our generative model in [src/queries/captcha_wikipedia.clj][captcha-wikipedia-clj-query-line-link]. This is just a standard Anglican `query` with one exception: you must specify each `sample` by its address as the first and distribution as the second distribution, e.g. [`(sample "numletters" (uniform-discrete 8 11))`][captcha-wikipedia-clj-sample-line-link]. This requirement will be removed in future updates.
+
+The generative model itself is straightforward:
+- sample number of letters
+- sample font size
+- sample [kerning][kerning-link]
+- successively sample letters from a predefined alphabet
+- render image
+- constrain the generative model using an ABC likelihood
 
 #### Function to combine observes
-The purpose of this function is to transform observations that are generated from the joint generative model of the latents and observations from a query-specific format to a clean N-D array consumable by the neural network's *observe embedder* ([f_obs in Figure 3](https://arxiv.org/pdf/1610.09900v1.pdf#page=5)).
+The purpose of this function is to transform observations that are generated from the joint generative model of the latents and observations from a query-specific format to a clean N-D array consumable by the neural network's *observe embedder* ([f_obs in Figure 3][figure3-paper-link]).
 
 How do these query-specific observations look like? You can output a sample from the prior by running the
-[anglican.csis.network/sample-observes-from-prior](https://github.com/tuananhle7/anglican-csis/blob/master/src/anglican/csis/network.clj#L105) function from a REPL or a Gorilla notebook to see. More precisely, it is a vector of maps, each of which of the form
+[`anglican.csis.network/sample-observes-from-prior`][sample-observes-from-prior-line-link] function from a REPL or a Gorilla notebook to see. More precisely, it is a vector of maps, each of which of the form
 ```
 {:time-index <time-index>
  :observe-address <observe-address>
@@ -87,7 +98,7 @@ How do these query-specific observations look like? You can output a sample from
 ```
 which corresponds to a sample from an `observe` statement when running the program.
 
-In our case, this vector will only have one element because our program has [only one observe statement](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L20). Hence [this is sufficient](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L28) as the function to combine observes:
+In our case, this vector will only have one element because our program has [only one observe statement][captcha-wikipedia-clj-observe-line-link]. Hence [this is sufficient][captcha-wikipedia-clj-combine-observes-fn-link] as the function to combine observes:
 ```
 (defn combine-observes-fn [observes]
   (:value (first observes)))
@@ -97,10 +108,10 @@ Remember the name of the function `combine-observes-fn` as we will use it later.
 #### Function to combine samples
 This function is optional and unnecessary in this Captcha example.
 
-The purpose of this is to transform the query-specific list of samples before feeding it to the LSTM. Such things might include reordering the sample values. This has been done in the [Gaussian Mixture Model](https://github.com/tuananhle7/torch-csis/tree/master/examples#2-gaussian-mixture-model-with-fixed-number-of-clusters) [examples](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/gmm_variable_number_of_clusters.clj#L48) to sort the cluster-specific latents (means and covariances) according to the mean's norm.
+The purpose of this is to transform the query-specific list of samples before feeding it to the LSTM. Such things might include reordering the sample values. This has been done in the [Gaussian Mixture Model][gmm-fixed-number-of-clusters-clj-link] [examples-link][gmm-variable-number-of-clusters-clj-link] to sort the cluster-specific latents (means and covariances) according to the mean's norm.
 
 How do these query-specific samples look like? You can output a sample from the prior by running the
-[anglican.csis.network/sample-samples-from-prior](https://github.com/tuananhle7/anglican-csis/blob/master/src/anglican/csis/network.clj#L111) function from a REPL or a Gorilla notebook to see. More precisely, it is a vector of maps, each of which of the form
+[`anglican.csis.network/sample-samples-from-prior`][sample-samples-from-prior-line-link] function from a REPL or a Gorilla notebook to see. More precisely, it is a vector of maps, each of which of the form
 ```
 {:time-index <time-index>
  :sample-address <sample-address>
@@ -110,31 +121,31 @@ How do these query-specific samples look like? You can output a sample from the 
  :proposal-extra-params <proposal-extra-params>
  :value <value>}
 ```
-which corresponds to a sample from an `sample` statement when running the program.
+which corresponds to a sample from a `sample` statement when running the program.
 
 #### Query arguments for compilation
-Query arguments for compilation can either:
+Query arguments for compilation can be either:
 - specified in the query's namespace as a Clojure variable or
-- supplied as a command line argument in [edn format](https://github.com/edn-format/edn) during compilation when running the `main` function.
+- supplied as a command line argument in [edn format][edn-link] during compilation when running the `main` function.
 
 In the Captcha case, the argument is a baseline Captcha but since this is ignored during compilation, `[nil]` is sufficient and can be easily supplied directly from the command line.
 
 #### Query arguments for inference
-Similarly to query arguments for compilation, query arguments for inference can also be either:
+Similarly, query arguments for inference can also be either:
 - specified in the query's namespace as a Clojure variable or
-- supplied as a command line argument in [edn format](https://github.com/edn-format/edn) during inference when running the `main` function.
+- supplied as a command line argument in [edn format][edn-link] during inference when running the `main` function.
 
-In the Captcha case, we want to create a pipeline "png -> inference -> inference results". For this purpose, we create a Python script to convert `png` to `edn` in [src/helpers/io/png2edn.py](https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/io/png2edn.py). We will see its usage [later](#inference).
+In the Captcha case, we want to create a pipeline "png->inference->inference results". For this purpose, we create a Python script to convert a png file to edn format in [src/helpers/io/png2edn.py][png2edn-py-link]. We will see its usage [later](#inference).
 
 #### Observe embedder input
-This is optional and if unspecified, a value that will be passed to the *observe embedder* ([f_obs in Figure 3](https://arxiv.org/pdf/1610.09900v1.pdf#page=5)) is the first  of the [query arguments during inference](#query-arguments-for-inference).
+This is optional and if unspecified, a value that will be passed to the *observe embedder* ([f_obs in Figure 3][figure3-paper-link]) is the first of the [query arguments during inference](#query-arguments-for-inference).
 
-In the case of Captcha, first query argument _is_ the observe embedder input so we leave this unspecified. However, you can supply the observe embedder input directly; again either:
+In the case of Captcha, first query argument is the observe embedder input so we leave this unspecified. However, you can supply the observe embedder input directly; again either:
 - specified in the query's namespace as a Clojure variable or
-- supplied as a command line argument in [edn format](https://github.com/edn-format/edn) during inference when running the `main` function.
+- supplied as a command line argument in [edn format][edn-link] during inference when running the `main` function.
 
 ### Compilation
-To start a reply server in the [ZeroMQ request-reply socket pair](http://zguide.zeromq.org/page:all#Ask-and-Ye-Shall-Receive), we can run the project from the command line using the `lein run`:
+To start a reply server in the [ZeroMQ request-reply socket pair][zmq-rep-req-link], we can run the project from the command line using the `lein run`:
 ```
 lein run -- \
 --mode compile \
@@ -145,7 +156,7 @@ lein run -- \
 ```
 This reply server supplies the Torch side with samples from the prior. See `lein run -- -h` for help.
 
-At the same time, run another process from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
+At the same time, run another process from [torch-csis][torch-csis-repo-link] root:
 ```
 th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --obsEmbDim 4 --lstmDim 4
 ```
@@ -164,7 +175,43 @@ lein run -- \
 ```
 This runs sequential importance sampling, requesting proposal parameters whenever required through the ZeroMQ request client.
 
-At the same time, start the corresponding ZeroMQ reply server by running the following from [torch-csis](https://github.com/tuananhle7/torch-csis) root:
+At the same time, start the corresponding ZeroMQ reply server by running the following from [torch-csis][torch-csis-repo-link] root:
 ```
 th infer.lua --latest
 ```
+
+[examples-link]: examples/
+[actual-wikipedia-captcha-link]: https://en.wikipedia.org/w/index.php?title=Special:CreateAccount&returnto=Main+Page
+[anglican-link]: http://www.robots.ox.ac.uk/~fwood/anglican/usage/index.html
+[captcha-wikipedia-clj-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj
+[captcha-wikipedia-clj-namespace-line-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L1
+[anglican-csis-template-link]: https://github.com/tuananhle7/anglican-csis-template
+[gorilla-repl-link]: http://gorilla-repl.org/
+[oxcaptcha-java-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/OxCaptcha.java
+[oxcaptcha-github-link]: https://github.com/gbaydin/OxCaptcha
+[random-projection-matrices-h5-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/resources/random-projection-matrices.h5
+[hdf5-clj-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/hdf5.clj
+[project-clj-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/project.clj
+[project-clj-hdf5-line-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/project.clj#L8
+[project-clj-java-line-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/project.clj#L9
+[helpers-captcha-clj-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha.clj
+[helpers-captcha-clj-reducedim-line-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha.clj#L20
+[helpers-captcha-wikipedia-clj-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha_wikipedia.clj
+[helpers-captcha-wikipedia-clj-render-line-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha_wikipedia.clj#L12
+[hdf5-link]: TODO
+[helpers-captcha-wikipedia-clj-abc-line-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/captcha_wikipedia.clj#L37
+[captcha-wikipedia-clj-query-line-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L8
+[captcha-wikipedia-clj-sample-line-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L10
+[kerning-link]: https://en.wikipedia.org/wiki/Kerning
+[figure3-paper-link]: https://arxiv.org/pdf/1610.09900v1.pdf#page=5
+[sample-observes-from-prior-line-link]: https://github.com/tuananhle7/anglican-csis/blob/master/src/anglican/csis/network.clj#L105
+[captcha-wikipedia-clj-observe-line-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L20
+[captcha-wikipedia-clj-combine-observes-fn-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L28
+[gmm-fixed-number-of-clusters-clj-link]: https://github.com/tuananhle7/torch-csis/tree/master/examples#2-gaussian-mixture-model-with-fixed-number-of-clusters
+[gmm-variable-number-of-clusters-clj-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/gmm_variable_number_of_clusters.clj#L48
+[sample-samples-from-prior-line-link]: https://github.com/tuananhle7/anglican-csis/blob/master/src/anglican/csis/network.clj#L111
+[edn-link]: https://github.com/edn-format/edn
+[png2edn-py-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/io/png2edn.py
+[zmq-rep-req-link]: http://zguide.zeromq.org/page:all#Ask-and-Ye-Shall-Receive
+[torch-csis-repo-link]: https://github.com/tuananhle7/torch-csis
+[anglican-csis-repo-link]: https://github.com/tuananhle7/anglican-csis
