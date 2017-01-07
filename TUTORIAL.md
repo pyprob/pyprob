@@ -190,15 +190,15 @@ Long opt | Short opt | Description
 `--query` | `-q` | Name of the [probabilistic program/query](#probabilistic-programquery) for compiled inference
 `--compile-tcp-endpoint` | `-t` | TCP address for the ZMQ [compilation](#compilation) reply server
 `--compile-combine-observes-fn` | `-o` | [Function to combine observes](#function-to-combine-observes)
-`--compile-combine-samples-fn` | `-o` | [Function to combine samples](#function-to-combine-samples)
+`--compile-combine-samples-fn` | `-s` | [Function to combine samples](#function-to-combine-samples)
 `--compile-query-args` | `-a` | [Query arguments for compilation as Clojure variable](#query-arguments-for-compilation)
 `--compile-query-args-value` | `-x` | [Query arguments for compilation in edn format](#query-arguments-for-compilation)
 `--infer-number-of-samples` | `-N` | [Number of samples from sequential importance sampling](#inference)
 `--infer-tcp-endpoint` | `-T` | TCP address for the ZMQ [inference](#inference) request client
 `--infer-observe-embedder-input` | `-E` | [Observe embedder input as Clojure variable](#observe-embedder-input)
-`--infer-observe-embedder-input-value` | `-Y` | [Observe embedder input in edn format](#observe-embedder-input-value)
-`--infer-query-args` | `-a` | [Query arguments for inference as Clojure variable](#query-arguments-for-inference)
-`--infer-query-args-value` | `-x` | [Query arguments for inference in edn format](#query-arguments-for-inference)
+`--infer-observe-embedder-input-value` | `-Y` | [Observe embedder input in edn format](#observe-embedder-input)
+`--infer-query-args` | `-A` | [Query arguments for inference as Clojure variable](#query-arguments-for-inference)
+`--infer-query-args-value` | `-Z` | [Query arguments for inference in edn format](#query-arguments-for-inference)
 
 #### Torch
 
