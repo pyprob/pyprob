@@ -80,7 +80,7 @@ At the same time, run the following from [torch-csis][torch-csis-repo-link] root
 $ th infer.lua --cuda --latest
 ```
 
-You can also [download a pre-trained artifact][gmm-fixed-number-of-clusters-artifact-link] to the `data/` folder and run
+**Pre-trained artifact.** You can also [download a pre-trained artifact][gmm-fixed-number-of-clusters-artifact-link] to the `data/` folder and run
 ```
 $ th infer.lua --cuda --artifact gmm-fixed-number-of-clusters-compile-artifact-161012-102419
 ```
@@ -121,7 +121,7 @@ At the same time, run the following from [torch-csis][torch-csis-repo-link] root
 $ th infer.lua --cuda --latest
 ```
 
-You can also [download a pre-trained artifact][gmm-variable-number-of-clusters-artifact-link] to the `data/` folder and run
+**Pre-trained artifact.** You can also [download a pre-trained artifact][gmm-variable-number-of-clusters-artifact-link] to the `data/` folder and run
 ```
 $ th infer.lua --cuda --artifact gmm-variable-number-of-clusters-compile-artifact-161129-003541
 ```
@@ -162,7 +162,7 @@ At the same time, run the following from [torch-csis][torch-csis-repo-link] root
 $ th infer.lua --latest
 ```
 
-You can also [download a pre-trained artifact][captcha-wikipedia-artifact-link] to the `data/` folder and run
+**Pre-trained artifact.** You can also [download a pre-trained artifact][captcha-wikipedia-artifact-link] to the `data/` folder and run
 ```
 $ th infer.lua --cuda --artifact captcha-wikipedia-compile-artifact-161130-111531
 ```
@@ -201,7 +201,7 @@ At the same time, run the following from [torch-csis][torch-csis-repo-link] root
 $ th infer.lua --latest
 ```
 
-You can also [download a pre-trained artifact][captcha-facebook-artifact-link] to the `data/` folder and run
+**Pre-trained artifact.** You can also [download a pre-trained artifact][captcha-facebook-artifact-link] to the `data/` folder and run
 ```
 $ th infer.lua --cuda --artifact captcha-facebook-compile-artifact-161208-000053
 ```
