@@ -1,6 +1,6 @@
 # Tutorial for Inference Compilation and Universal Probabilistic Programming
 
-This is a tutorial on setting up a system to compile inference for a probabilistic program. Check out the [main repo][torch-csis-repo-link] and [more examples][examples-link].
+This is a tutorial on setting up a system to compile inference for a probabilistic program. Check out the [main project page][project-page-link] and [more examples][examples-link].
 
 ## Contents
 - [Requirements](#requirements)
@@ -253,3 +253,4 @@ $ th artifact-info.lua --help
 [zmq-rep-req-link]: http://zguide.zeromq.org/page:all#Ask-and-Ye-Shall-Receive
 [torch-csis-repo-link]: https://github.com/tuananhle7/torch-csis
 [anglican-csis-repo-link]: https://github.com/tuananhle7/anglican-csis
+[project-page-link]: https://github.com/tuananhle7/torch-csis/blob/master/PROJECT_PAGE.md

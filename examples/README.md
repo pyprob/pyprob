@@ -1,6 +1,6 @@
 # Examples of Inference Compilation and Universal Probabilistic Programming
 
-This is a Leiningen project containing several example probabilistic programs for compiled inference. Check out the [main repo][torch-csis-repo-link] and a more detailed  [tutorial][tutorial-link].
+This is a Leiningen project containing several example probabilistic programs for compiled inference. Check out the [main project page][project-page-link] and a more detailed [tutorial][tutorial-link].
 
 ## Contents
 1. [Minimal](#1-minimal)
@@ -231,3 +231,4 @@ and open the link shown. To load a worksheet, click the button on the top-right 
 [gmm-variable-number-of-clusters-artifact-link]: https://robots.ox.ac.uk/~tuananh/compiled-inference-artifacts/gmm-variable-number-of-clusters-compile-artifact-161129-003541
 [captcha-wikipedia-artifact-link]: https://robots.ox.ac.uk/~tuananh/compiled-inference-artifacts/captcha-wikipedia-compile-artifact-161130-111531
 [captcha-facebook-artifact-link]: https://robots.ox.ac.uk/~tuananh/compiled-inference-artifacts/captcha-facebook-compile-artifact-161208-000053
+[project-page-link]: https://github.com/tuananhle7/torch-csis/blob/master/PROJECT_PAGE.md
