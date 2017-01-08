@@ -77,7 +77,12 @@ $ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-$ th infer.lua --latest
+$ th infer.lua --cuda --latest
+```
+
+You can also [download a pre-trained artifact][gmm-fixed-number-of-clusters-artifact-link] to the `data/` folder and run
+```
+$ th infer.lua --cuda --artifact gmm-fixed-number-of-clusters-compile-artifact-161012-102419
 ```
 
 ## 3. Gaussian Mixture Model with variable number of clusters
@@ -113,8 +118,14 @@ $ lein run -- \
 
 At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-$ th infer.lua --latest
+$ th infer.lua --cuda --latest
 ```
+
+You can also [download a pre-trained artifact][gmm-variable-number-of-clusters-artifact-link] to the `data/` folder and run
+```
+$ th infer.lua --cuda --artifact gmm-variable-number-of-clusters-compile-artifact-161129-003541
+```
+
 The code and data for clustering detector hits of images from the [PASCAL VOC 2007][pascal-voc-2007-link] dataset to reproduce [Figure 2 of the paper][paper-figure2-link] are in [examples/plots/gmm-variable-number-of-clusters/detector-hits-clustering][detector-hits-clustering-link]. We used [Hakan Bilen][hakan-bilen-link]'s and [Abishkek Dutta][abishkek-dutta-link]'s [MatConvNet][matconvnet-link] implementation of the [Fast R-CNN][fast-rcnn-link] detector. We are very grateful to Hakan for showing us how to use their code.
 
 ## 4. Wikipedia's Captcha
@@ -151,6 +162,11 @@ At the same time, run the following from [torch-csis][torch-csis-repo-link] root
 $ th infer.lua --latest
 ```
 
+You can also [download a pre-trained artifact][captcha-wikipedia-artifact-link] to the `data/` folder and run
+```
+$ th infer.lua --cuda --artifact captcha-wikipedia-compile-artifact-161130-111531
+```
+
 ## 5. Facebook's Captcha
 Compiled artifact for this probabilistic program was used to break Facebook's Captcha, which was described in [Section 4.2 of the paper][paper-section4-2-link].
 
@@ -185,6 +201,12 @@ At the same time, run the following from [torch-csis][torch-csis-repo-link] root
 $ th infer.lua --latest
 ```
 
+You can also [download a pre-trained artifact][captcha-facebook-artifact-link] to the `data/` folder and run
+```
+$ th infer.lua --cuda --artifact captcha-facebook-compile-artifact-161208-000053
+```
+
+
 ## 6. Gorilla REPL Notebooks
 [Gorilla REPL][gorilla-repl-link] is a Jupyter-like, notebook-style Clojure REPL. All above examples have a corresponding Gorilla REPL version. To open the notebooks, run
 ```
@@ -205,3 +227,7 @@ and open the link shown. To load a worksheet, click the button on the top-right 
 [gorilla-repl-link]: http://gorilla-repl.org/
 [paper-section4-2-link]: https://arxiv.org/pdf/1610.09900v1.pdf#page=7
 [wikipedia-captcha-link]: https://en.wikipedia.org/w/index.php?title=Special:CreateAccount
+[gmm-fixed-number-of-clusters-artifact-link]: https://robots.ox.ac.uk/~tuananh/compiled-inference-artifacts/gmm-fixed-number-of-clusters-compile-artifact-161012-102419
+[gmm-variable-number-of-clusters-artifact-link]: https://robots.ox.ac.uk/~tuananh/compiled-inference-artifacts/gmm-variable-number-of-clusters-compile-artifact-161129-003541
+[captcha-wikipedia-artifact-link]: https://robots.ox.ac.uk/~tuananh/compiled-inference-artifacts/captcha-wikipedia-compile-artifact-161130-111531
+[captcha-facebook-artifact-link]: https://robots.ox.ac.uk/~tuananh/compiled-inference-artifacts/captcha-facebook-compile-artifact-161208-000053
