@@ -20,9 +20,7 @@
       (observe (abc-dist rendered-image abc-sigma) baseline-image)
 
       ;; Returns
-      {:letters letters
-       :font-size font-size
-       :kerning kerning})))
+      letters)))
 
 ;; COMPILE stuff
 (defn combine-observes-fn [observes]
