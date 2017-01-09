@@ -56,7 +56,7 @@ As a prerequisite, you should familiarize yourself with [probabilistic programmi
 
 ### Writing the Probabilistic Program
 #### Setting up a Leiningen Project
-Create a Leiningen project using the [anglican-csis template][anglican-csis-template-link] (replace `examples` by your own project name):
+Create a Leiningen project using the [anglican-csis template][anglican-csis-template-repo-link] (replace `examples` by your own project name):
 ```
 $ lein new anglican-csis examples
 ```
@@ -233,7 +233,7 @@ $ th artifact-info.lua --help
 [anglican-link]: http://www.robots.ox.ac.uk/~fwood/anglican/usage/index.html
 [captcha-wikipedia-clj-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj
 [captcha-wikipedia-clj-namespace-line-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L1
-[anglican-csis-template-link]: https://github.com/tuananhle7/anglican-csis-template
+[anglican-csis-template-repo-link]: https://github.com/tuananhle7/anglican-csis-template
 [gorilla-repl-link]: http://gorilla-repl.org/
 [oxcaptcha-java-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/helpers/OxCaptcha.java
 [oxcaptcha-github-link]: https://github.com/gbaydin/OxCaptcha
