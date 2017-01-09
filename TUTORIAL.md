@@ -253,4 +253,4 @@ $ th artifact-info.lua --help
 [zmq-rep-req-link]: http://zguide.zeromq.org/page:all#Ask-and-Ye-Shall-Receive
 [torch-csis-repo-link]: https://github.com/tuananhle7/torch-csis
 [anglican-csis-repo-link]: https://github.com/tuananhle7/anglican-csis
-[project-page-link]: https://github.com/tuananhle7/torch-csis/blob/master/PROJECT_PAGE.md
+[project-page-link]: http://tuananhle.co.uk/compiled-inference
