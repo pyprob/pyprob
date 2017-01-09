@@ -254,7 +254,7 @@ $ th artifact-info.lua --help
 [figure3-paper-link]: https://arxiv.org/pdf/1610.09900v1.pdf#page=5
 [sample-observes-from-prior-line-link]: https://github.com/tuananhle7/anglican-csis/blob/master/src/anglican/csis/network.clj#L105
 [captcha-wikipedia-clj-observe-line-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L20
-[captcha-wikipedia-clj-combine-observes-fn-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L28
+[captcha-wikipedia-clj-combine-observes-fn-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/captcha_wikipedia.clj#L26
 [gmm-fixed-number-of-clusters-clj-link]: https://github.com/tuananhle7/torch-csis/tree/master/examples#2-gaussian-mixture-model-with-fixed-number-of-clusters
 [gmm-variable-number-of-clusters-clj-link]: https://github.com/tuananhle7/torch-csis/blob/master/examples/src/queries/gmm_variable_number_of_clusters.clj#L48
 [sample-samples-from-prior-line-link]: https://github.com/tuananhle7/anglican-csis/blob/master/src/anglican/csis/network.clj#L111
