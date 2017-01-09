@@ -18,10 +18,16 @@ This is a tutorial on setting up a system to compile inference for a probabilist
 ### Manual Installation
 - [Clojure](http://clojure.org/guides/getting_started): Anglican runs on Clojure.
 - [Leiningen](http://leiningen.org/#install): Package manager for Clojure.
-- [Anglican CSIS][anglican-csis-repo-link]: Required for the CSIS extensions of Anglican (will be moved to Clojars soon)
+- [Anglican CSIS][anglican-csis-repo-link] (will be moved to Clojars): Clojure code for the probabilistic programming part
 ```
 $ git clone https://github.com/tuananhle7/anglican-csis.git
 $ cd anglican-csis
+$ lein install
+```
+- [Anglican CSIS template][anglican-csis-template-repo-link] (will be moved to Clojars): Leiningen project template for Anglican CSIS
+```
+$ git clone https://github.com/tuananhle7/anglican-csis-template
+$ cd anglican-csis-template
 $ lein install
 ```
 - [Torch](http://torch.ch/docs/getting-started.html)
@@ -35,6 +41,10 @@ $ luarocks install https://raw.github.com/jucor/torch-distributions/master/distr
 $ luarocks install lzmq
 $ luarocks install lua-messagepack
 $ luarocks install rnn
+```
+- [Torch CSIS][torch-csis-repo-link]: Torch code for the neural network part
+```
+$ git clone git@github.com:tuananhle7/torch-csis.git
 ```
 
 ### Docker Image
