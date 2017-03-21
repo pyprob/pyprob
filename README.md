@@ -2,7 +2,7 @@
 
 Code for Inference Compilation and Universal Probabilistic Programming ([main project page][project-page-link]).
 
-This repository contains the [Torch](http://torch.ch/)-based neural network part of the compiled inference scheme. The [Clojure](https://clojure.org/)-based probabilistic programming part is implemented as a [Clojure library][anglican-csis-repo-link], extending [Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/). The interaction between these two is facilitated by [ZeroMQ](http://zeromq.org/).
+This repository contains the [Torch](http://torch.ch/)-based neural network part of the inference compilation scheme. The [Clojure](https://clojure.org/)-based probabilistic programming part is implemented as a [Clojure library][anglican-csis-repo-link], extending [Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/). The interaction between these two is facilitated by [ZeroMQ](http://zeromq.org/).
 
 For a walkthrough on how to set up a system to compile inference for a probabilistic program written in Anglican, check out the [tutorial](TUTORIAL.md). Also check out the [examples][examples-link] folder.
 

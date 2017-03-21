@@ -10,7 +10,7 @@
 
 cmd = torch.CmdLine()
 cmd:text()
-cmd:text('Oxford Compiled Inference')
+cmd:text('Oxford Inference Compilation')
 cmd:text('Compilation mode')
 cmd:text()
 cmd:text('Options:')
@@ -73,7 +73,7 @@ local timeStamp = getTimeStamp()
 opt.log = opt.log .. timeStamp
 require 'util'
 if opt.version then
-    print('Oxford Compiled Inference')
+    print('Oxford Inference Compilation')
     print('Compilation mode')
     print(versionString)
     do return end
@@ -312,7 +312,7 @@ function receiveBatch()
     return bs
 end
 
-printLog('%{bluebg}%{bright white}Oxford Compiled Inference '..versionString)
+printLog('%{bluebg}%{bright white}Oxford Inference Compilation '..versionString)
 printLog('%{bright white}Compilation mode')
 printLog()
 printLog('Started ' .. os.date('%a %d %b %Y %X'))

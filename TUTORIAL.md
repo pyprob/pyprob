@@ -63,7 +63,7 @@ $ lein new anglican-csis examples
 This will set up a Leiningen project with
 - `project.clj` which contains the required dependencies and sets up the main entry point for this project
 - `src/examples/core.clj` which contains the `main` method to start the compilation and inference ZeroMQ sockets to interact with the Torch part and the relevant command line options.
-- `src/queries/minimal.clj` with the namespace `queries.minimal` which contains a probabilistic program/query `minimal` along a function `combine-observes-fn` which will be needed for compiled inference.
+- `src/queries/minimal.clj` with the namespace `queries.minimal` which contains a probabilistic program/query `minimal` along a function `combine-observes-fn` which will be needed for inference compilation.
 - `src/worksheets/minimal.clj` which is a Jupyter-like, Clojure-based [Gorilla notebook][gorilla-repl-link]. We will not cover the Gorilla-based workflow in this tutorial although you are welcome to try it in the [examples folder][examples-link].
 
 In general, you will have to create a Clojure namespace in a `.clj` file (usually inside `src/queries/`) with a subset of the following:
@@ -206,8 +206,8 @@ Long opt | Short opt | Description
 --- | --- | ---
 `--help` | `-h` | Shows help
 `--mode` | `-m` | Choose between [compilation](#compilation) (`compile`) or [inference](#inference) (`infer`) mode
-`--namespace` | `-n` | Clojure namespace containing the probabilistic program and things needed for compiled inference
-`--query` | `-q` | Name of the [probabilistic program/query](#probabilistic-programquery) for compiled inference
+`--namespace` | `-n` | Clojure namespace containing the probabilistic program and things needed for inference compilation
+`--query` | `-q` | Name of the [probabilistic program/query](#probabilistic-programquery) for inference compilation
 `--compile-tcp-endpoint` | `-t` | TCP address for the ZMQ [compilation](#compilation) reply server
 `--compile-combine-observes-fn` | `-o` | [Function to combine observes](#function-to-combine-observes)
 `--compile-combine-samples-fn` | `-s` | [Function to combine samples](#function-to-combine-samples)

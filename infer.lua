@@ -35,13 +35,13 @@ end
 opt.log = opt.log .. os.date('-%y%m%d-%H%M%S')
 require 'util'
 if opt.version then
-    print('Oxford Compiled Inference')
+    print('Oxford Inference Compilation')
     print('Inference mode')
     print(versionString)
     do return end
 end
 
-printLog('%{bluebg}%{bright white}Oxford Compiled Inference '..versionString)
+printLog('%{bluebg}%{bright white}Oxford Inference Compilation '..versionString)
 printLog('%{bright white}Inference mode')
 printLog()
 printLog('Started ' .. os.date('%a %d %b %Y %X'))

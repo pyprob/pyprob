@@ -10,7 +10,7 @@
 
 cmd = torch.CmdLine()
 cmd:text()
-cmd:text('Oxford Compiled Inference')
+cmd:text('Oxford Inference Compilation')
 cmd:text('Artifact info')
 cmd:text()
 cmd:text('Options:')
