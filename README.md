@@ -10,11 +10,11 @@ For documentation of the Torch side, run `compile.lua`, `infer.lua`, or `artifac
 
 If you use this code in your work, please cite our [paper][paper-link]:
 ```
-@article{le2016inference,
+@inproceedings{le2016inference,
+  author = {Le, Tuan Anh and Baydin, Atılım Güneş and Wood, Frank},
+  booktitle = {20th International Conference on Artificial Intelligence and Statistics, April 20--22, 2017, Fort Lauderdale, FL, USA},
   title = {Inference Compilation and Universal Probabilistic Programming},
-  author = {Le, Tuan Anh and Baydin, Atilim Gunes and Wood, Frank},
-  journal = {arXiv preprint arXiv:1610.09900},
-  year = {2016}
+  year = {2017}
 }
 ```
 
