@@ -1,19 +1,16 @@
 --
--- COMPILED INFERENCE
--- Infer mode
+-- INFERENCE COMPILATION
+-- Inference mode
 --
 -- Tuan-Anh Le, Atilim Gunes Baydin
 -- tuananh@robots.ox.ac.uk; gunes@robots.ox.ac.uk
---
--- Department of Engineering Science
 -- University of Oxford
---
--- May -- September 2016
+-- May 2016 -- March 2017
 --
 
 cmd = torch.CmdLine()
 cmd:text()
-cmd:text('Oxford Compiled Inference')
+cmd:text('Oxford Inference Compilation')
 cmd:text('Inference mode')
 cmd:text()
 cmd:text('Options:')
@@ -23,6 +20,7 @@ cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--device', 1, 'sets the device (GPU) to use')
 cmd:option('--log', './artifacts/infer-log', 'file for logging')
 cmd:option('--artifact', './artifacts/compile-artifact', 'file name of the artifact')
+cmd:option('--nth', -1, 'use the nth artifact file starting with the name given with --artifact')
 cmd:option('--latest', false, 'use the latest artifact file starting with the name given with --artifact')
 cmd:option('--debug', false, 'print out debugging information as requests arrive')
 cmd:option('--server', '*:6666', 'address and port to bind this inference server')
@@ -74,8 +72,10 @@ for k, v in pairs(opt) do
 end
 printLog()
 
-if opt.latest then
-    opt.artifact = latestFileStartingWith(opt.artifact)
+if opt.nth ~= -1 then
+    opt.artifact = fileStartingWith(opt.artifact, opt.nth)
+elseif opt.latest then
+    opt.artifact = fileStartingWith(opt.artifact, -1)
 end
 
 if not io.open(opt.artifact, "r") then

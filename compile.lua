@@ -1,14 +1,11 @@
 --
--- COMPILED INFERENCE
--- Compile mode
+-- INFERENCE COMPILATION
+-- Compilation mode
 --
 -- Tuan-Anh Le, Atilim Gunes Baydin
 -- tuananh@robots.ox.ac.uk; gunes@robots.ox.ac.uk
---
--- Department of Engineering Science
 -- University of Oxford
---
--- May -- September 2016
+-- May 2016 -- March 2017
 --
 
 cmd = torch.CmdLine()
@@ -56,7 +53,8 @@ cmd:option('--obsSmooth', false, 'smooth the observe embedding by a 5x5, std=0.5
 cmd:option('--resume', '', 'resume training of an existing artifact')
 cmd:option('--resumeLatest', false, 'resume the training of the latest artifact file starting with the name given with --artifact')
 cmd:option('--server', '127.0.0.1:5555', 'address and port of the Anglican server')
-cmd:option('--artifact', './artifacts/compile-artifact', 'file name prefix to save the artifact')
+cmd:option('--artifact', './artifacts/compile-artifact', 'file to save the artifact (will be appended by a timestamp of the form -yymmdd-hhmmss)')
+cmd:option('--keepArtifacts', false, 'keep all previously best artifacts during training, do not overwrite')
 
 cmd:text()
 
@@ -66,7 +64,12 @@ if opt.help then
     cmd:help()
     do return end
 end
-local timeStamp = os.date('-%y%m%d-%H%M%S')
+
+function getTimeStamp()
+    return os.date('-%y%m%d-%H%M%S')
+end
+
+local timeStamp = getTimeStamp()
 opt.log = opt.log .. timeStamp
 require 'util'
 if opt.version then
@@ -77,9 +80,9 @@ if opt.version then
 end
 require 'dists'
 if opt.resumeLatest then
-    opt.resume = latestFileStartingWith(opt.artifact)
+    opt.resume = fileStartingWith(opt.artifact, -1)
 end
-opt.artifact = opt.artifact .. timeStamp
+local artifactFile = opt.artifact .. timeStamp
 
 local artifact = {}
 local artifactInfo = {}
@@ -487,7 +490,7 @@ local prevArtifactTotalIterations = 0
 local prevArtifactTotalTraces = 0
 if opt.resume == '' then -- No artifact to resume, initialize a new artifact
     printLog('%{bright blue}** New artifact')
-    printLog(string.format('File name             : %s', opt.artifact))
+    printLog(string.format('File name             : %s', artifactFile))
 
     artifact.observeLayer = nil
     artifact.sampleLayers = {}
@@ -501,10 +504,10 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
     artifact.validLossLast = nil
     artifact.validLossInitial = nil
     artifact.validLossFinal = nil
-    artifact.validLossHistTrace = {}
-    artifact.validLossHistLoss = {}
-    artifact.trainLossHistTrace = {}
-    artifact.trainLossHistLoss = {}
+    artifact.validHistoryTrace = {}
+    artifact.validHistoryLoss = {}
+    artifact.trainHistoryTrace = {}
+    artifact.trainHistoryLoss = {}
     artifact.trainableParams = nil
     artifact.obsEmb = opt.obsEmb
     artifact.obsEmbDim = opt.obsEmbDim
@@ -528,6 +531,7 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
     artifact.totalTrainingTime = 0
     artifact.totalIterations = 0
     artifact.totalTraces = 0
+    artifact.updates = 0
 
     -- OBTAIN VALIDATION BATCH
     artifact.validSize = opt.validSize
@@ -784,6 +788,10 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
     printLog()
 
 else -- Load an existing artifact for resuming training
+    if (opt.resume == '') or (not opt.resume) then
+        printLog('%{bright red}Error: Artifact to resume not found.\n')
+    end
+
     artifact, artifactInfo = loadArtifact(opt.resume)
     prevArtifactTotalTrainingTime = artifact.totalTrainingTime
     prevArtifactTotalIterations = artifact.totalIterations
@@ -793,7 +801,7 @@ else -- Load an existing artifact for resuming training
     printLog(artifactInfo)
     printLog()
     printLog('%{bright blue}** New artifact')
-    printLog(string.format('File name             : %s', opt.artifact))
+    printLog(string.format('File name             : %s', artifactFile))
     printLog()
 
     if opt.validNew then
@@ -981,7 +989,8 @@ if opt.cuda then proposalCriterion:cuda() end
 printLog('%{bright blue}** Compilation configuration')
 printLog('server                : ' .. opt.server)
 printLog('log                   : ' .. opt.log)
-printLog('artifact              : ' .. opt.artifact)
+printLog('artifact              : ' .. artifactFile)
+printLog('keepArtifacts         : ' .. tostring(opt.keepArtifacts))
 printLog('resumeLatest          : ' .. tostring(opt.resumeLatest))
 printLog('resume                : ' .. opt.resume)
 printLog('cuda                  : ' .. tostring(opt.cuda))
@@ -1008,6 +1017,23 @@ printLog('oneHotDimAddress      : ' .. artifact.oneHotDimAddress)
 printLog('oneHotDimInstance     : ' .. artifact.oneHotDimInstance)
 printLog('oneHotDimProposalType : ' .. artifact.oneHotDimProposalType)
 printLog()
+
+function clearState()
+    artifact.observeLayer:clearState()
+    for address, v in pairs(artifact.sampleLayers) do
+        for instance, layer in pairs(v) do
+            layer:clearState()
+        end
+    end
+    for i = 1, artifact.lstmDepth do
+        artifact.lstms[i]:clearState()
+    end
+    for address, v in pairs(artifact.proposalLayers) do
+        for instance, layer in pairs(v) do
+            layer:clearState()
+        end
+    end
+end
 
 -- CLOSURE TO BE USED WITH OPTIM PACKAGE: DOES FORWARD AND BACKWARD PROPAGATION
 function batchEvaluator(subBatch, backProp)
@@ -1154,6 +1180,7 @@ end
 local iteration = 0
 local trace = 0
 local startTime = os.time()
+local improvementTime = os.time()
 
 local trainLossString = ''
 
@@ -1164,14 +1191,15 @@ if not artifact.validLossBest then
     end
     artifact.validLossBest = artifact.validLossBest / artifact.validSize
 end
-local validLossBestString = string.format('%+e', artifact.validLossBest)
 if not artifact.validLossWorst then artifact.validLossWorst = artifact.validLossBest end
-if not artifact.validLossLast then artifact.validLossLast = artifact.validLossBest end
-local validLossString = string.format('%+e  ', artifact.validLossLast)
-local lastValidationTrace = 0
 if not artifact.validLossInitial then artifact.validLossInitial = artifact.validLossBest end
-artifact.validLossHistTrace[#artifact.validLossHistTrace + 1] = prevArtifactTotalTraces + iteration
-artifact.validLossHistLoss[#artifact.validLossHistLoss + 1] = artifact.validLossBest
+if prevArtifactTotalTraces == 0 then
+    artifact.validHistoryTrace[#artifact.validHistoryTrace + 1] = prevArtifactTotalTraces + iteration
+    artifact.validHistoryLoss[#artifact.validHistoryLoss + 1] = artifact.validLossBest
+end
+local validLossBestString = string.format('%+e', artifact.validLossBest)
+local validLossString = string.format('%+e  ', artifact.validHistoryLoss[#artifact.validHistoryLoss])
+local lastValidationTrace = 0
 
 if opt.resume == '' then
     printLog('%{bright blue}** Training from ' .. opt.server)
@@ -1179,9 +1207,10 @@ else
     printLog('%{bright blue}** Resuming training from ' .. opt.server)
 end
 local timeString = daysHoursMinsSecs(prevArtifactTotalTrainingTime + (os.time() - startTime))
+local improvementTimeString = daysHoursMinsSecs(os.time() - improvementTime)
 local traceString = string.format('%5s', formatThousand(prevArtifactTotalTraces + trace))
-printLog(string.format('%' .. string.len(timeString) .. 's', 'Train. time') .. ' │ ' .. string.format('%' .. string.len(traceString) .. 's', 'Trace') .. ' │ Training loss   │ Last valid. loss│ Best val.loss')
-printLog(string.rep('─', string.len(timeString)) .. '─┼─' .. string.rep('─', string.len(traceString)) .. '─┼─────────────────┼─────────────────┼──────────────')
+printLog(string.format('%' .. string.len(timeString) .. 's', 'Train. time') .. ' │ ' .. string.format('%' .. string.len(traceString) .. 's', 'Trace') .. ' │ Training loss   │ Last valid. loss│ Best val. loss|' .. string.format('%' .. string.len(improvementTimeString) .. 's', 'T.since best'))
+printLog(string.rep('─', string.len(timeString)) .. '─┼─' .. string.rep('─', string.len(traceString)) .. '─┼─────────────────┼─────────────────┼───────────────┼─' .. string.rep('─', string.len(improvementTimeString)))
 requestBatch(opt.batchSize)
 while true do
     local batch = receiveBatch()
@@ -1207,8 +1236,12 @@ while true do
 
         trace = trace + #subBatch
 
-        artifact.trainLossHistTrace[#artifact.trainLossHistTrace + 1] = prevArtifactTotalTraces + trace
-        artifact.trainLossHistLoss[#artifact.trainLossHistLoss + 1] = trainLoss
+        artifact.totalTrainingTime = prevArtifactTotalTrainingTime + (os.time() - startTime)
+        artifact.totalIterations = prevArtifactTotalIterations + iteration
+        artifact.totalTraces = prevArtifactTotalTraces + trace
+
+        artifact.trainHistoryTrace[#artifact.trainHistoryTrace + 1] = artifact.totalTraces
+        artifact.trainHistoryLoss[#artifact.trainHistoryLoss + 1] = trainLoss
 
         if trainLoss < artifact.trainLossBest then
             artifact.trainLossBest = trainLoss
@@ -1216,18 +1249,19 @@ while true do
         elseif trainLoss > artifact.trainLossWorst then
             artifact.trainLossWorst = trainLoss
             trainLossString = '%{bright red}' .. string.format('%+e ▲', trainLoss) .. '%{reset}'
-        elseif trainLoss < artifact.validLossLast then
+        elseif trainLoss < artifact.validHistoryLoss[#artifact.validHistoryLoss] then
             trainLossString = '%{green}' .. string.format('%+e  ', trainLoss) .. '%{reset}'
-        elseif trainLoss > artifact.validLossLast then
+        elseif trainLoss > artifact.validHistoryLoss[#artifact.validHistoryLoss] then
             trainLossString = '%{red}' .. string.format('%+e  ', trainLoss) .. '%{reset}'
         else
             trainLossString = string.format('%+e  ', trainLoss)
         end
 
         timeString = daysHoursMinsSecs(prevArtifactTotalTrainingTime + (os.time() - startTime))
+
         traceString = string.format('%5s', formatThousand(prevArtifactTotalTraces + trace))
         if trace - lastValidationTrace > opt.validInterval then
-            printLog(string.rep('─', string.len(timeString)) .. '─┼─' .. string.rep('─', string.len(traceString)) .. '─┼─────────────────┼─────────────────┼──────────────')
+            printLog(string.rep('─', string.len(timeString)) .. '─┼─' .. string.rep('─', string.len(traceString)) .. '─┼─────────────────┼─────────────────┼───────────────┼─' .. string.rep('─', string.len(improvementTimeString)))
             io.write('Computing validation loss...                             \r')
             io.flush()
 
@@ -1238,6 +1272,9 @@ while true do
             validLoss = validLoss / artifact.validSize
             lastValidationTrace = trace
 
+            artifact.validHistoryTrace[#artifact.validHistoryTrace + 1] = artifact.totalTraces
+            artifact.validHistoryLoss[#artifact.validHistoryLoss + 1] = validLoss
+
             if validLoss < artifact.validLossBest then
                 artifact.validLossBest = validLoss
                 validLossBestString = '%{bright green}' .. string.format('%+e', artifact.validLossBest) .. '%{reset}'
@@ -1245,31 +1282,30 @@ while true do
                 io.write('Updating best artifact on disk...                        \r')
                 io.flush()
                 artifact.validLossFinal = validLoss
-                artifact.totalTrainingTime = prevArtifactTotalTrainingTime + (os.time() - startTime)
-                artifact.totalIterations = prevArtifactTotalIterations + iteration
-                artifact.totalTraces = prevArtifactTotalTraces + trace
-                artifact.validLossHistTrace[#artifact.validLossHistTrace + 1] = artifact.totalTraces
-                artifact.validLossHistLoss[#artifact.validLossHistLoss + 1] = validLoss
-                artifact.validLossLast = validLoss
                 artifact.modified = os.date('%a %d %b %Y %X')
-                torch.save(opt.artifact, artifact)
+                artifact.updates = artifact.updates + 1
+
+                if opt.keepArtifacts then artifactFile = opt.artifact .. getTimeStamp() end
+                clearState()
+                torch.save(artifactFile, artifact)
+                improvementTime = os.time()
             elseif validLoss > artifact.validLossWorst then
                 artifact.validLossWorst = validLoss
                 validLossString = '%{bright red}' .. string.format('%+e ▲', validLoss) .. '%{reset}'
                 validLossBestString = string.format('%+e', artifact.validLossBest)
-            elseif validLoss < artifact.validLossLast then
+            elseif validLoss < artifact.validHistoryLoss[#artifact.validHistoryLoss] then
                 validLossString = '%{green}' .. string.format('%+e  ', validLoss) .. '%{reset}'
                 validLossBestString = string.format('%+e', artifact.validLossBest)
-            elseif validLoss > artifact.validLossLast then
+            elseif validLoss > artifact.validHistoryLoss[#artifact.validHistoryLoss] then
                 validLossString = '%{red}' .. string.format('%+e  ', validLoss) .. '%{reset}'
                 validLossBestString = string.format('%+e', artifact.validLossBest)
             else
                 validLossString = string.format('%+e  ', validLoss)
                 validLossBestString = string.format('%+e', artifact.validLossBest)
             end
-            artifact.validLossLast = validLoss
         end
 
-        printLog(string.format('%s │ %s │ %s │ %s │ %s', timeString, traceString, trainLossString, validLossString, validLossBestString))
+        improvementTimeString = daysHoursMinsSecs(os.time() - improvementTime)
+        printLog(string.format('%s │ %s │ %s │ %s │ %s | %s', timeString, traceString, trainLossString, validLossString, validLossBestString, improvementTimeString))
     end
 end

@@ -1,3 +1,13 @@
+--
+-- INFERENCE COMPILATION
+-- torch-autograd helpers
+--
+-- Tuan-Anh Le, Atilim Gunes Baydin
+-- tuananh@robots.ox.ac.uk; gunes@robots.ox.ac.uk
+-- University of Oxford
+-- May 2016 -- March 2017
+--
+
 dists = {}
 
 cephes = require 'cephes'

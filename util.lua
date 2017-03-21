@@ -1,17 +1,14 @@
 --
--- COMPILED INFERENCE
+-- INFERENCE COMPILATION
 -- Utility functions
 --
 -- Tuan-Anh Le, Atilim Gunes Baydin
 -- tuananh@robots.ox.ac.uk; gunes@robots.ox.ac.uk
---
--- Department of Engineering Science
 -- University of Oxford
---
--- May -- September 2016
+-- May 2016 -- March 2017
 --
 
-versionString = '0.8.0'
+versionString = '0.8.3'
 epsilon = 1e-5
 
 torch.manualSeed(1)
@@ -20,7 +17,6 @@ require 'torch'
 require 'nn'
 require 'nngraph'
 require 'optim'
-threads = require 'threads'
 require 'gnuplot'
 zmq = require 'lzmq'
 mp = require 'MessagePack'
@@ -145,11 +141,14 @@ function spin()
     if spinneri > 4 then spinneri = 1 end
 end
 
-function latestFileStartingWith(name)
+function fileStartingWith(name, n)
     local pfile = io.popen('ls -a ' .. name .. '*')
     local latest = nil
+    local count = 0
     for filename in pfile:lines() do
         latest = filename
+        count = count + 1
+        if count == n then break end
     end
     return latest
 end
@@ -212,6 +211,7 @@ function resampleMatrix(sourceDim, targetDim)
 end
 
 function loadArtifact(file)
+    assert(io.open(file, "r"), 'Cannot read artifact file '..file)
     local artifact = torch.load(file)
     if artifact.codeVersion ~= versionString then
         printLog('%{bright red}Warning: Loaded artifact was saved with another version of code.\n')
@@ -239,7 +239,8 @@ function loadArtifact(file)
         string.format('Cuda                  : %s\n', tostring(artifact.cuda)) ..
         string.format('%%{bright cyan}Trainable params      : %s\n', formatThousand(artifact.trainableParams)) ..
         string.format('%%{bright yellow}Total training time   : %s\n', daysHoursMinsSecs(artifact.totalTrainingTime)) ..
-        string.format('%%{dim yellow}Iterations            : %s\n', formatThousand(artifact.totalIterations)) ..
+        string.format('%%{dim yellow}Updates to file       : %s\n', formatThousand(artifact.updates)) ..
+        string.format('Iterations            : %s\n', formatThousand(artifact.totalIterations)) ..
         string.format('Iterations / s        : %s\n', formatThousand(iterPerSec, true)) ..
         string.format('%%{reset}%%{bright yellow}Total training traces : %s\n', formatThousand(artifact.totalTraces)) ..
         string.format('%%{dim yellow}Traces / s            : %s\n', formatThousand(tracesPerSec, true)) ..
@@ -262,5 +263,5 @@ function loadArtifact(file)
         string.format('%%{yellow}Addresses             :%s\n', addresses) ..
         string.format('Instances             :%s\n', instances) ..
         string.format('Proposal types        :%s\n', proposalTypes)
-    return artifact, info, artifact.trainLossHistTrace, artifact.trainLossHistLoss, artifact.validLossHistTrace, artifact.validLossHistLoss
+    return artifact, info, artifact.trainHistoryTrace, artifact.trainHistoryLoss, artifact.validHistoryTrace, artifact.validHistoryLoss
 end
