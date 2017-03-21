@@ -35,7 +35,7 @@ cmd:option('--dropout', false, 'use dropout')
 cmd:option('--method', 'adam', 'optimization method (adam, sgd)')
 
 -- architectural options
-cmd:option('--obsEmb', 'fc', 'observation embedding type (fc, lenet, cnn6, cnn7, vgg)')
+cmd:option('--obsEmb', 'fc', 'observation embedding type (fc, lenet, cnn2-1x1x100, cnn6-1x50x200, cnn6-1x96x96, cnn6-1x100x100, cnn6-2x128x128, cnn7-1x50x200, vgg-1x50x200)')
 cmd:option('--obsEmbDim', 512, 'observation embedding dimension')
 cmd:option('--smpEmb', 'fc', 'sample embedding type (fc)')
 cmd:option('--smpEmbDim', 1, 'sample embedding dimension')
@@ -571,7 +571,7 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
         if artifact.dropout then oemb:add(nn.Dropout(0.5)) end
         oemb:add(nn.Linear(artifact.obsEmbDim, artifact.obsEmbDim)) -- bx(artifact.obsEmbDim)
         oemb:add(nn.ReLU(true))
-    elseif artifact.obsEmb == 'cnn6' then
+    elseif artifact.obsEmb == 'cnn6-1x50x200' then
         -- TO DO: should be updated to work with observeShape other than 50x200
         oemb:add(nn.JoinTable(1, 2))
         oemb:add(nn.View(-1, 1, 50, 200)) -- bx1x50x200
@@ -582,7 +582,7 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
         oemb:add(cudnn.ReLU(true))
         if artifact.dropout then oemb:add(nn.Dropout(0.3)) end
         oemb:add(cudnn.SpatialMaxPooling(2,2,2,2)) -- bx64x23x98
-
+        --
         oemb:add(cudnn.SpatialConvolution(64, 128, 3, 3)) -- bx128x21x96
         oemb:add(cudnn.ReLU(true))
         if artifact.dropout then oemb:add(nn.Dropout(0.4)) end
@@ -593,7 +593,7 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
         oemb:add(cudnn.ReLU(true))
         if artifact.dropout then oemb:add(nn.Dropout(0.4)) end
         oemb:add(cudnn.SpatialMaxPooling(2,2,2,2)) -- bx128x8x46
-
+        --
         oemb:add(cudnn.SpatialConvolution(128, 128, 3, 3)) -- bx128x6x44
         oemb:add(cudnn.ReLU(true))
         if artifact.dropout then oemb:add(nn.Dropout(0.5)) end
@@ -605,8 +605,7 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
         if artifact.dropout then oemb:add(nn.Dropout(0.5)) end
         oemb:add(nn.Linear(artifact.obsEmbDim, artifact.obsEmbDim)) -- bx(artifact.obsEmbDim)
         oemb:add(cudnn.ReLU(true))
-
-    elseif artifact.obsEmb == 'cnn6-100x100' then
+    elseif artifact.obsEmb == 'cnn6-1x100x100' then
         oemb:add(nn.JoinTable(1, 2))
         oemb:add(nn.View(-1, 1, 100, 100)) -- bx1x100x100
         oemb:add(cudnn.SpatialConvolution(1, 64, 3, 3)) -- bx64x98x98
@@ -614,7 +613,7 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
         oemb:add(cudnn.SpatialConvolution(64, 64, 3, 3)) -- bx64x96x96
         oemb:add(cudnn.ReLU(true))
         oemb:add(cudnn.SpatialMaxPooling(2,2,2,2)) -- bx64x48x48
-
+        --
         oemb:add(cudnn.SpatialConvolution(64, 128, 3, 3)) -- bx128x46x46
         oemb:add(cudnn.ReLU(true))
         oemb:add(cudnn.SpatialConvolution(128, 128, 3, 3)) -- bx128x44x44
@@ -622,7 +621,7 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
         oemb:add(cudnn.SpatialConvolution(128, 128, 3, 3)) -- bx128x42x42
         oemb:add(cudnn.ReLU(true))
         oemb:add(cudnn.SpatialMaxPooling(2,2,2,2)) -- bx128x21x21
-
+        --
         oemb:add(cudnn.SpatialConvolution(128, 128, 3, 3)) -- bx128x19x19
         oemb:add(cudnn.ReLU(true))
         oemb:add(cudnn.SpatialMaxPooling(2,2,2,2)) -- bx128x9x9
@@ -631,7 +630,32 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
         oemb:add(cudnn.ReLU(true))
         oemb:add(nn.Linear(artifact.obsEmbDim, artifact.obsEmbDim)) -- bx(artifact.obsEmbDim)
         oemb:add(cudnn.ReLU(true))
-    elseif artifact.obsEmb == 'cnn6-96x96' then
+    elseif artifact.obsEmb == 'cnn6-2x128x128' then
+        oemb:add(nn.JoinTable(1, 2))
+        oemb:add(nn.View(-1, 2, 128, 128)) -- bx2x128x128
+        oemb:add(cudnn.SpatialConvolution(2, 64, 3, 3)) -- bx64x126x126
+        oemb:add(cudnn.ReLU(true))
+        oemb:add(cudnn.SpatialConvolution(64, 64, 3, 3)) -- bx64x124x124
+        oemb:add(cudnn.ReLU(true))
+        oemb:add(cudnn.SpatialMaxPooling(2,2,2,2)) -- bx64x62x62
+        --
+        oemb:add(cudnn.SpatialConvolution(64, 128, 3, 3)) -- bx128x60x60
+        oemb:add(cudnn.ReLU(true))
+        oemb:add(cudnn.SpatialConvolution(128, 128, 3, 3)) -- bx128x58x58
+        oemb:add(cudnn.ReLU(true))
+        oemb:add(cudnn.SpatialConvolution(128, 128, 3, 3)) -- bx128x56x56
+        oemb:add(cudnn.ReLU(true))
+        oemb:add(cudnn.SpatialMaxPooling(2,2,2,2)) -- bx128x28x28
+        --
+        oemb:add(cudnn.SpatialConvolution(128, 128, 3, 3)) -- bx128x26x26
+        oemb:add(cudnn.ReLU(true))
+        oemb:add(cudnn.SpatialMaxPooling(2,2,2,2)) -- bx128x13x13
+        oemb:add(nn.View(-1):setNumInputDims(3)) -- bx(128 * 13 * 13) = bx21632
+        oemb:add(nn.Linear(21632, artifact.obsEmbDim)) -- bx(artifact.obsEmbDim)
+        oemb:add(cudnn.ReLU(true))
+        oemb:add(nn.Linear(artifact.obsEmbDim, artifact.obsEmbDim)) -- bx(artifact.obsEmbDim)
+        oemb:add(cudnn.ReLU(true))
+    elseif artifact.obsEmb == 'cnn6-1x96x96' then
         oemb:add(nn.JoinTable(1, 2))
         oemb:add(nn.View(-1, 1, 96, 96)) -- bx1x96x96
         oemb:add(cudnn.SpatialConvolution(1, 64, 3, 3)) -- bx64x94x94
@@ -656,7 +680,7 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
         oemb:add(cudnn.ReLU(true))
         oemb:add(nn.Linear(artifact.obsEmbDim, artifact.obsEmbDim)) -- bx(artifact.obsEmbDim)
         oemb:add(cudnn.ReLU(true))
-    elseif artifact.obsEmb == 'cnn7' then
+    elseif artifact.obsEmb == 'cnn7-1x50x200' then
         -- TO DO: should be updated to work with observeShape other than 50x200
         oemb:add(nn.JoinTable(1, 2))
         oemb:add(nn.View(-1, 1, 50, 200)) -- bx1x50x200
@@ -667,7 +691,7 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
         oemb:add(cudnn.ReLU(true))
         if artifact.dropout then oemb:add(nn.Dropout(0.3)) end
         oemb:add(cudnn.SpatialMaxPooling(2,2,2,2))
-
+        --
         oemb:add(cudnn.SpatialConvolution(64, 128, 3, 3))
         oemb:add(cudnn.ReLU(true))
         if artifact.dropout then oemb:add(nn.Dropout(0.4)) end
@@ -675,7 +699,7 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
         oemb:add(cudnn.ReLU(true))
         if artifact.dropout then oemb:add(nn.Dropout(0.4)) end
         oemb:add(cudnn.SpatialMaxPooling(2,2,2,2))
-
+        --
         oemb:add(cudnn.SpatialConvolution(128, 256, 3, 3))
         oemb:add(cudnn.ReLU(true))
         if artifact.dropout then oemb:add(nn.Dropout(0.4)) end
@@ -693,7 +717,7 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
         if artifact.dropout then oemb:add(nn.Dropout(0.5)) end
         oemb:add(nn.Linear(artifact.obsEmbDim, artifact.obsEmbDim)) -- bx(artifact.obsEmbDim)
         oemb:add(cudnn.ReLU(true))
-    elseif artifact.obsEmb == 'vgg' then
+    elseif artifact.obsEmb == 'vgg-1x50x200' then
         -- TO DO: should be updated to work with observeShape other than 50x200
         oemb:add(nn.JoinTable(1, 2))
         oemb:add(nn.View(-1, 1, 50, 200)) -- bx1x50x200
@@ -741,7 +765,7 @@ if opt.resume == '' then -- No artifact to resume, initialize a new artifact
         if artifact.dropout then oemb:add(nn.Dropout(0.5)) end
         oemb:add(nn.Linear(artifact.obsEmbDim, artifact.obsEmbDim)) -- bx(artifact.obsEmbDim)
         oemb:add(cudnn.ReLU(true))
-    elseif artifact.obsEmb == 'cnn2-1d' then
+    elseif artifact.obsEmb == 'cnn2-1x1x100' then
         oemb:add(nn.JoinTable(1))
         oemb:add(nn.View(-1, 1, 1, 100))
         oemb:add(nn.SpatialConvolution(1,16,3,1))
