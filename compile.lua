@@ -166,7 +166,7 @@ function getBatchTraces(data)
             samples[m][timeStep] = samples[m][timeStep] or {}
             local address = vv['sample-address']
             local instance = vv['sample-instance']
-            local proposalType = vv['proposal-type']
+            local proposalType = vv['proposal-name']
 
             samples[m][timeStep].value = nil
             if type(vv['value']) == 'boolean' then
