@@ -20,11 +20,15 @@ import logging
 import sys
 import datetime
 
-torch.manual_seed(1)
-
 parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + util.version + ' (Compilation Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
-parser.add_argument('-o', '--out', help='folder to save artifacts and logs', default='./artifacts')
+parser.add_argument('--out', help='folder to save artifacts and logs', default='./artifacts')
+parser.add_argument('--cuda', help='use CUDA', action='store_true')
+parser.add_argument('--seed', help='random seed', default=1)
+parser.add_argument('--learningRate', help='learning rate', default=0.0001)
+parser.add_argument('--weightDecay', help='L2 weight decay coefficient', default=0.0005)
+parser.add_argument('--batchSize', help='training batch size', default=128)
+parser.add_argument('--validSize', help='validation set size', default=256)
 opt = parser.parse_args()
 
 if opt.version:
@@ -41,3 +45,11 @@ util.print_log('Started ' +  str(datetime.datetime.now()))
 util.print_log('')
 util.print_log('Running on PyTorch')
 util.print_log('')
+
+
+torch.manual_seed(opt.seed)
+if opt.cuda:
+    if not torch.cuda.is_available():
+        util.print_log(colored('Error: CUDA not available', 'red'))
+        quit()
+    torch.cuda.manual_seed(opt.seed)
