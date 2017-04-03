@@ -173,7 +173,7 @@ while true do
 
         local address = commandParam['sample-address']
         local instance = commandParam['sample-instance']
-        local proposalType = commandParam['proposal-name']
+        local proposalType = commandParam['proposal-type']
         local prevAddress = commandParam['prev-sample-address']
         local prevInstance = commandParam['prev-sample-instance']
         local tempPrevValue = commandParam['prev-sample-value']
