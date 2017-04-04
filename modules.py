@@ -99,6 +99,7 @@ class Artifact(nn.Module):
         self.valid_batch = None
         self.lstm_dim = None
         self.lstm_depth = None
+        self.lstm_input_dim = None
         self.smp_emb = None
         self.smp_emb_dim = None
         self.obs_emb = None
@@ -166,8 +167,8 @@ class Artifact(nn.Module):
     def set_lstm(self, lstm_dim, lstm_depth):
         self.lstm_dim = lstm_dim
         self.lstm_depth = lstm_depth
-        lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + self.one_hot_address_dim + self.one_hot_instance_dim + self.one_hot_proposal_type_dim
-        self.lstm = nn.LSTM(lstm_input_dim, lstm_dim, lstm_depth)
+        self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + self.one_hot_address_dim + self.one_hot_instance_dim + self.one_hot_proposal_type_dim
+        self.lstm = nn.LSTM(self.lstm_input_dim, lstm_dim, lstm_depth)
 
     def add_one_hot_address(self, address):
         if not address in self.one_hot_address:
@@ -175,7 +176,8 @@ class Artifact(nn.Module):
             i = len(self.one_hot_address)
             if i >= self.one_hot_address_dim:
                 log_error('one_hot_address overflow: {0}'.format(i))
-            t = util.Tensor(self.one_hot_address_dim).fill_(0).narrow(0, i, 1).fill_(1)
+            t = util.Tensor(self.one_hot_address_dim).fill_(0)
+            t.narrow(0, i, 1).fill_(1)
             self.one_hot_address[address] = t
 
     def add_one_hot_instance(self, instance):
@@ -184,7 +186,8 @@ class Artifact(nn.Module):
             i = len(self.one_hot_instance)
             if i >= self.one_hot_instance_dim:
                 log_error('one_hot_instance overflow: {0}'.format(i))
-            t = util.Tensor(self.one_hot_instance_dim).fill_(0).narrow(0, i, 1).fill_(1)
+            t = util.Tensor(self.one_hot_instance_dim).fill_(0)
+            t.narrow(0, i, 1).fill_(1)
             self.one_hot_instance[instance] = t
 
     def add_one_hot_proposal_type(self, proposal_type):
@@ -193,7 +196,8 @@ class Artifact(nn.Module):
             i = len(self.one_hot_proposal_type)
             if i >= self.one_hot_proposal_type_dim:
                 log_error('one_hot_proposal_type overflow: {0}'.format(i))
-            t = util.Tensor(self.one_hot_proposal_type_dim).fill_(0).narrow(0, i, 1).fill_(1)
+            t = util.Tensor(self.one_hot_proposal_type_dim).fill_(0)
+            t.narrow(0, i, 1).fill_(1)
             self.one_hot_proposal_type[proposal_type] = t
 
     def loss(self, sub_batch):
@@ -207,12 +211,43 @@ class Artifact(nn.Module):
         else:
             util.log_error('Unsupported observation shape: {0}'.format(example_observes.size()))
 
+        for b in range(sub_batch_size):
+            obs[b].copy_(sub_batch[b].observes)
+
         observe_embedding = self.observe_layer(Variable(obs, requires_grad=False))
 
         example_trace = sub_batch[0]
-        for sample in example_trace.samples:
+        lstm_input = util.Tensor(example_trace.length, sub_batch_size, self.lstm_input_dim)
+
+        s1 = self.obs_emb_dim
+        s2 = s1 + self.smp_emb_dim
+        s3 = s2 + self.one_hot_address_dim
+        s4 = s3 + self.one_hot_instance_dim
+        s5 = s4 + self.one_hot_proposal_type_dim
+
+        for time_step in range(example_trace.length):
+            sample = example_trace.samples[time_step]
             address = sample.address
             instance = sample.instance
             proposal_type = sample.proposal_type
 
-        return observe_embedding
+            lstm_input[time_step, :, 0:s1].copy_(observe_embedding.data)
+
+            if time_step == 0:
+                lstm_input[time_step, :, s1:s2].fill_(0)
+            else:
+                smp = util.Tensor(sub_batch_size, sample.value_dim)
+
+                for b in range(sub_batch_size):
+                    smp[b].copy_(sub_batch[b].samples[time_step].value)
+
+                sample_embedding = self.sample_layers[(address, instance)](Variable(smp))
+                lstm_input[time_step, :, s1:s2].copy_(sample_embedding.data)
+
+            for b in range(sub_batch_size):
+                lstm_input[time_step, b, s2:s3].copy_(self.one_hot_address[address])
+                lstm_input[time_step, b, s3:s4].copy_(self.one_hot_instance[instance])
+                lstm_input[time_step, b, s4:s5].copy_(self.one_hot_proposal_type[proposal_type])
+
+        lstm_output, _ = self.lstm(Variable(lstm_input, requires_grad=True))
+        return lstm_output

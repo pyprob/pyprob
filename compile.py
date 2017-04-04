@@ -26,20 +26,20 @@ parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + u
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
 parser.add_argument('--out', help='folder to save artifacts and logs', default='./artifacts')
 parser.add_argument('--cuda', help='use CUDA', action='store_true')
-parser.add_argument('--seed', help='random seed', default=1)
+parser.add_argument('--seed', help='random seed', default=1, type=int)
 parser.add_argument('--server', help='address of the probprog model server', default='tcp://127.0.0.1:5555')
 parser.add_argument('--learningRate', help='learning rate', default=0.0001, type=float)
 parser.add_argument('--weightDecay', help='L2 weight decay coefficient', default=0.0005, type=float)
 parser.add_argument('--batchSize', help='training batch size', default=4, type=int)
 parser.add_argument('--validSize', help='validation set size', default=4, type=int)
-parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=64, type=int)
+parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=2, type=int)
 parser.add_argument('--noStandardize', help='do not standardize observations', action='store_true')
 parser.add_argument('--resume', help='resume training of the latest artifact', action='store_true')
 parser.add_argument('--obsEmb', help='observation embedding', choices=['fc'], default='fc', type=str)
-parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=512, type=int)
+parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=3, type=int)
 parser.add_argument('--smpEmb', help='sample embedding', choices=['fc'], default='fc', type=str)
 parser.add_argument('--smpEmbDim', help='sample embedding dimension', default=1, type=int)
-parser.add_argument('--lstmDim', help='lstm hidden unit dimension', default=512, type=int)
+parser.add_argument('--lstmDim', help='lstm hidden unit dimension', default=3, type=int)
 parser.add_argument('--lstmDepth', help='number of stacked lstms', default=2, type=int)
 parser.add_argument('--softmaxBoost', help='multiplier before softmax', default=20.0, type=float)
 opt = parser.parse_args()
@@ -89,7 +89,7 @@ with Requester(opt.server) as requester:
 
     iteration = 0
     trace = 0
-
+    artifact.train()
     requester.request_batch(opt.batchSize)
     while iteration < 1:
         batch = requester.receive_batch(artifact.standardize)
