@@ -81,6 +81,7 @@ class Artifact(nn.Module):
         self.sample_layers = {}
         self.proposal_layers = {}
         self.observe_layer = None
+        self.lstm = None
 
         self.name = ''
         self.code_version = util.version
@@ -142,6 +143,12 @@ class Artifact(nn.Module):
         if obs_emb == 'fc':
             observe_layer = Observe_embedding_fc(example_observes.nelement(), obs_emb_dim)
         self.observe_layer = observe_layer
+
+    def set_lstm(self, lstm_dim, lstm_depth):
+        self.lstm_dim = lstm_dim
+        self.lstm_depth = lstm_depth
+        lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + self.one_hot_address_dim + self.one_hot_instance_dim + self.one_hot_proposal_type_dim
+        self.lstm = nn.LSTM(lstm_input_dim, lstm_dim, lstm_depth)
 
     def add_one_hot_address(self, address):
         if not address in self.one_hot_address:

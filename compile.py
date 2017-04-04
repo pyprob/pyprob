@@ -40,7 +40,7 @@ parser.add_argument('--obsEmbDim', help='observation embedding dimension', defau
 parser.add_argument('--smpEmb', help='sample embedding', choices=['fc'], default='fc', type=str)
 parser.add_argument('--smpEmbDim', help='sample embedding dimension', default=1, type=int)
 parser.add_argument('--lstmDim', help='lstm hidden unit dimension', default=512, type=int)
-parser.add_argument('--lstmDepth', help='number of stacked lstms', default=1, type=int)
+parser.add_argument('--lstmDepth', help='number of stacked lstms', default=2, type=int)
 parser.add_argument('--softmaxBoost', help='multiplier before softmax', default=20.0, type=float)
 opt = parser.parse_args()
 
@@ -77,9 +77,7 @@ with Requester(opt.server) as requester:
         example_observes = artifact.valid_batch[0][0].observes
         artifact.set_observe_embedding(example_observes, opt.obsEmb, opt.obsEmbDim)
         artifact.set_sample_embedding(opt.smpEmb, opt.smpEmbDim)
-
-        artifact.lstm_dim = opt.lstmDim
-        artifact.lstm_depth = opt.lstmDepth
+        artifact.set_lstm(opt.lstmDim, opt.lstmDepth)
 
         artifact.softmax_boost = opt.softmaxBoost
         artifact.polymorph()
