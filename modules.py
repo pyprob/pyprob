@@ -217,7 +217,7 @@ class Artifact(nn.Module):
         observe_embedding = self.observe_layer(Variable(obs, requires_grad=False))
 
         example_trace = sub_batch[0]
-        lstm_input = util.Tensor(example_trace.length, sub_batch_size, self.lstm_input_dim)
+        lstm_input = Variable(util.Tensor(example_trace.length, sub_batch_size, self.lstm_input_dim))
 
         s1 = self.obs_emb_dim
         s2 = s1 + self.smp_emb_dim
@@ -231,7 +231,8 @@ class Artifact(nn.Module):
             instance = sample.instance
             proposal_type = sample.proposal_type
 
-            lstm_input[time_step, :, 0:s1].copy_(observe_embedding.data)
+            print(time_step)
+            lstm_input[time_step, :, 0:s1].index_copy_(0, Variable(torch.LongTensor(range(observe_embedding.size()[0]))), observe_embedding)
 
             if time_step == 0:
                 lstm_input[time_step, :, s1:s2].fill_(0)
@@ -242,7 +243,7 @@ class Artifact(nn.Module):
                     smp[b].copy_(sub_batch[b].samples[time_step].value)
 
                 sample_embedding = self.sample_layers[(address, instance)](Variable(smp))
-                lstm_input[time_step, :, s1:s2].copy_(sample_embedding.data)
+                lstm_input[time_step, :, s1:s2].copy_(sample_embedding)
 
             for b in range(sub_batch_size):
                 lstm_input[time_step, b, s2:s3].copy_(self.one_hot_address[address])
@@ -250,4 +251,12 @@ class Artifact(nn.Module):
                 lstm_input[time_step, b, s4:s5].copy_(self.one_hot_proposal_type[proposal_type])
 
         lstm_output, _ = self.lstm(Variable(lstm_input, requires_grad=True))
+
+        for time_step in range(example_trace.length):
+            sample = example_trace.samples[time_step]
+            address = sample.address
+            instance = sample.instance
+
+            # proposal_input = lstm_output[time_step]
+
         return lstm_output
