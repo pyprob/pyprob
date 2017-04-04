@@ -34,6 +34,12 @@ parser.add_argument('--validSize', help='validation set size', default=256)
 parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=64)
 parser.add_argument('--noStandardize', help='do not standardize observations', action='store_true')
 parser.add_argument('--resume', help='resume training of the latest artifact', action='store_true')
+parser.add_argument('--obsEmb', help='observation embedding (fc)', default='fc')
+parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=512)
+parser.add_argument('--smbEmb', help='sample embedding (fc)', default='fc')
+parser.add_argument('--smpEmbDim', help='sample embedding dimension', default=1)
+parser.add_argument('--lstmDim', help='lstm hidden unit dimension', default=512)
+parser.add_argument('--lstmDepth', help='number of stacked lstms', default=1)
 opt = parser.parse_args()
 
 if opt.version:
@@ -127,18 +133,19 @@ def receive_batch():
     return bs
 
 artifact = Artifact()
-artifact.cuda = opt.cuda
-artifact.one_hot_address_dim = opt.oneHotDim
-artifact.one_hot_instance_dim = opt.oneHotDim
-artifact.one_hot_proposal_type_dim = 1
 
 if not opt.resume:
     artifact.standardize = not opt.noStandardize
+    artifact.cuda = opt.cuda
+    artifact.one_hot_address_dim = opt.oneHotDim
+    artifact.one_hot_instance_dim = opt.oneHotDim
+    artifact.one_hot_proposal_type_dim = 1
+    artifact.valid_size = opt.validSize
+    request_batch(artifact.valid_size)
+    artifact.valid_batch = receive_batch()
 
 # torch.save(artifact, 'art1')
 # artifact = torch.load('art1')
 # print(artifact)
 
-request_batch(2)
-sb = receive_batch()
-print(sb)
+print(artifact.valid_batch)

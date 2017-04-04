@@ -57,6 +57,7 @@ class Trace(object):
 class Artifact(object):
     def __init__(self):
         self.name = ''
+        self.code_version = version
         self.cuda = False
         self.standardize = True
         self.one_hot_address = {}
@@ -65,6 +66,8 @@ class Artifact(object):
         self.one_hot_address_dim = None
         self.one_hot_instance_dim = None
         self.one_hot_proposal_type_dim = None
+        self.valid_size = None
+        self.valid_batch = None
 
     def add_one_hot_address(self, address):
         if not address in self.one_hot_address:
