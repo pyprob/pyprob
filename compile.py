@@ -27,19 +27,20 @@ parser.add_argument('--out', help='folder to save artifacts and logs', default='
 parser.add_argument('--cuda', help='use CUDA', action='store_true')
 parser.add_argument('--seed', help='random seed', default=1)
 parser.add_argument('--server', help='address of the probprog model server', default='tcp://127.0.0.1:5555')
-parser.add_argument('--learningRate', help='learning rate', default=0.0001)
-parser.add_argument('--weightDecay', help='L2 weight decay coefficient', default=0.0005)
-parser.add_argument('--batchSize', help='training batch size', default=128)
-parser.add_argument('--validSize', help='validation set size', default=256)
-parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=64)
+parser.add_argument('--learningRate', help='learning rate', default=0.0001, type=float)
+parser.add_argument('--weightDecay', help='L2 weight decay coefficient', default=0.0005, type=float)
+parser.add_argument('--batchSize', help='training batch size', default=128, type=int)
+parser.add_argument('--validSize', help='validation set size', default=256, type=int)
+parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=64, type=int)
 parser.add_argument('--noStandardize', help='do not standardize observations', action='store_true')
 parser.add_argument('--resume', help='resume training of the latest artifact', action='store_true')
-parser.add_argument('--obsEmb', help='observation embedding (fc)', default='fc')
-parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=512)
-parser.add_argument('--smbEmb', help='sample embedding (fc)', default='fc')
-parser.add_argument('--smpEmbDim', help='sample embedding dimension', default=1)
-parser.add_argument('--lstmDim', help='lstm hidden unit dimension', default=512)
-parser.add_argument('--lstmDepth', help='number of stacked lstms', default=1)
+parser.add_argument('--obsEmb', help='observation embedding', choices=['fc'], default='fc', type=str)
+parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=512, type=int)
+parser.add_argument('--smpEmb', help='sample embedding', choices=['fc'], default='fc', type=str)
+parser.add_argument('--smpEmbDim', help='sample embedding dimension', default=1, type=int)
+parser.add_argument('--lstmDim', help='lstm hidden unit dimension', default=512, type=int)
+parser.add_argument('--lstmDepth', help='number of stacked lstms', default=1, type=int)
+parser.add_argument('--softmaxBoost', help='multiplier before softmax', default=20.0, type=float)
 opt = parser.parse_args()
 
 if opt.version:
@@ -83,10 +84,10 @@ def get_batch(data):
             if type(value) != int:
                 util.log_error('Unsupported sample value type: ' + str(type(value)))
             value = util.Tensor([value])
-            sample = Sample(address, instance, proposal_type, value)
+            sample = Sample(address, instance, value, proposal_type)
             if proposal_type == 'discreteminmax':
-                sample.proposal_extra_params_min = samples_timeStep['proposal-extra-params'][0]
-                sample.proposal_extra_params_max = samples_timeStep['proposal-extra-params'][1]
+                sample.proposal_min = samples_timeStep['proposal-extra-params'][0]
+                sample.proposal_max = samples_timeStep['proposal-extra-params'][1]
             else:
                 util.log_error('Unsupported proposal distribution type: ' + proposal_type)
             trace.add_sample(sample)
@@ -133,7 +134,6 @@ def receive_batch():
     return bs
 
 artifact = Artifact()
-
 if not opt.resume:
     artifact.standardize = not opt.noStandardize
     artifact.cuda = opt.cuda
@@ -143,9 +143,18 @@ if not opt.resume:
     artifact.valid_size = opt.validSize
     request_batch(artifact.valid_size)
     artifact.valid_batch = receive_batch()
+    artifact.lstm_dim = opt.lstmDim
+    artifact.lstm_depth = opt.lstmDepth
+    artifact.smp_emb = opt.smpEmb
+    artifact.smp_emb_dim = opt.smpEmbDim
+    artifact.obs_emb = opt.obsEmb
+    artifact.obs_emb_dim = opt.obsEmbDim
+    artifact.softmax_boost = opt.softmaxBoost
 
 # torch.save(artifact, 'art1')
 # artifact = torch.load('art1')
 # print(artifact)
-
+artifact.polymorph()
 print(artifact.valid_batch)
+print(artifact.sample_layers)
+print(artifact.proposal_layers)
