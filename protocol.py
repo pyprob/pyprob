@@ -19,7 +19,7 @@ class Requester(object):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REQ)
         self.socket.connect(server_address)
-        util.log_print('Connected to server ' + server_address)
+        util.log_print('Protocol: connected to server ' + server_address)
 
     def __enter__(self):
         return self
@@ -27,7 +27,7 @@ class Requester(object):
     def __exit__(self, exception_type, exception_value, traceback):
         self.socket.close()
         self.context.term()
-        util.log_print('Connection to server terminated')
+        util.log_print('Protocol: disconnected')
 
     def send_request(self, request):
         self.socket.send(msgpack.packb(request))

@@ -64,30 +64,37 @@ util.log_print(' '.join(sys.argv[1:]))
 util.log_print('')
 
 with Requester(opt.server) as requester:
-
-    artifact = Artifact()
     if not opt.resume:
+        artifact = Artifact()
         artifact.standardize = not opt.noStandardize
-        artifact.cuda = opt.cuda
         artifact.one_hot_address_dim = opt.oneHotDim
         artifact.one_hot_instance_dim = opt.oneHotDim
         artifact.one_hot_proposal_type_dim = 1
         artifact.valid_size = opt.validSize
         requester.request_batch(artifact.valid_size)
         artifact.valid_batch = requester.receive_batch(artifact.standardize)
+
+        example_observes = artifact.valid_batch[0][0].observes
+        artifact.set_observe_layer(example_observes, opt.obsEmb, opt.obsEmbDim)
+
         artifact.lstm_dim = opt.lstmDim
         artifact.lstm_depth = opt.lstmDepth
         artifact.smp_emb = opt.smpEmb
         artifact.smp_emb_dim = opt.smpEmbDim
-        artifact.obs_emb = opt.obsEmb
-        artifact.obs_emb_dim = opt.obsEmbDim
         artifact.softmax_boost = opt.softmaxBoost
         artifact.polymorph()
+
+        if opt.cuda:
+            artifact.cuda()
 
     # torch.save(artifact, 'art1')
     # artifact = torch.load('art1')
     # print(artifact)
 
-    print(artifact.valid_batch)
-    print(artifact.sample_layers)
-    print(artifact.proposal_layers)
+    print('modules')
+    for i, m in enumerate(artifact.modules()):
+        print(i, m)
+
+    print('params')
+    for p in artifact.parameters():
+        print(type(p.data), p.size())

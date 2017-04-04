@@ -57,6 +57,15 @@ class Proposal_discreteminmax(nn.Module):
     def forward(self, x):
         return F.softmax(F.relu(self.lin1(x)).mul_(self.softmax_boost))
 
+class Observe_fc(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(Observe_fc, self).__init__()
+        self.lin1 = nn.Linear(input_dim, output_dim)
+        self.lin2 = nn.Linear(output_dim, output_dim)
+    def forward(self, x):
+        x = F.relu(self.lin1(x))
+        x = F.relu(self.lin2(x))
+        return x
 
 class Artifact(nn.Module):
     def __init__(self):
@@ -64,10 +73,10 @@ class Artifact(nn.Module):
 
         self.sample_layers = {}
         self.proposal_layers = {}
+        self.observe_layer = None
 
         self.name = ''
         self.code_version = util.version
-        self.cuda = False
         self.standardize = True
         self.one_hot_address = {}
         self.one_hot_instance = {}
@@ -102,12 +111,23 @@ class Artifact(nn.Module):
 
                 # update the artifact's sample and proposal layers as needed
                 if not (address, instance) in self.sample_layers:
-                    self.sample_layers[(address, instance)] = nn.Linear(sample.value_dim, self.smp_emb_dim)
+                    sample_layer = nn.Linear(sample.value_dim, self.smp_emb_dim)
                     if sample.proposal_type == 'discreteminmax':
-                        self.proposal_layers[(address, instance)] = Proposal_discreteminmax(self.lstm_dim, sample.proposal_min, sample.proposal_max, self.softmax_boost)
+                        proposal_layer = Proposal_discreteminmax(self.lstm_dim, sample.proposal_min, sample.proposal_max, self.softmax_boost)
                     else:
                         util.log_error('Unsupported proposal distribution type: ' + sample.proposal_type)
+                    self.sample_layers[(address, instance)] = sample_layer
+                    self.proposal_layers[(address, instance)] = proposal_layer
+                    self.add_module('sample_layer({0}, {1})'.format(address, instance), sample_layer)
+                    self.add_module('proposal_layer({0}, {1})'.format(address, instance), proposal_layer)
                     util.log_print(colored('Polymorphing, new layers attached: {0}, {1}'.format(address, instance), 'magenta', attrs=['bold']))
+
+    def set_observe_layer(self, example_observes, obs_emb, obs_emb_dim):
+        self.obs_emb = obs_emb
+        self.obs_emb_dim = obs_emb_dim
+        if obs_emb == 'fc':
+            observe_layer = Observe_fc(example_observes.nelement(), obs_emb_dim)
+        self.observe_layer = observe_layer
 
     def add_one_hot_address(self, address):
         if not address in self.one_hot_address:
