@@ -130,7 +130,7 @@ How do these query-specific samples look like? You can output a sample from the 
  :sample-address <sample-address>
  :sample-instance <sample-instance>
  :prior-dist-str <prior-dist-str>
- :proposal-type <proposal-type>
+ :proposal-name <proposal-name>
  :proposal-extra-params <proposal-extra-params>
  :value <value>}
 ```
