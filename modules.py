@@ -57,9 +57,16 @@ class Proposal_discreteminmax(nn.Module):
     def forward(self, x):
         return F.softmax(F.relu(self.lin1(x)).mul_(self.softmax_boost))
 
-class Observe_fc(nn.Module):
+class Sample_embedding_fc(nn.Module):
     def __init__(self, input_dim, output_dim):
-        super(Observe_fc, self).__init__()
+        super(Sample_embedding_fc, self).__init__()
+        self.lin1 = nn.Linear(input_dim, output_dim)
+    def forward(self, x):
+        return F.relu(self.lin1(x))
+
+class Observe_embedding_fc(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(Observe_embedding_fc, self).__init__()
         self.lin1 = nn.Linear(input_dim, output_dim)
         self.lin2 = nn.Linear(output_dim, output_dim)
     def forward(self, x):
@@ -111,22 +118,29 @@ class Artifact(nn.Module):
 
                 # update the artifact's sample and proposal layers as needed
                 if not (address, instance) in self.sample_layers:
-                    sample_layer = nn.Linear(sample.value_dim, self.smp_emb_dim)
+                    if self.smp_emb == 'fc':
+                        sample_layer = Sample_embedding_fc(sample.value_dim, self.smp_emb_dim)
+                    else:
+                        util.log_error('Unsupported sample embedding: ' + self.smp_emb)
                     if sample.proposal_type == 'discreteminmax':
                         proposal_layer = Proposal_discreteminmax(self.lstm_dim, sample.proposal_min, sample.proposal_max, self.softmax_boost)
                     else:
-                        util.log_error('Unsupported proposal distribution type: ' + sample.proposal_type)
+                        util.log_error('Unsupported proposal distribution: ' + sample.proposal_type)
                     self.sample_layers[(address, instance)] = sample_layer
                     self.proposal_layers[(address, instance)] = proposal_layer
                     self.add_module('sample_layer({0}, {1})'.format(address, instance), sample_layer)
                     self.add_module('proposal_layer({0}, {1})'.format(address, instance), proposal_layer)
                     util.log_print(colored('Polymorphing, new layers attached: {0}, {1}'.format(address, instance), 'magenta', attrs=['bold']))
 
-    def set_observe_layer(self, example_observes, obs_emb, obs_emb_dim):
+    def set_sample_embedding(self, smp_emb, smp_emb_dim):
+        self.smp_emb = smp_emb
+        self.smp_emb_dim = smp_emb_dim
+
+    def set_observe_embedding(self, example_observes, obs_emb, obs_emb_dim):
         self.obs_emb = obs_emb
         self.obs_emb_dim = obs_emb_dim
         if obs_emb == 'fc':
-            observe_layer = Observe_fc(example_observes.nelement(), obs_emb_dim)
+            observe_layer = Observe_embedding_fc(example_observes.nelement(), obs_emb_dim)
         self.observe_layer = observe_layer
 
     def add_one_hot_address(self, address):

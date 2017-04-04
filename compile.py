@@ -75,12 +75,12 @@ with Requester(opt.server) as requester:
         artifact.valid_batch = requester.receive_batch(artifact.standardize)
 
         example_observes = artifact.valid_batch[0][0].observes
-        artifact.set_observe_layer(example_observes, opt.obsEmb, opt.obsEmbDim)
+        artifact.set_observe_embedding(example_observes, opt.obsEmb, opt.obsEmbDim)
+        artifact.set_sample_embedding(opt.smpEmb, opt.smpEmbDim)
 
         artifact.lstm_dim = opt.lstmDim
         artifact.lstm_depth = opt.lstmDepth
-        artifact.smp_emb = opt.smpEmb
-        artifact.smp_emb_dim = opt.smpEmbDim
+
         artifact.softmax_boost = opt.softmaxBoost
         artifact.polymorph()
 
