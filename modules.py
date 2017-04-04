@@ -12,6 +12,7 @@ import util
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
 from termcolor import colored
 
 class Sample(object):
@@ -67,10 +68,11 @@ class Sample_embedding_fc(nn.Module):
 class Observe_embedding_fc(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(Observe_embedding_fc, self).__init__()
+        self.input_dim = input_dim
         self.lin1 = nn.Linear(input_dim, output_dim)
         self.lin2 = nn.Linear(output_dim, output_dim)
     def forward(self, x):
-        x = F.relu(self.lin1(x))
+        x = F.relu(self.lin1(x.view(-1, self.input_dim)))
         x = F.relu(self.lin2(x))
         return x
 
@@ -85,6 +87,7 @@ class Artifact(nn.Module):
 
         self.name = ''
         self.code_version = util.version
+        self.pytorch_version = torch.__version__
         self.standardize = True
         self.one_hot_address = {}
         self.one_hot_instance = {}
@@ -100,11 +103,20 @@ class Artifact(nn.Module):
         self.smp_emb_dim = None
         self.obs_emb = None
         self.obs_emb_dim = None
+        self.num_parameters = None
+
+    def get_str(self):
+        ret = str(next(enumerate(self.modules()))[1])
+        ret = ret + '\nParameters: ' + str(self.num_parameters)
+        for p in self.parameters():
+            ret = ret + '\n{0} {1}'.format(type(p.data), p.size())
+        return ret
 
     def polymorph(self, batch=None):
         if batch is None:
             batch = self.valid_batch
 
+        layers_changed = False
         for sub_batch in batch:
             example_trace = sub_batch[0]
             for sample in example_trace.samples:
@@ -131,7 +143,14 @@ class Artifact(nn.Module):
                     self.proposal_layers[(address, instance)] = proposal_layer
                     self.add_module('sample_layer({0}, {1})'.format(address, instance), sample_layer)
                     self.add_module('proposal_layer({0}, {1})'.format(address, instance), proposal_layer)
-                    util.log_print(colored('Polymorphing, new layers attached: {0}, {1}'.format(address, instance), 'magenta', attrs=['bold']))
+                    util.log_print(colored('Polymorphing, new layers attached : {0}, {1}'.format(address, instance), 'magenta', attrs=['bold']))
+                    layers_changed = True
+
+        if layers_changed:
+            self.num_parameters = 0
+            for p in self.parameters():
+                self.num_parameters += p.nelement()
+            util.log_print(colored('Polymorphing, new trainable params: {:,}'.format(self.num_parameters), 'magenta', attrs=['bold']))
 
     def set_sample_embedding(self, smp_emb, smp_emb_dim):
         self.smp_emb = smp_emb
@@ -152,7 +171,7 @@ class Artifact(nn.Module):
 
     def add_one_hot_address(self, address):
         if not address in self.one_hot_address:
-            util.log_print(colored('Polymorphing, new address        : ' + address, 'magenta', attrs=['bold']))
+            util.log_print(colored('Polymorphing, new address         : ' + address, 'magenta', attrs=['bold']))
             i = len(self.one_hot_address)
             if i >= self.one_hot_address_dim:
                 log_error('one_hot_address overflow: {0}'.format(i))
@@ -161,7 +180,7 @@ class Artifact(nn.Module):
 
     def add_one_hot_instance(self, instance):
         if not instance in self.one_hot_instance:
-            util.log_print(colored('Polymorphing, new instance       : ' + str(instance), 'magenta', attrs=['bold']))
+            util.log_print(colored('Polymorphing, new instance        : ' + str(instance), 'magenta', attrs=['bold']))
             i = len(self.one_hot_instance)
             if i >= self.one_hot_instance_dim:
                 log_error('one_hot_instance overflow: {0}'.format(i))
@@ -170,9 +189,30 @@ class Artifact(nn.Module):
 
     def add_one_hot_proposal_type(self, proposal_type):
         if not proposal_type in self.one_hot_proposal_type:
-            util.log_print(colored('Polymorphing, new proposal type  : ' + proposal_type, 'magenta', attrs=['bold']))
+            util.log_print(colored('Polymorphing, new proposal type   : ' + proposal_type, 'magenta', attrs=['bold']))
             i = len(self.one_hot_proposal_type)
             if i >= self.one_hot_proposal_type_dim:
                 log_error('one_hot_proposal_type overflow: {0}'.format(i))
             t = util.Tensor(self.one_hot_proposal_type_dim).fill_(0).narrow(0, i, 1).fill_(1)
             self.one_hot_proposal_type[proposal_type] = t
+
+    def loss(self, sub_batch):
+        sub_batch_size = len(sub_batch)
+        example_observes = sub_batch[0].observes
+
+        if example_observes.dim() == 1:
+            obs = util.Tensor(sub_batch_size, example_observes.size()[0])
+        elif example_observes.dim() == 2:
+            obs = util.Tensor(sub_batch_size, example_observes.size()[0], example_observes.size()[1])
+        else:
+            util.log_error('Unsupported observation shape: {0}'.format(example_observes.size()))
+
+        observe_embedding = self.observe_layer(Variable(obs, requires_grad=False))
+
+        example_trace = sub_batch[0]
+        for sample in example_trace.samples:
+            address = sample.address
+            instance = sample.instance
+            proposal_type = sample.proposal_type
+
+        return observe_embedding

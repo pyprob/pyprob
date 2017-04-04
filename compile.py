@@ -30,8 +30,8 @@ parser.add_argument('--seed', help='random seed', default=1)
 parser.add_argument('--server', help='address of the probprog model server', default='tcp://127.0.0.1:5555')
 parser.add_argument('--learningRate', help='learning rate', default=0.0001, type=float)
 parser.add_argument('--weightDecay', help='L2 weight decay coefficient', default=0.0005, type=float)
-parser.add_argument('--batchSize', help='training batch size', default=128, type=int)
-parser.add_argument('--validSize', help='validation set size', default=256, type=int)
+parser.add_argument('--batchSize', help='training batch size', default=4, type=int)
+parser.add_argument('--validSize', help='validation set size', default=4, type=int)
 parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=64, type=int)
 parser.add_argument('--noStandardize', help='do not standardize observations', action='store_true')
 parser.add_argument('--resume', help='resume training of the latest artifact', action='store_true')
@@ -57,7 +57,7 @@ util.log_print('Compilation Mode')
 util.log_print('')
 util.log_print('Started ' +  str(datetime.datetime.now()))
 util.log_print('')
-util.log_print('Running on PyTorch')
+util.log_print('Running on PyTorch ' + torch.__version__)
 util.log_print('')
 util.log_print('Command line arguments:')
 util.log_print(' '.join(sys.argv[1:]))
@@ -80,19 +80,26 @@ with Requester(opt.server) as requester:
         artifact.set_lstm(opt.lstmDim, opt.lstmDepth)
 
         artifact.softmax_boost = opt.softmaxBoost
-        artifact.polymorph()
 
+        artifact.polymorph()
         if opt.cuda:
             artifact.cuda()
 
-    # torch.save(artifact, 'art1')
-    # artifact = torch.load('art1')
-    # print(artifact)
+    optimizer = optim.SGD(artifact.parameters(), lr=opt.learningRate)
 
-    print('modules')
-    for i, m in enumerate(artifact.modules()):
-        print(i, m)
+    iteration = 0
+    trace = 0
 
-    print('params')
-    for p in artifact.parameters():
-        print(type(p.data), p.size())
+    requester.request_batch(opt.batchSize)
+    while iteration < 1:
+        batch = requester.receive_batch(artifact.standardize)
+        requester.request_batch(opt.batchSize)
+
+        for sub_batch in batch:
+            print(artifact.loss(sub_batch))
+
+        iteration += 1
+
+
+
+# print(artifact.loss(artifact.valid_batch[0]))
