@@ -7,9 +7,10 @@
 # May 2016 -- March 2017
 #
 
-from __future__ import print_function
 import util
-from util import Sample, Trace, Artifact
+from modules import Sample, Trace, Artifact
+from protocol import Requester
+
 import argparse
 import torch
 import torch.nn as nn
@@ -62,99 +63,31 @@ util.log_print('Command line arguments:')
 util.log_print(' '.join(sys.argv[1:]))
 util.log_print('')
 
-def get_batch(data):
-    traces = []
-    for i in range(len(data)):
-        trace = Trace()
-        data_i = data[i]
-        obs_shape = data_i['observes']['shape']
-        obs_data = data_i['observes']['data']
-        obs = util.Tensor(obs_data).view(obs_shape)
-        if artifact.standardize:
-            obs = util.standardize(obs)
-        trace.set_observes(obs)
+with Requester(opt.server) as requester:
 
-        for timeStep in range(len(data_i['samples'])):
-            samples_timeStep = data_i['samples'][timeStep]
+    artifact = Artifact()
+    if not opt.resume:
+        artifact.standardize = not opt.noStandardize
+        artifact.cuda = opt.cuda
+        artifact.one_hot_address_dim = opt.oneHotDim
+        artifact.one_hot_instance_dim = opt.oneHotDim
+        artifact.one_hot_proposal_type_dim = 1
+        artifact.valid_size = opt.validSize
+        requester.request_batch(artifact.valid_size)
+        artifact.valid_batch = requester.receive_batch(artifact.standardize)
+        artifact.lstm_dim = opt.lstmDim
+        artifact.lstm_depth = opt.lstmDepth
+        artifact.smp_emb = opt.smpEmb
+        artifact.smp_emb_dim = opt.smpEmbDim
+        artifact.obs_emb = opt.obsEmb
+        artifact.obs_emb_dim = opt.obsEmbDim
+        artifact.softmax_boost = opt.softmaxBoost
+        artifact.polymorph()
 
-            address = samples_timeStep['sample-address']
-            instance = samples_timeStep['sample-instance']
-            proposal_type = samples_timeStep['proposal-name']
-            value = samples_timeStep['value']
-            if type(value) != int:
-                util.log_error('Unsupported sample value type: ' + str(type(value)))
-            value = util.Tensor([value])
-            sample = Sample(address, instance, value, proposal_type)
-            if proposal_type == 'discreteminmax':
-                sample.proposal_min = samples_timeStep['proposal-extra-params'][0]
-                sample.proposal_max = samples_timeStep['proposal-extra-params'][1]
-            else:
-                util.log_error('Unsupported proposal distribution type: ' + proposal_type)
-            trace.add_sample(sample)
+    # torch.save(artifact, 'art1')
+    # artifact = torch.load('art1')
+    # print(artifact)
 
-            #update the artifact's one-hot dictionary as needed
-            artifact.add_one_hot_address(address)
-            artifact.add_one_hot_instance(instance)
-            artifact.add_one_hot_proposal_type(proposal_type)
-
-        traces.append(trace)
-    return traces
-
-def get_sub_batches(batch):
-    sb = {}
-    for trace in batch:
-        h = hash(str(trace))
-        if not h in sb:
-            sb[h] = []
-        sb[h].append(trace)
-    ret = []
-    for _, t in sb.items():
-        ret.append(t)
-    return ret
-
-
-def request_batch(n):
-    util.zmq_send_request(opt.server, {'command':'new-batch', 'command-param':n})
-
-def receive_batch():
-    sys.stdout.write('Waiting for new batch...                                 \r')
-    sys.stdout.flush()
-    data = util.zmq_receive_reply()
-
-    sys.stdout.write('New batch received, processing...                        \r')
-    sys.stdout.flush()
-    b = get_batch(data)
-
-    sys.stdout.write('New batch received, splitting into sub-batches...        \r')
-    sys.stdout.flush()
-    bs = get_sub_batches(b)
-    sys.stdout.write('                                                         \r')
-    sys.stdout.flush()
-
-    return bs
-
-artifact = Artifact()
-if not opt.resume:
-    artifact.standardize = not opt.noStandardize
-    artifact.cuda = opt.cuda
-    artifact.one_hot_address_dim = opt.oneHotDim
-    artifact.one_hot_instance_dim = opt.oneHotDim
-    artifact.one_hot_proposal_type_dim = 1
-    artifact.valid_size = opt.validSize
-    request_batch(artifact.valid_size)
-    artifact.valid_batch = receive_batch()
-    artifact.lstm_dim = opt.lstmDim
-    artifact.lstm_depth = opt.lstmDepth
-    artifact.smp_emb = opt.smpEmb
-    artifact.smp_emb_dim = opt.smpEmbDim
-    artifact.obs_emb = opt.obsEmb
-    artifact.obs_emb_dim = opt.obsEmbDim
-    artifact.softmax_boost = opt.softmaxBoost
-
-# torch.save(artifact, 'art1')
-# artifact = torch.load('art1')
-# print(artifact)
-artifact.polymorph()
-print(artifact.valid_batch)
-print(artifact.sample_layers)
-print(artifact.proposal_layers)
+    print(artifact.valid_batch)
+    print(artifact.sample_layers)
+    print(artifact.proposal_layers)
