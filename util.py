@@ -83,3 +83,15 @@ def check_versions(artifact):
         log_print()
         log_warning('Different PyTorch versions (artifact: {0}, current: {1})'.format(artifact.pytorch_version, torch.__version__))
         log_print()
+
+class Spinner(object):
+    def __init__(self):
+        self.i = 0
+        self.spinner = ['│\r', '/\r', '─\r', '\\\r']
+
+    def spin(self):
+        sys.stdout.write(self.spinner[self.i])
+        sys.stdout.flush()
+        self.i +=1
+        if self.i > 3:
+            self.i = 0
