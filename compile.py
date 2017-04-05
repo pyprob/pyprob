@@ -51,11 +51,8 @@ if opt.version:
     print(util.version)
     quit()
 
-if opt.resume:
-    print('--resume not supported yet')
-    quit()
-
 time_stamp = util.get_time_stamp()
+artifact_file = '{0}/{1}'.format(opt.out, 'compile-artifact' + time_stamp)
 util.init_logger('{0}/{1}'.format(opt.out, 'compile-log' + time_stamp))
 util.init(opt)
 
@@ -78,10 +75,28 @@ util.log_print(pformat(vars(opt)))
 util.log_print()
 
 with Requester(opt.server) as requester:
-    if not opt.resume:
+    if opt.resume:
+        resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.out, 'compile-artifact'), -1)
+        util.log_print()
+        util.log_print(colored('█ Resuming artifact', 'blue', attrs=['bold']))
+        util.log_print()
+        util.log_print('Resuming from                : ' + resume_artifact_file)
+        util.log_print('New artifact will be saved to: ' + artifact_file)
+
+        artifact = torch.load(resume_artifact_file)
+        prev_artifact_total_traces = artifact.total_traces
+        prev_artifact_total_iterations = artifact.total_iterations
+        prev_artifact_total_training_time = artifact.total_training_time
+    else:
         util.log_print()
         util.log_print(colored('█ New artifact', 'blue', attrs=['bold']))
         util.log_print()
+        util.log_print('File name: ' + artifact_file)
+
+        prev_artifact_total_traces = 0
+        prev_artifact_total_iterations = 0
+        prev_artifact_total_training_time = datetime.timedelta(0)
+
         artifact = Artifact()
         artifact.standardize = not opt.noStandardize
         artifact.one_hot_address_dim = opt.oneHotDim
@@ -103,10 +118,6 @@ with Requester(opt.server) as requester:
             artifact.cuda()
 
     optimizer = optim.Adam(artifact.parameters(), lr=opt.learningRate)
-
-    prev_artifact_total_traces = 0
-    prev_artifact_total_iterations = 0
-    prev_artifact_total_training_time = datetime.timedelta(0)
 
     iteration = 0
     trace = 0
@@ -204,7 +215,7 @@ with Requester(opt.server) as requester:
                     artifact.updates += 1
                     if opt.keepArtifacts:
                         time_stamp = util.get_time_stamp()
-                    artifact_file = '{0}/{1}'.format(opt.out, 'compile-artifact' + time_stamp)
+                        artifact_file = '{0}/{1}'.format(opt.out, 'compile-artifact' + time_stamp)
                     torch.save(artifact, artifact_file)
 
                     improvement_time = datetime.datetime.now()

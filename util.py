@@ -15,6 +15,7 @@ import datetime
 import logging
 import sys
 import re
+from glob import glob
 from termcolor import colored
 
 version = '0.9.1'
@@ -69,3 +70,6 @@ def days_hours_mins_secs(delta):
     h, r = divmod(s, 3600)
     m, s = divmod(r, 60)
     return '{0}d:{1:02}:{2:02}:{3:02}'.format(delta.days, int(h), int(m), int(s))
+
+def file_starting_with(pattern, n):
+    return sorted(glob(pattern + '*'))[n]
