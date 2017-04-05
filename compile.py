@@ -21,6 +21,7 @@ from termcolor import colored
 import logging
 import sys
 import datetime
+from pprint import pformat
 
 parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + util.version + ' (Compilation Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
@@ -53,19 +54,29 @@ time_stamp = util.get_time_stamp()
 util.init_logger('{0}/{1}'.format(opt.out, 'compile-log' + time_stamp))
 util.init(opt)
 
-util.log_print(colored('Oxford Inference Compilation ' + util.version, 'white', 'on_blue', attrs=['bold']))
+util.log_print()
+util.log_print(colored('█ Oxford Inference Compilation ' + util.version, 'blue', attrs=['bold']))
+util.log_print()
 util.log_print('Compilation Mode')
-util.log_print('')
+util.log_print()
 util.log_print('Started ' +  str(datetime.datetime.now()))
-util.log_print('')
+util.log_print()
 util.log_print('Running on PyTorch ' + torch.__version__)
-util.log_print('')
+util.log_print()
 util.log_print('Command line arguments:')
 util.log_print(' '.join(sys.argv[1:]))
-util.log_print('')
+
+util.log_print()
+util.log_print(colored('█ Compilation configuration', 'blue', attrs=['bold']))
+util.log_print()
+util.log_print(pformat(vars(opt)))
+util.log_print()
 
 with Requester(opt.server) as requester:
     if not opt.resume:
+        util.log_print()
+        util.log_print(colored('█ New artifact', 'blue', attrs=['bold']))
+        util.log_print()
         artifact = Artifact()
         artifact.standardize = not opt.noStandardize
         artifact.one_hot_address_dim = opt.oneHotDim
@@ -109,6 +120,10 @@ with Requester(opt.server) as requester:
     valid_loss_best_str = '{:+.6e}'.format(artifact.valid_loss_best)
     valid_loss_str = '{:+.6e}  '.format(artifact.valid_history_loss[-1])
     last_validation_trace = 0
+
+    util.log_print()
+    util.log_print(colored('█ Training from ' + opt.server, 'blue', attrs=['bold']))
+    util.log_print()
 
     time_str = util.days_hours_mins_secs(prev_artifact_total_training_time + (datetime.datetime.now() - start_time))
     improvement_time_str = util.days_hours_mins_secs(datetime.datetime.now() - improvement_time)

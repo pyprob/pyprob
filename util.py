@@ -15,7 +15,6 @@ import datetime
 import logging
 import sys
 import re
-
 from termcolor import colored
 
 version = '0.9.1'
@@ -44,7 +43,7 @@ def init_logger(file_name):
     logger.addHandler(logger_file_handler)
     logger.setLevel(logging.INFO)
 
-def log_print(line):
+def log_print(line=''):
     print(line)
     ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
     logger.info(ansi_escape.sub('', line))
