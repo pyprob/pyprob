@@ -86,6 +86,8 @@ with Requester(opt.server) as requester:
         prev_artifact_total_iterations = artifact.total_iterations
         prev_artifact_total_training_time = artifact.total_training_time
 
+        util.check_versions(artifact)
+
         file_size = '{:,}'.format(os.path.getsize(resume_artifact_file))
         util.log_print('File name             : {0}'.format(resume_artifact_file))
         util.log_print('File size (Bytes)     : {0}'.format(file_size))
