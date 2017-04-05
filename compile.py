@@ -21,6 +21,7 @@ from termcolor import colored
 import sys
 import datetime
 from pprint import pformat
+import os
 
 parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + util.version + ' (Compilation Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
@@ -79,13 +80,18 @@ with Requester(opt.server) as requester:
         util.log_print()
         util.log_print(colored('█ Resuming artifact', 'blue', attrs=['bold']))
         util.log_print()
-        util.log_print('Resuming from                : ' + resume_artifact_file)
-        util.log_print('New artifact will be saved to: ' + artifact_file)
 
         artifact = torch.load(resume_artifact_file)
         prev_artifact_total_traces = artifact.total_traces
         prev_artifact_total_iterations = artifact.total_iterations
         prev_artifact_total_training_time = artifact.total_training_time
+
+        file_size = '{:,}'.format(os.path.getsize(resume_artifact_file))
+        util.log_print('File name             : {0}'.format(resume_artifact_file))
+        util.log_print('File size (Bytes)     : {0}'.format(file_size))
+        util.log_print(artifact.get_info())
+        util.log_print()
+        util.log_print('New artifact will be saved to: ' + artifact_file)
     else:
         util.log_print()
         util.log_print(colored('█ New artifact', 'blue', attrs=['bold']))
