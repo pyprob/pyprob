@@ -236,12 +236,24 @@ class Artifact(nn.Module):
         lstm_input = torch.cat(lstm_input).view(example_trace.length, sub_batch_size, -1)
 
         lstm_output, _ = self.lstm(lstm_input)
-        #
-        # for time_step in range(example_trace.length):
-        #     sample = example_trace.samples[time_step]
-        #     address = sample.address
-        #     instance = sample.instance
-        #
-        #     # proposal_input = lstm_output[time_step]
 
-        return lstm_output
+        logpdf = 0
+        for time_step in range(example_trace.length):
+            sample = example_trace.samples[time_step]
+            address = sample.address
+            instance = sample.instance
+            proposal_type = sample.proposal_type
+
+            proposal_input = lstm_output[time_step]
+            proposal_output = self.proposal_layers[(address, instance)](proposal_input)
+
+            if proposal_type == 'discreteminmax':
+                log_weights = torch.log(proposal_output + util.epsilon)
+                for b in range(sub_batch_size):
+                    value = sub_batch[b].samples[time_step].value[0]
+                    min = sub_batch[b].samples[time_step].proposal_min
+                    logpdf += log_weights[b, int(value) - min] # Check this for correctness
+            else:
+                util.log_error('Unsupported proposal distribution: ' + proposal_type)
+
+        return -logpdf / sub_batch_size
