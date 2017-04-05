@@ -73,6 +73,9 @@ util.log_print('File size (Bytes)     : {0}'.format(file_size))
 util.log_print(artifact.get_info())
 
 if opt.plotLossToScreen or opt.plotLoss:
+    util.log_print()
+    util.log_print(colored('█ Loss plot', 'blue', attrs=['bold']))
+    util.log_print()
     fig = plt.figure()
     ax = plt.subplot(111)
     ax.plot(artifact.valid_history_trace, artifact.valid_history_loss, label='Validation')
@@ -83,6 +86,8 @@ if opt.plotLossToScreen or opt.plotLoss:
     plt.grid()
     fig.tight_layout()
     if opt.plotLossToScreen:
+        util.log_print('Plotting loss to screen')
         plt.show()
     if not opt.plotLoss is None:
+        util.log_print('Saving loss plot to file: ' + opt.plotLoss)
         fig.savefig(opt.plotLoss)
