@@ -163,12 +163,12 @@ with Requester(opt.server) as requester:
         requester.request_batch(opt.batchSize)
         artifact.polymorph(batch)
 
-        artifact.train()
         for sub_batch in batch:
             iteration += 1
             sys.stdout.write('Training...                                              \r')
             sys.stdout.flush()
 
+            artifact.train()
             optimizer.zero_grad()
             loss = artifact.loss(sub_batch)
             loss.backward()
@@ -205,6 +205,7 @@ with Requester(opt.server) as requester:
                 sys.stdout.write('Computing validation loss...                             \r')
                 sys.stdout.flush()
 
+                artifact.eval()
                 valid_loss = artifact.valid_loss()
                 last_validation_trace = trace
 

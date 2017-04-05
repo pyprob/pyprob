@@ -16,6 +16,7 @@ from termcolor import colored
 import datetime
 import sys
 from pprint import pformat
+import os
 
 parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + util.version + ' (Inference Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
@@ -58,7 +59,25 @@ util.log_print(pformat(vars(opt)))
 util.log_print()
 
 with Replier(opt.server) as replier:
+    if opt.latest:
+        opt.nth = -1
+    file_name = util.file_starting_with('{0}/{1}'.format(opt.folder, 'compile-artifact'), opt.nth)
+    artifact = torch.load(file_name)
+    file_size = '{:,}'.format(os.path.getsize(file_name))
 
-    print('test')
+    util.log_print()
+    util.log_print(colored('█ Loaded artifact', 'blue', attrs=['bold']))
+    util.log_print()
 
-print('test2')
+    artifact = torch.load(file_name)
+    prev_artifact_total_traces = artifact.total_traces
+    prev_artifact_total_iterations = artifact.total_iterations
+    prev_artifact_total_training_time = artifact.total_training_time
+
+    util.check_versions(artifact)
+
+    file_size = '{:,}'.format(os.path.getsize(file_name))
+    util.log_print('File name             : {0}'.format(file_name))
+    util.log_print('File size (Bytes)     : {0}'.format(file_size))
+    util.log_print(artifact.get_info())
+    util.log_print()
