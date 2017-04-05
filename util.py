@@ -50,12 +50,12 @@ def log_print(line=''):
     logger.info(ansi_escape.sub('', line))
 
 def log_error(line):
-    print(colored('Error: ' + line, 'red'))
+    print(colored('Error: ' + line, 'red', attrs=['bold']))
     logger.error('Error: ' + line)
     quit()
 
 def log_warning(line):
-    print(colored('Warning: ' + line, 'yellow'))
+    print(colored('Warning: ' + line, 'red', attrs=['bold']))
     logger.warning('Warning: ' + line)
 
 def standardize(t):
@@ -73,3 +73,13 @@ def days_hours_mins_secs(delta):
 
 def file_starting_with(pattern, n):
     return sorted(glob(pattern + '*'))[n]
+
+def check_versions(artifact):
+    if artifact.code_version != version:
+        log_print()
+        log_warning('Different code versions (artifact: {0}, current: {1})'.format(artifact.code_version, version))
+        log_print()
+    if artifact.pytorch_version != torch.__version__:
+        log_print()
+        log_warning('Different PyTorch versions (artifact: {0}, current: {1})'.format(artifact.pytorch_version, torch.__version__))
+        log_print()
