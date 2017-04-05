@@ -44,10 +44,15 @@ parser.add_argument('--smpEmbDim', help='sample embedding dimension', default=1,
 parser.add_argument('--lstmDim', help='lstm hidden unit dimension', default=3, type=int)
 parser.add_argument('--lstmDepth', help='number of stacked lstms', default=2, type=int)
 parser.add_argument('--softmaxBoost', help='multiplier before softmax', default=20.0, type=float)
+parser.add_argument('--keepArtifacts', help='keep all previously best artifacts during training, do not overwrite', action='store_true')
 opt = parser.parse_args()
 
 if opt.version:
     print(util.version)
+    quit()
+
+if opt.resume:
+    print('--resume not supported yet')
     quit()
 
 time_stamp = util.get_time_stamp()
@@ -192,6 +197,15 @@ with Requester(opt.server) as requester:
                     valid_loss_best_str = colored('{:+.6e}'.format(artifact.valid_loss_best), 'green', attrs=['bold'])
 
                     # save artifact here
+                    sys.stdout.write('Updating best artifact on disk...                        \r')
+                    sys.stdout.flush()
+                    artifact.valid_loss_final = valid_loss
+                    artifact.modified = datetime.datetime.now()
+                    artifact.updates += 1
+                    if opt.keepArtifacts:
+                        time_stamp = util.get_time_stamp()
+                    artifact_file = '{0}/{1}'.format(opt.out, 'compile-artifact' + time_stamp)
+                    torch.save(artifact, artifact_file)
 
                     improvement_time = datetime.datetime.now()
                 elif valid_loss > artifact.valid_loss_worst:

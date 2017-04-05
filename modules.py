@@ -111,6 +111,7 @@ class Artifact(nn.Module):
         self.valid_loss_best = None
         self.valid_loss_worst = None
         self.valid_loss_initial = None
+        self.valid_loss_final = None
         self.valid_history_trace = []
         self.valid_history_loss = []
         self.train_history_trace = []
@@ -118,6 +119,7 @@ class Artifact(nn.Module):
         self.total_training_time = None
         self.total_iterations = None
         self.total_traces = None
+        self.updates = 0
 
     def get_str(self):
         ret = str(next(enumerate(self.modules()))[1])
