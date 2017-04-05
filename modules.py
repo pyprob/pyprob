@@ -14,6 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from termcolor import colored
+import math
 
 class Sample(object):
     def __init__(self, address, instance, value, proposal_type):
@@ -105,11 +106,18 @@ class Artifact(nn.Module):
         self.obs_emb = None
         self.obs_emb_dim = None
         self.num_parameters = None
+        self.train_loss_best = math.inf
+        self.train_loss_worst = -math.inf
         self.valid_loss_best = None
         self.valid_loss_worst = None
         self.valid_loss_initial = None
         self.valid_history_trace = []
         self.valid_history_loss = []
+        self.train_history_trace = []
+        self.train_history_loss = []
+        self.total_training_time = None
+        self.total_iterations = None
+        self.total_traces = None
 
     def get_str(self):
         ret = str(next(enumerate(self.modules()))[1])

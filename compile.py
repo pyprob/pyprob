@@ -32,6 +32,7 @@ parser.add_argument('--learningRate', help='learning rate', default=0.0001, type
 parser.add_argument('--weightDecay', help='L2 weight decay coefficient', default=0.0005, type=float)
 parser.add_argument('--batchSize', help='training batch size', default=128, type=int)
 parser.add_argument('--validSize', help='validation set size', default=256, type=int)
+parser.add_argument('--validInterval', help='validation interval (traces)', default=1000, type=int)
 parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=2, type=int)
 parser.add_argument('--noStandardize', help='do not standardize observations', action='store_true')
 parser.add_argument('--resume', help='resume training of the latest artifact', action='store_true')
@@ -88,6 +89,7 @@ with Requester(opt.server) as requester:
     optimizer = optim.Adam(artifact.parameters(), lr=opt.learningRate)
 
     prev_artifact_total_traces = 0
+    prev_artifact_total_iterations = 0
     prev_artifact_total_training_time = datetime.timedelta(0)
 
     iteration = 0
@@ -104,13 +106,15 @@ with Requester(opt.server) as requester:
     if prev_artifact_total_traces == 0:
         artifact.valid_history_trace.append(prev_artifact_total_traces + iteration)
         artifact.valid_history_loss.append(artifact.valid_loss_best)
-    valid_loss_best_str = '{:.5e}'.format(artifact.valid_loss_best)
-    valid_loss_str = '{:.5e}'.format(artifact.valid_history_loss[-1])
+    valid_loss_best_str = '{:+.6e}'.format(artifact.valid_loss_best)
+    valid_loss_str = '{:+.6e}  '.format(artifact.valid_history_loss[-1])
     last_validation_trace = 0
 
     time_str = util.days_hours_mins_secs(prev_artifact_total_training_time + (datetime.datetime.now() - start_time))
     improvement_time_str = util.days_hours_mins_secs(datetime.datetime.now() - improvement_time)
-    trace_str = '{0:5}'.format(prev_artifact_total_traces + trace)
+    trace_str = '{:5}'.format('{:,}'.format(prev_artifact_total_traces + trace))
+    util.log_print('{{:{0}}}'.format(len(time_str)).format('Train. time') + ' │ ' + '{{:{0}}}'.format(len(trace_str)).format('Trace') + ' │ Training loss   │ Last valid. loss│ Best val. loss|' + '{{:{0}}}'.format(len(improvement_time_str)).format('T.since best'))
+    util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(improvement_time_str))
 
     requester.request_batch(opt.batchSize)
     while iteration < 1000:
@@ -120,15 +124,72 @@ with Requester(opt.server) as requester:
         artifact.train()
         for sub_batch in batch:
             iteration += 1
+            sys.stdout.write('Training...                                              \r')
+            sys.stdout.flush()
+
             optimizer.zero_grad()
             loss = artifact.loss(sub_batch)
             loss.backward()
             optimizer.step()
+            train_loss = loss.data[0]
 
             trace += len(sub_batch)
 
-        print(artifact.valid_loss())
+            artifact.total_training_time = prev_artifact_total_training_time + (datetime.datetime.now() - start_time)
+            artifact.total_iterations = prev_artifact_total_iterations + iteration
+            artifact.total_traces = prev_artifact_total_traces + trace
 
+            artifact.train_history_trace.append(artifact.total_traces)
+            artifact.train_history_loss.append(train_loss)
+
+            if train_loss < artifact.train_loss_best:
+                artifact.train_loss_best = train_loss
+                train_loss_str = colored('{:+.6e} ▼'.format(train_loss), 'green', attrs=['bold'])
+            elif train_loss > artifact.train_loss_worst:
+                artifact.train_loss_worst = train_loss
+                train_loss_str = colored('{:+.6e} ▲'.format(train_loss), 'red', attrs=['bold'])
+            elif train_loss < artifact.valid_history_loss[-1]:
+                train_loss_str = colored('{:+.6e}  '.format(train_loss), 'green')
+            elif train_loss > artifact.valid_history_loss[-1]:
+                train_loss_str = colored('{:+.6e}  '.format(train_loss), 'red')
+            else:
+                train_loss_str = '{:+.6e}  '.format(train_loss)
+
+            time_str = util.days_hours_mins_secs(prev_artifact_total_training_time + (datetime.datetime.now() - start_time))
+            trace_str = '{:5}'.format('{:,}'.format(prev_artifact_total_traces + trace))
+
+            if trace - last_validation_trace > opt.validInterval:
+                util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(improvement_time_str))
+                sys.stdout.write('Computing validation loss...                             \r')
+                sys.stdout.flush()
+
+                valid_loss = artifact.valid_loss()
+                last_validation_trace = trace
+
+                artifact.valid_history_trace.append(artifact.total_traces)
+                artifact.valid_history_loss.append(valid_loss)
+
+                valid_loss_best_str = '{:+.6e}'.format(artifact.valid_loss_best)
+                if valid_loss < artifact.valid_loss_best:
+                    artifact.valid_loss_best = valid_loss
+                    valid_loss_str = colored('{:+.6e} ▼'.format(valid_loss), 'green', attrs=['bold'])
+                    valid_loss_best_str = colored('{:+.6e}'.format(artifact.valid_loss_best), 'green', attrs=['bold'])
+
+                    # save artifact here
+
+                    improvement_time = datetime.datetime.now()
+                elif valid_loss > artifact.valid_loss_worst:
+                    artifact.valid_loss_worst = valid_loss
+                    valid_loss_str = colored('{:+.6e} ▲'.format(valid_loss), 'red', attrs=['bold'])
+                elif valid_loss < artifact.valid_history_loss[-1]:
+                    valid_loss_str = colored('{:+.6e}  '.format(valid_loss), 'green')
+                elif valid_loss > artifact.valid_history_loss[-1]:
+                    valid_loss_str = colored('{:+.6e}  '.format(valid_loss), 'red')
+                else:
+                    valid_loss_str = '{:+.6e}  '.format(valid_loss)
+
+            improvement_time_str = util.days_hours_mins_secs(datetime.datetime.now() - improvement_time)
+            util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} '.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, improvement_time_str))
 
 
 
