@@ -18,7 +18,6 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.autograd import Variable
 from termcolor import colored
-import logging
 import sys
 import datetime
 from pprint import pformat
@@ -36,7 +35,7 @@ parser.add_argument('--validSize', help='validation set size', default=256, type
 parser.add_argument('--validInterval', help='validation interval (traces)', default=1000, type=int)
 parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=2, type=int)
 parser.add_argument('--noStandardize', help='do not standardize observations', action='store_true')
-parser.add_argument('--resume', help='resume training of the latest artifact', action='store_true')
+parser.add_argument('--resumeLatest', help='resume training of the latest artifact', action='store_true')
 parser.add_argument('--obsEmb', help='observation embedding', choices=['fc'], default='fc', type=str)
 parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=3, type=int)
 parser.add_argument('--smpEmb', help='sample embedding', choices=['fc'], default='fc', type=str)
@@ -75,7 +74,7 @@ util.log_print(pformat(vars(opt)))
 util.log_print()
 
 with Requester(opt.server) as requester:
-    if opt.resume:
+    if opt.resumeLatest:
         resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.folder, 'compile-artifact'), -1)
         util.log_print()
         util.log_print(colored('█ Resuming artifact', 'blue', attrs=['bold']))
@@ -98,6 +97,7 @@ with Requester(opt.server) as requester:
         prev_artifact_total_training_time = datetime.timedelta(0)
 
         artifact = Artifact()
+        artifact.on_cuda = opt.cuda
         artifact.standardize = not opt.noStandardize
         artifact.one_hot_address_dim = opt.oneHotDim
         artifact.one_hot_instance_dim = opt.oneHotDim

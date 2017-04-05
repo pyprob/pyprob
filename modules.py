@@ -15,6 +15,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from termcolor import colored
 import math
+import datetime
 
 class Sample(object):
     def __init__(self, address, instance, value, proposal_type):
@@ -87,6 +88,9 @@ class Artifact(nn.Module):
         self.lstm = None
 
         self.name = ''
+        self.created = datetime.datetime.now()
+        self.modified = datetime.datetime.now()
+        self.on_cuda = None
         self.code_version = util.version
         self.pytorch_version = torch.__version__
         self.standardize = True
@@ -128,6 +132,48 @@ class Artifact(nn.Module):
         for p in self.parameters():
             ret = ret + '\n{0} {1}'.format(type(p.data), p.size())
         return ret
+
+    def get_info(self):
+        iter_per_sec = self.total_iterations / self.total_training_time.total_seconds()
+        traces_per_sec = self.total_traces / self.total_training_time.total_seconds()
+        traces_per_iter = self.total_traces / self.total_iterations
+        loss_change = self.valid_loss_final - self.valid_loss_initial
+        loss_change_per_sec = loss_change / self.total_training_time.total_seconds()
+        loss_change_per_iter = loss_change / self.total_iterations
+        loss_change_per_trace = loss_change / self.total_traces
+        addresses = ' '.join(list(self.one_hot_address.keys()))
+        instances = ' '.join(map(str, list(self.one_hot_instance.keys())))
+        proposal_types = ' '.join(list(self.one_hot_proposal_type.keys()))
+        info = '\n'.join(['Name                  : {0}'.format(self.name),
+                          'Created               : {0}'.format(self.created),
+                          'Last modified         : {0}'.format(self.modified),
+                          'Code version          : {0}'.format(self.code_version),
+                          'Cuda                  : {0}'.format(self.on_cuda),
+                          colored('Trainable params      : {:,}'.format(self.num_parameters), 'cyan', attrs=['bold']),
+                          colored('Total training time   : {0}'.format(util.days_hours_mins_secs(self.total_training_time)), 'yellow', attrs=['bold']),
+                          colored('Updates to file       : {:,}'.format(self.updates), 'yellow'),
+                          colored('Iterations            : {:,}'.format(self.total_iterations), 'yellow'),
+                          colored('Iterations / s        : {:,}'.format(iter_per_sec), 'yellow'),
+                          colored('Total training traces : {:,}'.format(self.total_traces), 'yellow', attrs=['bold']),
+                          colored('Traces / s            : {:,}'.format(traces_per_sec), 'yellow'),
+                          colored('Traces / iteration    : {:,}'.format(traces_per_iter), 'yellow'),
+                          colored('Initial loss          : {:+.6e}'.format(self.valid_loss_initial), 'green'),
+                          colored('Final loss            : {:+.6e}'.format(self.valid_loss_final), 'green', attrs=['bold']),
+                          colored('Loss change / s       : {:+.6e}'.format(loss_change_per_sec), 'green'),
+                          colored('Loss change / iter.   : {:+.6e}'.format(loss_change_per_iter), 'green'),
+                          colored('Loss change / trace   : {:+.6e}'.format(loss_change_per_trace), 'green'),
+                          colored('Validation set size   : {:,}'.format(self.valid_size), 'green'),
+                          colored('Observe embedding     : {0}'.format(self.obs_emb), 'cyan'),
+                          colored('Observe emb. dim.     : {:,}'.format(self.obs_emb_dim), 'cyan'),
+                          colored('Sample embedding      : {0}'.format(self.smp_emb), 'cyan'),
+                          colored('Sample emb. dim.      : {:,}'.format(self.smp_emb_dim), 'cyan'),
+                          colored('LSTM dim.             : {:,}'.format(self.lstm_dim), 'cyan'),
+                          colored('LSTM depth            : {:,}'.format(self.lstm_depth), 'cyan'),
+                          colored('Softmax boost         : {0}'.format(self.softmax_boost), 'cyan'),
+                          colored('Addresses             : {0}'.format(addresses), 'yellow'),
+                          colored('Instances             : {0}'.format(instances), 'yellow'),
+                          colored('Proposal types        : {0}'.format(proposal_types), 'yellow')])
+        return info
 
     def polymorph(self, batch=None):
         if batch is None:
