@@ -120,6 +120,7 @@ with Requester(opt.server) as requester:
     while True:
         batch = requester.receive_batch(artifact.standardize)
         requester.request_batch(opt.batchSize)
+        artifact.polymorph(batch)
 
         artifact.train()
         for sub_batch in batch:
