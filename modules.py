@@ -251,7 +251,8 @@ class Artifact(nn.Module):
                                self.one_hot_address[address],
                                self.one_hot_instance[instance],
                                self.one_hot_proposal_type[proposal_type]]))
-            lstm_input.append(torch.cat(t).view(sub_batch_size, -1))
+            t = torch.cat(t).view(sub_batch_size, -1)
+            lstm_input.append(t)
         lstm_input = torch.cat(lstm_input).view(example_trace.length, sub_batch_size, -1)
 
         lstm_output, _ = self.lstm(lstm_input)
