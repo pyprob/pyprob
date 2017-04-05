@@ -13,13 +13,14 @@ from modules import Sample, Trace
 import sys
 import zmq
 import msgpack
+from termcolor import colored
 
-class Requester(object):
+class Replier(object):
     def __init__(self, server_address):
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REQ)
-        self.socket.connect(server_address)
-        util.log_print('Protocol: connected to server ' + server_address)
+        self.socket = self.context.socket(zmq.REP)
+        self.socket.bind(server_address)
+        util.log_print(colored('Protocol: zmq.REP socket bound to ' + server_address, 'yellow', attrs=['bold']))
 
     def __enter__(self):
         return self
@@ -27,7 +28,29 @@ class Requester(object):
     def __exit__(self, exception_type, exception_value, traceback):
         self.socket.close()
         self.context.term()
-        util.log_print('Protocol: disconnected')
+        util.log_print(colored('Protocol: zmq.REP socket disconnected', 'yellow', attrs=['bold']))
+
+    def send_reply(self, reply):
+        self.socket.send(msgpack.packb(reply))
+
+    def receive_request(self):
+        return msgpack.unpackb(self.socket.recv(), encoding='utf-8')
+
+
+class Requester(object):
+    def __init__(self, server_address):
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.REQ)
+        self.socket.connect(server_address)
+        util.log_print(colored('Protocol: zmq.REQ socket connected to server ' + server_address, 'yellow', attrs=['bold']))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.socket.close()
+        self.context.term()
+        util.log_print(colored('Protocol: zmq.REQ socket disconnected', 'yellow', attrs=['bold']))
 
     def send_request(self, request):
         self.socket.send(msgpack.packb(request))
