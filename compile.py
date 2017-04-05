@@ -25,7 +25,7 @@ from pprint import pformat
 
 parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + util.version + ' (Compilation Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
-parser.add_argument('--out', help='folder to save artifacts and logs', default='./artifacts')
+parser.add_argument('--folder', help='folder to save artifacts and logs', default='./artifacts')
 parser.add_argument('--cuda', help='use CUDA', action='store_true')
 parser.add_argument('--seed', help='random seed', default=4, type=int)
 parser.add_argument('--server', help='address of the probprog model server', default='tcp://127.0.0.1:5555')
@@ -52,8 +52,8 @@ if opt.version:
     quit()
 
 time_stamp = util.get_time_stamp()
-artifact_file = '{0}/{1}'.format(opt.out, 'compile-artifact' + time_stamp)
-util.init_logger('{0}/{1}'.format(opt.out, 'compile-log' + time_stamp))
+artifact_file = '{0}/{1}'.format(opt.folder, 'compile-artifact' + time_stamp)
+util.init_logger('{0}/{1}'.format(opt.folder, 'compile-log' + time_stamp))
 util.init(opt)
 
 util.log_print()
@@ -76,7 +76,7 @@ util.log_print()
 
 with Requester(opt.server) as requester:
     if opt.resume:
-        resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.out, 'compile-artifact'), -1)
+        resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.folder, 'compile-artifact'), -1)
         util.log_print()
         util.log_print(colored('█ Resuming artifact', 'blue', attrs=['bold']))
         util.log_print()
@@ -117,7 +117,9 @@ with Requester(opt.server) as requester:
         if opt.cuda:
             artifact.cuda()
 
-    optimizer = optim.Adam(artifact.parameters(), lr=opt.learningRate)
+    optimizer = optim.Adam(artifact.parameters(), lr=opt.learningRate, weight_decay=opt.weightDecay)
+    if not artifact.optimizer_state is None:
+        optimizer.load_state_dict(artifact.optimizer_state)
 
     iteration = 0
     trace = 0
@@ -213,9 +215,10 @@ with Requester(opt.server) as requester:
                     artifact.valid_loss_final = valid_loss
                     artifact.modified = datetime.datetime.now()
                     artifact.updates += 1
+                    artifact.optimizer_state = optimizer.state_dict()
                     if opt.keepArtifacts:
                         time_stamp = util.get_time_stamp()
-                        artifact_file = '{0}/{1}'.format(opt.out, 'compile-artifact' + time_stamp)
+                        artifact_file = '{0}/{1}'.format(opt.folder, 'compile-artifact' + time_stamp)
                     torch.save(artifact, artifact_file)
 
                     improvement_time = datetime.datetime.now()

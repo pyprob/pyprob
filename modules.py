@@ -120,6 +120,7 @@ class Artifact(nn.Module):
         self.total_iterations = None
         self.total_traces = None
         self.updates = 0
+        self.optimizer_state = None
 
     def get_str(self):
         ret = str(next(enumerate(self.modules()))[1])
