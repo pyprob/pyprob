@@ -64,3 +64,9 @@ def standardize(t):
     t.add_(-mean)
     t.div_(sd + epsilon)
     return t
+
+def days_hours_mins_secs(delta):
+    s = delta.total_seconds()
+    h, r = divmod(s, 3600)
+    m, s = divmod(r, 60)
+    return '{0}d:{1:02}:{2:02}:{3:02}'.format(delta.days, int(h), int(m), int(s))

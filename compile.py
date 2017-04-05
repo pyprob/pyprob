@@ -26,12 +26,12 @@ parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + u
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
 parser.add_argument('--out', help='folder to save artifacts and logs', default='./artifacts')
 parser.add_argument('--cuda', help='use CUDA', action='store_true')
-parser.add_argument('--seed', help='random seed', default=1, type=int)
+parser.add_argument('--seed', help='random seed', default=4, type=int)
 parser.add_argument('--server', help='address of the probprog model server', default='tcp://127.0.0.1:5555')
 parser.add_argument('--learningRate', help='learning rate', default=0.0001, type=float)
 parser.add_argument('--weightDecay', help='L2 weight decay coefficient', default=0.0005, type=float)
-parser.add_argument('--batchSize', help='training batch size', default=4, type=int)
-parser.add_argument('--validSize', help='validation set size', default=4, type=int)
+parser.add_argument('--batchSize', help='training batch size', default=128, type=int)
+parser.add_argument('--validSize', help='validation set size', default=256, type=int)
 parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=2, type=int)
 parser.add_argument('--noStandardize', help='do not standardize observations', action='store_true')
 parser.add_argument('--resume', help='resume training of the latest artifact', action='store_true')
@@ -85,20 +85,50 @@ with Requester(opt.server) as requester:
         if opt.cuda:
             artifact.cuda()
 
-    optimizer = optim.SGD(artifact.parameters(), lr=opt.learningRate)
+    optimizer = optim.Adam(artifact.parameters(), lr=opt.learningRate)
+
+    prev_artifact_total_traces = 0
+    prev_artifact_total_training_time = datetime.timedelta(0)
 
     iteration = 0
     trace = 0
-    artifact.train()
+    start_time = datetime.datetime.now()
+    improvement_time = datetime.datetime.now()
+    train_loss_str = ''
+    if artifact.valid_loss_best is None:
+        artifact.valid_loss_best = artifact.valid_loss()
+    if artifact.valid_loss_worst is None:
+        artifact.valid_loss_worst = artifact.valid_loss_best
+    if artifact.valid_loss_initial is None:
+        artifact.valid_loss_initial = artifact.valid_loss_best
+    if prev_artifact_total_traces == 0:
+        artifact.valid_history_trace.append(prev_artifact_total_traces + iteration)
+        artifact.valid_history_loss.append(artifact.valid_loss_best)
+    valid_loss_best_str = '{:.5e}'.format(artifact.valid_loss_best)
+    valid_loss_str = '{:.5e}'.format(artifact.valid_history_loss[-1])
+    last_validation_trace = 0
+
+    time_str = util.days_hours_mins_secs(prev_artifact_total_training_time + (datetime.datetime.now() - start_time))
+    improvement_time_str = util.days_hours_mins_secs(datetime.datetime.now() - improvement_time)
+    trace_str = '{0:5}'.format(prev_artifact_total_traces + trace)
+
     requester.request_batch(opt.batchSize)
-    while iteration < 1:
+    while iteration < 1000:
         batch = requester.receive_batch(artifact.standardize)
         requester.request_batch(opt.batchSize)
 
+        artifact.train()
         for sub_batch in batch:
-            print(artifact.loss(sub_batch))
+            iteration += 1
+            optimizer.zero_grad()
+            loss = artifact.loss(sub_batch)
+            loss.backward()
+            optimizer.step()
 
-        iteration += 1
+            trace += len(sub_batch)
+
+        print(artifact.valid_loss())
+
 
 
 

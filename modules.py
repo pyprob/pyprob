@@ -105,6 +105,11 @@ class Artifact(nn.Module):
         self.obs_emb = None
         self.obs_emb_dim = None
         self.num_parameters = None
+        self.valid_loss_best = None
+        self.valid_loss_worst = None
+        self.valid_loss_initial = None
+        self.valid_history_trace = []
+        self.valid_history_loss = []
 
     def get_str(self):
         ret = str(next(enumerate(self.modules()))[1])
@@ -199,6 +204,12 @@ class Artifact(nn.Module):
             t = util.Tensor(self.one_hot_proposal_type_dim).fill_(0)
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_proposal_type[proposal_type] = Variable(t, requires_grad=False)
+
+    def valid_loss(self):
+        loss = 0
+        for sub_batch in self.valid_batch:
+            loss += self.loss(sub_batch)
+        return loss.data[0] / len(self.valid_batch)
 
     def loss(self, sub_batch):
         sub_batch_size = len(sub_batch)
