@@ -117,7 +117,7 @@ with Requester(opt.server) as requester:
     util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(improvement_time_str))
 
     requester.request_batch(opt.batchSize)
-    while iteration < 1000:
+    while True:
         batch = requester.receive_batch(artifact.standardize)
         requester.request_batch(opt.batchSize)
 
