@@ -289,8 +289,11 @@ class Artifact(nn.Module):
             instance = sample.instance
             proposal_type = sample.proposal_type
 
-            smp = torch.cat([sub_batch[b].samples[time_step].value for b in range(sub_batch_size)]).view(sub_batch_size, sample.value_dim)
-            sample_embedding = self.sample_layers[(address, instance)](Variable(smp, requires_grad=False))
+            if time_step == 0:
+                sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).fill_(0), requires_grad=False)
+            else:
+                smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, sample.value_dim)
+                sample_embedding = self.sample_layers[(address, instance)](Variable(smp, requires_grad=False))
 
             t = []
             for b in range(sub_batch_size):
