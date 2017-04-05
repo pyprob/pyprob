@@ -126,9 +126,8 @@ class Artifact(nn.Module):
         self.updates = 0
         self.optimizer_state = None
 
-    def get_str(self):
+    def get_structure(self):
         ret = str(next(enumerate(self.modules()))[1])
-        ret = ret + '\nParameters: ' + str(self.num_parameters)
         for p in self.parameters():
             ret = ret + '\n{0} {1}'.format(type(p.data), p.size())
         return ret

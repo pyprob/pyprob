@@ -23,6 +23,7 @@ parser.add_argument('-v', '--version', help='show version information', action='
 parser.add_argument('--folder', help='folder to save artifacts and logs', default='./artifacts')
 parser.add_argument('--latest', help='show the latest artifact', action='store_true')
 parser.add_argument('--nth', help='show the nth artifact (-1: last)', type=int)
+parser.add_argument('--structure', help='show extra information about artifact structure', action='store_true')
 parser.add_argument('--plotLoss', help='save loss plot to file (supported formats: eps, jpg, png, pdf, svg, tif)', type=str)
 parser.add_argument('--plotLossToScreen', help='show the loss plot in screen', action='store_true')
 opt = parser.parse_args()
@@ -71,6 +72,13 @@ util.check_versions(artifact)
 util.log_print('File name             : {0}'.format(file_name))
 util.log_print('File size (Bytes)     : {0}'.format(file_size))
 util.log_print(artifact.get_info())
+
+if opt.structure:
+    util.log_print()
+    util.log_print(colored('█ Artifact structure', 'blue', attrs=['bold']))
+    util.log_print()
+
+    util.log_print(artifact.get_structure())
 
 if opt.plotLossToScreen or opt.plotLoss:
     util.log_print()
