@@ -87,11 +87,16 @@ def check_versions(artifact):
 class Spinner(object):
     def __init__(self):
         self.i = 0
-        self.spinner = ['│\r', '/\r', '─\r', '\\\r']
+        self.spinner = [colored('█   \r', 'blue', attrs=['bold']),
+                        colored(' █  \r', 'blue', attrs=['bold']),
+                        colored('  █ \r', 'blue', attrs=['bold']),
+                        colored('   █\r', 'blue', attrs=['bold']),
+                        colored('  █ \r', 'blue', attrs=['bold']),
+                        colored(' █  \r', 'blue', attrs=['bold'])]
 
     def spin(self):
         sys.stdout.write(self.spinner[self.i])
         sys.stdout.flush()
         self.i +=1
-        if self.i > 3:
+        if self.i > 5:
             self.i = 0
