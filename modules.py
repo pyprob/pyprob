@@ -78,6 +78,47 @@ class Observe_embedding_fc(nn.Module):
         x = F.relu(self.lin2(x))
         return x
 
+class Observe_embedding_cnn6_2d(nn.Module):
+    def __init__(self, input_sample_non_batch, output_dim):
+        super(Observe_embedding_cnn6_2d, self).__init__()
+        if input_sample_non_batch.dim() == 2:
+            self.input_sample = input_sample_non_batch.unsqueeze(0).cpu()
+        elif input_sample_non_batch.dim() == 3:
+            self.input_sample = input_sample_non_batch.cpu()
+        else:
+            util.log_error('Expecting a 3d input_sample_non_batch (num_channels x height x width) or a 2d input_sample_non_batch (height x width). Received: {0}'.format(input_sample_non_batch.size()))
+        self.input_channels = self.input_sample.size(0)
+        self.output_dim = output_dim
+        self.conv1 = nn.Conv2d(self.input_channels, 64, 3)
+        self.conv2 = nn.Conv2d(64, 64, 3)
+        self.conv3 = nn.Conv2d(64, 128, 3)
+        self.conv4 = nn.Conv2d(128, 128, 3)
+        self.conv5 = nn.Conv2d(128, 128, 3)
+        self.conv6 = nn.Conv2d(128, 128, 3)
+    def configure(self):
+        self.cnn_output_dim = self.forward_cnn(self.input_sample.unsqueeze(0)).view(-1).size(0)
+        self.lin1 = nn.Linear(self.cnn_output_dim, self.output_dim)
+        self.lin2 = nn.Linear(self.output_dim, self.output_dim)
+    def forward_cnn(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = nn.MaxPool2d(2)(x)
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+        x = F.relu(self.conv5(x))
+        x = nn.MaxPool2d(2)(x)
+        x = F.relu(self.conv6(x))
+        x = nn.MaxPool2d(2)(x)
+        return x
+    def forward(self, x):
+        if x.dim() == 3:
+            x = x.unsqueeze(1) # Add a channel dimension of 1 after the batch dimension. Temporary. This can be removed once we ensure that we always get 2d images as 3d tensors of form (num_channels x height x width) from the protocol.
+        x = self.forward_cnn(x)
+        x = x.view(-1, self.cnn_output_dim)
+        x = F.relu(self.lin1(x))
+        x = F.relu(self.lin2(x))
+        return x
+
 class Artifact(nn.Module):
     def __init__(self):
         super(Artifact, self).__init__()
@@ -223,6 +264,11 @@ class Artifact(nn.Module):
         self.obs_emb_dim = obs_emb_dim
         if obs_emb == 'fc':
             observe_layer = Observe_embedding_fc(example_observes.nelement(), obs_emb_dim)
+        elif obs_emb == 'cnn6_2d':
+            observe_layer = Observe_embedding_cnn6_2d(Variable(example_observes), obs_emb_dim)
+            observe_layer.configure()
+        else:
+            util.log_error('Unsupported observation embedding: ' + obs_emb)
         self.observe_layer = observe_layer
 
     def set_lstm(self, lstm_dim, lstm_depth):
