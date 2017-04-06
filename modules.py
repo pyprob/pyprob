@@ -324,10 +324,13 @@ class Artifact(nn.Module):
         sub_batch_size = len(sub_batch)
         example_observes = sub_batch[0].observes
 
+        obs = torch.cat([sub_batch[b].observes for b in range(sub_batch_size)])
         if example_observes.dim() == 1:
-            obs = torch.cat([sub_batch[b].observes for b in range(sub_batch_size)]).view(sub_batch_size, example_observes.size()[0])
+            obs = obs.view(sub_batch_size, example_observes.size()[0])
         elif example_observes.dim() == 2:
-            obs = torch.cat([sub_batch[b].observes for b in range(sub_batch_size)]).view(sub_batch_size, example_observes.size()[0], example_observes.size()[1])
+            obs = obs.view(sub_batch_size, example_observes.size()[0], example_observes.size()[1])
+        elif example_observes.dim() == 3:
+            obs = obs.view(sub_batch_size, example_observes.size()[0], example_observes.size()[1], , example_observes.size()[2])
         else:
             util.log_error('Unsupported observation shape: {0}'.format(example_observes.size()))
 
