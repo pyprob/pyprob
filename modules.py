@@ -87,6 +87,7 @@ class Observe_embedding_cnn6_2d(nn.Module):
             self.input_sample = input_sample_non_batch.cpu()
         else:
             util.log_error('Expecting a 3d input_sample_non_batch (num_channels x height x width) or a 2d input_sample_non_batch (height x width). Received: {0}'.format(input_sample_non_batch.size()))
+
         self.input_channels = self.input_sample.size(0)
         self.output_dim = output_dim
         self.conv1 = nn.Conv2d(self.input_channels, 64, 3)
@@ -238,10 +239,12 @@ class Artifact(nn.Module):
                         sample_layer = Sample_embedding_fc(sample.value_dim, self.smp_emb_dim)
                     else:
                         util.log_error('Unsupported sample embedding: ' + self.smp_emb)
+
                     if sample.proposal_type == 'discreteminmax':
                         proposal_layer = Proposal_discreteminmax(self.lstm_dim, sample.proposal_min, sample.proposal_max, self.softmax_boost)
                     else:
                         util.log_error('Unsupported proposal distribution: ' + sample.proposal_type)
+
                     self.sample_layers[(address, instance)] = sample_layer
                     self.proposal_layers[(address, instance)] = proposal_layer
                     self.add_module('sample_layer({0}, {1})'.format(address, instance), sample_layer)
@@ -269,6 +272,7 @@ class Artifact(nn.Module):
             observe_layer.configure()
         else:
             util.log_error('Unsupported observation embedding: ' + obs_emb)
+
         self.observe_layer = observe_layer
 
     def set_lstm(self, lstm_dim, lstm_depth):
@@ -283,6 +287,7 @@ class Artifact(nn.Module):
             i = len(self.one_hot_address)
             if i >= self.one_hot_address_dim:
                 log_error('one_hot_address overflow: {0}'.format(i))
+
             t = util.Tensor(self.one_hot_address_dim).zero_()
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_address[address] = Variable(t, requires_grad=False)
@@ -293,6 +298,7 @@ class Artifact(nn.Module):
             i = len(self.one_hot_instance)
             if i >= self.one_hot_instance_dim:
                 log_error('one_hot_instance overflow: {0}'.format(i))
+
             t = util.Tensor(self.one_hot_instance_dim).zero_()
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_instance[instance] = Variable(t, requires_grad=False)
@@ -303,6 +309,7 @@ class Artifact(nn.Module):
             i = len(self.one_hot_proposal_type)
             if i >= self.one_hot_proposal_type_dim:
                 log_error('one_hot_proposal_type overflow: {0}'.format(i))
+
             t = util.Tensor(self.one_hot_proposal_type_dim).zero_()
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_proposal_type[proposal_type] = Variable(t, requires_grad=False)
@@ -323,6 +330,7 @@ class Artifact(nn.Module):
             obs = torch.cat([sub_batch[b].observes for b in range(sub_batch_size)]).view(sub_batch_size, example_observes.size()[0], example_observes.size()[1])
         else:
             util.log_error('Unsupported observation shape: {0}'.format(example_observes.size()))
+
 
         observe_embedding = self.observe_layer(Variable(obs, requires_grad=False))
 
@@ -374,5 +382,6 @@ class Artifact(nn.Module):
                     logpdf += log_weights[b, int(value) - min] # Check this for correctness
             else:
                 util.log_error('Unsupported proposal distribution: ' + proposal_type)
+
 
         return -logpdf / sub_batch_size

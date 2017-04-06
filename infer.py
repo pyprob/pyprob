@@ -27,16 +27,16 @@ parser.add_argument('--nth', help='show the nth artifact (-1: last)', type=int)
 parser.add_argument('--cuda', help='use CUDA', action='store_true')
 parser.add_argument('--seed', help='random seed', default=4, type=int)
 parser.add_argument('--debug', help='show debugging information as requests arrive', action='store_true')
-parser.add_argument('--server', help='address and port to bind this inference serve', default='tcp://127.0.0.1:6666')
+parser.add_argument('--server', help='address and port to bind this inference server', default='tcp://127.0.0.1:6666')
 opt = parser.parse_args()
 
 if opt.version:
     print(util.version)
-    quit()
+
 
 if not opt.latest and opt.nth is None:
     parser.print_help()
-    quit()
+
 
 time_stamp = util.get_time_stamp()
 util.init_logger('{0}/{1}'.format(opt.folder, 'artifact-info-log' + time_stamp))
@@ -45,7 +45,7 @@ util.init(opt)
 util.log_print()
 util.log_print(colored('█ Oxford Inference Compilation ' + util.version, 'blue', attrs=['bold']))
 util.log_print()
-util.log_print('Inference Mode')
+util.log_print('Inference Engine')
 util.log_print()
 util.log_print('Started ' +  str(datetime.datetime.now()))
 util.log_print()
@@ -128,7 +128,7 @@ with Replier(opt.server) as replier:
                 prev_value = util.Tensor([prev_value])
             else:
                 util.log_error('Unsupported sample type: {0}'.format(str(prev_value)))
-                quit()
+
 
             if opt.debug:
                 util.log_print('Command       : proposal-params')
@@ -140,7 +140,7 @@ with Replier(opt.server) as replier:
             else:
                 if not (prev_address, prev_instance) in artifact.sample_layers:
                     util.log_error('Artifact has no sample embedding layer for: {0}, {1}'.format(prev_address, prev_instance))
-                    quit()
+
                 prev_sample_embedding = artifact.sample_layers[(prev_address, prev_instance)](Variable(prev_value.unsqueeze(0), requires_grad=False))
 
             t = [observe_embedding[0],
@@ -160,7 +160,7 @@ with Replier(opt.server) as replier:
 
             if not (address, instance) in artifact.proposal_layers:
                 util.log_error('Artifact has no proposal layer for: {0}, {1}'.format(address, instance))
-                quit()
+
 
             proposal_input = lstm_output[0]
             proposal_output = artifact.proposal_layers[(address, instance)](proposal_input)
@@ -169,7 +169,7 @@ with Replier(opt.server) as replier:
                 replier.send_reply(proposal_output[0].data.cpu().numpy().tolist())
             else:
                 util.log_error('Unsupported proposal type: {0}'.format(proposal_type))
-                quit()
+
             time_step += 1
 
         else:

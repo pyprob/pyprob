@@ -29,8 +29,7 @@ def init(opt):
     torch.manual_seed(opt.seed)
     if opt.cuda:
         if not torch.cuda.is_available():
-            util.log_print(colored('Error: CUDA not available', 'red'))
-            quit()
+            log_error('CUDA not available')
         torch.cuda.manual_seed(opt.seed)
         Tensor = torch.cuda.FloatTensor
     else:

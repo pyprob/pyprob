@@ -79,6 +79,7 @@ class Requester(object):
                 value = samples_timeStep['value']
                 if type(value) != int:
                     util.log_error('Unsupported sample value type: ' + str(type(value)))
+
                 value = util.Tensor([value])
                 sample = Sample(address, instance, value, proposal_type)
                 if proposal_type == 'discreteminmax':
@@ -86,6 +87,7 @@ class Requester(object):
                     sample.proposal_max = samples_timeStep['proposal-extra-params'][1]
                 else:
                     util.log_error('Unsupported proposal distribution type: ' + proposal_type)
+
                 trace.add_sample(sample)
 
             traces.append(trace)
