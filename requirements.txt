@@ -1,3 +1,6 @@
+torch
+torchvision
 termcolor
 pyzmq
 msgpack-python
+visdom
