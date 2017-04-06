@@ -161,7 +161,7 @@ with Replier(opt.server) as replier:
             proposal_output = artifact.proposal_layers[(address, instance)](proposal_input)
 
             if proposal_type == 'discreteminmax':
-                replier.send_reply(proposal_output[0].data.numpy().tolist())
+                replier.send_reply(proposal_output[0].data.cpu().numpy().tolist())
             else:
                 util.log_error('Unsupported proposal type: {0}'.format(proposal_type))
                 quit()
