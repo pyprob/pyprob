@@ -330,7 +330,7 @@ class Artifact(nn.Module):
         elif example_observes.dim() == 2:
             obs = obs.view(sub_batch_size, example_observes.size()[0], example_observes.size()[1])
         elif example_observes.dim() == 3:
-            obs = obs.view(sub_batch_size, example_observes.size()[0], example_observes.size()[1], , example_observes.size()[2])
+            obs = obs.view(sub_batch_size, example_observes.size()[0], example_observes.size()[1], example_observes.size()[2])
         else:
             util.log_error('Unsupported observation shape: {0}'.format(example_observes.size()))
 
