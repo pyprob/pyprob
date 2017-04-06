@@ -24,8 +24,8 @@ parser.add_argument('--folder', help='folder to save artifacts and logs', defaul
 parser.add_argument('--latest', help='show the latest artifact', action='store_true')
 parser.add_argument('--nth', help='show the nth artifact (-1: last)', type=int)
 parser.add_argument('--structure', help='show extra information about artifact structure', action='store_true')
-parser.add_argument('--plotLoss', help='save loss plot to file (supported formats: eps, jpg, png, pdf, svg, tif)', type=str)
-parser.add_argument('--plotLossToScreen', help='show the loss plot in screen', action='store_true')
+parser.add_argument('--plot', help='save loss plot to file (supported formats: eps, jpg, png, pdf, svg, tif)', type=str)
+parser.add_argument('--plotShow', help='show the loss plot in screen', action='store_true')
 opt = parser.parse_args()
 
 if opt.version:
@@ -80,7 +80,7 @@ if opt.structure:
 
     util.log_print(artifact.get_structure())
 
-if opt.plotLossToScreen or opt.plotLoss:
+if opt.plotShow or opt.plot:
     util.log_print()
     util.log_print(colored('█ Loss plot', 'blue', attrs=['bold']))
     util.log_print()
@@ -93,9 +93,9 @@ if opt.plotLossToScreen or opt.plotLoss:
     plt.ylabel('Loss')
     plt.grid()
     fig.tight_layout()
-    if opt.plotLossToScreen:
+    if opt.plotShow:
         util.log_print('Plotting loss to screen')
         plt.show()
-    if not opt.plotLoss is None:
+    if not opt.plot is None:
         util.log_print('Saving loss plot to file: ' + opt.plotLoss)
         fig.savefig(opt.plotLoss)
