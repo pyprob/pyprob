@@ -34,14 +34,14 @@ parser.add_argument('--weightDecay', help='L2 weight decay coefficient', default
 parser.add_argument('--batchSize', help='training batch size', default=128, type=int)
 parser.add_argument('--validSize', help='validation set size', default=256, type=int)
 parser.add_argument('--validInterval', help='validation interval (traces)', default=1000, type=int)
-parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=2, type=int)
-parser.add_argument('--noStandardize', help='do not standardize observations', action='store_true')
+parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=64, type=int)
+parser.add_argument('--standardize', help='standardize observations', action='store_true')
 parser.add_argument('--resumeLatest', help='resume training of the latest artifact', action='store_true')
 parser.add_argument('--obsEmb', help='observation embedding', choices=['fc'], default='fc', type=str)
-parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=3, type=int)
+parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=128, type=int)
 parser.add_argument('--smpEmb', help='sample embedding', choices=['fc'], default='fc', type=str)
 parser.add_argument('--smpEmbDim', help='sample embedding dimension', default=1, type=int)
-parser.add_argument('--lstmDim', help='lstm hidden unit dimension', default=3, type=int)
+parser.add_argument('--lstmDim', help='lstm hidden unit dimension', default=256, type=int)
 parser.add_argument('--lstmDepth', help='number of stacked lstms', default=2, type=int)
 parser.add_argument('--softmaxBoost', help='multiplier before softmax', default=20.0, type=float)
 parser.add_argument('--keepArtifacts', help='keep all previously best artifacts during training, do not overwrite', action='store_true')
@@ -106,7 +106,7 @@ with Requester(opt.server) as requester:
 
         artifact = Artifact()
         artifact.on_cuda = opt.cuda
-        artifact.standardize = not opt.noStandardize
+        artifact.standardize = opt.standardize
         artifact.one_hot_address_dim = opt.oneHotDim
         artifact.one_hot_instance_dim = opt.oneHotDim
         artifact.one_hot_proposal_type_dim = 1

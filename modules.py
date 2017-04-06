@@ -58,7 +58,7 @@ class Proposal_discreteminmax(nn.Module):
         self.lin1 = nn.Linear(input_dim, output_dim)
         self.softmax_boost = softmax_boost
     def forward(self, x):
-        return F.softmax(F.relu(self.lin1(x)).mul_(self.softmax_boost))
+        return F.softmax(self.lin1(x).mul_(self.softmax_boost))
 
 class Sample_embedding_fc(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -237,7 +237,7 @@ class Artifact(nn.Module):
             i = len(self.one_hot_address)
             if i >= self.one_hot_address_dim:
                 log_error('one_hot_address overflow: {0}'.format(i))
-            t = util.Tensor(self.one_hot_address_dim).fill_(0)
+            t = util.Tensor(self.one_hot_address_dim).zero_()
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_address[address] = Variable(t, requires_grad=False)
 
@@ -247,7 +247,7 @@ class Artifact(nn.Module):
             i = len(self.one_hot_instance)
             if i >= self.one_hot_instance_dim:
                 log_error('one_hot_instance overflow: {0}'.format(i))
-            t = util.Tensor(self.one_hot_instance_dim).fill_(0)
+            t = util.Tensor(self.one_hot_instance_dim).zero_()
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_instance[instance] = Variable(t, requires_grad=False)
 
@@ -257,7 +257,7 @@ class Artifact(nn.Module):
             i = len(self.one_hot_proposal_type)
             if i >= self.one_hot_proposal_type_dim:
                 log_error('one_hot_proposal_type overflow: {0}'.format(i))
-            t = util.Tensor(self.one_hot_proposal_type_dim).fill_(0)
+            t = util.Tensor(self.one_hot_proposal_type_dim).zero_()
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_proposal_type[proposal_type] = Variable(t, requires_grad=False)
 
@@ -290,7 +290,7 @@ class Artifact(nn.Module):
             proposal_type = sample.proposal_type
 
             if time_step == 0:
-                sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).fill_(0), requires_grad=False)
+                sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).zero_(), requires_grad=False)
             else:
                 smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, sample.value_dim)
                 sample_embedding = self.sample_layers[(address, instance)](Variable(smp, requires_grad=False))
@@ -306,7 +306,9 @@ class Artifact(nn.Module):
             lstm_input.append(t)
         lstm_input = torch.cat(lstm_input).view(example_trace.length, sub_batch_size, -1)
 
-        lstm_output, _ = self.lstm(lstm_input)
+        h0 = Variable(util.Tensor(self.lstm_depth, sub_batch_size, self.lstm_dim).zero_(), requires_grad=False)
+        c0 = Variable(util.Tensor(self.lstm_depth, sub_batch_size, self.lstm_dim).zero_(), requires_grad=False)
+        lstm_output, _ = self.lstm(lstm_input, (h0, c0))
 
         logpdf = 0
         for time_step in range(example_trace.length):

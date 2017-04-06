@@ -136,7 +136,7 @@ with Replier(opt.server) as replier:
                 util.log_print()
 
             if time_step == 0:
-                prev_sample_embedding = Variable(util.Tensor(1, artifact.smp_emb_dim).fill_(0), requires_grad=False)
+                prev_sample_embedding = Variable(util.Tensor(1, artifact.smp_emb_dim).zero_(), requires_grad=False)
             else:
                 if not (prev_address, prev_instance) in artifact.sample_layers:
                     util.log_error('Artifact has no sample embedding layer for: {0}, {1}'.format(prev_address, prev_instance))
@@ -151,7 +151,12 @@ with Replier(opt.server) as replier:
             t = torch.cat(t).unsqueeze(0)
             lstm_input = t.unsqueeze(0)
 
-            lstm_output, _ = artifact.lstm(lstm_input)
+            if time_step == 0:
+                h0 = Variable(util.Tensor(artifact.lstm_depth, 1, artifact.lstm_dim).zero_())
+                c0 = Variable(util.Tensor(artifact.lstm_depth, 1, artifact.lstm_dim).zero_())
+                lstm_output, _ = artifact.lstm(lstm_input, (h0, c0))
+            else:
+                lstm_output, _ = artifact.lstm(lstm_input)
 
             if not (address, instance) in artifact.proposal_layers:
                 util.log_error('Artifact has no proposal layer for: {0}, {1}'.format(address, instance))
