@@ -122,7 +122,7 @@ class Artifact(nn.Module):
         self.observe_layer = None
         self.lstm = None
 
-        self.name = ''
+        self.model_name = ''
         self.created = datetime.datetime.now()
         self.modified = datetime.datetime.now()
         self.on_cuda = None
@@ -178,7 +178,7 @@ class Artifact(nn.Module):
         addresses = ' '.join(list(self.one_hot_address.keys()))
         instances = ' '.join(map(str, list(self.one_hot_instance.keys())))
         proposal_types = ' '.join(list(self.one_hot_proposal_type.keys()))
-        info = '\n'.join(['Name                  : {0}'.format(self.name),
+        info = '\n'.join(['Model name            : {0}'.format(self.model_name),
                           'Created               : {0}'.format(self.created),
                           'Last modified         : {0}'.format(self.modified),
                           'Code version          : {0}'.format(self.code_version),

@@ -17,6 +17,9 @@ import sys
 import os
 from pprint import pformat
 import matplotlib.pyplot as plt
+import numpy as np
+from itertools import zip_longest
+import csv
 
 parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + util.version + ' (Artifact Info)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
@@ -26,6 +29,7 @@ parser.add_argument('--nth', help='show the nth artifact (-1: last)', type=int)
 parser.add_argument('--structure', help='show extra information about artifact structure', action='store_true')
 parser.add_argument('--plot', help='save loss plot to file (supported formats: eps, jpg, png, pdf, svg, tif)', type=str)
 parser.add_argument('--plotShow', help='show the loss plot in screen', action='store_true')
+parser.add_argument('--saveHist', help='save the training and validation loss history (csv)', type=str)
 opt = parser.parse_args()
 
 if opt.version:
@@ -99,3 +103,12 @@ if opt.plotShow or opt.plot:
     if not opt.plot is None:
         util.log_print('Saving loss plot to file: ' + opt.plotLoss)
         fig.savefig(opt.plotLoss)
+
+if not opt.saveHist is None:
+    util.log_print('Saving training and validation loss history to file: ' + opt.saveHist)
+    with open(opt.saveHist, 'w') as f:
+        data = [artifact.train_history_trace, artifact.train_history_loss, artifact.valid_history_trace, artifact.valid_history_loss]
+        writer = csv.writer(f)
+        writer.writerow(['train_trace', 'train_loss', 'valid_trace', 'valid_loss'])
+        for values in zip_longest(*data):
+            writer.writerow(values)
