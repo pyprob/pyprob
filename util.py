@@ -18,7 +18,7 @@ import re
 from glob import glob
 from termcolor import colored
 
-version = '0.9.1'
+version = '0.9.2'
 epsilon = 1e-8
 
 def get_time_stamp():

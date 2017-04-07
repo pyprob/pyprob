@@ -68,10 +68,10 @@ class Sample_embedding_fc(nn.Module):
         return F.relu(self.lin1(x))
 
 class Observe_embedding_fc(nn.Module):
-    def __init__(self, input_dim, output_dim):
+    def __init__(self, input_example_non_batch, output_dim):
         super(Observe_embedding_fc, self).__init__()
-        self.input_dim = input_dim
-        self.lin1 = nn.Linear(input_dim, output_dim)
+        self.input_dim = input_example_non_batch.nelement()
+        self.lin1 = nn.Linear(self.input_dim, output_dim)
         self.lin2 = nn.Linear(output_dim, output_dim)
     def forward(self, x):
         x = F.relu(self.lin1(x.view(-1, self.input_dim)))
@@ -79,14 +79,14 @@ class Observe_embedding_fc(nn.Module):
         return x
 
 class Observe_embedding_cnn6_2d(nn.Module):
-    def __init__(self, input_sample_non_batch, output_dim):
+    def __init__(self, input_example_non_batch, output_dim):
         super(Observe_embedding_cnn6_2d, self).__init__()
-        if input_sample_non_batch.dim() == 2:
-            self.input_sample = input_sample_non_batch.unsqueeze(0).cpu()
-        elif input_sample_non_batch.dim() == 3:
-            self.input_sample = input_sample_non_batch.cpu()
+        if input_example_non_batch.dim() == 2:
+            self.input_sample = input_example_non_batch.unsqueeze(0).cpu()
+        elif input_example_non_batch.dim() == 3:
+            self.input_sample = input_example_non_batch.cpu()
         else:
-            util.log_error('Expecting a 3d input_sample_non_batch (num_channels x height x width) or a 2d input_sample_non_batch (height x width). Received: {0}'.format(input_sample_non_batch.size()))
+            util.log_error('Expecting a 3d input_example_non_batch (num_channels x height x width) or a 2d input_example_non_batch (height x width). Received: {0}'.format(input_example_non_batch.size()))
 
         self.input_channels = self.input_sample.size(0)
         self.output_dim = output_dim
@@ -266,7 +266,7 @@ class Artifact(nn.Module):
         self.obs_emb = obs_emb
         self.obs_emb_dim = obs_emb_dim
         if obs_emb == 'fc':
-            observe_layer = Observe_embedding_fc(example_observes.nelement(), obs_emb_dim)
+            observe_layer = Observe_embedding_fc(Variable(example_observes), obs_emb_dim)
         elif obs_emb == 'cnn6_2d':
             observe_layer = Observe_embedding_cnn6_2d(Variable(example_observes), obs_emb_dim)
             observe_layer.configure()
