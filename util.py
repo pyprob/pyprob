@@ -92,7 +92,6 @@ class Spinner(object):
                         colored('   █\r', 'blue', attrs=['bold']),
                         colored('  █ \r', 'blue', attrs=['bold']),
                         colored(' █  \r', 'blue', attrs=['bold'])]
-
     def spin(self):
         sys.stdout.write(self.spinner[self.i])
         sys.stdout.flush()

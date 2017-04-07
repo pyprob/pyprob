@@ -87,7 +87,6 @@ class Requester(object):
                     sample.proposal_max = samples_timeStep['proposal-extra-params'][1]
                 else:
                     util.log_error('Unsupported proposal distribution type: ' + proposal_type)
-
                 trace.add_sample(sample)
 
             traces.append(trace)

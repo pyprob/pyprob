@@ -37,7 +37,7 @@ parser.add_argument('--validInterval', help='validation interval (traces)', defa
 parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=64, type=int)
 parser.add_argument('--standardize', help='standardize observations', action='store_true')
 parser.add_argument('--resumeLatest', help='resume training of the latest artifact', action='store_true')
-parser.add_argument('--obsEmb', help='observation embedding', choices=['fc', 'cnn6_2d'], default='fc', type=str)
+parser.add_argument('--obsEmb', help='observation embedding', choices=['fc', 'cnn6'], default='fc', type=str)
 parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=128, type=int)
 parser.add_argument('--smpEmb', help='sample embedding', choices=['fc'], default='fc', type=str)
 parser.add_argument('--smpEmbDim', help='sample embedding dimension', default=1, type=int)
@@ -218,7 +218,6 @@ with Requester(opt.server) as requester:
                     valid_loss_str = colored('{:+.6e} ▼'.format(valid_loss), 'green', attrs=['bold'])
                     valid_loss_best_str = colored('{:+.6e}'.format(artifact.valid_loss_best), 'green', attrs=['bold'])
 
-                    # save artifact here
                     sys.stdout.write('Updating best artifact on disk...                        \r')
                     sys.stdout.flush()
                     artifact.valid_loss_final = valid_loss
@@ -243,7 +242,3 @@ with Requester(opt.server) as requester:
 
             improvement_time_str = util.days_hours_mins_secs(datetime.datetime.now() - improvement_time)
             util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} '.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, improvement_time_str))
-
-
-
-# print(artifact.loss(artifact.valid_batch[0]))

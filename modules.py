@@ -26,11 +26,9 @@ class Sample(object):
         self.proposal_type = proposal_type
         self.proposal_min = None
         self.proposal_max = None
-
     def __repr__(self):
         return 'Sample({0}, {1}, {2}, {3})'.format(self.address, self.instance, self.value.size(), self.proposal_type)
     __str__ = __repr__
-
 
 class Trace(object):
     def __init__(self):
@@ -38,38 +36,34 @@ class Trace(object):
         self.samples = []
         self.length = None
         self.hash = None
-
     def __repr__(self):
         return 'Trace(length:{0}; samples:{1}; observes:{2}'.format(self.length, '|'.join(['{0}({1})'.format(sample.address, sample.instance) for sample in  self.samples]), self.observes.size()) + ')'
     __str__ = __repr__
-
     def set_observes(self, o):
         self.observes = o
-
     def add_sample(self, s):
         self.samples.append(s)
         self.length = len(self.samples)
 
-
-class Proposal_discreteminmax(nn.Module):
+class ProposalDiscreteminmax(nn.Module):
     def __init__(self, input_dim, output_min, output_max, softmax_boost=1.0):
-        super(Proposal_discreteminmax, self).__init__()
+        super(ProposalDiscreteminmax, self).__init__()
         output_dim = output_max - output_min
         self.lin1 = nn.Linear(input_dim, output_dim)
         self.softmax_boost = softmax_boost
     def forward(self, x):
         return F.softmax(self.lin1(x).mul_(self.softmax_boost))
 
-class Sample_embedding_fc(nn.Module):
+class SampleEmbeddingFC(nn.Module):
     def __init__(self, input_dim, output_dim):
-        super(Sample_embedding_fc, self).__init__()
+        super(SampleEmbeddingFC, self).__init__()
         self.lin1 = nn.Linear(input_dim, output_dim)
     def forward(self, x):
         return F.relu(self.lin1(x))
 
-class Observe_embedding_fc(nn.Module):
+class ObserveEmbeddingFC(nn.Module):
     def __init__(self, input_example_non_batch, output_dim):
-        super(Observe_embedding_fc, self).__init__()
+        super(ObserveEmbeddingFC, self).__init__()
         self.input_dim = input_example_non_batch.nelement()
         self.lin1 = nn.Linear(self.input_dim, output_dim)
         self.lin2 = nn.Linear(output_dim, output_dim)
@@ -78,16 +72,15 @@ class Observe_embedding_fc(nn.Module):
         x = F.relu(self.lin2(x))
         return x
 
-class Observe_embedding_cnn6_2d(nn.Module):
+class ObserveEmbeddingCNN6(nn.Module):
     def __init__(self, input_example_non_batch, output_dim):
-        super(Observe_embedding_cnn6_2d, self).__init__()
+        super(ObserveEmbeddingCNN6, self).__init__()
         if input_example_non_batch.dim() == 2:
             self.input_sample = input_example_non_batch.unsqueeze(0).cpu()
         elif input_example_non_batch.dim() == 3:
             self.input_sample = input_example_non_batch.cpu()
         else:
             util.log_error('Expecting a 3d input_example_non_batch (num_channels x height x width) or a 2d input_example_non_batch (height x width). Received: {0}'.format(input_example_non_batch.size()))
-
         self.input_channels = self.input_sample.size(0)
         self.output_dim = output_dim
         self.conv1 = nn.Conv2d(self.input_channels, 64, 3)
@@ -236,15 +229,13 @@ class Artifact(nn.Module):
                 # update the artifact's sample and proposal layers as needed
                 if not (address, instance) in self.sample_layers:
                     if self.smp_emb == 'fc':
-                        sample_layer = Sample_embedding_fc(sample.value_dim, self.smp_emb_dim)
+                        sample_layer = SampleEmbeddingFC(sample.value_dim, self.smp_emb_dim)
                     else:
                         util.log_error('Unsupported sample embedding: ' + self.smp_emb)
-
                     if sample.proposal_type == 'discreteminmax':
-                        proposal_layer = Proposal_discreteminmax(self.lstm_dim, sample.proposal_min, sample.proposal_max, self.softmax_boost)
+                        proposal_layer = ProposalDiscreteminmax(self.lstm_dim, sample.proposal_min, sample.proposal_max, self.softmax_boost)
                     else:
                         util.log_error('Unsupported proposal distribution: ' + sample.proposal_type)
-
                     self.sample_layers[(address, instance)] = sample_layer
                     self.proposal_layers[(address, instance)] = proposal_layer
                     self.add_module('sample_layer({0}, {1})'.format(address, instance), sample_layer)
@@ -266,9 +257,9 @@ class Artifact(nn.Module):
         self.obs_emb = obs_emb
         self.obs_emb_dim = obs_emb_dim
         if obs_emb == 'fc':
-            observe_layer = Observe_embedding_fc(Variable(example_observes), obs_emb_dim)
-        elif obs_emb == 'cnn6_2d':
-            observe_layer = Observe_embedding_cnn6_2d(Variable(example_observes), obs_emb_dim)
+            observe_layer = ObserveEmbeddingFC(Variable(example_observes), obs_emb_dim)
+        elif obs_emb == 'cnn6':
+            observe_layer = ObserveEmbeddingCNN6(Variable(example_observes), obs_emb_dim)
             observe_layer.configure()
         else:
             util.log_error('Unsupported observation embedding: ' + obs_emb)
@@ -287,7 +278,6 @@ class Artifact(nn.Module):
             i = len(self.one_hot_address)
             if i >= self.one_hot_address_dim:
                 log_error('one_hot_address overflow: {0}'.format(i))
-
             t = util.Tensor(self.one_hot_address_dim).zero_()
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_address[address] = Variable(t, requires_grad=False)
@@ -298,7 +288,6 @@ class Artifact(nn.Module):
             i = len(self.one_hot_instance)
             if i >= self.one_hot_instance_dim:
                 log_error('one_hot_instance overflow: {0}'.format(i))
-
             t = util.Tensor(self.one_hot_instance_dim).zero_()
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_instance[instance] = Variable(t, requires_grad=False)
@@ -309,7 +298,6 @@ class Artifact(nn.Module):
             i = len(self.one_hot_proposal_type)
             if i >= self.one_hot_proposal_type_dim:
                 log_error('one_hot_proposal_type overflow: {0}'.format(i))
-
             t = util.Tensor(self.one_hot_proposal_type_dim).zero_()
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_proposal_type[proposal_type] = Variable(t, requires_grad=False)
@@ -333,7 +321,6 @@ class Artifact(nn.Module):
             obs = obs.view(sub_batch_size, example_observes.size()[0], example_observes.size()[1], example_observes.size()[2])
         else:
             util.log_error('Unsupported observation shape: {0}'.format(example_observes.size()))
-
 
         observe_embedding = self.observe_layer(Variable(obs, requires_grad=False))
 
@@ -385,6 +372,5 @@ class Artifact(nn.Module):
                     logpdf += log_weights[b, int(value) - min] # Check this for correctness
             else:
                 util.log_error('Unsupported proposal distribution: ' + proposal_type)
-
 
         return -logpdf / sub_batch_size
