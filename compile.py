@@ -207,7 +207,7 @@ with Requester(opt.server) as requester:
 
                 artifact.eval()
                 valid_loss = artifact.valid_loss()
-                last_validation_trace = trace
+                last_validation_trace = trace - 1
 
                 artifact.valid_history_trace.append(artifact.total_traces)
                 artifact.valid_history_loss.append(valid_loss)
