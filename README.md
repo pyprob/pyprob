@@ -20,19 +20,19 @@ If you use this code in your work, please cite our [paper][paper-link]:
 
 ## License
 
-Pytorch-infcomp is free software: you can redistribute it and/or modify
+Inference Compilation is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    Pytorch-infcomp is distributed in the hope that it will be useful,
+    Inference Compilation is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Pytorch-infcomp.  If not, see <http://www.gnu.org/licenses/>.    
-    
+    along with Inference Compilation.  If not, see <http://www.gnu.org/licenses/>.    
+
 [project-page-link]: http://tuananhle.co.uk/compiled-inference
 [anglican-csis-repo-link]: https://github.com/probprog/anglican-inference-compilation
 [paper-link]: https://arxiv.org/abs/1610.09900
