@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='pytorch-infcomp',
-    version='0.9.3dev',
+    version='0.9.3.dev1',
     description='PyTorch library for Inference Compilation and Universal Probabilistic Programming',
     author='Tuan-Anh Le and Atilim Gunes Baydin',
     packages=['pytorch-infcomp'],
