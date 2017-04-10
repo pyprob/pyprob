@@ -9,6 +9,6 @@ setup(
     author='Tuan-Anh Le and Atilim Gunes Baydin',
     packages=['infcomp'],
     install_requires=['torch', 'torchvision', 'termcolor>=1.1.0', 'pyzmq>=16.0.2', 'msgpack-python>=0.4.8', 'visdom>=0.1.02'],
-    url='https://github.com/probprog/pytorch-infcomp',
+    url='https://github.com/probprog/pytorch-inference-compilation',
     license='GPLv3'
 )
