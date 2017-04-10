@@ -1,4 +1,5 @@
-import pkg_resources  # part of setuptools
+from setuptools import setup
+import pkg_resources
 version = pkg_resources.require("infcomp")[0].version
 
 setup(
