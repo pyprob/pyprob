@@ -1,2 +1,2 @@
-__version__ = '0.9.2'
-epsilon = 1e-8
+version_file = open(os.path.join('.', 'VERSION'))
+__version__ = version_file.read().strip()
