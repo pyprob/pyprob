@@ -7,9 +7,9 @@
 # May 2016 -- March 2017
 #
 
-import util
-from protocol import Replier
-
+import infcomp
+from infcomp import util
+from infcomp.protocol import Replier
 import torch
 from torch.autograd import Variable
 import argparse
@@ -19,9 +19,9 @@ import sys
 from pprint import pformat
 import os
 
-parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + util.version + ' (Inference Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Inference Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
-parser.add_argument('--folder', help='folder to save artifacts and logs', default='./artifacts')
+parser.add_argument('--dir', help='directory to save artifacts and logs', default='./artifacts')
 parser.add_argument('--latest', help='show the latest artifact', action='store_true')
 parser.add_argument('--nth', help='show the nth artifact (-1: last)', type=int)
 parser.add_argument('--cuda', help='use CUDA', action='store_true')
@@ -31,19 +31,20 @@ parser.add_argument('--server', help='address and port to bind this inference se
 opt = parser.parse_args()
 
 if opt.version:
-    print(util.version)
-
+    print(infcomp.__version__)
+    quit()
 
 if not opt.latest and opt.nth is None:
     parser.print_help()
+    quit()
 
 
 time_stamp = util.get_time_stamp()
-util.init_logger('{0}/{1}'.format(opt.folder, 'artifact-info-log' + time_stamp))
+util.init_logger('{0}/{1}'.format(opt.dir, 'artifact-info-log' + time_stamp))
 util.init(opt)
 
 util.log_print()
-util.log_print(colored('█ Oxford Inference Compilation ' + util.version, 'blue', attrs=['bold']))
+util.log_print(colored('█ Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
 util.log_print()
 util.log_print('Inference Engine')
 util.log_print()
@@ -63,7 +64,7 @@ util.log_print()
 with Replier(opt.server) as replier:
     if opt.latest:
         opt.nth = -1
-    file_name = util.file_starting_with('{0}/{1}'.format(opt.folder, 'compile-artifact'), opt.nth)
+    file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'compile-artifact'), opt.nth)
     artifact = torch.load(file_name)
     file_size = '{:,}'.format(os.path.getsize(file_name))
 

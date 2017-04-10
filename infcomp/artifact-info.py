@@ -7,8 +7,7 @@
 # May 2016 -- March 2017
 #
 
-import util
-
+import infcomp.util
 import torch
 import argparse
 from termcolor import colored
@@ -23,7 +22,7 @@ import csv
 
 parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + util.version + ' (Artifact Info)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
-parser.add_argument('--folder', help='folder to save artifacts and logs', default='./artifacts')
+parser.add_argument('--dir', help='directory to save artifacts and logs', default='./artifacts')
 parser.add_argument('--latest', help='show the latest artifact', action='store_true')
 parser.add_argument('--nth', help='show the nth artifact (-1: last)', type=int)
 parser.add_argument('--structure', help='show extra information about artifact structure', action='store_true')
@@ -33,7 +32,7 @@ parser.add_argument('--saveHist', help='save the training and validation loss hi
 opt = parser.parse_args()
 
 if opt.version:
-    print(util.version)
+    print(infcomp.__version__)
     quit()
 
 if not opt.latest and opt.nth is None:
@@ -41,7 +40,7 @@ if not opt.latest and opt.nth is None:
     quit()
 
 time_stamp = util.get_time_stamp()
-util.init_logger('{0}/{1}'.format(opt.folder, 'artifact-info-log' + time_stamp))
+util.init_logger('{0}/{1}'.format(opt.dir, 'artifact-info-log' + time_stamp))
 
 util.log_print()
 util.log_print(colored('█ Oxford Inference Compilation ' + util.version, 'blue', attrs=['bold']))
@@ -63,7 +62,7 @@ util.log_print()
 
 if opt.latest:
     opt.nth = -1
-file_name = util.file_starting_with('{0}/{1}'.format(opt.folder, 'compile-artifact'), opt.nth)
+file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'compile-artifact'), opt.nth)
 artifact = torch.load(file_name)
 file_size = '{:,}'.format(os.path.getsize(file_name))
 

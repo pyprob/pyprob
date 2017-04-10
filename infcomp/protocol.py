@@ -7,9 +7,9 @@
 # May 2016 -- March 2017
 #
 
-import util
-from modules import Sample, Trace
-
+import infcomp
+from infcomp import util
+from infcomp.modules import Sample, Trace
 import sys
 import zmq
 import msgpack

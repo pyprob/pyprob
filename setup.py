@@ -1,8 +1,5 @@
-from setuptools import setup
-import os
-
-version_file = open(os.path.join('.', 'VERSION'))
-version = version_file.read().strip()
+import pkg_resources  # part of setuptools
+version = pkg_resources.require("infcomp")[0].version
 
 setup(
     name='infcomp',

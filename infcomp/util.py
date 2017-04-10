@@ -7,6 +7,7 @@
 # May 2016 -- March 2017
 #
 
+import infcomp
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -73,9 +74,9 @@ def file_starting_with(pattern, n):
     return sorted(glob(pattern + '*'))[n]
 
 def check_versions(artifact):
-    if artifact.code_version != version:
+    if artifact.code_version != infcomp.__version__:
         log_print()
-        log_warning('Different code versions (artifact: {0}, current: {1})'.format(artifact.code_version, version))
+        log_warning('Different code versions (artifact: {0}, current: {1})'.format(artifact.code_version, infcomp.__version__))
         log_print()
     if artifact.pytorch_version != torch.__version__:
         log_print()

@@ -7,10 +7,10 @@
 # May 2016 -- March 2017
 #
 
-import util
-from modules import Sample, Trace, Artifact
-from protocol import Requester
-
+import infcomp
+from infcomp import util
+from infcomp.modules import Sample, Trace, Artifact
+from infcomp.protocol import Requester
 import argparse
 import torch
 import torch.nn as nn
@@ -23,9 +23,9 @@ import datetime
 from pprint import pformat
 import os
 
-parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + util.version + ' (Compilation Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Compilation Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
-parser.add_argument('--folder', help='folder to save artifacts and logs', default='./artifacts')
+parser.add_argument('--dir', help='directory to save artifacts and logs', default='./artifacts')
 parser.add_argument('--cuda', help='use CUDA', action='store_true')
 parser.add_argument('--seed', help='random seed', default=4, type=int)
 parser.add_argument('--server', help='address of the probprog model server', default='tcp://127.0.0.1:5555')
@@ -48,16 +48,16 @@ parser.add_argument('--keepArtifacts', help='keep all previously best artifacts 
 opt = parser.parse_args()
 
 if opt.version:
-    print(util.version)
+    print(infcomp.__version__)
     quit()
 
 time_stamp = util.get_time_stamp()
-artifact_file = '{0}/{1}'.format(opt.folder, 'compile-artifact' + time_stamp)
-util.init_logger('{0}/{1}'.format(opt.folder, 'compile-log' + time_stamp))
+artifact_file = '{0}/{1}'.format(opt.dir, 'compile-artifact' + time_stamp)
+util.init_logger('{0}/{1}'.format(opt.dir, 'compile-log' + time_stamp))
 util.init(opt)
 
 util.log_print()
-util.log_print(colored('█ Oxford Inference Compilation ' + util.version, 'blue', attrs=['bold']))
+util.log_print(colored('█ Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
 util.log_print()
 util.log_print('Compilation Mode')
 util.log_print()
@@ -76,7 +76,7 @@ util.log_print()
 
 with Requester(opt.server) as requester:
     if opt.resumeLatest:
-        resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.folder, 'compile-artifact'), -1)
+        resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.dir, 'compile-artifact'), -1)
         util.log_print()
         util.log_print(colored('█ Resuming artifact', 'blue', attrs=['bold']))
         util.log_print()
@@ -226,7 +226,7 @@ with Requester(opt.server) as requester:
                     artifact.optimizer_state = optimizer.state_dict()
                     if opt.keepArtifacts:
                         time_stamp = util.get_time_stamp()
-                        artifact_file = '{0}/{1}'.format(opt.folder, 'compile-artifact' + time_stamp)
+                        artifact_file = '{0}/{1}'.format(opt.dir, 'compile-artifact' + time_stamp)
                     torch.save(artifact, artifact_file)
 
                     improvement_time = datetime.datetime.now()

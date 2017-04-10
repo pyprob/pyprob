@@ -1,2 +1,1 @@
-version_file = open(os.path.join('.', 'VERSION'))
-__version__ = version_file.read().strip()
+__version__ = '0.9.3.dev1'

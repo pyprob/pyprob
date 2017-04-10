@@ -7,8 +7,8 @@
 # May 2016 -- March 2017
 #
 
-import util
-
+import infcomp
+from infcomp import util
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -126,7 +126,7 @@ class Artifact(nn.Module):
         self.created = datetime.datetime.now()
         self.modified = datetime.datetime.now()
         self.on_cuda = None
-        self.code_version = util.version
+        self.code_version = infcomp.__version__
         self.pytorch_version = torch.__version__
         self.standardize = True
         self.one_hot_address = {}
