@@ -21,7 +21,7 @@ import os
 
 parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Inference Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
-parser.add_argument('--dir', help='directory to save artifacts and logs', default='./artifacts')
+parser.add_argument('--dir', help='directory to save artifacts and logs', default='.')
 parser.add_argument('--latest', help='show the latest artifact', action='store_true')
 parser.add_argument('--nth', help='show the nth artifact (-1: last)', type=int)
 parser.add_argument('--cuda', help='use CUDA', action='store_true')
@@ -44,7 +44,7 @@ util.init_logger('{0}/{1}'.format(opt.dir, 'artifact-info-log' + time_stamp))
 util.init(opt)
 
 util.log_print()
-util.log_print(colored('█ Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
+util.log_print(colored('[] Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
 util.log_print()
 util.log_print('Inference Engine')
 util.log_print()
@@ -56,7 +56,7 @@ util.log_print('Command line arguments:')
 util.log_print(' '.join(sys.argv[1:]))
 
 util.log_print()
-util.log_print(colored('█ Inference configuration', 'blue', attrs=['bold']))
+util.log_print(colored('[] Inference configuration', 'blue', attrs=['bold']))
 util.log_print()
 util.log_print(pformat(vars(opt)))
 util.log_print()
@@ -69,7 +69,7 @@ with Replier(opt.server) as replier:
     file_size = '{:,}'.format(os.path.getsize(file_name))
 
     util.log_print()
-    util.log_print(colored('█ Loaded artifact', 'blue', attrs=['bold']))
+    util.log_print(colored('[] Loaded artifact', 'blue', attrs=['bold']))
     util.log_print()
 
     artifact = torch.load(file_name)
@@ -86,7 +86,7 @@ with Replier(opt.server) as replier:
     util.log_print()
 
     util.log_print()
-    util.log_print(colored('█ Inference engine running at ' + opt.server, 'blue', attrs=['bold']))
+    util.log_print(colored('[] Inference engine running at ' + opt.server, 'blue', attrs=['bold']))
     util.log_print()
 
     artifact.eval()

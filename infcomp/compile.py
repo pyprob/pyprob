@@ -25,7 +25,7 @@ import os
 
 parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Compilation Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
-parser.add_argument('--dir', help='directory to save artifacts and logs', default='./artifacts')
+parser.add_argument('--dir', help='directory to save artifacts and logs', default='.')
 parser.add_argument('--cuda', help='use CUDA', action='store_true')
 parser.add_argument('--seed', help='random seed', default=4, type=int)
 parser.add_argument('--server', help='address of the probprog model server', default='tcp://127.0.0.1:5555')
@@ -57,7 +57,7 @@ util.init_logger('{0}/{1}'.format(opt.dir, 'compile-log' + time_stamp))
 util.init(opt)
 
 util.log_print()
-util.log_print(colored('█ Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
+util.log_print(colored('[] Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
 util.log_print()
 util.log_print('Compilation Mode')
 util.log_print()
@@ -69,7 +69,7 @@ util.log_print('Command line arguments:')
 util.log_print(' '.join(sys.argv[1:]))
 
 util.log_print()
-util.log_print(colored('█ Compilation configuration', 'blue', attrs=['bold']))
+util.log_print(colored('[] Compilation configuration', 'blue', attrs=['bold']))
 util.log_print()
 util.log_print(pformat(vars(opt)))
 util.log_print()
@@ -78,7 +78,7 @@ with Requester(opt.server) as requester:
     if opt.resumeLatest:
         resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.dir, 'compile-artifact'), -1)
         util.log_print()
-        util.log_print(colored('█ Resuming artifact', 'blue', attrs=['bold']))
+        util.log_print(colored('[] Resuming artifact', 'blue', attrs=['bold']))
         util.log_print()
 
         artifact = torch.load(resume_artifact_file)
@@ -96,7 +96,7 @@ with Requester(opt.server) as requester:
         util.log_print('New artifact will be saved to: ' + artifact_file)
     else:
         util.log_print()
-        util.log_print(colored('█ New artifact', 'blue', attrs=['bold']))
+        util.log_print(colored('[] New artifact', 'blue', attrs=['bold']))
         util.log_print()
         util.log_print('File name: ' + artifact_file)
 
@@ -148,7 +148,7 @@ with Requester(opt.server) as requester:
     last_validation_trace = 0
 
     util.log_print()
-    util.log_print(colored('█ Training from ' + opt.server, 'blue', attrs=['bold']))
+    util.log_print(colored('[] Training from ' + opt.server, 'blue', attrs=['bold']))
     util.log_print()
 
     time_str = util.days_hours_mins_secs(prev_artifact_total_training_time + (datetime.datetime.now() - start_time))
