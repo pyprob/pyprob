@@ -337,6 +337,7 @@ class Artifact(nn.Module):
                 sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).zero_(), requires_grad=False)
             else:
                 smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, sample.value_dim)
+                ## This should be (prev_address, prev_instance):
                 sample_embedding = self.sample_layers[(address, instance)](Variable(smp, requires_grad=False))
 
             t = []

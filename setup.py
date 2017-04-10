@@ -1,8 +1,12 @@
 from setuptools import setup
+import os
+
+version_file = open(os.path.join('.', 'VERSION'))
+version = version_file.read().strip()
 
 setup(
     name='infcomp',
-    version='0.9.3.dev1',
+    version=version,
     description='PyTorch library for Inference Compilation and Universal Probabilistic Programming',
     author='Tuan-Anh Le and Atilim Gunes Baydin',
     packages=['infcomp'],

@@ -18,8 +18,7 @@ import re
 from glob import glob
 from termcolor import colored
 
-version = '0.9.2'
-epsilon = 1e-8
+
 
 def get_time_stamp():
     return datetime.datetime.fromtimestamp(time.time()).strftime('-%Y%m%d-%H%M%S')
