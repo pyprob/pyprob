@@ -2,6 +2,6 @@ torch
 torchvision==0.1.8
 termcolor==1.1.0
 pyzmq==16.0.2
-msgpack-python==0.4.8
+flatbuffers==2015.12.22.1
 visdom==0.1.02
 matplotlib==2.0.0

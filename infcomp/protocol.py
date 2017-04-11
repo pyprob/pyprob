@@ -1,62 +1,21 @@
-#
-# Oxford Inference Compilation
-# https://arxiv.org/abs/1610.09900
-#
-# Tuan-Anh Le, Atilim Gunes Baydin
-# University of Oxford
-# May 2016 -- March 2017
-#
-
 import infcomp
+import infcomp.zmq
 from infcomp import util
 from infcomp.modules import Sample, Trace
+from infcomp.flatbuffers import TracesFromPriorRequest
+
+import flatbuffers
 import sys
-import zmq
-import msgpack
-from termcolor import colored
 
-class Replier(object):
+class BatchRequester(object):
     def __init__(self, server_address):
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REP)
-        self.socket.bind(server_address)
-        util.log_print(colored('Protocol: zmq.REP socket bound to ' + server_address, 'yellow', attrs=['bold']))
+        self.requester = infcomp.zmq.Requester(server_address)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
-        self.socket.close()
-        self.context.term()
-        util.log_print(colored('Protocol: zmq.REP socket disconnected', 'yellow', attrs=['bold']))
-
-    def send_reply(self, reply):
-        self.socket.send(msgpack.packb(reply))
-
-    def receive_request(self):
-        return msgpack.unpackb(self.socket.recv(), encoding='utf-8')
-
-
-class Requester(object):
-    def __init__(self, server_address):
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REQ)
-        self.socket.connect(server_address)
-        util.log_print(colored('Protocol: zmq.REQ socket connected to server ' + server_address, 'yellow', attrs=['bold']))
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exception_type, exception_value, traceback):
-        self.socket.close()
-        self.context.term()
-        util.log_print(colored('Protocol: zmq.REQ socket disconnected', 'yellow', attrs=['bold']))
-
-    def send_request(self, request):
-        self.socket.send(msgpack.packb(request))
-
-    def receive_reply(self):
-        return msgpack.unpackb(self.socket.recv(), encoding='utf-8')
+        self.requester.close()
 
     def get_batch(self, data, standardize):
         traces = []
@@ -105,18 +64,26 @@ class Requester(object):
         return ret
 
     def request_batch(self, n):
-        self.send_request({'command':'new-batch', 'command-param':n})
+        #self.requester.send_request({'command':'new-batch', 'command-param':n})
+        builder = flatbuffers.Builder(32)
+        TracesFromPriorRequest.TracesFromPriorRequestStart(builder)
+        TracesFromPriorRequest.TracesFromPriorRequestAddNumTraces(builder, n)
+        tfpr = TracesFromPriorRequest.TracesFromPriorRequestEnd(builder)
+        builder.Finish(tfpr)
+        request = builder.Output()
+        print(request)
+        self.requester.send_request(request)
 
     def receive_batch(self, standardize=True):
         sys.stdout.write('Waiting for new batch...                                 \r')
         sys.stdout.flush()
-        data = self.receive_reply()
-        sys.stdout.write('New batch received, processing...                        \r')
-        sys.stdout.flush()
-        b = self.get_batch(data, standardize)
-        sys.stdout.write('New batch received, splitting into sub-batches...        \r')
-        sys.stdout.flush()
-        bs = self.get_sub_batches(b)
-        sys.stdout.write('                                                         \r')
-        sys.stdout.flush()
-        return bs
+        data = self.requester.receive_reply()
+        # sys.stdout.write('New batch received, processing...                        \r')
+        # sys.stdout.flush()
+        # b = self.get_batch(data, standardize)
+        # sys.stdout.write('New batch received, splitting into sub-batches...        \r')
+        # sys.stdout.flush()
+        # bs = self.get_sub_batches(b)
+        # sys.stdout.write('                                                         \r')
+        # sys.stdout.flush()
+        return data

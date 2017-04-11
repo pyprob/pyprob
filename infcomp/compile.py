@@ -10,7 +10,8 @@
 import infcomp
 from infcomp import util
 from infcomp.modules import Sample, Trace, Artifact
-from infcomp.protocol import Requester
+from infcomp.protocol import BatchRequester
+
 import argparse
 import torch
 import torch.nn as nn
@@ -55,6 +56,16 @@ time_stamp = util.get_time_stamp()
 artifact_file = '{0}/{1}'.format(opt.dir, 'compile-artifact' + time_stamp)
 util.init_logger('{0}/{1}'.format(opt.dir, 'compile-log' + time_stamp))
 util.init(opt)
+
+
+with BatchRequester(opt.server) as b:
+    b.request_batch(4)
+    batch = b.receive_batch()
+    print(batch)
+
+
+quit()
+
 
 util.log_print()
 util.log_print(colored('[] Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))

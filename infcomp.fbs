@@ -1,0 +1,65 @@
+namespace infcomp.flatbuffers;
+
+table NDArray {
+    data:[double];
+    shape:[int];
+}
+
+union Request { TracesFromPriorRequest, ObservesInitRequest, ProposalRequest }
+
+union Reply { TracesFromPriorReply, ObservesInitReply, ProposalReply }
+
+union ProposalDistribution { UniformDiscreteProposal, NormalProposal }
+
+table UniformDiscreteProposal {
+    // extra params
+    min:int;
+    max:int;
+
+    // proposal params
+    probabilities:NDArray;
+}
+
+table NormalProposal {
+    // proposal params
+    mean:double;
+    std:double;
+}
+
+table Sample {
+    time:int;
+    address:string;
+    instance:int;
+    proposal:ProposalDistribution;
+    value:NDArray;
+}
+
+table Trace {
+    observes:NDArray;
+    samples:[Sample];
+}
+
+table TracesFromPriorRequest {
+    num_traces:int;
+}
+
+table TracesFromPriorReply {
+    traces:[Trace];
+}
+
+table ObservesInitRequest {
+    observes:NDArray;
+}
+
+table ObservesInitReply {
+    ok:bool;
+}
+
+table ProposalRequest {
+    current_sample:Sample;
+    previous_sample:Sample;
+}
+
+table ProposalReply {
+    proposal:ProposalDistribution;
+}
