@@ -7,7 +7,8 @@
 # May 2016 -- March 2017
 #
 
-import infcomp.util
+import infcomp
+from infcomp import util
 import torch
 import argparse
 from termcolor import colored
@@ -20,11 +21,10 @@ import numpy as np
 from itertools import zip_longest
 import csv
 
-parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + util.version + ' (Artifact Info)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Artifact Info)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
 parser.add_argument('--dir', help='directory to save artifacts and logs', default='.')
-parser.add_argument('--latest', help='show the latest artifact', action='store_true')
-parser.add_argument('--nth', help='show the nth artifact (-1: last)', type=int)
+parser.add_argument('--nth', help='show the nth artifact (-1: last, -2: second-to-last, etc.)', type=int, default=-1)
 parser.add_argument('--structure', help='show extra information about artifact structure', action='store_true')
 parser.add_argument('--savePlot', help='save loss plot to file (supported formats: eps, jpg, png, pdf, svg, tif)', type=str)
 parser.add_argument('--showPlot', help='show the loss plot in screen', action='store_true')
@@ -35,15 +35,11 @@ if opt.version:
     print(infcomp.__version__)
     quit()
 
-if not opt.latest and opt.nth is None:
-    parser.print_help()
-    quit()
-
 time_stamp = util.get_time_stamp()
 util.init_logger('{0}/{1}'.format(opt.dir, 'artifact-info-log' + time_stamp))
 
 util.log_print()
-util.log_print(colored('█ Oxford Inference Compilation ' + util.version, 'blue', attrs=['bold']))
+util.log_print(colored('█ Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
 util.log_print()
 util.log_print('Artifact Info')
 util.log_print()
@@ -60,8 +56,6 @@ util.log_print()
 util.log_print(pformat(vars(opt)))
 util.log_print()
 
-if opt.latest:
-    opt.nth = -1
 file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'compile-artifact'), opt.nth)
 artifact = torch.load(file_name)
 file_size = '{:,}'.format(os.path.getsize(file_name))
