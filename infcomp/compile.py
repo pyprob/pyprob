@@ -9,8 +9,8 @@
 
 import infcomp
 from infcomp import util
-from infcomp.modules import Sample, Trace, Artifact
 from infcomp.protocol import BatchRequester
+from infcomp.modules import Artifact
 
 import argparse
 import torch
@@ -57,16 +57,6 @@ artifact_file = '{0}/{1}'.format(opt.dir, 'compile-artifact' + time_stamp)
 util.init_logger('{0}/{1}'.format(opt.dir, 'compile-log' + time_stamp))
 util.init(opt)
 
-
-with BatchRequester(opt.server) as b:
-    b.request_batch(4)
-    batch = b.receive_batch()
-    print(batch)
-
-
-quit()
-
-
 util.log_print()
 util.log_print(colored('[] Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
 util.log_print()
@@ -85,7 +75,8 @@ util.log_print()
 util.log_print(pformat(vars(opt)))
 util.log_print()
 
-with Requester(opt.server) as requester:
+with BatchRequester(opt.server) as requester:
+
     if opt.resumeLatest:
         resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.dir, 'compile-artifact'), -1)
         util.log_print()
@@ -120,7 +111,7 @@ with Requester(opt.server) as requester:
         artifact.standardize = opt.standardize
         artifact.one_hot_address_dim = opt.oneHotDim
         artifact.one_hot_instance_dim = opt.oneHotDim
-        artifact.one_hot_proposal_type_dim = 1
+        artifact.one_hot_proposal_dim = 1
         artifact.valid_size = opt.validSize
         requester.request_batch(artifact.valid_size)
         artifact.valid_batch = requester.receive_batch(artifact.standardize)

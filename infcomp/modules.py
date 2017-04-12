@@ -9,6 +9,7 @@
 
 import infcomp
 from infcomp import util
+from infcomp.probprog import UniformDiscreteProposal
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,34 +17,6 @@ from torch.autograd import Variable
 from termcolor import colored
 import math
 import datetime
-
-class Sample(object):
-    def __init__(self, address, instance, value, proposal_type):
-        self.address = address
-        self.instance = instance
-        self.value = value
-        self.value_dim = value.nelement()
-        self.proposal_type = proposal_type
-        self.proposal_min = None
-        self.proposal_max = None
-    def __repr__(self):
-        return 'Sample({0}, {1}, {2}, {3})'.format(self.address, self.instance, self.value.size(), self.proposal_type)
-    __str__ = __repr__
-
-class Trace(object):
-    def __init__(self):
-        self.observes = None
-        self.samples = []
-        self.length = None
-        self.hash = None
-    def __repr__(self):
-        return 'Trace(length:{0}; samples:{1}; observes:{2}'.format(self.length, '|'.join(['{0}({1})'.format(sample.address, sample.instance) for sample in  self.samples]), self.observes.size()) + ')'
-    __str__ = __repr__
-    def set_observes(self, o):
-        self.observes = o
-    def add_sample(self, s):
-        self.samples.append(s)
-        self.length = len(self.samples)
 
 class ProposalDiscreteminmax(nn.Module):
     def __init__(self, input_dim, output_min, output_max, softmax_boost=1.0):
@@ -131,10 +104,10 @@ class Artifact(nn.Module):
         self.standardize = True
         self.one_hot_address = {}
         self.one_hot_instance = {}
-        self.one_hot_proposal_type = {}
+        self.one_hot_proposal = {}
         self.one_hot_address_dim = None
         self.one_hot_instance_dim = None
-        self.one_hot_proposal_type_dim = None
+        self.one_hot_proposal_dim = None
         self.valid_size = None
         self.valid_batch = None
         self.lstm_dim = None
@@ -177,7 +150,7 @@ class Artifact(nn.Module):
         loss_change_per_trace = loss_change / self.total_traces
         addresses = ' '.join(list(self.one_hot_address.keys()))
         instances = ' '.join(map(str, list(self.one_hot_instance.keys())))
-        proposal_types = ' '.join(list(self.one_hot_proposal_type.keys()))
+        proposals = ' '.join(list(self.one_hot_proposal.keys()))
         info = '\n'.join(['Model name            : {0}'.format(self.model_name),
                           'Created               : {0}'.format(self.created),
                           'Last modified         : {0}'.format(self.modified),
@@ -206,7 +179,7 @@ class Artifact(nn.Module):
                           colored('Softmax boost         : {0}'.format(self.softmax_boost), 'cyan'),
                           colored('Addresses             : {0}'.format(addresses), 'yellow'),
                           colored('Instances             : {0}'.format(instances), 'yellow'),
-                          colored('Proposal types        : {0}'.format(proposal_types), 'yellow')])
+                          colored('Proposals             : {0}'.format(proposals), 'yellow')])
         return info
 
     def polymorph(self, batch=None):
@@ -219,12 +192,12 @@ class Artifact(nn.Module):
             for sample in example_trace.samples:
                 address = sample.address
                 instance = sample.instance
-                proposal_type = sample.proposal_type
+                proposal = sample.proposal
 
                 # update the artifact's one-hot dictionary as needed
                 self.add_one_hot_address(address)
                 self.add_one_hot_instance(instance)
-                self.add_one_hot_proposal_type(proposal_type)
+                self.add_one_hot_proposal(proposal)
 
                 # update the artifact's sample and proposal layers as needed
                 if not (address, instance) in self.sample_layers:
@@ -232,10 +205,10 @@ class Artifact(nn.Module):
                         sample_layer = SampleEmbeddingFC(sample.value_dim, self.smp_emb_dim)
                     else:
                         util.log_error('Unsupported sample embedding: ' + self.smp_emb)
-                    if sample.proposal_type == 'discreteminmax':
-                        proposal_layer = ProposalDiscreteminmax(self.lstm_dim, sample.proposal_min, sample.proposal_max, self.softmax_boost)
+                    if isinstance(proposal, UniformDiscreteProposal):
+                        proposal_layer = ProposalDiscreteminmax(self.lstm_dim, proposal.min, proposal.max, self.softmax_boost)
                     else:
-                        util.log_error('Unsupported proposal distribution: ' + sample.proposal_type)
+                        util.log_error('Unsupported proposal distribution: ' + sample.proposal.name())
                     self.sample_layers[(address, instance)] = sample_layer
                     self.proposal_layers[(address, instance)] = proposal_layer
                     self.add_module('sample_layer({0}, {1})'.format(address, instance), sample_layer)
@@ -269,7 +242,7 @@ class Artifact(nn.Module):
     def set_lstm(self, lstm_dim, lstm_depth):
         self.lstm_dim = lstm_dim
         self.lstm_depth = lstm_depth
-        self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + self.one_hot_address_dim + self.one_hot_instance_dim + self.one_hot_proposal_type_dim
+        self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + self.one_hot_address_dim + self.one_hot_instance_dim + self.one_hot_proposal_dim
         self.lstm = nn.LSTM(self.lstm_input_dim, lstm_dim, lstm_depth)
 
     def add_one_hot_address(self, address):
@@ -292,15 +265,16 @@ class Artifact(nn.Module):
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_instance[instance] = Variable(t, requires_grad=False)
 
-    def add_one_hot_proposal_type(self, proposal_type):
-        if not proposal_type in self.one_hot_proposal_type:
-            util.log_print(colored('Polymorphing, new proposal type   : ' + proposal_type, 'magenta', attrs=['bold']))
-            i = len(self.one_hot_proposal_type)
-            if i >= self.one_hot_proposal_type_dim:
-                log_error('one_hot_proposal_type overflow: {0}'.format(i))
-            t = util.Tensor(self.one_hot_proposal_type_dim).zero_()
+    def add_one_hot_proposal(self, proposal):
+        proposal_name = proposal.name()
+        if not proposal_name in self.one_hot_proposal:
+            util.log_print(colored('Polymorphing, new proposal        : ' + proposal_name, 'magenta', attrs=['bold']))
+            i = len(self.one_hot_proposal)
+            if i >= self.one_hot_proposal_dim:
+                log_error('one_hot_proposal overflow: {0}'.format(i))
+            t = util.Tensor(self.one_hot_proposal_dim).zero_()
             t.narrow(0, i, 1).fill_(1)
-            self.one_hot_proposal_type[proposal_type] = Variable(t, requires_grad=False)
+            self.one_hot_proposal[proposal_name] = Variable(t, requires_grad=False)
 
     def valid_loss(self):
         loss = 0
@@ -331,7 +305,7 @@ class Artifact(nn.Module):
             sample = example_trace.samples[time_step]
             address = sample.address
             instance = sample.instance
-            proposal_type = sample.proposal_type
+            proposal = sample.proposal
 
             if time_step == 0:
                 sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).zero_(), requires_grad=False)
@@ -346,7 +320,7 @@ class Artifact(nn.Module):
                                sample_embedding[b],
                                self.one_hot_address[address],
                                self.one_hot_instance[instance],
-                               self.one_hot_proposal_type[proposal_type]]))
+                               self.one_hot_proposal[proposal.name()]]))
             t = torch.cat(t).view(sub_batch_size, -1)
             lstm_input.append(t)
         lstm_input = torch.cat(lstm_input).view(example_trace.length, sub_batch_size, -1)
@@ -360,16 +334,16 @@ class Artifact(nn.Module):
             sample = example_trace.samples[time_step]
             address = sample.address
             instance = sample.instance
-            proposal_type = sample.proposal_type
+            proposal = sample.proposal
 
             proposal_input = lstm_output[time_step]
             proposal_output = self.proposal_layers[(address, instance)](proposal_input)
 
-            if proposal_type == 'discreteminmax':
+            if isinstance(proposal, UniformDiscreteProposal):
                 log_weights = torch.log(proposal_output + util.epsilon)
                 for b in range(sub_batch_size):
                     value = sub_batch[b].samples[time_step].value[0]
-                    min = sub_batch[b].samples[time_step].proposal_min
+                    min = sub_batch[b].samples[time_step].proposal.min
                     logpdf += log_weights[b, int(value) - min] # Check this for correctness
             else:
                 util.log_error('Unsupported proposal distribution: ' + proposal_type)

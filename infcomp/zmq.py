@@ -9,7 +9,6 @@
 
 import infcomp
 from infcomp import util
-from infcomp.modules import Sample, Trace
 import sys
 from infcomp.flatbuffers import TracesFromPriorRequest
 import zmq

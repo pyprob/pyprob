@@ -83,6 +83,16 @@ def check_versions(artifact):
         log_warning('Different PyTorch versions (artifact: {0}, current: {1})'.format(artifact.pytorch_version, torch.__version__))
         log_print()
 
+def NDArray_to_Tensor(ndarray):
+    def make_array(indexer_func, length):
+        ret = []
+        for i in range(length):
+            ret.append(indexer_func(i))
+        return ret
+    shape = make_array(ndarray.Shape, ndarray.ShapeLength())
+    data = make_array(ndarray.Data, ndarray.DataLength())
+    return Tensor(data).view(shape)
+
 class Spinner(object):
     def __init__(self):
         self.i = 0
