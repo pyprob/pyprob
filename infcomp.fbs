@@ -1,15 +1,19 @@
 namespace infcomp.flatbuffers;
 
+union MessageBody { TracesFromPriorRequest, ObservesInitRequest, ProposalRequest, TracesFromPriorReply, ObservesInitReply, ProposalReply }
+
+table Message {
+    body:MessageBody;
+}
+
+root_type Message;
+
+union ProposalDistribution { UniformDiscreteProposal, NormalProposal }
+
 table NDArray {
     data:[double];
     shape:[int];
 }
-
-union Request { TracesFromPriorRequest, ObservesInitRequest, ProposalRequest }
-
-union Reply { TracesFromPriorReply, ObservesInitReply, ProposalReply }
-
-union ProposalDistribution { UniformDiscreteProposal, NormalProposal }
 
 table UniformDiscreteProposal {
     // extra params
