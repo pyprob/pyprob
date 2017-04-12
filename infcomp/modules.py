@@ -312,7 +312,10 @@ class Artifact(nn.Module):
             else:
                 smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, sample.value_dim)
                 ## This should be (prev_address, prev_instance):
-                sample_embedding = self.sample_layers[(address, instance)](Variable(smp, requires_grad=False))
+                prev_sample = example_trace.samples[time_step - 1]
+                prev_address = prev_sample.address
+                prev_instance = prev_sample.instance
+                sample_embedding = self.sample_layers[(prev_address, prev_instance)](Variable(smp, requires_grad=False))
 
             t = []
             for b in range(sub_batch_size):
