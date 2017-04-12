@@ -10,4 +10,3 @@ class MessageBody(object):
     TracesFromPriorReply = 4
     ObservesInitReply = 5
     ProposalReply = 6
-

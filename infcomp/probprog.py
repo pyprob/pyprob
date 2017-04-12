@@ -32,5 +32,7 @@ class UniformDiscreteProposal(object):
     def __repr__(self):
         return 'UniformDiscreteProposal(min:{0}; max:{1}; probabilities:{2})'.format(self.min, self.max, self.probabilities)
     __str__ = __repr__
+    def set_proposalparams(self, p):
+        self.probabilities = p
     def name(self):
         return 'UniformDiscreteProposal'

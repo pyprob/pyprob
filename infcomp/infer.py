@@ -9,7 +9,9 @@
 
 import infcomp
 from infcomp import util
-from infcomp.protocol import Replier
+from infcomp.protocol import ProposalReplier
+import infcomp.flatbuffers.ObservesInitRequest
+import infcomp.flatbuffers.ProposalRequest
 import torch
 from torch.autograd import Variable
 import argparse
@@ -61,7 +63,7 @@ util.log_print()
 util.log_print(pformat(vars(opt)))
 util.log_print()
 
-with Replier(opt.server) as replier:
+with ProposalReplier(opt.server) as replier:
     if opt.latest:
         opt.nth = -1
     file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'compile-artifact'), opt.nth)
@@ -97,58 +99,41 @@ with Replier(opt.server) as replier:
     spinner = util.Spinner()
     while True:
         spinner.spin()
-        request = replier.receive_request()
-        command = request['command']
-        command_param = request['command-param']
-        if command == 'observe-init':
+        replier.receive_request(artifact.standardize)
+
+        if replier.new_trace:
             time_step = 0
-            obs_shape = command_param['shape']
-            obs_data = command_param['data']
-            obs = util.Tensor(obs_data).view(obs_shape)
-
-            if artifact.standardize:
-                obs = util.standardize(obs)
-
+            obs = replier.observes
             observe_embedding = artifact.observe_layer(Variable(obs.unsqueeze(0), requires_grad=False))
-
-            replier.send_reply('observe-received')
+            replier.reply_observes_received()
 
             if opt.debug:
-                util.log_print('Command       : observe-init')
-                util.log_print('Command params: {0}'.format(str(obs.size())))
+                util.log_print('ObservesInitRequest')
+                util.log_print('observes: {0}'.format(str(obs.size())))
                 util.log_print()
-        elif command == 'proposal-params':
-            address = command_param['sample-address']
-            instance = command_param['sample-instance']
-            proposal_type = command_param['proposal-name']
-            prev_address = command_param['prev-sample-address']
-            prev_instance = command_param['prev-sample-instance']
-            prev_value = command_param['prev-sample-value']
-
-            if type(prev_value) == int or type(prev_value) == float:
-                prev_value = util.Tensor([prev_value])
-            else:
-                util.log_error('Unsupported sample type: {0}'.format(str(prev_value)))
-
+        else:
+            current_sample = replier.current_sample
+            previous_sample = replier.previous_sample
 
             if opt.debug:
-                util.log_print('Command       : proposal-params')
-                util.log_print('Command params: requested address: {0}, instance: {1}, proposal type: {2}; previous address: {3}, previous instance: {4}, previous value: {5}'.format(address, instance, proposal_type, prev_address, prev_instance, str(prev_value.size())))
+                util.log_print('ProposalRequest')
+                util.log_print('requested address: {0}, instance: {1}'.format(current_sample.address, current_sample.instance))
+                util.log_print('previous  address: {0}, instance: {1}, value: {2}'.format(previous_sample.address, previous_sample.instance, previous_sample.value.size()))
                 util.log_print()
 
             if time_step == 0:
                 prev_sample_embedding = Variable(util.Tensor(1, artifact.smp_emb_dim).zero_(), requires_grad=False)
             else:
-                if not (prev_address, prev_instance) in artifact.sample_layers:
-                    util.log_error('Artifact has no sample embedding layer for: {0}, {1}'.format(prev_address, prev_instance))
+                if not (previous_sample.address, previous_sample.instance) in artifact.sample_layers:
+                    util.log_error('Artifact has no sample embedding layer for: {0}, {1}'.format(previous_sample.address, previous_sample.instance))
 
-                prev_sample_embedding = artifact.sample_layers[(prev_address, prev_instance)](Variable(prev_value.unsqueeze(0), requires_grad=False))
+                previous_sample_embedding = artifact.sample_layers[(previous_sample.address, previous_sample.instance)](Variable(previous_sample.value.unsqueeze(0), requires_grad=False))
 
             t = [observe_embedding[0],
-                 prev_sample_embedding[0],
-                 artifact.one_hot_address[address],
-                 artifact.one_hot_instance[instance],
-                 artifact.one_hot_proposal_type[proposal_type]]
+                 previous_sample_embedding[0],
+                 artifact.one_hot_address[current_sample.address],
+                 artifact.one_hot_instance[current_sample.instance],
+                 artifact.one_hot_proposal[current_sample.proposal.name()]]
             t = torch.cat(t).unsqueeze(0)
             lstm_input = t.unsqueeze(0)
 
@@ -159,19 +144,11 @@ with Replier(opt.server) as replier:
             else:
                 lstm_output, _ = artifact.lstm(lstm_input)
 
-            if not (address, instance) in artifact.proposal_layers:
-                util.log_error('Artifact has no proposal layer for: {0}, {1}'.format(address, instance))
-
+            if not (current_sample.address, current_sample.instance) in artifact.proposal_layers:
+                util.log_error('Artifact has no proposal layer for: {0}, {1}'.format(current_sample.address, current_sample.instance))
 
             proposal_input = lstm_output[0]
-            proposal_output = artifact.proposal_layers[(address, instance)](proposal_input)
-
-            if proposal_type == 'discreteminmax':
-                replier.send_reply(proposal_output[0].data.cpu().numpy().tolist())
-            else:
-                util.log_error('Unsupported proposal type: {0}'.format(proposal_type))
-
+            proposal_output = artifact.proposal_layers[(current_sample.address, current_sample.instance)](proposal_input)
+            current_sample.proposal.set_proposalparams(proposal_output[0].data)
+            replier.reply_proposal(current_sample.proposal)
             time_step += 1
-
-        else:
-            util.log_error('Unkown command: {0}'.format(str(request)))
