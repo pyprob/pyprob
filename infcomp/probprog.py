@@ -1,10 +1,10 @@
 class Sample(object):
-    def __init__(self, address, instance, value, proposal):
-        self.address = address
-        self.instance = instance
-        self.value = value
-        self.value_dim = value.nelement()
-        self.proposal = proposal
+    def __init__(self):
+        self.address = None
+        self.instance = None
+        self.value = None
+        self.value_dim = None
+        self.proposal = None
     def __repr__(self):
         return 'Sample({0}, {1}, {2}, {3})'.format(self.address, self.instance, self.value.size(), self.proposal)
     __str__ = __repr__

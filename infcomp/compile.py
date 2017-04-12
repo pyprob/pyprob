@@ -30,7 +30,9 @@ parser.add_argument('--dir', help='directory to save artifacts and logs', defaul
 parser.add_argument('--cuda', help='use CUDA', action='store_true')
 parser.add_argument('--seed', help='random seed', default=4, type=int)
 parser.add_argument('--server', help='address of the probprog model server', default='tcp://127.0.0.1:5555')
+parser.add_argument('--optimizer', help='optimizer for training the artifact', choices=['adam', 'sgd'], default='adam', type=str)
 parser.add_argument('--learningRate', help='learning rate', default=0.0001, type=float)
+parser.add_argument('--momentum', help='momentum (only for sgd)', default=0.9, type=float)
 parser.add_argument('--weightDecay', help='L2 weight decay coefficient', default=0.0005, type=float)
 parser.add_argument('--batchSize', help='training batch size', default=128, type=int)
 parser.add_argument('--validSize', help='validation set size', default=256, type=int)
@@ -127,8 +129,12 @@ with BatchRequester(opt.server) as requester:
         if opt.cuda:
             artifact.cuda()
 
-    optimizer = optim.Adam(artifact.parameters(), lr=opt.learningRate, weight_decay=opt.weightDecay)
-    if not artifact.optimizer_state is None:
+    if opt.optimizer == 'adam':
+        optimizer = optim.Adam(artifact.parameters(), lr=opt.learningRate, weight_decay=opt.weightDecay)
+    else:
+        optimizer = optim.SGD(artifact.parameters(), lr=opt.learningRate, momentum=opt.momentum, weight_decay=opt.weightDecay)
+
+    if (not artifact.optimizer_state is None) and (artifact.optimizer == opt.optimizer):
         optimizer.load_state_dict(artifact.optimizer_state)
 
     iteration = 0
@@ -225,6 +231,7 @@ with BatchRequester(opt.server) as requester:
                     artifact.valid_loss_final = valid_loss
                     artifact.modified = datetime.datetime.now()
                     artifact.updates += 1
+                    artifact.optimizer = opt.optimizer
                     artifact.optimizer_state = optimizer.state_dict()
                     if opt.keepArtifacts:
                         time_stamp = util.get_time_stamp()

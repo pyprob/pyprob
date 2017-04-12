@@ -24,8 +24,7 @@ import os
 parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Inference Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
 parser.add_argument('--dir', help='directory to save artifacts and logs', default='.')
-parser.add_argument('--latest', help='show the latest artifact', action='store_true')
-parser.add_argument('--nth', help='show the nth artifact (-1: last)', type=int)
+parser.add_argument('--nth', help='show the nth artifact (-1: last)', type=int, default=-1)
 parser.add_argument('--cuda', help='use CUDA', action='store_true')
 parser.add_argument('--seed', help='random seed', default=4, type=int)
 parser.add_argument('--debug', help='show debugging information as requests arrive', action='store_true')
@@ -35,11 +34,6 @@ opt = parser.parse_args()
 if opt.version:
     print(infcomp.__version__)
     quit()
-
-if not opt.latest and opt.nth is None:
-    parser.print_help()
-    quit()
-
 
 time_stamp = util.get_time_stamp()
 util.init_logger('{0}/{1}'.format(opt.dir, 'artifact-info-log' + time_stamp))
@@ -64,8 +58,6 @@ util.log_print(pformat(vars(opt)))
 util.log_print()
 
 with ProposalReplier(opt.server) as replier:
-    if opt.latest:
-        opt.nth = -1
     file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'compile-artifact'), opt.nth)
     artifact = torch.load(file_name)
     file_size = '{:,}'.format(os.path.getsize(file_name))
@@ -122,7 +114,7 @@ with ProposalReplier(opt.server) as replier:
                 util.log_print()
 
             if time_step == 0:
-                prev_sample_embedding = Variable(util.Tensor(1, artifact.smp_emb_dim).zero_(), requires_grad=False)
+                previous_sample_embedding = Variable(util.Tensor(1, artifact.smp_emb_dim).zero_(), requires_grad=False)
             else:
                 if not (previous_sample.address, previous_sample.instance) in artifact.sample_layers:
                     util.log_error('Artifact has no sample embedding layer for: {0}, {1}'.format(previous_sample.address, previous_sample.instance))

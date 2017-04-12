@@ -132,6 +132,7 @@ class Artifact(nn.Module):
         self.total_iterations = None
         self.total_traces = None
         self.updates = 0
+        self.optimizer = None
         self.optimizer_state = None
 
     def get_structure(self):
@@ -202,7 +203,7 @@ class Artifact(nn.Module):
                 # update the artifact's sample and proposal layers as needed
                 if not (address, instance) in self.sample_layers:
                     if self.smp_emb == 'fc':
-                        sample_layer = SampleEmbeddingFC(sample.value_dim, self.smp_emb_dim)
+                        sample_layer = SampleEmbeddingFC(sample.value.nelement(), self.smp_emb_dim)
                     else:
                         util.log_error('Unsupported sample embedding: ' + self.smp_emb)
                     if isinstance(proposal, UniformDiscreteProposal):
@@ -310,7 +311,7 @@ class Artifact(nn.Module):
             if time_step == 0:
                 sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).zero_(), requires_grad=False)
             else:
-                smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, sample.value_dim)
+                smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, sample.value.nelement())
                 ## This should be (prev_address, prev_instance):
                 prev_sample = example_trace.samples[time_step - 1]
                 prev_address = prev_sample.address

@@ -19,26 +19,28 @@ import flatbuffers
 import sys
 
 def NDArray_to_Tensor(ndarray):
-    def make_array(indexer_func, length):
-        ret = []
-        for i in range(length):
-            ret.append(indexer_func(i))
-        return ret
-    data = make_array(ndarray.Data, ndarray.DataLength())
-    shape = make_array(ndarray.Shape, ndarray.ShapeLength())
+    data = [ndarray.Data(i) for i in range(ndarray.DataLength())]
+    shape = [ndarray.Shape(i) for i in range(ndarray.ShapeLength())]
     return util.Tensor(data).view(shape)
 
 def Tensor_to_NDArray(builder, tensor):
     tensor_numpy = tensor.cpu().numpy()
     data = tensor_numpy.tolist()
     shape = list(tensor_numpy.shape)
-    infcomp.flatbuffers.NDArray.NDArrayStart(builder)
+
     infcomp.flatbuffers.NDArray.NDArrayStartDataVector(builder, len(data))
     for d in reversed(data):
-        infcomp.flatbuffers.NDArray.NDArrayAddData(builder, d)
+        builder.PrependFloat64(d)
+    data = builder.EndVector(len(data))
+
     infcomp.flatbuffers.NDArray.NDArrayStartShapeVector(builder, len(shape))
     for s in reversed(shape):
-        infcomp.flatbuffers.NDArray.NDArrayAddShape(builder, s)
+        builder.PrependInt32(s)
+    shape = builder.EndVector(len(shape))
+
+    infcomp.flatbuffers.NDArray.NDArrayStart(builder)
+    infcomp.flatbuffers.NDArray.NDArrayAddData(builder, data)
+    infcomp.flatbuffers.NDArray.NDArrayAddShape(builder, shape)
     return infcomp.flatbuffers.NDArray.NDArrayEnd(builder)
 
 def get_message_body(message_buffer):
@@ -63,7 +65,7 @@ def get_sample(s):
     if not value is None:
         sample.value = NDArray_to_Tensor(value)
     proposal_type = s.ProposalType()
-    if not proposal_type is None:
+    if proposal_type != 0:
         if proposal_type == infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().UniformDiscreteProposal:
             p = infcomp.flatbuffers.UniformDiscreteProposal.UniformDiscreteProposal()
             p.Init(s.Proposal().Bytes, s.Proposal().Pos)
@@ -178,8 +180,6 @@ class ProposalReplier(object):
         elif isinstance(message_body, infcomp.flatbuffers.ProposalRequest.ProposalRequest):
             current_sample = message_body.CurrentSample()
             previous_sample = message_body.PreviousSample()
-            print(current_sample)
-            print(previous_sample)
             self.current_sample = get_sample(current_sample)
             self.previous_sample = get_sample(previous_sample)
             self.new_trace = False
@@ -228,6 +228,7 @@ class ProposalReplier(object):
             infcomp.flatbuffers.Message.MessageStart(builder)
             infcomp.flatbuffers.Message.MessageAddBodyType(builder, infcomp.flatbuffers.MessageBody.MessageBody().ProposalReply)
             infcomp.flatbuffers.Message.MessageAddBody(builder, message_body)
+            message = infcomp.flatbuffers.Message.MessageEnd(builder)
         else:
             util.log_error('Unsupported proposal distribution: {0}'.format(p))
 
