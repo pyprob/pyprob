@@ -96,7 +96,7 @@ with ProposalReplier(opt.server) as replier:
         if replier.new_trace:
             time_step = 0
             obs = replier.observes
-            observe_embedding = artifact.observe_layer(Variable(obs.unsqueeze(0), requires_grad=False))
+            observe_embedding = artifact.observe_layer(Variable(obs.unsqueeze(0), volatile=True))
             replier.reply_observes_received()
 
             if opt.debug:
@@ -114,12 +114,12 @@ with ProposalReplier(opt.server) as replier:
                 util.log_print()
 
             if time_step == 0:
-                previous_sample_embedding = Variable(util.Tensor(1, artifact.smp_emb_dim).zero_(), requires_grad=False)
+                previous_sample_embedding = Variable(util.Tensor(1, artifact.smp_emb_dim).zero_(), volatile=True)
             else:
                 if not (previous_sample.address, previous_sample.instance) in artifact.sample_layers:
                     util.log_error('Artifact has no sample embedding layer for: {0}, {1}'.format(previous_sample.address, previous_sample.instance))
 
-                previous_sample_embedding = artifact.sample_layers[(previous_sample.address, previous_sample.instance)](Variable(previous_sample.value.unsqueeze(0), requires_grad=False))
+                previous_sample_embedding = artifact.sample_layers[(previous_sample.address, previous_sample.instance)](Variable(previous_sample.value.unsqueeze(0), volatile=True))
 
             t = [observe_embedding[0],
                  previous_sample_embedding[0],

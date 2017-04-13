@@ -35,6 +35,7 @@ def init(opt):
         if not torch.cuda.is_available():
             log_error('CUDA not available')
         torch.cuda.manual_seed(opt.seed)
+        torch.backends.cudnn.enabled = True
         Tensor = torch.cuda.FloatTensor
     else:
         Tensor = torch.FloatTensor

@@ -12,11 +12,14 @@ from infcomp import util
 from infcomp.probprog import UniformDiscreteProposal
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 import torch.nn.functional as F
 from torch.autograd import Variable
+import numpy as np
 from termcolor import colored
 import math
 import datetime
+import gc
 
 class ProposalDiscreteminmax(nn.Module):
     def __init__(self, input_dim, output_min, output_max, softmax_boost=1.0):
@@ -24,6 +27,7 @@ class ProposalDiscreteminmax(nn.Module):
         output_dim = output_max - output_min
         self.lin1 = nn.Linear(input_dim, output_dim)
         self.softmax_boost = softmax_boost
+        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
     def forward(self, x):
         return F.softmax(self.lin1(x).mul_(self.softmax_boost))
 
@@ -31,6 +35,7 @@ class SampleEmbeddingFC(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(SampleEmbeddingFC, self).__init__()
         self.lin1 = nn.Linear(input_dim, output_dim)
+        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
     def forward(self, x):
         return F.relu(self.lin1(x))
 
@@ -40,6 +45,8 @@ class ObserveEmbeddingFC(nn.Module):
         self.input_dim = input_example_non_batch.nelement()
         self.lin1 = nn.Linear(self.input_dim, output_dim)
         self.lin2 = nn.Linear(output_dim, output_dim)
+        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
+        init.xavier_uniform(self.lin2.weight, gain=np.sqrt(2.0))
     def forward(self, x):
         x = F.relu(self.lin1(x.view(-1, self.input_dim)))
         x = F.relu(self.lin2(x))
@@ -284,6 +291,7 @@ class Artifact(nn.Module):
         return loss.data[0] / len(self.valid_batch)
 
     def loss(self, sub_batch):
+        gc.collect()
         sub_batch_size = len(sub_batch)
         example_observes = sub_batch[0].observes
 
@@ -311,11 +319,10 @@ class Artifact(nn.Module):
             if time_step == 0:
                 sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).zero_(), requires_grad=False)
             else:
-                smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, sample.value.nelement())
-                ## This should be (prev_address, prev_instance):
                 prev_sample = example_trace.samples[time_step - 1]
                 prev_address = prev_sample.address
                 prev_instance = prev_sample.instance
+                smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, prev_sample.value.nelement())
                 sample_embedding = self.sample_layers[(prev_address, prev_instance)](Variable(smp, requires_grad=False))
 
             t = []

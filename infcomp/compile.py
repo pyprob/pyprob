@@ -34,6 +34,7 @@ parser.add_argument('--optimizer', help='optimizer for training the artifact', c
 parser.add_argument('--learningRate', help='learning rate', default=0.0001, type=float)
 parser.add_argument('--momentum', help='momentum (only for sgd)', default=0.9, type=float)
 parser.add_argument('--weightDecay', help='L2 weight decay coefficient', default=0.0005, type=float)
+parser.add_argument('--clip', help='gradient clipping (-1: disabled)', default=-1, type=float)
 parser.add_argument('--batchSize', help='training batch size', default=128, type=int)
 parser.add_argument('--validSize', help='validation set size', default=256, type=int)
 parser.add_argument('--validInterval', help='validation interval (traces)', default=500, type=int)
@@ -180,6 +181,9 @@ with BatchRequester(opt.server) as requester:
             optimizer.zero_grad()
             loss = artifact.loss(sub_batch)
             loss.backward()
+            if opt.clip > 0:
+                torch.nn.utils.clip_grad_norm(artifact.parameters(), opt.clip)
+
             optimizer.step()
             train_loss = loss.data[0]
 
