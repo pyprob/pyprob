@@ -10,8 +10,8 @@
 
 ;; @@
 (ns minimal
-  (:require anglican.csis.csis
-            [anglican.csis.network :refer :all]
+  (:require anglican.infcomp.csis
+            [anglican.infcomp.network :refer :all]
             [anglican.inference :refer [infer]])
   (:use [anglican emit runtime]
         [gorilla-plot core]))

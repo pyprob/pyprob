@@ -4,8 +4,8 @@
   (:require [clojure.edn :refer [read-string]]
             [clojure.tools.cli :as cli]
             [clojure.string :as str]
-            anglican.csis.csis
-            [anglican.csis.network :refer :all]
+            anglican.infcomp.csis
+            [anglican.infcomp.network :refer :all]
             [anglican.inference :refer [infer]]
             [anglican.state :refer [get-result get-log-weight]]))
 

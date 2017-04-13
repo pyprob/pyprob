@@ -10,9 +10,9 @@
 (ns captcha-facebook
   (:require [gorilla-plot.core :as plot]
             anglican.rmh
-            anglican.csis.csis
+            anglican.infcomp.csis
             anglican.smc
-            [anglican.csis.network :refer :all]
+            [anglican.infcomp.network :refer :all]
             [anglican.inference :refer [infer]]
             [helpers.captcha :refer [levenshtein-normalized]]
             [helpers.captcha-facebook :refer [render render-to-file abc-dist abc-sigma letter-dict oxCaptcha]]

@@ -2,15 +2,15 @@
 
 ;; **
 ;;; # Gaussian Mixture Model - variable number of clusters
-;;; 
+;;;
 ;;; In this worksheet, we demonstrate inference compilation on a Gaussian mixture model with variable number of clusters which was used to reproduce Figure 2 in [the paper](https://arxiv.org/abs/1610.09900).
 ;; **
 
 ;; @@
 (ns gmm-variable-number-of-clusters
-  (:require anglican.csis.csis
+  (:require anglican.infcomp.csis
             anglican.smc
-            [anglican.csis.network :refer :all]
+            [anglican.infcomp.network :refer :all]
             [anglican.inference :refer [infer]]
             [anglican.stat :refer [collect-results]]
             [clojure.core.matrix :as m]
@@ -130,9 +130,9 @@
 
 ;; **
 ;;; Now, run `compile.lua` from the [Torch side](https://github.com/tuananhle7/torch-csis) until you're happy, e.g.:
-;;; 
+;;;
 ;;; `th compile.lua --batchSize 16 --validSize 16 --validInterval 128 --obsEmb lenet --obsEmbDim 8 --lstmDim 4 --obsSmooth`
-;;; 
+;;;
 ;;; When you're happy, you can stop the training by running the following (also, end Torch training via Ctrl-C):
 ;; **
 
@@ -163,7 +163,7 @@
             (observe (mvn mean (mmul var (identity-matrix 2))) %)
             cluster)
          data)))
-(def smp (first (anglican.csis.prior/sample-from-prior gmm-fixed [(repeatedly num-data-points rand) [1 1 1] [[-0.3 -0.2] [0.1 0.1] [0.7 0.0]] [0.005 0.005 0.005]])))
+(def smp (first (anglican.infcomp.prior/sample-from-prior gmm-fixed [(repeatedly num-data-points rand) [1 1 1] [[-0.3 -0.2] [0.1 0.1] [0.7 0.0]] [0.005 0.005 0.005]])))
 (def data (map :value (:observes smp)))
 (def ground-means (map :value (:samples smp)))
 (def observe-embedder-input (gridify (move-to-unit-box data) grid-dimensions))
@@ -210,7 +210,7 @@
 ;; @@
 ;; ->
 ;;; &quot;Elapsed time: 4782.38 msecs&quot;
-;;; 
+;;;
 ;; <-
 ;; =>
 ;;; {"type":"html","content":"<span class='clj-nil'>nil</span>","value":"nil"}
@@ -243,7 +243,7 @@
 ;; @@
 ;; ->
 ;;; &quot;Elapsed time: 17217.464 msecs&quot;
-;;; 
+;;;
 ;; <-
 ;; =>
 ;;; {"type":"html","content":"<span class='clj-nil'>nil</span>","value":"nil"}
