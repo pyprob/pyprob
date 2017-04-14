@@ -25,10 +25,10 @@ class Trace(object):
         self.length = len(self.samples)
 
 class UniformDiscreteProposal(object):
-    def __init__(self, min, max, probabilities=None):
+    def __init__(self, min, max):
         self.min = min
         self.max = max
-        self.probabilities = probabilities
+        self.probabilities = None
     def __repr__(self):
         return 'UniformDiscreteProposal(min:{0}; max:{1}; probabilities:{2})'.format(self.min, self.max, self.probabilities)
     __str__ = __repr__
@@ -36,3 +36,16 @@ class UniformDiscreteProposal(object):
         self.probabilities = p
     def name(self):
         return 'UniformDiscreteProposal'
+
+class NormalProposal(object):
+    def __init__(self):
+        self.mean = None
+        self.std = None
+    def __repr__(self):
+        return 'NormalProposal(mean:{0}; std:{1})'.format(self.mean, self.std)
+    __str__ = __repr__
+    def set_proposalparams(self, tensor_of_mean_std):
+        self.mean = tensor_of_mean_std[0]
+        self.std = tensor_of_mean_std[1]
+    def name(self):
+        return 'NormalProposal'

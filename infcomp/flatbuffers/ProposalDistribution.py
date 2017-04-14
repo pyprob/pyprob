@@ -4,6 +4,9 @@
 
 class ProposalDistribution(object):
     NONE = 0
-    UniformDiscreteProposal = 1
-    NormalProposal = 2
+    CategoricalProposal = 1
+    DiscreteProposal = 2
+    FlipProposal = 3
+    NormalProposal = 4
+    UniformDiscreteProposal = 5
 

@@ -21,15 +21,23 @@ import math
 import datetime
 import gc
 
-class ProposalDiscreteminmax(nn.Module):
+class ProposalUniformDiscrete(nn.Module):
     def __init__(self, input_dim, output_min, output_max, softmax_boost=1.0):
-        super(ProposalDiscreteminmax, self).__init__()
+        super(ProposalUniformDiscrete, self).__init__()
         output_dim = output_max - output_min
         self.lin1 = nn.Linear(input_dim, output_dim)
         self.softmax_boost = softmax_boost
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
     def forward(self, x):
         return F.softmax(self.lin1(x).mul_(self.softmax_boost))
+
+class ProposalNormal(nn.Module):
+    def __init__(self, input_dim):
+        super(ProposalNormal, self).__init__()
+        self.lin1 = nn.Linear(input_dim, 2)
+        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
+    def forward(self, x):
+        x = self.lin1(x)
 
 class SampleEmbeddingFC(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -214,7 +222,7 @@ class Artifact(nn.Module):
                     else:
                         util.log_error('Unsupported sample embedding: ' + self.smp_emb)
                     if isinstance(proposal, UniformDiscreteProposal):
-                        proposal_layer = ProposalDiscreteminmax(self.lstm_dim, proposal.min, proposal.max, self.softmax_boost)
+                        proposal_layer = ProposalUniformDiscrete(self.lstm_dim, proposal.min, proposal.max, self.softmax_boost)
                     else:
                         util.log_error('Unsupported proposal distribution: ' + sample.proposal.name())
                     self.sample_layers[(address, instance)] = sample_layer
@@ -355,7 +363,7 @@ class Artifact(nn.Module):
                 for b in range(sub_batch_size):
                     value = sub_batch[b].samples[time_step].value[0]
                     min = sub_batch[b].samples[time_step].proposal.min
-                    logpdf += log_weights[b, int(value) - min] # Check this for correctness
+                    logpdf += log_weights[b, int(value) - min] # Should we average this over dimensions? See http://pytorch.org/docs/nn.html#torch.nn.KLDivLoss
             else:
                 util.log_error('Unsupported proposal distribution: ' + proposal_type)
 

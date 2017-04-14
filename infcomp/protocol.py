@@ -1,7 +1,7 @@
 import infcomp
 import infcomp.zmq
 from infcomp import util
-from infcomp.probprog import Sample, Trace, UniformDiscreteProposal
+from infcomp.probprog import Sample, Trace, UniformDiscreteProposal, NormalProposal
 import infcomp.flatbuffers.Message
 import infcomp.flatbuffers.MessageBody
 import infcomp.flatbuffers.TracesFromPriorRequest
@@ -65,11 +65,15 @@ def get_sample(s):
     if not value is None:
         sample.value = NDArray_to_Tensor(value)
     proposal_type = s.ProposalType()
-    if proposal_type != 0:
+    if proposal_type != infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().NONE:
         if proposal_type == infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().UniformDiscreteProposal:
             p = infcomp.flatbuffers.UniformDiscreteProposal.UniformDiscreteProposal()
             p.Init(s.Proposal().Bytes, s.Proposal().Pos)
-            sample.proposal = UniformDiscreteProposal(p.Min(), p.Max()) # Note: p.Probabilities() is not used in TracesFromPriorReply
+            sample.proposal = UniformDiscreteProposal(p.Min(), p.Max())
+        elif proposal_type == infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().NormalProposal:
+            p = infcomp.flatbuffers.NormalProposal.NormalProposal()
+            p.Init(s.Proposal().Bytes, s.Proposal().Pos)
+            sample.proposal = NormalProposal()
         else:
             util.log_error('Unknown proposal:ProposalDistribution id: {0}.'.format(proposal_type))
     return sample
@@ -192,7 +196,7 @@ class ProposalReplier(object):
 
         # construct message body
         infcomp.flatbuffers.ObservesInitReply.ObservesInitReplyStart(builder)
-        infcomp.flatbuffers.ObservesInitReply.ObservesInitReplyAddOk(builder, True)
+        infcomp.flatbuffers.ObservesInitReply.ObservesInitReplyAddSuccess(builder, True)
         message_body = infcomp.flatbuffers.ObservesInitReply.ObservesInitReplyEnd(builder)
 
         # construct message
@@ -220,17 +224,31 @@ class ProposalReplier(object):
 
             # construct message body (ProposalReply)
             infcomp.flatbuffers.ProposalReply.ProposalReplyStart(builder)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddSuccess(builder, True)
             infcomp.flatbuffers.ProposalReply.ProposalReplyAddProposalType(builder, infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().UniformDiscreteProposal)
             infcomp.flatbuffers.ProposalReply.ProposalReplyAddProposal(builder, proposal)
             message_body = infcomp.flatbuffers.ProposalReply.ProposalReplyEnd(builder)
+        elif isinstance(p, NormalProposal):
+            # construct proposal UniformDiscreteProposal
+            infcomp.flatbuffers.NormalProposal.NormalProposalStart(builder)
+            infcomp.flatbuffers.NormalProposal.NormalProposalAddMean(builder, p.mean)
+            infcomp.flatbuffers.NormalProposal.NormalProposalAddStd(builder, p.std)
+            proposal = infcomp.flatbuffers.NormalProposal.NormalProposalEnd(builder)
 
-            # construct message
-            infcomp.flatbuffers.Message.MessageStart(builder)
-            infcomp.flatbuffers.Message.MessageAddBodyType(builder, infcomp.flatbuffers.MessageBody.MessageBody().ProposalReply)
-            infcomp.flatbuffers.Message.MessageAddBody(builder, message_body)
-            message = infcomp.flatbuffers.Message.MessageEnd(builder)
+            # construct message body (ProposalReply)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyStart(builder)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddSuccess(builder, True)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddProposalType(builder, infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().NormalProposal)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddProposal(builder, proposal)
+            message_body = infcomp.flatbuffers.ProposalReply.ProposalReplyEnd(builder)
         else:
             util.log_error('Unsupported proposal distribution: {0}'.format(p))
+
+        # construct message
+        infcomp.flatbuffers.Message.MessageStart(builder)
+        infcomp.flatbuffers.Message.MessageAddBodyType(builder, infcomp.flatbuffers.MessageBody.MessageBody().ProposalReply)
+        infcomp.flatbuffers.Message.MessageAddBody(builder, message_body)
+        message = infcomp.flatbuffers.Message.MessageEnd(builder)
 
         builder.Finish(message)
         message = builder.Output()
