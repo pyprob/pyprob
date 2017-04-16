@@ -9,4 +9,3 @@ class ProposalDistribution(object):
     FlipProposal = 3
     NormalProposal = 4
     UniformDiscreteProposal = 5
-
