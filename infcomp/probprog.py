@@ -32,8 +32,8 @@ class UniformDiscreteProposal(object):
     def __repr__(self):
         return 'UniformDiscreteProposal(min:{0}; max:{1}; probabilities:{2})'.format(self.min, self.max, self.probabilities)
     __str__ = __repr__
-    def set_proposalparams(self, p):
-        self.probabilities = p
+    def set_proposalparams(self, probabilities):
+        self.probabilities = probabilities
     def name(self):
         return 'UniformDiscreteProposal'
 
@@ -49,3 +49,38 @@ class NormalProposal(object):
         self.std = tensor_of_mean_std[1]
     def name(self):
         return 'NormalProposal'
+
+class FlipProposal(object):
+    def __init__(self):
+        self.probability = None
+    def __repr__(self):
+        return 'FlipProposal(probability: {0})'.format(self.probability)
+    __str__ = __repr__
+    def set_proposalparams(self, probability):
+        self.probability = probability[0]
+    def name(self):
+        return 'FlipProposal'
+
+class DiscreteProposal(object):
+    def __init__(self, size):
+        self.size = size
+        self.probabilities = None
+    def __repr__(self):
+        return 'DiscreteProposal(size:{0}; probabilities:{1})'.format(self.size, self.probabilities)
+    __str__ = __repr__
+    def set_proposalparams(self, probabilities):
+        seld.probabilities = probabilities
+    def name(self):
+        return 'DiscreteProposal'
+
+class CategoricalProposal(object):
+    def __init__(self, size):
+        self.size = size
+        self.probabilities = None
+    def __repr__(self):
+        return 'CategoricalProposal(size:{0}; probabilities:{1})'.format(self.size, self.probabilities)
+    __str__ = __repr__
+    def set_proposalparams(self, probabilities):
+        seld.probabilities = probabilities
+    def name(self):
+        return 'CategoricalProposal'

@@ -9,7 +9,7 @@
 
 import infcomp
 from infcomp import util
-from infcomp.probprog import UniformDiscreteProposal
+from infcomp.probprog import UniformDiscreteProposal, NormalProposal, FlipProposal, DiscreteProposal
 import torch
 import torch.nn as nn
 import torch.nn.init as init
@@ -35,9 +35,44 @@ class ProposalNormal(nn.Module):
     def __init__(self, input_dim):
         super(ProposalNormal, self).__init__()
         self.lin1 = nn.Linear(input_dim, 2)
+        self.meanMultiplier = nn.Parameter(util.Tensor(1).fill_(1))
+        self.stdMultiplier = nn.Parameter(util.Tensor(1).fill_(1))
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
     def forward(self, x):
         x = self.lin1(x)
+        means = x[:,0].unsqueeze(1)
+        stds = x[:,1].unsqueeze(1)
+        means = nn.Tanh()(means)
+        stds = nn.Sigmoid()(stds)
+        means = means * self.meanMultiplier.expand_as(means)
+        stds = stds * self.stdMultiplier.expand_as(stds)
+        return torch.cat([means, stds], 1)
+
+class ProposalFlip(nn.Module):
+    def __init__(self, input_dim):
+        super(ProposalFlip, self).__init__()
+        self.lin1 = nn.Linear(input_dim, 1)
+        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
+    def forward(self, x):
+        return nn.Sigmoid()(self.lin1(x))
+
+class ProposalDiscrete(nn.Module):
+    def __init__(self, input_dim, output_size, softmax_boost=1.0):
+        super(ProposalDiscrete, self).__init__()
+        self.lin1 = nn.Linear(input_dim, output_size)
+        self.softmax_boost = softmax_boost
+        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
+    def forward(self, x):
+        return F.softmax(self.lin1(x).mul_(self.softmax_boost))
+
+class ProposalCategorical(nn.Module):
+    def __init__(self, input_dim, output_size, softmax_boost=1.0):
+        super(ProposalCategorical, self).__init__()
+        self.lin1 = nn.Linear(input_dim, output_size)
+        self.softmax_boost = softmax_boost
+        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
+    def forward(self, x):
+        return F.softmax(self.lin1(x).mul_(self.softmax_boost))
 
 class SampleEmbeddingFC(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -223,6 +258,14 @@ class Artifact(nn.Module):
                         util.log_error('Unsupported sample embedding: ' + self.smp_emb)
                     if isinstance(proposal, UniformDiscreteProposal):
                         proposal_layer = ProposalUniformDiscrete(self.lstm_dim, proposal.min, proposal.max, self.softmax_boost)
+                    elif isinstance(proposal, NormalProposal):
+                        proposal_layer = ProposalNormal(self.lstm_dim)
+                    elif isinstance(proposal, FlipProposal):
+                        proposal_layer = ProposalFlip(self.lstm_dim)
+                    elif isinstance(proposal, DiscreteProposal):
+                        proposal_layer = ProposalDiscrete(self.lstm_dim, proposal.size, self.softmax_boost)
+                    elif isinstance(proposal, CategoricalProposal):
+                        proposal_layer = ProposalCategorical(self.lstm_dim, proposal.size, self.softmax_boost)
                     else:
                         util.log_error('Unsupported proposal distribution: ' + sample.proposal.name())
                     self.sample_layers[(address, instance)] = sample_layer
@@ -364,6 +407,31 @@ class Artifact(nn.Module):
                     value = sub_batch[b].samples[time_step].value[0]
                     min = sub_batch[b].samples[time_step].proposal.min
                     logpdf += log_weights[b, int(value) - min] # Should we average this over dimensions? See http://pytorch.org/docs/nn.html#torch.nn.KLDivLoss
+            elif isinstance(proposal, NormalProposal):
+                means = proposal_output[:, 0]
+                stds = proposal_output[:, 1]
+                two_std_squares = 2 * stds * stds + util.epsilon
+                two_pi_std_squares = math.pi * two_std_squares
+                half_log_two_pi_std_squares = 0.5 * torch.log(two_pi_std_squares + util.epsilon)
+                for b in range(sub_batch_size):
+                    value = sub_batch[b].samples[time_step].value[0]
+                    mean = means[b]
+                    two_std_square = two_std_squares[b]
+                    half_log_two_pi_std_square = half_log_two_pi_std_squares[b]
+                    logpdf -= half_log_two_pi_std_square + ((value - mean)**2) / two_std_square
+            elif isinstance(proposal, FlipProposal):
+                log_probabilities = torch.log(proposal_output + util.epsilon)
+                log_one_minus_probabilities = torch.log(1 - proposal_output + util.epsilon)
+                for b in range(sub_batch_size):
+                    value = sub_batch[b].samples[time_step].value[0]
+                    if value > 0:
+                        logpdf += log_probabilities[b]
+                    else:
+                        logpdf += log_one_minus_probabilities[b]
+            elif isinstance(proposal, DiscreteProposal):
+                util.log_error('Unimplemented')
+            elif isinstance(proposal, CategoricalProposal):
+                util.log_error('Unimplemented')
             else:
                 util.log_error('Unsupported proposal distribution: ' + proposal_type)
 

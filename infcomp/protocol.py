@@ -1,7 +1,7 @@
 import infcomp
 import infcomp.zmq
 from infcomp import util
-from infcomp.probprog import Sample, Trace, UniformDiscreteProposal, NormalProposal
+from infcomp.probprog import Sample, Trace, UniformDiscreteProposal, NormalProposal, FlipProposal, DiscreteProposal, CategoricalProposal
 import infcomp.flatbuffers.Message
 import infcomp.flatbuffers.MessageBody
 import infcomp.flatbuffers.TracesFromPriorRequest
@@ -14,6 +14,10 @@ import infcomp.flatbuffers.Trace
 import infcomp.flatbuffers.NDArray
 import infcomp.flatbuffers.ProposalDistribution
 import infcomp.flatbuffers.UniformDiscreteProposal
+import infcomp.flatbuffers.NormalProposal
+import infcomp.flatbuffers.FlipProposal
+import infcomp.flatbuffers.DiscreteProposal
+import infcomp.flatbuffers.CategoricalProposal
 
 import flatbuffers
 import sys
@@ -71,9 +75,21 @@ def get_sample(s):
             p.Init(s.Proposal().Bytes, s.Proposal().Pos)
             sample.proposal = UniformDiscreteProposal(p.Min(), p.Max())
         elif proposal_type == infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().NormalProposal:
-            p = infcomp.flatbuffers.NormalProposal.NormalProposal()
-            p.Init(s.Proposal().Bytes, s.Proposal().Pos)
+            # p = infcomp.flatbuffers.NormalProposal.NormalProposal()
+            # p.Init(s.Proposal().Bytes, s.Proposal().Pos)
             sample.proposal = NormalProposal()
+        elif proposal_type == infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().FlipProposal:
+            # p = infcomp.flatbuffers.FlipProposal.FlipProposal()
+            # p.Init(s.Proposal().Bytes, s.Proposal.Pos)
+            sample.proposal = FlipProposal()
+        elif proposal_type == infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().DiscreteProposal:
+            p = infcomp.flatbuffers.DiscreteProposal.DiscreteProposal()
+            p.Init(s.Proposal().Bytes, s.Proposal.Pos)
+            sample.proposal = DiscreteProposal(p.Size)
+        elif proposal_type == infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().CategoricalProposal:
+            p = infcomp.flatbuffers.CategoricalProposal.CategoricalProposal()
+            p.Init(s.Proposal().Bytes, s.Proposal.Pos)
+            sample.proposal = CategoricalProposal(p.Size)
         else:
             util.log_error('Unknown proposal:ProposalDistribution id: {0}.'.format(proposal_type))
     return sample
@@ -239,6 +255,46 @@ class ProposalReplier(object):
             infcomp.flatbuffers.ProposalReply.ProposalReplyStart(builder)
             infcomp.flatbuffers.ProposalReply.ProposalReplyAddSuccess(builder, True)
             infcomp.flatbuffers.ProposalReply.ProposalReplyAddProposalType(builder, infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().NormalProposal)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddProposal(builder, proposal)
+            message_body = infcomp.flatbuffers.ProposalReply.ProposalReplyEnd(builder)
+        elif isinstance(p, FlipProposal):
+            infcomp.flatbuffers.FlipProposal.FlipProposalStart(builder)
+            infcomp.flatbuffers.FlipProposal.FlipProposalAddProbability(builder, p.probability)
+            proposal = infcomp.flatbuffers.FlipProposal.FlipProposalEnd(builder)
+
+            infcomp.flatbuffers.ProposalReply.ProposalReplyStart(builder)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddSuccess(builder, True)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddProposalType(builder, infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().FlipProposal)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddProposal(builder, proposal)
+            message_body = infcomp.flatbuffers.ProposalReply.ProposalReplyEnd(builder)
+        elif isinstance(p, DiscreteProposal):
+            # construct probabilities
+            probabilities = Tensor_to_NDArray(builder, p.probabilities)
+
+            # construct proposal DiscreteProposal
+            infcomp.flatbuffers.DiscreteProposal.DiscreteProposalStart(builder)
+            infcomp.flatbuffers.DiscreteProposal.DiscreteProposalAddProbabilities(builder, probabilities)
+            proposal = infcomp.flatbuffers.DiscreteProposal.DiscreteProposalEnd(builder)
+
+            # construct message body (ProposalReply)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyStart(builder)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddSuccess(builder, True)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddProposalType(builder, infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().DiscreteProposal)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddProposal(builder, proposal)
+            message_body = infcomp.flatbuffers.ProposalReply.ProposalReplyEnd(builder)
+        elif isinstance(p, CategoricalProposal):
+            # construct probabilities
+            probabilities = Tensor_to_NDArray(builder, p.probabilities)
+
+            # construct proposal CategoricalProposal
+            infcomp.flatbuffers.CategoricalProposal.CategoricalProposalStart(builder)
+            infcomp.flatbuffers.CategoricalProposal.CategoricalProposalAddProbabilities(builder, probabilities)
+            proposal = infcomp.flatbuffers.CategoricalProposal.CategoricalProposalEnd(builder)
+
+            # construct message body (ProposalReply)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyStart(builder)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddSuccess(builder, True)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddProposalType(builder, infcomp.flatbuffers.ProposalDistribution.ProposalDistribution().CategoricalProposal)
             infcomp.flatbuffers.ProposalReply.ProposalReplyAddProposal(builder, proposal)
             message_body = infcomp.flatbuffers.ProposalReply.ProposalReplyEnd(builder)
         else:
