@@ -16,8 +16,8 @@ This is a minimal example used to test if everything is running.
 ### Compilation
 Start the compilation server:
 ```
-lein run -- \\
---mode compile \\
+lein run -- \
+--mode compile \
 --namespace queries.gaussian
 ```
 
@@ -34,9 +34,9 @@ python -m infcomp.infer
 
 Then run inference:
 ```
-lein run -- \\
---mode infer \\
---namespace queries.gaussian \\
+lein run -- \
+--mode infer \
+--namespace queries.gaussian \
 --infer-query-args-value [2.3]
 ```
 
