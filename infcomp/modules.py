@@ -414,7 +414,7 @@ class Artifact(nn.Module):
                 half_log_two_pi_std_squares = 0.5 * torch.log(two_pi_std_squares + util.epsilon)
                 for b in range(sub_batch_size):
                     value = sub_batch[b].samples[time_step].value[0]
-                    mean = means[b]
+                    mean = means[b] + sub_batch[b].samples[time_step].distribution.prior_mean
                     two_std_square = two_std_squares[b]
                     half_log_two_pi_std_square = half_log_two_pi_std_squares[b]
                     logpdf -= half_log_two_pi_std_square + ((value - mean)**2) / two_std_square

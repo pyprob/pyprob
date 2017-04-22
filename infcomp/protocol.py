@@ -75,9 +75,9 @@ def get_sample(s):
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
             sample.distribution = UniformDiscrete(p.PriorMin(), p.PriorSize())
         elif distribution_type == infcomp.flatbuffers.Distribution.Distribution().Normal:
-            # p = infcomp.flatbuffers.Normal.Normal()
-            # p.Init(s.Distribution().Bytes, s.Distribution().Pos)
-            sample.distribution = Normal()
+            p = infcomp.flatbuffers.Normal.Normal()
+            p.Init(s.Distribution().Bytes, s.Distribution().Pos)
+            sample.distribution = Normal(p.PriorMean(), p.PriorStd())
         elif distribution_type == infcomp.flatbuffers.Distribution.Distribution().Flip:
             # p = infcomp.flatbuffers.Flip.Flip()
             # p.Init(s.Distribution().Bytes, s.Distribution().Pos)

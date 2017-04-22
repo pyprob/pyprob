@@ -38,9 +38,9 @@ class UniformDiscrete(object):
         return 'UniformDiscrete'
 
 class Normal(object):
-    def __init__(self):
-        self.prior_mean = None
-        self.prior_std = None
+    def __init__(self, prior_mean, prior_std):
+        self.prior_mean = prior_mean
+        self.prior_std = prior_std
         self.proposal_mean = None
         self.proposal_std = None
     def __repr__(self):
