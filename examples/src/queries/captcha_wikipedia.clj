@@ -3,7 +3,6 @@
             [anglican.emit :refer [defquery with-primitive-procedures]]
             [helpers.captcha-wikipedia :refer [render abc-dist abc-sigma letter-dict]]))
 
-;; QUERY
 (with-primitive-procedures [render abc-dist repeatedly]
   (defquery captcha-wikipedia [baseline-image]
     (let [;; Number of letters in CAPTCHA
@@ -21,7 +20,3 @@
 
       ;; Returns
       letters)))
-
-;; COMPILE stuff
-(defn combine-observes-fn [observes]
-  (:value (first observes)))
