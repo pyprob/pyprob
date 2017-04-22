@@ -34,17 +34,18 @@ class ProposalNormal(nn.Module):
     def __init__(self, input_dim):
         super(ProposalNormal, self).__init__()
         self.lin1 = nn.Linear(input_dim, 2)
-        self.meanMultiplier = nn.Parameter(util.Tensor(1).fill_(1))
-        self.stdMultiplier = nn.Parameter(util.Tensor(1).fill_(1))
+        # self.meanMultiplier = nn.Parameter(util.Tensor(1).fill_(1))
+        # self.stdMultiplier = nn.Parameter(util.Tensor(1).fill_(1))
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
     def forward(self, x):
         x = self.lin1(x)
         means = x[:,0].unsqueeze(1)
         stds = x[:,1].unsqueeze(1)
-        means = nn.Tanh()(means)
-        stds = nn.Sigmoid()(stds)
-        means = means * self.meanMultiplier.expand_as(means)
-        stds = stds * self.stdMultiplier.expand_as(torch.abs(stds))
+        # means = nn.Tanh()(means)
+        # stds = nn.Sigmoid()(stds)
+        stds = nn.Softplus()(stds)
+        # means = means * self.meanMultiplier.expand_as(means)
+        # stds = stds * self.stdMultiplier.expand_as(stds)
         return torch.cat([means, stds], 1)
 
 class ProposalFlip(nn.Module):
@@ -409,12 +410,19 @@ class Artifact(nn.Module):
             elif isinstance(distribution, Normal):
                 means = proposal_output[:, 0]
                 stds = proposal_output[:, 1]
+
+                prior_means = util.Tensor([sub_batch[b].samples[time_step].distribution.prior_mean for b in range(sub_batch_size)])
+                prior_stds =  util.Tensor([sub_batch[b].samples[time_step].distribution.prior_std for b in range(sub_batch_size)])
+
+                means = means + prior_means
+                stds = stds * prior_stds
+
                 two_std_squares = 2 * stds * stds + util.epsilon
                 two_pi_std_squares = math.pi * two_std_squares
                 half_log_two_pi_std_squares = 0.5 * torch.log(two_pi_std_squares + util.epsilon)
                 for b in range(sub_batch_size):
                     value = sub_batch[b].samples[time_step].value[0]
-                    mean = means[b] + sub_batch[b].samples[time_step].distribution.prior_mean
+                    mean = means[b]
                     two_std_square = two_std_squares[b]
                     half_log_two_pi_std_square = half_log_two_pi_std_squares[b]
                     logpdf -= half_log_two_pi_std_square + ((value - mean)**2) / two_std_square
