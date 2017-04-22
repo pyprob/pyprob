@@ -91,11 +91,20 @@
 ;; @@
 
 ;; **
+;;; ### Load synthetic Facebook Captchas
+;; **
+
+;; @@
+(def num-observes 100)
+(def observes (doall (repeatedly num-observes #(combine-observes-fn (sample-observes-from-prior captcha-facebook nil)))))
+;; @@
+
+;; **
 ;;; ### Perform inference using SMC, RMH and CSIS
 ;;;
 ;;; Run inference server
 ;;; ```
-;;; th infer.lua --latest
+;;; python -m infcomp.infer
 ;;; ```
 ;; **
 
