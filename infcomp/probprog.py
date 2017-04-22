@@ -4,9 +4,9 @@ class Sample(object):
         self.instance = None
         self.value = None
         self.value_dim = None
-        self.proposal = None
+        self.distribution = None
     def __repr__(self):
-        return 'Sample({0}, {1}, {2}, {3})'.format(self.address, self.instance, self.value.size(), self.proposal)
+        return 'Sample({0}, {1}, {2}, {3})'.format(self.address, self.instance, self.value.size(), self.distribution)
     __str__ = __repr__
 
 class Trace(object):
@@ -24,63 +24,65 @@ class Trace(object):
         self.samples.append(s)
         self.length = len(self.samples)
 
-class UniformDiscreteProposal(object):
-    def __init__(self, min, max):
-        self.min = min
-        self.max = max
-        self.probabilities = None
+class UniformDiscrete(object):
+    def __init__(self, prior_min, prior_size):
+        self.prior_min = prior_min
+        self.prior_size = prior_size
+        self.proposal_probabilities = None
     def __repr__(self):
-        return 'UniformDiscreteProposal(min:{0}; max:{1}; probabilities:{2})'.format(self.min, self.max, self.probabilities)
+        return 'UniformDiscrete(prior_min:{0}; prior_max:{1}; proposal_probabilities:{2})'.format(self.prior_min, self.prior_size, self.proposal_probabilities)
     __str__ = __repr__
-    def set_proposalparams(self, probabilities):
-        self.probabilities = probabilities
+    def set_proposalparams(self, proposal_probabilities):
+        self.proposal_probabilities = proposal_probabilities
     def name(self):
-        return 'UniformDiscreteProposal'
+        return 'UniformDiscrete'
 
-class NormalProposal(object):
+class Normal(object):
     def __init__(self):
-        self.mean = None
-        self.std = None
+        self.prior_mean = None
+        self.prior_std = None
+        self.proposal_mean = None
+        self.proposal_std = None
     def __repr__(self):
-        return 'NormalProposal(mean:{0}; std:{1})'.format(self.mean, self.std)
+        return 'Normal(prior_mean:{0}; prior_std:{1}; proposal_mean:{2}; proposal_std:{3})'.format(self.prior_mean, self.prior_std, self.proposal_mean, self.proposal_std)
     __str__ = __repr__
-    def set_proposalparams(self, tensor_of_mean_std):
-        self.mean = tensor_of_mean_std[0]
-        self.std = tensor_of_mean_std[1]
+    def set_proposalparams(self, tensor_of_proposal_mean_std):
+        self.proposal_mean = tensor_of_proposal_mean_std[0]
+        self.proposal_std = tensor_of_proposal_mean_std[1]
     def name(self):
-        return 'NormalProposal'
+        return 'Normal'
 
-class FlipProposal(object):
+class Flip(object):
     def __init__(self):
-        self.probability = None
+        self.proposal_probability = None
     def __repr__(self):
-        return 'FlipProposal(probability: {0})'.format(self.probability)
+        return 'Flip(proposal_probability: {0})'.format(self.proposal_probability)
     __str__ = __repr__
-    def set_proposalparams(self, probability):
-        self.probability = probability[0]
+    def set_proposalparams(self, tensor_of_proposal_probability):
+        self.proposal_probability = tensor_of_proposal_probability[0]
     def name(self):
-        return 'FlipProposal'
+        return 'Flip'
 
-class DiscreteProposal(object):
-    def __init__(self, size):
-        self.size = size
-        self.probabilities = None
+class Discrete(object):
+    def __init__(self, prior_size):
+        self.prior_size = prior_size
+        self.proposal_probabilities = None
     def __repr__(self):
-        return 'DiscreteProposal(size:{0}; probabilities:{1})'.format(self.size, self.probabilities)
+        return 'Discrete(prior_size:{0}; proposal_probabilities:{1})'.format(self.prior_size, self.proposal_probabilities)
     __str__ = __repr__
-    def set_proposalparams(self, probabilities):
-        seld.probabilities = probabilities
+    def set_proposalparams(self, proposal_probabilities):
+        self.proposal_probabilities = proposal_probabilities
     def name(self):
-        return 'DiscreteProposal'
+        return 'Discrete'
 
-class CategoricalProposal(object):
-    def __init__(self, size):
-        self.size = size
-        self.probabilities = None
+class Categorical(object):
+    def __init__(self, prior_size):
+        self.prior_size = prior_size
+        self.proposal_probabilities = None
     def __repr__(self):
-        return 'CategoricalProposal(size:{0}; probabilities:{1})'.format(self.size, self.probabilities)
+        return 'Categorical(prior_size:{0}; proposal_probabilities:{1})'.format(self.prior_size, self.proposal_probabilities)
     __str__ = __repr__
-    def set_proposalparams(self, probabilities):
-        seld.probabilities = probabilities
+    def set_proposalparams(self, proposal_probabilities):
+        seld.proposal_probabilities = proposal_probabilities
     def name(self):
-        return 'CategoricalProposal'
+        return 'Categorical'

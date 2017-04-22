@@ -4,29 +4,29 @@
 
 import flatbuffers
 
-class CategoricalProposal(object):
+class Discrete(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsCategoricalProposal(cls, buf, offset):
+    def GetRootAsDiscrete(cls, buf, offset):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
-        x = CategoricalProposal()
+        x = Discrete()
         x.Init(buf, n + offset)
         return x
 
-    # CategoricalProposal
+    # Discrete
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # CategoricalProposal
-    def Size(self):
+    # Discrete
+    def PriorSize(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
-    # CategoricalProposal
-    def Probabilities(self):
+    # Discrete
+    def ProposalProbabilities(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
@@ -36,7 +36,7 @@ class CategoricalProposal(object):
             return obj
         return None
 
-def CategoricalProposalStart(builder): builder.StartObject(2)
-def CategoricalProposalAddSize(builder, size): builder.PrependInt32Slot(0, size, 0)
-def CategoricalProposalAddProbabilities(builder, probabilities): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(probabilities), 0)
-def CategoricalProposalEnd(builder): return builder.EndObject()
+def DiscreteStart(builder): builder.StartObject(2)
+def DiscreteAddPriorSize(builder, priorSize): builder.PrependInt32Slot(0, priorSize, 0)
+def DiscreteAddProposalProbabilities(builder, proposalProbabilities): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(proposalProbabilities), 0)
+def DiscreteEnd(builder): return builder.EndObject()

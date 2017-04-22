@@ -114,7 +114,7 @@ with BatchRequester(opt.server) as requester:
         artifact.standardize = opt.standardize
         artifact.one_hot_address_dim = opt.oneHotDim
         artifact.one_hot_instance_dim = opt.oneHotDim
-        artifact.one_hot_proposal_dim = 1
+        artifact.one_hot_distribution_dim = 1
         artifact.valid_size = opt.validSize
         requester.request_batch(artifact.valid_size)
         artifact.valid_batch = requester.receive_batch(artifact.standardize)

@@ -125,7 +125,7 @@ with ProposalReplier(opt.server) as replier:
                  previous_sample_embedding[0],
                  artifact.one_hot_address[current_sample.address],
                  artifact.one_hot_instance[current_sample.instance],
-                 artifact.one_hot_proposal[current_sample.proposal.name()]]
+                 artifact.one_hot_distribution[current_sample.distribution.name()]]
             t = torch.cat(t).unsqueeze(0)
             lstm_input = t.unsqueeze(0)
 
@@ -141,6 +141,6 @@ with ProposalReplier(opt.server) as replier:
 
             proposal_input = lstm_output[0]
             proposal_output = artifact.proposal_layers[(current_sample.address, current_sample.instance)](proposal_input)
-            current_sample.proposal.set_proposalparams(proposal_output[0].data)
-            replier.reply_proposal(current_sample.proposal)
+            current_sample.distribution.set_proposalparams(proposal_output[0].data)
+            replier.reply_proposal(current_sample.distribution)
             time_step += 1

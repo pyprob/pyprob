@@ -8,54 +8,45 @@ table Message {
 
 root_type Message;
 
-union ProposalDistribution { CategoricalProposal, DiscreteProposal, FlipProposal, NormalProposal, UniformDiscreteProposal }
+union Distribution { Categorical, Discrete, Flip, Normal, UniformDiscrete }
 
 table NDArray {
     data:[double];
     shape:[int];
 }
 
-table CategoricalProposal {
-    // extra params
-    size:int;
-
-    // proposal params
-    probabilities:NDArray;
+table Categorical {
+    prior_size:int;
+    proposal_probabilities:NDArray;
 }
 
-table DiscreteProposal {
-    // extra params
-    size:int;
-
-    // proposal params
-    probabilities:NDArray;
+table Discrete {
+    prior_size:int;
+    proposal_probabilities:NDArray;
 }
 
-table FlipProposal {
-    // proposal params
-    probability:double;
+table Flip {
+    proposal_probability:double;
 }
 
-table NormalProposal {
-    // proposal params
-    mean:double;
-    std:double;
+table Normal {
+    prior_mean:double;
+    prior_std:double;
+    proposal_mean:double;
+    proposal_std:double;
 }
 
-table UniformDiscreteProposal {
-    // extra params
-    min:int;
-    max:int;
-
-    // proposal params
-    probabilities:NDArray;
+table UniformDiscrete {
+    prior_min:int;
+    prior_size:int;
+    proposal_probabilities:NDArray;
 }
 
 table Sample {
     time:int;
     address:string;
     instance:int;
-    proposal:ProposalDistribution;
+    distribution:Distribution;
     value:NDArray;
 }
 
@@ -87,5 +78,5 @@ table ProposalRequest {
 
 table ProposalReply {
     success:bool;
-    proposal:ProposalDistribution;
+    distribution:Distribution;
 }

@@ -4,36 +4,36 @@
 
 import flatbuffers
 
-class UniformDiscreteProposal(object):
+class UniformDiscrete(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsUniformDiscreteProposal(cls, buf, offset):
+    def GetRootAsUniformDiscrete(cls, buf, offset):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
-        x = UniformDiscreteProposal()
+        x = UniformDiscrete()
         x.Init(buf, n + offset)
         return x
 
-    # UniformDiscreteProposal
+    # UniformDiscrete
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # UniformDiscreteProposal
-    def Min(self):
+    # UniformDiscrete
+    def PriorMin(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
-    # UniformDiscreteProposal
-    def Max(self):
+    # UniformDiscrete
+    def PriorSize(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
-    # UniformDiscreteProposal
-    def Probabilities(self):
+    # UniformDiscrete
+    def ProposalProbabilities(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
@@ -43,8 +43,8 @@ class UniformDiscreteProposal(object):
             return obj
         return None
 
-def UniformDiscreteProposalStart(builder): builder.StartObject(3)
-def UniformDiscreteProposalAddMin(builder, min): builder.PrependInt32Slot(0, min, 0)
-def UniformDiscreteProposalAddMax(builder, max): builder.PrependInt32Slot(1, max, 0)
-def UniformDiscreteProposalAddProbabilities(builder, probabilities): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(probabilities), 0)
-def UniformDiscreteProposalEnd(builder): return builder.EndObject()
+def UniformDiscreteStart(builder): builder.StartObject(3)
+def UniformDiscreteAddPriorMin(builder, priorMin): builder.PrependInt32Slot(0, priorMin, 0)
+def UniformDiscreteAddPriorSize(builder, priorSize): builder.PrependInt32Slot(1, priorSize, 0)
+def UniformDiscreteAddProposalProbabilities(builder, proposalProbabilities): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(proposalProbabilities), 0)
+def UniformDiscreteEnd(builder): return builder.EndObject()

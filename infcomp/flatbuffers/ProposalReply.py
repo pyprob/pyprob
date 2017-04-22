@@ -26,14 +26,14 @@ class ProposalReply(object):
         return 0
 
     # ProposalReply
-    def ProposalType(self):
+    def DistributionType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
         return 0
 
     # ProposalReply
-    def Proposal(self):
+    def Distribution(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             from flatbuffers.table import Table
@@ -44,6 +44,6 @@ class ProposalReply(object):
 
 def ProposalReplyStart(builder): builder.StartObject(3)
 def ProposalReplyAddSuccess(builder, success): builder.PrependBoolSlot(0, success, 0)
-def ProposalReplyAddProposalType(builder, proposalType): builder.PrependUint8Slot(1, proposalType, 0)
-def ProposalReplyAddProposal(builder, proposal): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(proposal), 0)
+def ProposalReplyAddDistributionType(builder, distributionType): builder.PrependUint8Slot(1, distributionType, 0)
+def ProposalReplyAddDistribution(builder, distribution): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(distribution), 0)
 def ProposalReplyEnd(builder): return builder.EndObject()
