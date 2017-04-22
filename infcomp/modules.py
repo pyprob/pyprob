@@ -31,9 +31,11 @@ class ProposalUniformDiscrete(nn.Module):
         return F.softmax(self.lin1(x).mul_(self.softmax_boost))
 
 class ProposalNormal(nn.Module):
-    def __init__(self, input_dim):
+    def __init__(self, input_dim, prior_mean, prior_std):
         super(ProposalNormal, self).__init__()
         self.lin1 = nn.Linear(input_dim, 2)
+        self.prior_mean = prior_mean
+        self.prior_std = prior_std
         # self.meanMultiplier = nn.Parameter(util.Tensor(1).fill_(1))
         # self.stdMultiplier = nn.Parameter(util.Tensor(1).fill_(1))
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
@@ -46,7 +48,7 @@ class ProposalNormal(nn.Module):
         stds = nn.Softplus()(stds)
         # means = means * self.meanMultiplier.expand_as(means)
         # stds = stds * self.stdMultiplier.expand_as(stds)
-        return torch.cat([means, stds], 1)
+        return torch.cat([means + self.prior_mean, stds * self.prior_std], 1)
 
 class ProposalFlip(nn.Module):
     def __init__(self, input_dim):
@@ -259,7 +261,7 @@ class Artifact(nn.Module):
                     if isinstance(distribution, UniformDiscrete):
                         proposal_layer = ProposalUniformDiscrete(self.lstm_dim, distribution.prior_min, distribution.prior_size, self.softmax_boost)
                     elif isinstance(distribution, Normal):
-                        proposal_layer = ProposalNormal(self.lstm_dim)
+                        proposal_layer = ProposalNormal(self.lstm_dim, distribution.prior_mean, distribution.prior_std)
                     elif isinstance(distribution, Flip):
                         proposal_layer = ProposalFlip(self.lstm_dim)
                     elif isinstance(distribution, Discrete):
@@ -411,11 +413,10 @@ class Artifact(nn.Module):
                 means = proposal_output[:, 0]
                 stds = proposal_output[:, 1]
 
-                prior_means = util.Tensor([sub_batch[b].samples[time_step].distribution.prior_mean for b in range(sub_batch_size)])
-                prior_stds =  util.Tensor([sub_batch[b].samples[time_step].distribution.prior_std for b in range(sub_batch_size)])
-
-                means = means + prior_means
-                stds = stds * prior_stds
+                # prior_means = util.Tensor([sub_batch[b].samples[time_step].distribution.prior_mean for b in range(sub_batch_size)])
+                # prior_stds =  util.Tensor([sub_batch[b].samples[time_step].distribution.prior_std for b in range(sub_batch_size)])
+                # means = means + prior_means
+                # stds = stds * prior_stds
 
                 two_std_squares = 2 * stds * stds + util.epsilon
                 two_pi_std_squares = math.pi * two_std_squares
