@@ -300,7 +300,7 @@ class Artifact(nn.Module):
     def set_lstm(self, lstm_dim, lstm_depth):
         self.lstm_dim = lstm_dim
         self.lstm_depth = lstm_depth
-        self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + self.one_hot_address_dim + self.one_hot_instance_dim + self.one_hot_proposal_dim
+        self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + self.one_hot_address_dim + self.one_hot_instance_dim + self.one_hot_distribution_dim
         self.lstm = nn.LSTM(self.lstm_input_dim, lstm_dim, lstm_depth)
 
     def add_one_hot_address(self, address):
