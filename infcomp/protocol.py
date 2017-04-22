@@ -236,7 +236,7 @@ class ProposalReplier(object):
             # construct UniformDiscrete
             infcomp.flatbuffers.UniformDiscrete.UniformDiscreteStart(builder)
             infcomp.flatbuffers.UniformDiscrete.UniformDiscreteAddProposalProbabilities(builder, proposal_probabilities)
-            distribution = infcomp.flatbuffers.UniformDiscrete.UniformDiscrete(builder)
+            distribution = infcomp.flatbuffers.UniformDiscrete.UniformDiscreteEnd(builder)
 
             # construct message body (ProposalReply)
             infcomp.flatbuffers.ProposalReply.ProposalReplyStart(builder)
