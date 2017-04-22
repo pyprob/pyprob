@@ -442,7 +442,10 @@ class Artifact(nn.Module):
                     value = sub_batch[b].samples[time_step].value[0]
                     logpdf += log_weights[b, int(value)]
             elif isinstance(distribution, Categorical):
-                util.log_error('Unimplemented')
+                log_weights = torch.log(proposal_output + util.epsilon)
+                for b in range(sub_batch_size):
+                    value = sub_batch[b].samples[time_step].value[0]
+                    logpdf += log_weights[b, int(value)]
             else:
                 util.log_error('Unsupported distribution: ' + distribution.name())
 
