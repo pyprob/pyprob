@@ -48,7 +48,7 @@ class ProposalNormal(nn.Module):
         stds = nn.Softplus()(stds)
         # means = means * self.meanMultiplier.expand_as(means)
         # stds = stds * self.stdMultiplier.expand_as(stds)
-        return torch.cat([means + self.prior_mean, stds * self.prior_std], 1)
+        return torch.cat([means, stds], 1)
 
 class ProposalFlip(nn.Module):
     def __init__(self, input_dim):
