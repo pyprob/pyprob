@@ -51,9 +51,10 @@ class ProposalNormal(nn.Module):
         return torch.cat([means + self.prior_mean, stds * self.prior_std], 1)
 
 class ProposalFlip(nn.Module):
-    def __init__(self, input_dim):
+    def __init__(self, input_dim, softmax_boost=1.0):
         super(ProposalFlip, self).__init__()
         self.lin1 = nn.Linear(input_dim, 1)
+        self.softmax_boost = softmax_boost
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
     def forward(self, x):
         return nn.Sigmoid()(self.lin1(x).mul_(self.softmax_boost))
@@ -263,7 +264,7 @@ class Artifact(nn.Module):
                     elif isinstance(distribution, Normal):
                         proposal_layer = ProposalNormal(self.lstm_dim, distribution.prior_mean, distribution.prior_std)
                     elif isinstance(distribution, Flip):
-                        proposal_layer = ProposalFlip(self.lstm_dim)
+                        proposal_layer = ProposalFlip(self.lstm_dim, self.softmax_boost)
                     elif isinstance(distribution, Discrete):
                         proposal_layer = ProposalDiscrete(self.lstm_dim, distribution.prior_size, self.softmax_boost)
                     elif isinstance(distribution, Categorical):
