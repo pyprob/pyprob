@@ -83,6 +83,6 @@ class Categorical(object):
         return 'Categorical(prior_size:{0}; proposal_probabilities:{1})'.format(self.prior_size, self.proposal_probabilities)
     __str__ = __repr__
     def set_proposalparams(self, proposal_probabilities):
-        seld.proposal_probabilities = proposal_probabilities
+        self.proposal_probabilities = proposal_probabilities
     def name(self):
         return 'Categorical'
