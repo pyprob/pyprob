@@ -56,7 +56,7 @@ class ProposalFlip(nn.Module):
         self.lin1 = nn.Linear(input_dim, 1)
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
     def forward(self, x):
-        return nn.Sigmoid()(self.lin1(x))
+        return nn.Sigmoid()(self.lin1(x).mul_(self.softmax_boost))
 
 class ProposalDiscrete(nn.Module):
     def __init__(self, input_dim, output_size, softmax_boost=1.0):
