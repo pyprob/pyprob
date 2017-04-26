@@ -69,11 +69,11 @@ def standardize(t):
     t.div_(sd + epsilon)
     return t
 
-def days_hours_mins_secs(delta):
-    s = delta.total_seconds()
-    h, r = divmod(s, 3600)
+def days_hours_mins_secs(total_seconds):
+    d, r = divmod(total_seconds, 86400)
+    h, r = divmod(r, 3600)
     m, s = divmod(r, 60)
-    return '{0}d:{1:02}:{2:02}:{3:02}'.format(delta.days, int(h), int(m), int(s))
+    return '{0}d:{1:02}:{2:02}:{3:02}'.format(int(d), int(h), int(m), int(s))
 
 def file_starting_with(pattern, n):
     return sorted(glob(pattern + '*'))[n]

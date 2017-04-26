@@ -69,7 +69,7 @@ with ProposalReplier(opt.server) as replier:
     artifact = torch.load(file_name)
     prev_artifact_total_traces = artifact.total_traces
     prev_artifact_total_iterations = artifact.total_iterations
-    prev_artifact_total_training_time = artifact.total_training_time
+    prev_artifact_total_training_seconds = artifact.total_training_seconds
 
     util.check_versions(artifact)
 

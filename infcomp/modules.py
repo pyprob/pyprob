@@ -181,7 +181,7 @@ class Artifact(nn.Module):
         self.valid_history_loss = []
         self.train_history_trace = []
         self.train_history_loss = []
-        self.total_training_time = None
+        self.total_training_seconds = None
         self.total_iterations = None
         self.total_traces = None
         self.updates = 0
@@ -195,11 +195,11 @@ class Artifact(nn.Module):
         return ret
 
     def get_info(self):
-        iter_per_sec = self.total_iterations / self.total_training_time.total_seconds()
-        traces_per_sec = self.total_traces / self.total_training_time.total_seconds()
+        iter_per_sec = self.total_iterations / self.total_training_seconds
+        traces_per_sec = self.total_traces / self.total_training_seconds
         traces_per_iter = self.total_traces / self.total_iterations
         loss_change = self.valid_loss_final - self.valid_loss_initial
-        loss_change_per_sec = loss_change / self.total_training_time.total_seconds()
+        loss_change_per_sec = loss_change / self.total_training_seconds
         loss_change_per_iter = loss_change / self.total_iterations
         loss_change_per_trace = loss_change / self.total_traces
         addresses = ' '.join(list(self.one_hot_address.keys()))
@@ -211,7 +211,7 @@ class Artifact(nn.Module):
                           'Code version          : {0}'.format(self.code_version),
                           'Cuda                  : {0}'.format(self.on_cuda),
                           colored('Trainable params      : {:,}'.format(self.num_parameters), 'cyan', attrs=['bold']),
-                          colored('Total training time   : {0}'.format(util.days_hours_mins_secs(self.total_training_time)), 'yellow', attrs=['bold']),
+                          colored('Total training time   : {0}'.format(util.days_hours_mins_secs(self.total_training_seconds)), 'yellow', attrs=['bold']),
                           colored('Updates to file       : {:,}'.format(self.updates), 'yellow'),
                           colored('Iterations            : {:,}'.format(self.total_iterations), 'yellow'),
                           colored('Iterations / s        : {:,.2f}'.format(iter_per_sec), 'yellow'),

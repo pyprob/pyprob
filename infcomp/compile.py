@@ -21,6 +21,7 @@ from torch.autograd import Variable
 from termcolor import colored
 import sys
 import datetime
+import time
 from pprint import pformat
 import os
 
@@ -89,7 +90,7 @@ with BatchRequester(opt.server) as requester:
         artifact = torch.load(resume_artifact_file)
         prev_artifact_total_traces = artifact.total_traces
         prev_artifact_total_iterations = artifact.total_iterations
-        prev_artifact_total_training_time = artifact.total_training_time
+        prev_artifact_total_training_seconds = artifact.total_training_seconds
 
         util.check_versions(artifact)
 
@@ -107,7 +108,7 @@ with BatchRequester(opt.server) as requester:
 
         prev_artifact_total_traces = 0
         prev_artifact_total_iterations = 0
-        prev_artifact_total_training_time = datetime.timedelta(0)
+        prev_artifact_total_training_seconds = 0
 
         artifact = Artifact()
         artifact.on_cuda = opt.cuda
@@ -140,8 +141,8 @@ with BatchRequester(opt.server) as requester:
 
     iteration = 0
     trace = 0
-    start_time = datetime.datetime.now()
-    improvement_time = datetime.datetime.now()
+    start_time = time.time()
+    improvement_time = start_time
     train_loss_str = ''
     if artifact.valid_loss_best is None:
         artifact.valid_loss_best = artifact.valid_loss()
@@ -160,8 +161,8 @@ with BatchRequester(opt.server) as requester:
     util.log_print(colored('[] Training from ' + opt.server, 'blue', attrs=['bold']))
     util.log_print()
 
-    time_str = util.days_hours_mins_secs(prev_artifact_total_training_time + (datetime.datetime.now() - start_time))
-    improvement_time_str = util.days_hours_mins_secs(datetime.datetime.now() - improvement_time)
+    time_str = util.days_hours_mins_secs(prev_artifact_total_training_seconds + (time.time() - start_time))
+    improvement_time_str = util.days_hours_mins_secs(time.time() - improvement_time)
     trace_str = '{:5}'.format('{:,}'.format(prev_artifact_total_traces + trace))
     util.log_print('{{:{0}}}'.format(len(time_str)).format('Train. time') + ' │ ' + '{{:{0}}}'.format(len(trace_str)).format('Trace') + ' │ Training loss   │ Last valid. loss│ Best val. loss|' + '{{:{0}}}'.format(len(improvement_time_str)).format('T.since best'))
     util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(improvement_time_str))
@@ -189,7 +190,7 @@ with BatchRequester(opt.server) as requester:
 
             trace += len(sub_batch)
 
-            artifact.total_training_time = prev_artifact_total_training_time + (datetime.datetime.now() - start_time)
+            artifact.total_training_seconds = prev_artifact_total_training_seconds + (time.time() - start_time)
             artifact.total_iterations = prev_artifact_total_iterations + iteration
             artifact.total_traces = prev_artifact_total_traces + trace
 
@@ -209,7 +210,7 @@ with BatchRequester(opt.server) as requester:
             else:
                 train_loss_str = '{:+.6e}  '.format(train_loss)
 
-            time_str = util.days_hours_mins_secs(prev_artifact_total_training_time + (datetime.datetime.now() - start_time))
+            time_str = util.days_hours_mins_secs(prev_artifact_total_training_seconds + (time.time() - start_time))
             trace_str = '{:5}'.format('{:,}'.format(prev_artifact_total_traces + trace))
 
             if trace - last_validation_trace > opt.validInterval:
@@ -242,7 +243,7 @@ with BatchRequester(opt.server) as requester:
                         artifact_file = '{0}/{1}'.format(opt.dir, 'compile-artifact' + time_stamp)
                     torch.save(artifact, artifact_file)
 
-                    improvement_time = datetime.datetime.now()
+                    improvement_time = time.time()
                 elif valid_loss > artifact.valid_loss_worst:
                     artifact.valid_loss_worst = valid_loss
                     valid_loss_str = colored('{:+.6e} ▲'.format(valid_loss), 'red', attrs=['bold'])
@@ -253,5 +254,5 @@ with BatchRequester(opt.server) as requester:
                 else:
                     valid_loss_str = '{:+.6e}  '.format(valid_loss)
 
-            improvement_time_str = util.days_hours_mins_secs(datetime.datetime.now() - improvement_time)
+            improvement_time_str = util.days_hours_mins_secs(time.time() - improvement_time)
             util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} '.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, improvement_time_str))
