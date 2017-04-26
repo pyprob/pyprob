@@ -21,11 +21,24 @@ import infcomp.flatbuffers.Categorical
 
 import flatbuffers
 import sys
+import numpy as np
 
 def NDArray_to_Tensor(ndarray):
-    data = [ndarray.Data(i) for i in range(ndarray.DataLength())]
-    shape = [ndarray.Shape(i) for i in range(ndarray.ShapeLength())]
-    return util.Tensor(data).view(shape)
+    b = ndarray._tab.Bytes
+    o = flatbuffers.number_types.UOffsetTFlags.py_type(ndarray._tab.Offset(4))
+    offset = ndarray._tab.Vector(o) if o != 0 else 0
+    length = ndarray.DataLength()
+    data_np = np.frombuffer(b, offset=offset, dtype=np.dtype('float64'), count=length)
+
+    o = flatbuffers.number_types.UOffsetTFlags.py_type(ndarray._tab.Offset(6))
+    offset = ndarray._tab.Vector(o) if o != 0 else 0
+    length = ndarray.ShapeLength()
+    shape_np = np.frombuffer(b, offset=offset, dtype=np.dtype('int32'), count=length)
+
+    data = data_np.reshape(shape_np)
+    print(data)
+    return util.Tensor(data)
+
 
 def Tensor_to_NDArray(builder, tensor):
     tensor_numpy = tensor.cpu().numpy()
