@@ -13,6 +13,7 @@
             anglican.infcomp.csis
             anglican.smc
             [anglican.infcomp.network :refer :all]
+            [anglican.infcomp.prior :refer [sample-from-prior]]
             [anglican.inference :refer [infer]]
             [helpers.captcha :refer [levenshtein-normalized]]
             [helpers.captcha-wikipedia :refer [render render-to-file abc-dist abc-sigma letter-dict oxCaptcha]]
@@ -65,10 +66,6 @@
 (def torch-connection (start-torch-connection captcha-wikipedia [nil] combine-observes-fn))
 ;; @@
 
-;; **
-;;; `th compile.lua --batchSize 8 --validSize 8 --validInterval 32 --obsEmb lenet --obsEmbDim 4 --lstmDim 4`
-;; **
-
 ;; @@
 (stop-torch-connection torch-connection)
 ;; @@
@@ -93,7 +90,14 @@
 
 ;; @@
 (def num-observes 100)
-(def observes (doall (repeatedly num-observes #(combine-observes-fn (sample-observes-from-prior captcha-wikipedia nil)))))
+(def samples-from-prior (take num-observes (sample-from-prior captcha-facebook nil)))
+(def observes (map (comp combine-observes-fn :observes) samples-from-prior))
+(def ground-truth-letters (map (fn [smp]
+                                 (let [latents (:samples smp)
+                                       letter-ids (map :value (filter #(= (:sample-address %) "letterid") latents))
+                                       letters (apply str (map (partial nth letter-dict) letter-ids))]
+                                   letters))
+                               samples-from-prior))
 ;; @@
 
 ;; **
