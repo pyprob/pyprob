@@ -90,7 +90,7 @@
 
 ;; @@
 (def num-observes 100)
-(def samples-from-prior (take num-observes (sample-from-prior captcha-facebook nil)))
+(def samples-from-prior (take num-observes (sample-from-prior captcha-wikipedia nil)))
 (def observes (map (comp combine-observes-fn :observes) samples-from-prior))
 (def ground-truth-letters (map (fn [smp]
                                  (let [latents (:samples smp)
