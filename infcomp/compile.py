@@ -41,7 +41,7 @@ def main():
         parser.add_argument('--clip', help='gradient clipping (-1: disabled)', default=-1, type=float)
         parser.add_argument('--batchSize', help='training batch size', default=128, type=int)
         parser.add_argument('--validSize', help='validation set size', default=256, type=int)
-        parser.add_argument('--validInterval', help='validation interval (traces)', default=1000, type=int)
+        parser.add_argument('--validTraces', help='validation interval (traces)', default=1000, type=int)
         parser.add_argument('--maxTraces', help='stop training after this many traces (-1: disabled)', default=-1, type=int)
         parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=64, type=int)
         parser.add_argument('--standardize', help='standardize observations', action='store_true')
@@ -221,7 +221,7 @@ def main():
                     time_str = util.days_hours_mins_secs(prev_artifact_total_training_seconds + (time.time() - start_time))
                     trace_str = '{:5}'.format('{:,}'.format(prev_artifact_total_traces + trace))
 
-                    if (trace - last_validation_trace > opt.validInterval) or stop:
+                    if (trace - last_validation_trace > opt.validTraces) or stop:
                         util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(improvement_time_str))
                         sys.stdout.write('Computing validation loss...                             \r')
                         sys.stdout.flush()
@@ -268,9 +268,9 @@ def main():
 
                     improvement_time_str = util.days_hours_mins_secs(time.time() - improvement_time)
                     util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} '.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, improvement_time_str))
-            util.log_print('Stopped after {0} traces.'.format(trace))
+            util.log_print('Stopped after {0} traces'.format(trace))
     except KeyboardInterrupt:
-        util.log_print('Shutdown requested.')
+        util.log_print('Shutdown requested')
     except Exception:
         traceback.print_exc(file=sys.stdout)
     sys.exit(0)
