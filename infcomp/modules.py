@@ -207,7 +207,7 @@ class Artifact(nn.Module):
         distributions = ' '.join(list(self.one_hot_distribution.keys()))
         info = '\n'.join(['Model name            : {0}'.format(self.model_name),
                           'Created               : {0}'.format(self.created),
-                          'Last modified         : {0}'.format(self.modified),
+                          'Modified              : {0}'.format(self.modified),
                           'Code version          : {0}'.format(self.code_version),
                           'Cuda                  : {0}'.format(self.on_cuda),
                           colored('Trainable params      : {:,}'.format(self.num_parameters), 'cyan', attrs=['bold']),
