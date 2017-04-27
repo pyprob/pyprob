@@ -48,7 +48,7 @@ class ProposalNormal(nn.Module):
         stds = nn.Softplus()(stds)
         # means = means * self.meanMultiplier.expand_as(means)
         # stds = stds * self.stdMultiplier.expand_as(stds)
-        return torch.cat([means + self.prior_mean, stds * self.prior_std], 1)
+        return torch.cat([(means * self.prior_std) + self.prior_mean, stds * self.prior_std], 1)
 
 class ProposalFlip(nn.Module):
     def __init__(self, input_dim, softmax_boost=1.0):
@@ -416,8 +416,6 @@ class Artifact(nn.Module):
 
                 # prior_means = util.Tensor([sub_batch[b].samples[time_step].distribution.prior_mean for b in range(sub_batch_size)])
                 # prior_stds =  util.Tensor([sub_batch[b].samples[time_step].distribution.prior_std for b in range(sub_batch_size)])
-                # means = means + prior_means
-                # stds = stds * prior_stds
 
                 two_std_squares = 2 * stds * stds + util.epsilon
                 two_pi_std_squares = math.pi * two_std_squares
