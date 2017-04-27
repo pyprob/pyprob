@@ -38,10 +38,11 @@ parser.add_argument('--weightDecay', help='L2 weight decay coefficient', default
 parser.add_argument('--clip', help='gradient clipping (-1: disabled)', default=-1, type=float)
 parser.add_argument('--batchSize', help='training batch size', default=128, type=int)
 parser.add_argument('--validSize', help='validation set size', default=256, type=int)
-parser.add_argument('--validInterval', help='validation interval (traces)', default=500, type=int)
+parser.add_argument('--validInterval', help='validation interval (traces)', default=1000, type=int)
+parser.add_argument('--maxTraces', help='stop training after this many traces (-1: disabled)', default=-1, type=int)
 parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=64, type=int)
 parser.add_argument('--standardize', help='standardize observations', action='store_true')
-parser.add_argument('--resumeLatest', help='resume training of the latest artifact', action='store_true')
+parser.add_argument('--resume', help='resume training of the latest artifact', action='store_true')
 parser.add_argument('--obsEmb', help='observation embedding', choices=['fc', 'cnn6'], default='fc', type=str)
 parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=128, type=int)
 parser.add_argument('--smpEmb', help='sample embedding', choices=['fc'], default='fc', type=str)
@@ -81,7 +82,7 @@ util.log_print()
 
 with BatchRequester(opt.server) as requester:
 
-    if opt.resumeLatest:
+    if opt.resume:
         resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.dir, 'compile-artifact'), -1)
         util.log_print()
         util.log_print(colored('[] Resuming artifact', 'blue', attrs=['bold']))
@@ -167,8 +168,9 @@ with BatchRequester(opt.server) as requester:
     util.log_print('{{:{0}}}'.format(len(time_str)).format('Train. time') + ' │ ' + '{{:{0}}}'.format(len(trace_str)).format('Trace') + ' │ Training loss   │ Last valid. loss│ Best val. loss|' + '{{:{0}}}'.format(len(improvement_time_str)).format('T.since best'))
     util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(improvement_time_str))
 
+    stop = False
     requester.request_batch(opt.batchSize)
-    while True:
+    while not stop:
         batch = requester.receive_batch(artifact.standardize)
         requester.request_batch(opt.batchSize)
         artifact.polymorph(batch)
@@ -189,6 +191,9 @@ with BatchRequester(opt.server) as requester:
             train_loss = loss.data[0]
 
             trace += len(sub_batch)
+            if opt.maxTraces != -1:
+                if trace >= opt.maxTraces:
+                    stop = True
 
             artifact.total_training_seconds = prev_artifact_total_training_seconds + (time.time() - start_time)
             artifact.total_iterations = prev_artifact_total_iterations + iteration
@@ -213,7 +218,7 @@ with BatchRequester(opt.server) as requester:
             time_str = util.days_hours_mins_secs(prev_artifact_total_training_seconds + (time.time() - start_time))
             trace_str = '{:5}'.format('{:,}'.format(prev_artifact_total_traces + trace))
 
-            if trace - last_validation_trace > opt.validInterval:
+            if (trace - last_validation_trace > opt.validInterval) or stop:
                 util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(improvement_time_str))
                 sys.stdout.write('Computing validation loss...                             \r')
                 sys.stdout.flush()
@@ -256,3 +261,4 @@ with BatchRequester(opt.server) as requester:
 
             improvement_time_str = util.days_hours_mins_secs(time.time() - improvement_time)
             util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} '.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, improvement_time_str))
+    util.log_print('Stopped after {0} traces.'.format(trace))

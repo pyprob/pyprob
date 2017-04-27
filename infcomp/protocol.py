@@ -35,6 +35,9 @@ def NDArray_to_Tensor(ndarray):
     length = ndarray.ShapeLength()
     shape_np = np.frombuffer(b, offset=offset, dtype=np.dtype('int32'), count=length)
 
+    # print('data:', data_np)
+    # print('shape', shape_np)
+
     data = data_np.reshape(shape_np)
     return util.Tensor(data)
 
