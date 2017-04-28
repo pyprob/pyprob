@@ -38,6 +38,7 @@ def validate(artifact, opt, optimizer, artifact_file):
     artifact.valid_history_loss.append(valid_loss)
 
     valid_loss_best_str = '{:+.6e}'.format(artifact.valid_loss_best)
+    improved = False
     if valid_loss < artifact.valid_loss_best:
         artifact.valid_loss_best = valid_loss
         valid_loss_str = colored('{:+.6e} ▼'.format(valid_loss), 'green', attrs=['bold'])
@@ -58,8 +59,7 @@ def validate(artifact, opt, optimizer, artifact_file):
         a = Thread(target=save_artifact)
         a.start()
         a.join()
-
-        improvement_time = time.time()
+        improved = True
     elif valid_loss > artifact.valid_loss_worst:
         artifact.valid_loss_worst = valid_loss
         valid_loss_str = colored('{:+.6e} ▲'.format(valid_loss), 'red', attrs=['bold'])
@@ -69,7 +69,7 @@ def validate(artifact, opt, optimizer, artifact_file):
         valid_loss_str = colored('{:+.6e}  '.format(valid_loss), 'red')
     else:
         valid_loss_str = '{:+.6e}  '.format(valid_loss)
-    return valid_loss_str, valid_loss_best_str
+    return improved, (valid_loss_str, valid_loss_best_str)
 
 def main():
     try:
@@ -266,7 +266,9 @@ def main():
 
                     if (trace - last_validation_trace > opt.validTraces) or stop:
                         util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(improvement_time_str))
-                        valid_loss_str, valid_loss_best_str = validate(artifact, opt, optimizer, artifact_file)
+                        improved, (valid_loss_str, valid_loss_best_str) = validate(artifact, opt, optimizer, artifact_file)
+                        if improved:
+                            improvement_time = time.time()
                         last_validation_trace = trace - 1
                     improvement_time_str = util.days_hours_mins_secs(time.time() - improvement_time)
                     util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} '.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, improvement_time_str))
@@ -274,7 +276,9 @@ def main():
     except KeyboardInterrupt:
         util.log_print('Shutdown requested')
         util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(improvement_time_str))
-        valid_loss_str, valid_loss_best_str = validate(artifact, opt, optimizer, artifact_file)
+        improved, (valid_loss_str, valid_loss_best_str) = validate(artifact, opt, optimizer, artifact_file)
+        if improved:
+            improvement_time = time.time()
         last_validation_trace = trace - 1
         improvement_time_str = util.days_hours_mins_secs(time.time() - improvement_time)
         util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} '.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, improvement_time_str))
