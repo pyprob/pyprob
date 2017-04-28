@@ -240,11 +240,15 @@ class ProposalReplier(object):
         message = builder.Output()
         self.replier.send_reply(message)
 
-    def reply_proposal(self, p):
+    def reply_proposal(self, success, p):
         # allocate buffer
         builder = flatbuffers.Builder(64)
 
-        if isinstance(p, UniformDiscrete):
+        if not success:
+            infcomp.flatbuffers.ProposalReply.ProposalReplyStart(builder)
+            infcomp.flatbuffers.ProposalReply.ProposalReplyAddSuccess(builder, False)
+            message_body = infcomp.flatbuffers.ProposalReply.ProposalReplyEnd(builder)
+        elif isinstance(p, UniformDiscrete):
             # construct probabilities
             proposal_probabilities = Tensor_to_NDArray(builder, p.proposal_probabilities)
 

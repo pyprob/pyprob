@@ -125,28 +125,45 @@ def main():
 
                         previous_sample_embedding = artifact.sample_layers[(previous_sample.address, previous_sample.instance)](Variable(previous_sample.value.unsqueeze(0), volatile=True))
 
-                    t = [observe_embedding[0],
-                         previous_sample_embedding[0],
-                         artifact.one_hot_address[current_sample.address],
-                         artifact.one_hot_instance[current_sample.instance],
-                         artifact.one_hot_distribution[current_sample.distribution.name()]]
-                    t = torch.cat(t).unsqueeze(0)
-                    lstm_input = t.unsqueeze(0)
-
-                    if time_step == 0:
-                        h0 = Variable(util.Tensor(artifact.lstm_depth, 1, artifact.lstm_dim).zero_(), volatile=True)
-                        lstm_hidden_state = (h0, h0)
-                        lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
-                    else:
-                        lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
+                    success = True
 
                     if not (current_sample.address, current_sample.instance) in artifact.proposal_layers:
-                        util.log_error('Artifact has no proposal layer for: {0}, {1}'.format(current_sample.address, current_sample.instance))
+                        util.log_warning('No proposal layer for: {0}, {1}'.format(current_sample.address, current_sample.instance))
+                        success = False
+                    if not current_sample.address in artifact.one_hot_address:
+                        util.log_warning('Unknown address: {0}'.format(current_sample.address))
+                        success = False
+                    if not current_sample.instance in artifact.one_hot_instance:
+                        util.log_warning('Unknown instance: {0}'.format(current_sample.instance))
+                        success = False
+                    if not current_sample.distribution.name() in artifact.one_hot_distribution:
+                        util.log_warning('Unknown distribution: {0}'.format(current_sample.distribution.name()))
+                        success = False
 
-                    proposal_input = lstm_output[0]
-                    proposal_output = artifact.proposal_layers[(current_sample.address, current_sample.instance)](proposal_input)
-                    current_sample.distribution.set_proposalparams(proposal_output[0].data)
-                    replier.reply_proposal(current_sample.distribution)
+                    if success:
+                        t = [observe_embedding[0],
+                             previous_sample_embedding[0],
+                             artifact.one_hot_address[current_sample.address],
+                             artifact.one_hot_instance[current_sample.instance],
+                             artifact.one_hot_distribution[current_sample.distribution.name()]]
+                        t = torch.cat(t).unsqueeze(0)
+                        lstm_input = t.unsqueeze(0)
+
+                        if time_step == 0:
+                            h0 = Variable(util.Tensor(artifact.lstm_depth, 1, artifact.lstm_dim).zero_(), volatile=True)
+                            lstm_hidden_state = (h0, h0)
+                            lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
+                        else:
+                            lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
+
+                        proposal_input = lstm_output[0]
+                        proposal_output = artifact.proposal_layers[(current_sample.address, current_sample.instance)](proposal_input)
+                        current_sample.distribution.set_proposalparams(proposal_output[0].data)
+                    else:
+                        util.log_warning('Proposal will be made from the prior.')
+
+                    replier.reply_proposal(success, current_sample.distribution)
+
                     time_step += 1
     except KeyboardInterrupt:
         util.log_print('Shutdown requested')
