@@ -89,6 +89,7 @@ def main():
 
             observe = None
             observe_embedding = None
+            lstm_hidden_state = None
             time_step = 0
             spinner = util.Spinner()
             while True:
@@ -132,11 +133,11 @@ def main():
                     lstm_input = t.unsqueeze(0)
 
                     if time_step == 0:
-                        h0 = Variable(util.Tensor(artifact.lstm_depth, 1, artifact.lstm_dim).zero_())
-                        c0 = Variable(util.Tensor(artifact.lstm_depth, 1, artifact.lstm_dim).zero_())
-                        lstm_output, _ = artifact.lstm(lstm_input, (h0, c0))
+                        h0 = Variable(util.Tensor(artifact.lstm_depth, 1, artifact.lstm_dim).zero_(), volatile=True)
+                        lstm_hidden_state = (h0, h0)
+                        lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
                     else:
-                        lstm_output, _ = artifact.lstm(lstm_input)
+                        lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
 
                     if not (current_sample.address, current_sample.instance) in artifact.proposal_layers:
                         util.log_error('Artifact has no proposal layer for: {0}, {1}'.format(current_sample.address, current_sample.instance))

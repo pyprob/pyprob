@@ -391,8 +391,7 @@ class Artifact(nn.Module):
         lstm_input = torch.cat(lstm_input).view(example_trace.length, sub_batch_size, -1)
 
         h0 = Variable(util.Tensor(self.lstm_depth, sub_batch_size, self.lstm_dim).zero_(), requires_grad=False)
-        c0 = Variable(util.Tensor(self.lstm_depth, sub_batch_size, self.lstm_dim).zero_(), requires_grad=False)
-        lstm_output, _ = self.lstm(lstm_input, (h0, c0))
+        lstm_output, _ = self.lstm(lstm_input, (h0, h0))
 
         logpdf = 0
         for time_step in range(example_trace.length):
