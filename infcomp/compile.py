@@ -90,7 +90,7 @@ def main():
         parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=64, type=int)
         parser.add_argument('--standardize', help='standardize observations', action='store_true')
         parser.add_argument('--resume', help='resume training of the latest artifact', action='store_true')
-        parser.add_argument('--obsEmb', help='observation embedding', choices=['fc', 'cnn6'], default='fc', type=str)
+        parser.add_argument('--obsEmb', help='observation embedding', choices=['fc', 'cnn6', 'lstm'], default='fc', type=str)
         parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=128, type=int)
         parser.add_argument('--smpEmb', help='sample embedding', choices=['fc'], default='fc', type=str)
         parser.add_argument('--smpEmbDim', help='sample embedding dimension', default=1, type=int)
@@ -163,7 +163,7 @@ def main():
                 artifact.standardize = opt.standardize
                 artifact.one_hot_address_dim = opt.oneHotDim
                 artifact.one_hot_instance_dim = opt.oneHotDim
-                artifact.one_hot_distribution_dim = 1
+                artifact.one_hot_distribution_dim = 5
                 artifact.valid_size = opt.validSize
                 requester.request_batch(artifact.valid_size)
                 artifact.valid_batch = requester.receive_batch(artifact.standardize)

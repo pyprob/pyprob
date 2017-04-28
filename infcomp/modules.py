@@ -98,6 +98,19 @@ class ObserveEmbeddingFC(nn.Module):
         x = F.relu(self.lin2(x))
         return x
 
+class ObserveEmbeddingLSTM(nn.Module):
+    def __init__(self, input_example_non_batch, output_dim):
+        super(ObserveEmbeddingLSTM, self).__init__()
+        self.input_dim = input_example_non_batch.size(1)
+        self.output_dim = output_dim
+        self.lstm = nn.LSTM(self.input_dim, self.output_dim, 1, batch_first=True)
+    def forward(self, x):
+        batch_size = x.size(0)
+        seq_len = x.size(1)
+        h0 = Variable(util.Tensor(1, batch_size, self.output_dim).zero_(), requires_grad=False)
+        _, (x, _) = self.lstm(x, (h0, h0))
+        return x[0]
+
 class ObserveEmbeddingCNN6(nn.Module):
     def __init__(self, input_example_non_batch, output_dim):
         super(ObserveEmbeddingCNN6, self).__init__()
@@ -296,6 +309,8 @@ class Artifact(nn.Module):
         elif obs_emb == 'cnn6':
             observe_layer = ObserveEmbeddingCNN6(Variable(example_observes), obs_emb_dim)
             observe_layer.configure()
+        elif obs_emb == 'lstm':
+            observe_layer = ObserveEmbeddingLSTM(Variable(example_observes), obs_emb_dim)
         else:
             util.log_error('Unsupported observation embedding: ' + obs_emb)
 
@@ -333,7 +348,7 @@ class Artifact(nn.Module):
             util.log_print(colored('Polymorphing, new distribution    : ' + distribution_name, 'magenta', attrs=['bold']))
             i = len(self.one_hot_distribution)
             if i >= self.one_hot_distribution_dim:
-                log_error('one_hot_distribution overflow: {0}'.format(i))
+                util.log_error('one_hot_distribution overflow: {0}'.format(i))
             t = util.Tensor(self.one_hot_distribution_dim).zero_()
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_distribution[distribution_name] = Variable(t, requires_grad=False)
