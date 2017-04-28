@@ -39,7 +39,7 @@ time_stamp = util.get_time_stamp()
 util.init_logger('{0}/{1}'.format(opt.dir, 'artifact-info-log' + time_stamp))
 
 util.log_print()
-util.log_print(colored('█ Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
+util.log_print(colored('[] Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
 util.log_print()
 util.log_print('Artifact Info')
 util.log_print()
@@ -51,7 +51,7 @@ util.log_print('Command line arguments:')
 util.log_print(' '.join(sys.argv[1:]))
 
 util.log_print()
-util.log_print(colored('█ Artifact info configuration', 'blue', attrs=['bold']))
+util.log_print(colored('[] Artifact info configuration', 'blue', attrs=['bold']))
 util.log_print()
 util.log_print(pformat(vars(opt)))
 util.log_print()
@@ -61,7 +61,7 @@ artifact = torch.load(file_name)
 file_size = '{:,}'.format(os.path.getsize(file_name))
 
 util.log_print()
-util.log_print(colored('█ Artifact', 'blue', attrs=['bold']))
+util.log_print(colored('[] Artifact', 'blue', attrs=['bold']))
 util.log_print()
 
 util.check_versions(artifact)
@@ -72,14 +72,14 @@ util.log_print(artifact.get_info())
 
 if opt.structure:
     util.log_print()
-    util.log_print(colored('█ Artifact structure', 'blue', attrs=['bold']))
+    util.log_print(colored('[] Artifact structure', 'blue', attrs=['bold']))
     util.log_print()
 
     util.log_print(artifact.get_structure())
 
 if opt.showPlot or opt.savePlot:
     util.log_print()
-    util.log_print(colored('█ Loss plot', 'blue', attrs=['bold']))
+    util.log_print(colored('[] Loss plot', 'blue', attrs=['bold']))
     util.log_print()
     fig = plt.figure()
     ax = plt.subplot(111)

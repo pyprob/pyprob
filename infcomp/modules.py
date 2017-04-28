@@ -249,7 +249,7 @@ class Artifact(nn.Module):
                           colored('Distributions         : {0}'.format(distributions), 'yellow')])
         return info
 
-    def polymorph(self, batch=None):
+    def polymorph(self, cuda, batch=None):
         if batch is None:
             batch = self.valid_batch
 
@@ -296,6 +296,8 @@ class Artifact(nn.Module):
             for p in self.parameters():
                 self.num_parameters += p.nelement()
             util.log_print(colored('Polymorphing, new trainable params: {:,}'.format(self.num_parameters), 'magenta', attrs=['bold']))
+            if cuda:
+                self.cuda()
 
     def set_sample_embedding(self, smp_emb, smp_emb_dim):
         self.smp_emb = smp_emb

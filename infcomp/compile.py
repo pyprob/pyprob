@@ -24,6 +24,7 @@ import datetime
 import time
 from pprint import pformat
 import os
+import traceback
 from threading import Thread
 
 def validate(artifact, opt, optimizer, artifact_file):
@@ -175,9 +176,7 @@ def main():
 
                 artifact.softmax_boost = opt.softmaxBoost
 
-                artifact.polymorph()
-                if opt.cuda:
-                    artifact.cuda()
+                artifact.polymorph(opt.cuda)
 
             if opt.optimizer == 'adam':
                 optimizer = optim.Adam(artifact.parameters(), lr=opt.learningRate, weight_decay=opt.weightDecay)
@@ -220,7 +219,7 @@ def main():
             while not stop:
                 batch = requester.receive_batch(artifact.standardize)
                 requester.request_batch(opt.batchSize)
-                artifact.polymorph(batch)
+                artifact.polymorph(opt.cuda, batch)
 
                 for sub_batch in batch:
                     iteration += 1

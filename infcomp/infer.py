@@ -20,6 +20,7 @@ import datetime
 import sys
 from pprint import pformat
 import os
+import traceback
 
 parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Inference Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--version', help='show version information', action='store_true')
