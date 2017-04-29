@@ -105,6 +105,7 @@ def main():
 
                     if opt.debug:
                         util.log_print('ObservesInitRequest')
+                        util.log_print('Time: reset')
                         util.log_print('observes: {0}'.format(str(obs.size())))
                         util.log_print()
                 else:
@@ -118,14 +119,11 @@ def main():
                     prev_instance = prev_sample.instance
                     prev_distribution = prev_sample.distribution
 
-                    # print(prev_sample)
-                    # print(current_sample)
-
                     if opt.debug:
                         util.log_print('ProposalRequest')
                         util.log_print('Time: {0}'.format(time_step))
                         util.log_print('Previous  address          : {0}, instance: {1}, distribution: {2}, value: {3}'.format(prev_address, prev_instance, prev_distribution, prev_sample.value.size()))
-                        util.log_print('Current (requested) address: {0}, instance: {1}, distribution: {2}'.format(current_address, current_instance, current_distribution.name()))
+                        util.log_print('Current (requested) address: {0}, instance: {1}, distribution: {2}'.format(current_address, current_instance, current_distribution))
                         util.log_print()
 
                     success = True
