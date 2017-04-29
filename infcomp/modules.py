@@ -174,6 +174,9 @@ class Artifact(nn.Module):
         self.one_hot_address_dim = None
         self.one_hot_instance_dim = None
         self.one_hot_distribution_dim = None
+        self.one_hot_address_empty = None
+        self.one_hot_instance_empty = None
+        self.one_hot_distribution_empty = None
         self.valid_size = None
         self.valid_batch = None
         self.lstm_dim = None
@@ -249,7 +252,7 @@ class Artifact(nn.Module):
                           colored('Distributions         : {0}'.format(distributions), 'yellow')])
         return info
 
-    def polymorph(self, cuda, batch=None):
+    def polymorph(self, batch=None):
         if batch is None:
             batch = self.valid_batch
 
@@ -296,8 +299,8 @@ class Artifact(nn.Module):
             for p in self.parameters():
                 self.num_parameters += p.nelement()
             util.log_print(colored('Polymorphing, new trainable params: {:,}'.format(self.num_parameters), 'magenta', attrs=['bold']))
-            if cuda:
-                self.cuda()
+        if self.on_cuda:
+            self.cuda()
 
     def set_sample_embedding(self, smp_emb, smp_emb_dim):
         self.smp_emb = smp_emb
@@ -321,8 +324,16 @@ class Artifact(nn.Module):
     def set_lstm(self, lstm_dim, lstm_depth):
         self.lstm_dim = lstm_dim
         self.lstm_depth = lstm_depth
-        self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + self.one_hot_address_dim + self.one_hot_instance_dim + self.one_hot_distribution_dim
+        self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + 2 * (self.one_hot_address_dim + self.one_hot_instance_dim) + self.one_hot_distribution_dim
         self.lstm = nn.LSTM(self.lstm_input_dim, lstm_dim, lstm_depth)
+
+    def set_one_hot_dims(self, one_hot_address_dim, one_hot_instance_dim, one_hot_distribution_dim):
+        self.one_hot_address_dim =one_hot_address_dim
+        self.one_hot_instance_dim = one_hot_instance_dim
+        self.one_hot_distribution_dim = one_hot_distribution_dim
+        self.one_hot_address_empty = Variable(util.Tensor(self.one_hot_address_dim).zero_(), requires_grad=False)
+        self.one_hot_instance_empty = Variable(util.Tensor(self.one_hot_instance_dim).zero_(), requires_grad=False)
+        self.one_hot_distribution_empty = Variable(util.Tensor(self.one_hot_distribution_dim).zero_(), requires_grad=False)
 
     def add_one_hot_address(self, address):
         if not address in self.one_hot_address:
@@ -382,27 +393,44 @@ class Artifact(nn.Module):
 
         lstm_input = []
         for time_step in range(example_trace.length):
-            sample = example_trace.samples[time_step]
-            address = sample.address
-            instance = sample.instance
-            distribution = sample.distribution
+            current_sample = example_trace.samples[time_step]
+            current_address = current_sample.address
+            current_instance = current_sample.instance
+            current_distribution = current_sample.distribution
+
+            current_one_hot_address = self.one_hot_address[current_address]
+            current_one_hot_instance = self.one_hot_instance[current_instance]
+            current_one_hot_distribution = self.one_hot_distribution[current_distribution.name()]
 
             if time_step == 0:
-                sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).zero_(), requires_grad=False)
+                prev_sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).zero_(), requires_grad=False)
+
+                prev_one_hot_address = self.one_hot_address_empty
+                prev_one_hot_instance = self.one_hot_instance_empty
+                # prev_one_hot_distribution = self.one_hot_distribution_empty
             else:
                 prev_sample = example_trace.samples[time_step - 1]
                 prev_address = prev_sample.address
                 prev_instance = prev_sample.instance
+                prev_distribution = prev_sample.distribution
                 smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, prev_sample.value.nelement())
-                sample_embedding = self.sample_layers[(prev_address, prev_instance)](Variable(smp, requires_grad=False))
+                prev_sample_embedding = self.sample_layers[(prev_address, prev_instance)](Variable(smp, requires_grad=False))
+
+                prev_one_hot_address = self.one_hot_address[prev_address]
+                prev_one_hot_instance = self.one_hot_instance[prev_instance]
+                # prev_one_hot_distribution = self.one_hot_distribution[prev_distribution.name()]
+
 
             t = []
             for b in range(sub_batch_size):
                 t.append(torch.cat([observe_embedding[b],
-                               sample_embedding[b],
-                               self.one_hot_address[address],
-                               self.one_hot_instance[instance],
-                               self.one_hot_distribution[distribution.name()]]))
+                                    prev_sample_embedding[b],
+                                    prev_one_hot_address,
+                                    prev_one_hot_instance,
+                                    # prev_one_hot_distribution,
+                                    current_one_hot_address,
+                                    current_one_hot_instance,
+                                    current_one_hot_distribution]))
             t = torch.cat(t).view(sub_batch_size, -1)
             lstm_input.append(t)
         lstm_input = torch.cat(lstm_input).view(example_trace.length, sub_batch_size, -1)
@@ -412,21 +440,21 @@ class Artifact(nn.Module):
 
         logpdf = 0
         for time_step in range(example_trace.length):
-            sample = example_trace.samples[time_step]
-            address = sample.address
-            instance = sample.instance
-            distribution = sample.distribution
+            current_sample = example_trace.samples[time_step]
+            current_address = current_sample.address
+            current_instance = current_sample.instance
+            current_distribution = current_sample.distribution
 
             proposal_input = lstm_output[time_step]
-            proposal_output = self.proposal_layers[(address, instance)](proposal_input)
+            proposal_output = self.proposal_layers[(current_address, current_instance)](proposal_input)
 
-            if isinstance(distribution, UniformDiscrete):
+            if isinstance(current_distribution, UniformDiscrete):
                 log_weights = torch.log(proposal_output + util.epsilon)
                 for b in range(sub_batch_size):
                     value = sub_batch[b].samples[time_step].value[0]
                     min = sub_batch[b].samples[time_step].distribution.prior_min
                     logpdf += log_weights[b, int(value) - min] # Should we average this over dimensions? See http://pytorch.org/docs/nn.html#torch.nn.KLDivLoss
-            elif isinstance(distribution, Normal):
+            elif isinstance(current_distribution, Normal):
                 means = proposal_output[:, 0]
                 stds = proposal_output[:, 1]
 
@@ -442,7 +470,7 @@ class Artifact(nn.Module):
                     two_std_square = two_std_squares[b]
                     half_log_two_pi_std_square = half_log_two_pi_std_squares[b]
                     logpdf -= half_log_two_pi_std_square + ((value - mean)**2) / two_std_square
-            elif isinstance(distribution, Flip):
+            elif isinstance(current_distribution, Flip):
                 log_probabilities = torch.log(proposal_output + util.epsilon)
                 log_one_minus_probabilities = torch.log(1 - proposal_output + util.epsilon)
                 for b in range(sub_batch_size):
@@ -451,17 +479,17 @@ class Artifact(nn.Module):
                         logpdf += log_probabilities[b]
                     else:
                         logpdf += log_one_minus_probabilities[b]
-            elif isinstance(distribution, Discrete):
+            elif isinstance(current_distribution, Discrete):
                 log_weights = torch.log(proposal_output + util.epsilon)
                 for b in range(sub_batch_size):
                     value = sub_batch[b].samples[time_step].value[0]
                     logpdf += log_weights[b, int(value)]
-            elif isinstance(distribution, Categorical):
+            elif isinstance(current_distribution, Categorical):
                 log_weights = torch.log(proposal_output + util.epsilon)
                 for b in range(sub_batch_size):
                     value = sub_batch[b].samples[time_step].value[0]
                     logpdf += log_weights[b, int(value)]
             else:
-                util.log_error('Unsupported distribution: ' + distribution.name())
+                util.log_error('Unsupported distribution: ' + current_distribution.name())
 
         return -logpdf / sub_batch_size

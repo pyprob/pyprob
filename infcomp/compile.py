@@ -162,9 +162,7 @@ def main():
                 artifact = Artifact()
                 artifact.on_cuda = opt.cuda
                 artifact.standardize = opt.standardize
-                artifact.one_hot_address_dim = opt.oneHotDim
-                artifact.one_hot_instance_dim = opt.oneHotDim
-                artifact.one_hot_distribution_dim = 5
+                artifact.set_one_hot_dims(opt.oneHotDim, opt.oneHotDim, 5)
                 artifact.valid_size = opt.validSize
                 requester.request_batch(artifact.valid_size)
                 artifact.valid_batch = requester.receive_batch(artifact.standardize)
@@ -176,7 +174,7 @@ def main():
 
                 artifact.softmax_boost = opt.softmaxBoost
 
-                artifact.polymorph(opt.cuda)
+                artifact.polymorph()
 
             if opt.optimizer == 'adam':
                 optimizer = optim.Adam(artifact.parameters(), lr=opt.learningRate, weight_decay=opt.weightDecay)
@@ -219,7 +217,7 @@ def main():
             while not stop:
                 batch = requester.receive_batch(artifact.standardize)
                 requester.request_batch(opt.batchSize)
-                artifact.polymorph(opt.cuda, batch)
+                artifact.polymorph(batch)
 
                 for sub_batch in batch:
                     iteration += 1
