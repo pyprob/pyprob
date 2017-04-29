@@ -324,7 +324,7 @@ class Artifact(nn.Module):
     def set_lstm(self, lstm_dim, lstm_depth):
         self.lstm_dim = lstm_dim
         self.lstm_depth = lstm_depth
-        self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + 2 * (self.one_hot_address_dim + self.one_hot_instance_dim) + self.one_hot_distribution_dim
+        self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + 2 * (self.one_hot_address_dim + self.one_hot_instance_dim + self.one_hot_distribution_dim)
         self.lstm = nn.LSTM(self.lstm_input_dim, lstm_dim, lstm_depth)
 
     def set_one_hot_dims(self, one_hot_address_dim, one_hot_instance_dim, one_hot_distribution_dim):
@@ -407,7 +407,7 @@ class Artifact(nn.Module):
 
                 prev_one_hot_address = self.one_hot_address_empty
                 prev_one_hot_instance = self.one_hot_instance_empty
-                # prev_one_hot_distribution = self.one_hot_distribution_empty
+                prev_one_hot_distribution = self.one_hot_distribution_empty
             else:
                 prev_sample = example_trace.samples[time_step - 1]
                 prev_address = prev_sample.address
@@ -418,7 +418,7 @@ class Artifact(nn.Module):
 
                 prev_one_hot_address = self.one_hot_address[prev_address]
                 prev_one_hot_instance = self.one_hot_instance[prev_instance]
-                # prev_one_hot_distribution = self.one_hot_distribution[prev_distribution.name()]
+                prev_one_hot_distribution = self.one_hot_distribution[prev_distribution.name()]
 
 
             t = []
@@ -427,7 +427,7 @@ class Artifact(nn.Module):
                                     prev_sample_embedding[b],
                                     prev_one_hot_address,
                                     prev_one_hot_instance,
-                                    # prev_one_hot_distribution,
+                                    prev_one_hot_distribution,
                                     current_one_hot_address,
                                     current_one_hot_instance,
                                     current_one_hot_distribution]))

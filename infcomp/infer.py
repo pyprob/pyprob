@@ -118,10 +118,14 @@ def main():
                     prev_instance = prev_sample.instance
                     prev_distribution = prev_sample.distribution
 
+                    # print(prev_sample)
+                    # print(current_sample)
+
                     if opt.debug:
                         util.log_print('ProposalRequest')
-                        util.log_print('Current (requested) address: {0}, instance: {1}, distribution: {2}'.format(current_address, current_instance, current_distribution.name()))
+                        util.log_print('Time: {0}'.format(time_step))
                         util.log_print('Previous  address          : {0}, instance: {1}, distribution: {2}, value: {3}'.format(prev_address, prev_instance, prev_distribution, prev_sample.value.size()))
+                        util.log_print('Current (requested) address: {0}, instance: {1}, distribution: {2}'.format(current_address, current_instance, current_distribution.name()))
                         util.log_print()
 
                     success = True
@@ -149,7 +153,7 @@ def main():
 
                         prev_one_hot_address = artifact.one_hot_address_empty
                         prev_one_hot_instance = artifact.one_hot_instance_empty
-                        # prev_one_hot_distribution = artifact.one_hot_distribution_empty
+                        prev_one_hot_distribution = artifact.one_hot_distribution_empty
                     else:
                         if (prev_address, prev_instance) in artifact.sample_layers:
                             prev_sample_embedding = artifact.sample_layers[(prev_address, prev_instance)](Variable(prev_sample.value.unsqueeze(0), volatile=True))
@@ -167,18 +171,18 @@ def main():
                         else:
                             util.log_warning('Unknown instance (previous): {0}'.format(prev_instance))
                             success = False
-                        # if prev_distribution.name() in artifact.one_hot_distribution:
-                        #     prev_one_hot_distribution = artifact.one_hot_distribution[prev_distribution.name()]
-                        # else:
-                        #     util.log_warning('Unknown distribution (previous): {0}'.format(prev_distribution.name()))
-                        #     success = False
+                        if prev_distribution.name() in artifact.one_hot_distribution:
+                            prev_one_hot_distribution = artifact.one_hot_distribution[prev_distribution.name()]
+                        else:
+                            util.log_warning('Unknown distribution (previous): {0}'.format(prev_distribution.name()))
+                            success = False
 
                     if success:
                         t = [observe_embedding[0],
                              prev_sample_embedding[0],
                              prev_one_hot_address,
                              prev_one_hot_instance,
-                            #  prev_one_hot_distribution,
+                             prev_one_hot_distribution,
                              current_one_hot_address,
                              current_one_hot_instance,
                              current_one_hot_distribution]
