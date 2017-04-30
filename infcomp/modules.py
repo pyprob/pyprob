@@ -408,7 +408,7 @@ class Artifact(nn.Module):
             loss += self.loss(sub_batch)
         return loss.data[0] / len(self.valid_batch)
 
-    def loss(self, sub_batch):
+    def loss(self, sub_batch, data_parallel=False):
         gc.collect()
         sub_batch_size = len(sub_batch)
         example_observes = sub_batch[0].observes
@@ -423,10 +423,11 @@ class Artifact(nn.Module):
         else:
             util.log_error('Unsupported observation shape: {0}'.format(example_observes.size()))
 
-        if self.on_cuda:
-            observe_embedding = torch.nn.DataParallel(self.observe_layer)(Variable(obs, requires_grad=False))
+        obs_var = Variable(obs, requires_grad=False)
+        if data_parallel and self.on_cuda:
+            observe_embedding = torch.nn.DataParallel(self.observe_layer)(obs_var)
         else:
-            observe_embedding = self.observe_layer(Variable(obs, requires_grad=False))
+            observe_embedding = self.observe_layer(obs_var)
 
         example_trace = sub_batch[0]
 
@@ -453,7 +454,13 @@ class Artifact(nn.Module):
                 prev_instance = prev_sample.instance
                 prev_distribution = prev_sample.distribution
                 smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, prev_sample.value.nelement())
-                prev_sample_embedding = self.sample_layers[(prev_address, prev_instance)](Variable(smp, requires_grad=False))
+
+                smp_var = Variable(smp, requires_grad=False)
+                sample_layer = self.sample_layers[(prev_address, prev_instance)]
+                if data_parallel and self.on_cuda:
+                    prev_sample_embedding = torch.nn.DataParallel(sample_layer)(smp_var)
+                else:
+                    prev_sample_embedding = sample_layer(smp_var)
 
                 prev_one_hot_address = self.one_hot_address[prev_address]
                 prev_one_hot_instance = self.one_hot_instance[prev_instance]
@@ -474,8 +481,8 @@ class Artifact(nn.Module):
         lstm_input = torch.cat(lstm_input).view(example_trace.length, sub_batch_size, -1)
 
         h0 = Variable(util.Tensor(self.lstm_depth, sub_batch_size, self.lstm_dim).zero_(), requires_grad=False)
-        if self.on_cuda:
-            lstm_output, _ = torch.nn.DataParallel(self.lstm)(lstm_input, (h0, h0))
+        if data_parallel and self.on_cuda:
+            lstm_output, _ = torch.nn.DataParallel(self.lstm, dim=1)(lstm_input, (h0, h0))
         else:
             lstm_output, _ = self.lstm(lstm_input, (h0, h0))
 
@@ -487,10 +494,11 @@ class Artifact(nn.Module):
             current_distribution = current_sample.distribution
 
             proposal_input = lstm_output[time_step]
-            if self.on_cuda:
-                proposal_output = torch.nn.DataParallel(self.proposal_layers[(current_address, current_instance)])(proposal_input)
+            proposal_layer = self.proposal_layers[(current_address, current_instance)]
+            if data_parallel and self.on_cuda:
+                proposal_output = torch.nn.DataParallel(proposal_layer)(proposal_input)
             else:
-                proposal_output = self.proposal_layers[(current_address, current_instance)](proposal_input)
+                proposal_output = proposal_layer(proposal_input)
 
             if isinstance(current_distribution, UniformDiscrete):
                 log_weights = torch.log(proposal_output + util.epsilon)

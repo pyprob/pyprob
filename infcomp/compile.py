@@ -77,6 +77,7 @@ def main():
         parser.add_argument('--dir', help='directory to save artifacts and logs', default='.')
         parser.add_argument('--cuda', help='use CUDA', action='store_true')
         parser.add_argument('--device', help='selected CUDA device (-1: all, 0: 1st device, 1: 2nd device, etc.)', default=-1, type=int)
+        parser.add_argument('--parallel', help='parallelize on CUDA using DataParallel', action='store_true')
         parser.add_argument('--seed', help='random seed', default=4, type=int)
         parser.add_argument('--server', help='address of the probprog model server', default='tcp://127.0.0.1:5555')
         parser.add_argument('--optimizer', help='optimizer for training the artifact', choices=['adam', 'sgd'], default='adam', type=str)
@@ -202,7 +203,7 @@ def main():
 
                     artifact.train()
                     optimizer.zero_grad()
-                    loss = artifact.loss(sub_batch)
+                    loss = artifact.loss(sub_batch, opt.parallel)
                     loss.backward()
                     if opt.clip > 0:
                         torch.nn.utils.clip_grad_norm(artifact.parameters(), opt.clip)
