@@ -366,21 +366,21 @@ class Artifact(nn.Module):
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_distribution[distribution_name] = Variable(t, requires_grad=False)
 
-    def move_to_cuda(self):
+    def move_to_cuda(self, device_id=None):
         self.on_cuda = True
-        self.cuda(opt.device)
-        self.one_hot_address_empty = self.one_hot_address_empty.cuda(opt.device)
-        self.one_hot_instance_empty = self.one_hot_instance_empty.cuda(opt.device)
-        self.one_hot_distribution_empty = self.one_hot_distribution_empty.cuda(opt.device)
+        self.cuda(device_id)
+        self.one_hot_address_empty = self.one_hot_address_empty.cuda(device_id)
+        self.one_hot_instance_empty = self.one_hot_instance_empty.cuda(device_id)
+        self.one_hot_distribution_empty = self.one_hot_distribution_empty.cuda(device_id)
         for k, t in self.one_hot_address.items():
-            self.one_hot_address[k] = t.cuda(opt.device)
+            self.one_hot_address[k] = t.cuda(device_id)
         for k, t in self.one_hot_instance.items():
-            self.one_hot_instance[k] = t.cuda(opt.device)
+            self.one_hot_instance[k] = t.cuda(device_id)
         for k, t in self.one_hot_distribution.items():
-            self.one_hot_distribution[k] = t.cuda(opt.device)
+            self.one_hot_distribution[k] = t.cuda(device_id)
         for sub_batch in self.valid_batch:
             for trace in sub_batch:
-                trace.cuda(opt.device)
+                trace.cuda(device_id)
         self.optimizer_state = None
 
     def move_to_cpu(self):

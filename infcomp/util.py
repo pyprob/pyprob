@@ -136,10 +136,10 @@ def load_artifact(file_name, cuda=False, print_info=True):
         log_print()
 
     if cuda:
+        artifact.move_to_cuda(opt.device) # we do this even if the artifact is already on CUDA, to support moving between different CUDA devices
         if not artifact.on_cuda:
             log_warning('Loading CPU artifact to CUDA')
             log_print()
-            artifact.move_to_cuda()
     else:
         if artifact.on_cuda:
             log_warning('Loading CUDA artifact to CPU')
