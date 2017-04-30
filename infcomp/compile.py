@@ -31,7 +31,7 @@ def validate(artifact, opt, optimizer, artifact_file):
     sys.stdout.flush()
 
     artifact.eval()
-    valid_loss = artifact.valid_loss()
+    valid_loss = artifact.valid_loss(opt.parallel)
 
     artifact.valid_history_trace.append(artifact.total_traces)
     artifact.valid_history_loss.append(valid_loss)
@@ -167,7 +167,7 @@ def main():
             improvement_time = start_time
             train_loss_str = '               '
             if artifact.valid_loss_best is None:
-                artifact.valid_loss_best = artifact.valid_loss()
+                artifact.valid_loss_best = artifact.valid_loss(opt.parallel)
             if artifact.valid_loss_worst is None:
                 artifact.valid_loss_worst = artifact.valid_loss_best
             if artifact.valid_loss_initial is None:

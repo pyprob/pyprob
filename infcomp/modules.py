@@ -402,10 +402,10 @@ class Artifact(nn.Module):
                 trace.cpu()
         self.optimizer_state = None
 
-    def valid_loss(self):
+    def valid_loss(self, data_parallel=False):
         loss = 0
         for sub_batch in self.valid_batch:
-            loss += self.loss(sub_batch)
+            loss += self.loss(sub_batch, data_parallel)
         return loss.data[0] / len(self.valid_batch)
 
     def loss(self, sub_batch, data_parallel=False):
