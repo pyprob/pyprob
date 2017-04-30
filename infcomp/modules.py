@@ -300,7 +300,7 @@ class Artifact(nn.Module):
                 self.num_parameters += p.nelement()
             util.log_print(colored('Polymorphing, new trainable params: {:,}'.format(self.num_parameters), 'magenta', attrs=['bold']))
         if self.on_cuda:
-            self.cuda(opt.device)
+            self.cuda(torch.cuda.current_device())
 
     def set_sample_embedding(self, smp_emb, smp_emb_dim):
         self.smp_emb = smp_emb
