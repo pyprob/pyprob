@@ -89,6 +89,11 @@ def init(opt, mode=''):
     log_print(pformat(vars(opt)))
     log_print()
 
+    if opt.visdom:
+        import visdom
+        global vis
+        vis = visdom.Visdom()
+
 def init_logger(file_name):
     global logger
     logger = logging.getLogger()

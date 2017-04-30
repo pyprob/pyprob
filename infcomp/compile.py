@@ -100,6 +100,7 @@ def main():
         parser.add_argument('--lstmDepth', help='number of stacked lstms', default=2, type=int)
         parser.add_argument('--softmaxBoost', help='multiplier before softmax', default=20.0, type=float)
         parser.add_argument('--keepArtifacts', help='keep all previously best artifacts during training, do not overwrite', action='store_true')
+        parser.add_argument('--visdom', help='use Visdom for visualizations', action='store_true')
         opt = parser.parse_args()
 
         if opt.version:
@@ -110,6 +111,9 @@ def main():
         artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
         util.init_logger('{0}/{1}'.format(opt.dir, 'infcomp-compile-log' + time_stamp))
         util.init(opt, 'Compilation Mode')
+
+        if opt.visdom:
+            util.vis.close()
 
         with BatchRequester(opt.server) as requester:
             if opt.resume:
@@ -183,6 +187,26 @@ def main():
             util.log_print(colored('[] Training from ' + opt.server, 'blue', attrs=['bold']))
             util.log_print()
 
+            if opt.visdom:
+                if len(artifact.train_history_trace) == 0:
+                    x = torch.zeros(1)
+                    y = torch.Tensor([artifact.valid_history_loss[-1]])
+                else:
+                    x = torch.Tensor(artifact.train_history_trace)
+                    y = torch.Tensor(artifact.train_history_loss)
+                vis_train_loss = util.vis.line(X=x, Y=y, opts=dict(title='Training loss',
+                                                                   xlabel='Trace',
+                                                                   ylabel='Loss'))
+                if len(artifact.valid_history_trace) == 0:
+                    x = torch.zeros(1)
+                    y = torch.Tensor([artifact.valid_history_loss[-1]])
+                else:
+                    x = torch.Tensor(artifact.valid_history_trace)
+                    y = torch.Tensor(artifact.valid_history_loss)
+                vis_valid_loss = util.vis.line(X=x, Y=y, opts=dict(title='Validation loss',
+                                                                   xlabel='Trace',
+                                                                   ylabel='Loss'))
+
             time_str = util.days_hours_mins_secs(prev_artifact_total_training_seconds + (time.time() - start_time))
             improvement_time_str = util.days_hours_mins_secs(time.time() - improvement_time)
             trace_str = '{:5}'.format('{:,}'.format(prev_artifact_total_traces + trace))
@@ -223,6 +247,11 @@ def main():
                     artifact.train_history_trace.append(artifact.total_traces)
                     artifact.train_history_loss.append(train_loss)
 
+                    if opt.visdom:
+                        x = torch.Tensor([artifact.train_history_trace[-1]])
+                        y = torch.Tensor([artifact.train_history_loss[-1]])
+                        util.vis.line(X=x, Y=y, win=vis_train_loss, update='append')
+
                     if train_loss < artifact.train_loss_best:
                         artifact.train_loss_best = train_loss
                         train_loss_str = colored('{:+.6e} ▼'.format(train_loss), 'green', attrs=['bold'])
@@ -245,6 +274,11 @@ def main():
                         if improved:
                             improvement_time = time.time()
                         last_validation_trace = trace - 1
+                        if opt.visdom:
+                            x = torch.Tensor([artifact.valid_history_trace[-1]])
+                            y = torch.Tensor([artifact.valid_history_loss[-1]])
+                            util.vis.line(X=x, Y=y, win=vis_valid_loss, update='append')
+
                     improvement_time_str = util.days_hours_mins_secs(time.time() - improvement_time)
                     util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} '.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, improvement_time_str))
             util.log_print('Stopped after {0} traces'.format(trace))
