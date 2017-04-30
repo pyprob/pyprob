@@ -202,10 +202,15 @@ def main():
 
                     artifact.train()
                     optimizer.zero_grad()
-                    art = artifact
+                    # art = artifact
+                    # if opt.cuda:
+                    #     art = torch.nn.DataParallel(artifact)
+                    # loss = art(sub_batch)
                     if opt.cuda:
-                        art = torch.nn.DataParallel(artifact)
-                    loss = art(sub_batch)
+                        from torch.nn.parallel import data_parallel
+                        loss = data_parallel(artifact, sub_batch, list(range(torch.cuda.device_count())))
+                    else:
+                        loss = artifact(sub_batch)
                     loss.backward()
                     if opt.clip > 0:
                         torch.nn.utils.clip_grad_norm(artifact.parameters(), opt.clip)
