@@ -405,10 +405,10 @@ class Artifact(nn.Module):
     def valid_loss(self):
         loss = 0
         for sub_batch in self.valid_batch:
-            loss += self.loss(sub_batch)
+            loss += self.forward(sub_batch)
         return loss.data[0] / len(self.valid_batch)
 
-    def loss(self, sub_batch):
+    def forward(self, sub_batch):
         gc.collect()
         sub_batch_size = len(sub_batch)
         example_observes = sub_batch[0].observes
