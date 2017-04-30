@@ -165,6 +165,7 @@ class Artifact(nn.Module):
         self.created = datetime.datetime.now()
         self.modified = datetime.datetime.now()
         self.on_cuda = None
+        self.cuda_device_id = None
         self.code_version = infcomp.__version__
         self.pytorch_version = torch.__version__
         self.standardize = True
@@ -300,7 +301,7 @@ class Artifact(nn.Module):
                 self.num_parameters += p.nelement()
             util.log_print(colored('Polymorphing, new trainable params: {:,}'.format(self.num_parameters), 'magenta', attrs=['bold']))
         if self.on_cuda:
-            self.cuda(opt.device)
+            self.cuda(self.cuda_device_id)
 
     def set_sample_embedding(self, smp_emb, smp_emb_dim):
         self.smp_emb = smp_emb
@@ -368,6 +369,7 @@ class Artifact(nn.Module):
 
     def move_to_cuda(self, device_id=None):
         self.on_cuda = True
+        self.cuda_device_id = device_id
         self.cuda(device_id)
         self.one_hot_address_empty = self.one_hot_address_empty.cuda(device_id)
         self.one_hot_instance_empty = self.one_hot_instance_empty.cuda(device_id)

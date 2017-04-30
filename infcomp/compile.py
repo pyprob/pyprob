@@ -136,6 +136,7 @@ def main():
 
                 artifact = Artifact()
                 artifact.on_cuda = opt.cuda
+                artifact.cuda_device_id = opt.device
                 artifact.standardize = opt.standardize
                 artifact.set_one_hot_dims(opt.oneHotDim, opt.oneHotDim, 5)
                 artifact.valid_size = opt.validSize
