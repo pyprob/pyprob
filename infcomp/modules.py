@@ -405,10 +405,10 @@ class Artifact(nn.Module):
     def valid_loss(self):
         loss = 0
         for sub_batch in self.valid_batch:
-            loss += self.forward(sub_batch)
+            loss += self.loss(sub_batch)
         return loss.data[0] / len(self.valid_batch)
 
-    def forward(self, sub_batch):
+    def loss(self, sub_batch):
         gc.collect()
         sub_batch_size = len(sub_batch)
         example_observes = sub_batch[0].observes
@@ -423,7 +423,10 @@ class Artifact(nn.Module):
         else:
             util.log_error('Unsupported observation shape: {0}'.format(example_observes.size()))
 
-        observe_embedding = self.observe_layer(Variable(obs, requires_grad=False))
+        if self.on_cuda:
+            observe_embedding = torch.nn.DataParallel(self.observe_layer)(Variable(obs, requires_grad=False))
+        else:
+            observe_embedding = self.observe_layer(Variable(obs, requires_grad=False))
 
         example_trace = sub_batch[0]
 
