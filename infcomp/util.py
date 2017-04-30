@@ -35,6 +35,7 @@ def init(opt, mode=''):
     global Tensor
     torch.manual_seed(opt.seed)
     if torch.cuda.is_available() and opt.cuda:
+        torch.cuda.set_device(opt.device)
         torch.cuda.manual_seed(opt.seed)
         torch.backends.cudnn.enabled = True
         Tensor = torch.cuda.FloatTensor
