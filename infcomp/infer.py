@@ -22,67 +22,46 @@ from pprint import pformat
 import os
 import traceback
 
-parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Inference Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('-v', '--version', help='show version information', action='store_true')
-parser.add_argument('--dir', help='directory to save artifacts and logs', default='.')
-parser.add_argument('--nth', help='show the nth artifact (-1: last)', type=int, default=-1)
-parser.add_argument('--cuda', help='use CUDA', action='store_true')
-parser.add_argument('--seed', help='random seed', default=4, type=int)
-parser.add_argument('--debug', help='show debugging information as requests arrive', action='store_true')
-parser.add_argument('--server', help='address and port to bind this inference server', default='tcp://127.0.0.1:6666')
-opt = parser.parse_args()
-
-if opt.version:
-    print(infcomp.__version__)
-    quit()
-
-time_stamp = util.get_time_stamp()
-util.init_logger('{0}/{1}'.format(opt.dir, 'artifact-info-log' + time_stamp))
-util.init(opt)
-
-util.log_print()
-util.log_print(colored('[] Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
-util.log_print()
-util.log_print('Inference Engine')
-util.log_print()
-util.log_print('Started ' +  str(datetime.datetime.now()))
-util.log_print()
-util.log_print('Running on PyTorch ' + torch.__version__)
-util.log_print()
-util.log_print('Command line arguments:')
-util.log_print(' '.join(sys.argv[1:]))
-
-util.log_print()
-util.log_print(colored('[] Inference configuration', 'blue', attrs=['bold']))
-util.log_print()
-util.log_print(pformat(vars(opt)))
-util.log_print()
-
 def main():
     try:
-        with ProposalReplier(opt.server) as replier:
-            file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'compile-artifact'), opt.nth)
-            artifact = torch.load(file_name)
-            file_size = '{:,}'.format(os.path.getsize(file_name))
+        parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Inference Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        parser.add_argument('-v', '--version', help='show version information', action='store_true')
+        parser.add_argument('--dir', help='directory to save artifacts and logs', default='.')
+        parser.add_argument('--nth', help='show the nth artifact (-1: last)', type=int, default=-1)
+        parser.add_argument('--cuda', help='use CUDA', action='store_true')
+        parser.add_argument('--device', help='selected CUDA device (-1: all, 0: 1st device, 1: 2nd device, etc.)', default=-1, type=int)
+        parser.add_argument('--seed', help='random seed', default=4, type=int)
+        parser.add_argument('--debug', help='show debugging information as requests arrive', action='store_true')
+        parser.add_argument('--server', help='address and port to bind this inference server', default='tcp://127.0.0.1:6666')
+        opt = parser.parse_args()
 
+        if opt.version:
+            print(infcomp.__version__)
+            quit()
+
+        time_stamp = util.get_time_stamp()
+        util.init_logger('{0}/{1}'.format(opt.dir, 'infcomp-infer-log' + time_stamp))
+        util.init(opt)
+
+        util.log_print()
+        util.log_print(colored('[] Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
+        util.log_print()
+        util.log_print('Inference Engine')
+        util.log_print()
+        util.log_configuration(opt)
+
+        with ProposalReplier(opt.server) as replier:
             util.log_print()
             util.log_print(colored('[] Loaded artifact', 'blue', attrs=['bold']))
             util.log_print()
 
-            artifact = torch.load(file_name)
+            file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'infcomp-artifact'), opt.nth)
+            artifact = util.load_artifact(file_name, opt.cuda)
+
             prev_artifact_total_traces = artifact.total_traces
             prev_artifact_total_iterations = artifact.total_iterations
             prev_artifact_total_training_seconds = artifact.total_training_seconds
 
-            util.check_versions(artifact)
-
-            file_size = '{:,}'.format(os.path.getsize(file_name))
-            util.log_print('File name             : {0}'.format(file_name))
-            util.log_print('File size (Bytes)     : {0}'.format(file_size))
-            util.log_print(artifact.get_info())
-            util.log_print()
-
-            util.log_print()
             util.log_print(colored('[] Inference engine running at ' + opt.server, 'blue', attrs=['bold']))
             util.log_print()
 

@@ -20,8 +20,11 @@ import datetime
 import logging
 import sys
 import re
+import os
 from glob import glob
 from termcolor import colored
+from pprint import pformat
+import cpuinfo
 
 epsilon = 1e-8
 
@@ -31,14 +34,13 @@ def get_time_stamp():
 def init(opt):
     global Tensor
     torch.manual_seed(opt.seed)
-    if opt.cuda:
-        if not torch.cuda.is_available():
-            log_error('CUDA not available')
+    if torch.cuda.is_available() and opt.cuda:
         torch.cuda.manual_seed(opt.seed)
         torch.backends.cudnn.enabled = True
         Tensor = torch.cuda.FloatTensor
     else:
         Tensor = torch.FloatTensor
+        opt.cuda = False
 
 def init_logger(file_name):
     global logger
@@ -62,6 +64,84 @@ def log_warning(line):
     print(colored('Warning: ' + line, 'red', attrs=['bold']))
     logger.warning('Warning: ' + line)
 
+def log_configuration(opt):
+    log_print('Started ' +  str(datetime.datetime.now()))
+    log_print()
+    log_print('Running on PyTorch ' + torch.__version__)
+    log_print()
+    log_print('Command line arguments:')
+    log_print(' '.join(sys.argv[1:]))
+
+    log_print()
+    log_print(colored('[] Hardware', 'blue', attrs=['bold']))
+    log_print()
+    if opt.cuda:
+        log_print('Running on    : CUDA')
+    else:
+        log_print('Running on    : CPU')
+    cpu_info = cpuinfo.get_cpu_info()
+    if 'brand' in cpu_info:
+        log_print('CPU           : {0}'.format(cpu_info['brand']))
+    else:
+        log_print('CPU           : unknown')
+    if 'count' in cpu_info:
+        log_print('CPU count     : {0}'.format(cpu_info['count']))
+    else:
+        log_print('CPU count     : unknown')
+    if torch.cuda.is_available():
+        log_print('CUDA          : available')
+        log_print('CUDA devices  : {0}'.format(torch.cuda.device_count()))
+        if opt.cuda:
+            if opt.device == -1:
+                log_print('CUDA selected : all')
+            else:
+                log_print('CUDA selected : {0}'.format(opt.device))
+    else:
+        log_print('CUDA          : not available')
+
+    log_print()
+    log_print(colored('[] Configuration', 'blue', attrs=['bold']))
+    log_print()
+    log_print(pformat(vars(opt)))
+    log_print()
+
+def load_artifact(file_name, cuda=False, print_info=True):
+    try:
+        if cuda:
+            artifact = torch.load(file_name)
+        else:
+            artifact = torch.load(file_name, map_location=lambda storage, loc: storage)
+    except:
+        log_error('Cannot load file')
+    if artifact.code_version != infcomp.__version__:
+        log_print()
+        log_warning('Different code versions (artifact: {0}, current: {1})'.format(artifact.code_version, infcomp.__version__))
+        log_print()
+    if artifact.pytorch_version != torch.__version__:
+        log_print()
+        log_warning('Different PyTorch versions (artifact: {0}, current: {1})'.format(artifact.pytorch_version, torch.__version__))
+        log_print()
+
+    if print_info:
+        file_size = '{:,}'.format(os.path.getsize(file_name))
+        log_print('File name             : {0}'.format(file_name))
+        log_print('File size (Bytes)     : {0}'.format(file_size))
+        log_print(artifact.get_info())
+        log_print()
+
+    if cuda:
+        if not artifact.on_cuda:
+            log_warning('Loading CPU artifact to CUDA')
+            log_print()
+            artifact.move_to_cuda()
+    else:
+        if artifact.on_cuda:
+            log_warning('Loading CUDA artifact to CPU')
+            log_print()
+            artifact.move_to_cpu()
+
+    return artifact
+
 def standardize(t):
     mean = torch.mean(t)
     sd = torch.std(t)
@@ -76,17 +156,11 @@ def days_hours_mins_secs(total_seconds):
     return '{0}d:{1:02}:{2:02}:{3:02}'.format(int(d), int(h), int(m), int(s))
 
 def file_starting_with(pattern, n):
-    return sorted(glob(pattern + '*'))[n]
-
-def check_versions(artifact):
-    if artifact.code_version != infcomp.__version__:
-        log_print()
-        log_warning('Different code versions (artifact: {0}, current: {1})'.format(artifact.code_version, infcomp.__version__))
-        log_print()
-    if artifact.pytorch_version != torch.__version__:
-        log_print()
-        log_warning('Different PyTorch versions (artifact: {0}, current: {1})'.format(artifact.pytorch_version, torch.__version__))
-        log_print()
+    try:
+        ret = sorted(glob(pattern + '*'))[n]
+    except:
+        log_error('Cannot find file')
+    return ret
 
 class Spinner(object):
     def __init__(self):

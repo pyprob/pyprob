@@ -5,3 +5,4 @@ pyzmq==16.0.2
 flatbuffers==2015.12.22.1
 visdom==0.1.02
 matplotlib==2.0.0
+py-cpuinfo==3.2.0

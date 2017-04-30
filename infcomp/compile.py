@@ -22,7 +22,6 @@ from termcolor import colored
 import sys
 import datetime
 import time
-from pprint import pformat
 import os
 import traceback
 from threading import Thread
@@ -53,7 +52,7 @@ def validate(artifact, opt, optimizer, artifact_file):
         artifact.optimizer_state = optimizer.state_dict()
         if opt.keepArtifacts:
             time_stamp = util.get_time_stamp()
-            artifact_file = '{0}/{1}'.format(opt.dir, 'compile-artifact' + time_stamp)
+            artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
         def save_artifact():
             torch.save(artifact, artifact_file)
         a = Thread(target=save_artifact)
@@ -77,6 +76,7 @@ def main():
         parser.add_argument('-v', '--version', help='show version information', action='store_true')
         parser.add_argument('--dir', help='directory to save artifacts and logs', default='.')
         parser.add_argument('--cuda', help='use CUDA', action='store_true')
+        parser.add_argument('--device', help='selected CUDA device (-1: all, 0: 1st device, 1: 2nd device, etc.)', default=-1, type=int)
         parser.add_argument('--seed', help='random seed', default=4, type=int)
         parser.add_argument('--server', help='address of the probprog model server', default='tcp://127.0.0.1:5555')
         parser.add_argument('--optimizer', help='optimizer for training the artifact', choices=['adam', 'sgd'], default='adam', type=str)
@@ -106,8 +106,8 @@ def main():
             quit()
 
         time_stamp = util.get_time_stamp()
-        artifact_file = '{0}/{1}'.format(opt.dir, 'compile-artifact' + time_stamp)
-        util.init_logger('{0}/{1}'.format(opt.dir, 'compile-log' + time_stamp))
+        artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
+        util.init_logger('{0}/{1}'.format(opt.dir, 'infcomp-compile-log' + time_stamp))
         util.init(opt)
 
         util.log_print()
@@ -115,39 +115,21 @@ def main():
         util.log_print()
         util.log_print('Compilation Mode')
         util.log_print()
-        util.log_print('Started ' +  str(datetime.datetime.now()))
-        util.log_print()
-        util.log_print('Running on PyTorch ' + torch.__version__)
-        util.log_print()
-        util.log_print('Command line arguments:')
-        util.log_print(' '.join(sys.argv[1:]))
-
-        util.log_print()
-        util.log_print(colored('[] Compilation configuration', 'blue', attrs=['bold']))
-        util.log_print()
-        util.log_print(pformat(vars(opt)))
-        util.log_print()
+        util.log_configuration(opt)
 
         with BatchRequester(opt.server) as requester:
-
             if opt.resume:
-                resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.dir, 'compile-artifact'), -1)
                 util.log_print()
                 util.log_print(colored('[] Resuming artifact', 'blue', attrs=['bold']))
                 util.log_print()
 
-                artifact = torch.load(resume_artifact_file)
+                resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.dir, 'infcomp-artifact'), -1)
+                artifact = util.load_artifact(resume_artifact_file, opt.cuda)
+
                 prev_artifact_total_traces = artifact.total_traces
                 prev_artifact_total_iterations = artifact.total_iterations
                 prev_artifact_total_training_seconds = artifact.total_training_seconds
 
-                util.check_versions(artifact)
-
-                file_size = '{:,}'.format(os.path.getsize(resume_artifact_file))
-                util.log_print('File name             : {0}'.format(resume_artifact_file))
-                util.log_print('File size (Bytes)     : {0}'.format(file_size))
-                util.log_print(artifact.get_info())
-                util.log_print()
                 util.log_print('New artifact will be saved to: ' + artifact_file)
             else:
                 util.log_print()

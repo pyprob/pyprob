@@ -225,7 +225,7 @@ class Artifact(nn.Module):
                           'Created               : {0}'.format(self.created),
                           'Modified              : {0}'.format(self.modified),
                           'Code version          : {0}'.format(self.code_version),
-                          'Cuda                  : {0}'.format(self.on_cuda),
+                          'Trained on            : CUDA' if self.on_cuda else 'Trained on            : CPU',
                           colored('Trainable params      : {:,}'.format(self.num_parameters), 'cyan', attrs=['bold']),
                           colored('Total training time   : {0}'.format(util.days_hours_mins_secs(self.total_training_seconds)), 'yellow', attrs=['bold']),
                           colored('Updates to file       : {:,}'.format(self.updates), 'yellow'),
@@ -366,6 +366,40 @@ class Artifact(nn.Module):
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_distribution[distribution_name] = Variable(t, requires_grad=False)
 
+    def move_to_cuda(self):
+        self.on_cuda = True
+        self.cuda()
+        self.one_hot_address_empty = self.one_hot_address_empty.cuda()
+        self.one_hot_instance_empty = self.one_hot_instance_empty.cuda()
+        self.one_hot_distribution_empty = self.one_hot_distribution_empty.cuda()
+        for k, t in self.one_hot_address.items():
+            self.one_hot_address[k] = t.cuda()
+        for k, t in self.one_hot_instance.items():
+            self.one_hot_instance[k] = t.cuda()
+        for k, t in self.one_hot_distribution.items():
+            self.one_hot_distribution[k] = t.cuda()
+        for sub_batch in self.valid_batch:
+            for trace in sub_batch:
+                trace.cuda()
+        self.optimizer_state = None
+
+    def move_to_cpu(self):
+        self.on_cuda = False
+        self.cpu()
+        self.one_hot_address_empty = self.one_hot_address_empty.cpu()
+        self.one_hot_instance_empty = self.one_hot_instance_empty.cpu()
+        self.one_hot_distribution_empty = self.one_hot_distribution_empty.cpu()
+        for k, t in self.one_hot_address.items():
+            self.one_hot_address[k] = t.cpu()
+        for k, t in self.one_hot_instance.items():
+            self.one_hot_instance[k] = t.cpu()
+        for k, t in self.one_hot_distribution.items():
+            self.one_hot_distribution[k] = t.cpu()
+        for sub_batch in self.valid_batch:
+            for trace in sub_batch:
+                trace.cpu()
+        self.optimizer_state = None
+
     def valid_loss(self):
         loss = 0
         for sub_batch in self.valid_batch:
@@ -419,7 +453,6 @@ class Artifact(nn.Module):
                 prev_one_hot_address = self.one_hot_address[prev_address]
                 prev_one_hot_instance = self.one_hot_instance[prev_instance]
                 prev_one_hot_distribution = self.one_hot_distribution[prev_distribution.name()]
-
 
             t = []
             for b in range(sub_batch_size):
