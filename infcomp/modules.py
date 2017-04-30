@@ -207,7 +207,7 @@ class Artifact(nn.Module):
     def get_structure(self):
         ret = str(next(enumerate(self.modules()))[1])
         for p in self.parameters():
-            ret = ret + '\n{0} {1}'.format(p.data, p.size())
+            ret = ret + '\n{0} {1}'.format(type(p.data), p.size())
         return ret
 
     def get_info(self):
@@ -421,9 +421,6 @@ class Artifact(nn.Module):
         else:
             util.log_error('Unsupported observation shape: {0}'.format(example_observes.size()))
 
-        #print(obs)
-        #print(torch.cuda.current_device())
-        #print(self.get_structure())
         observe_embedding = self.observe_layer(Variable(obs, requires_grad=False))
 
         example_trace = sub_batch[0]
