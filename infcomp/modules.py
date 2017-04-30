@@ -474,7 +474,10 @@ class Artifact(nn.Module):
         lstm_input = torch.cat(lstm_input).view(example_trace.length, sub_batch_size, -1)
 
         h0 = Variable(util.Tensor(self.lstm_depth, sub_batch_size, self.lstm_dim).zero_(), requires_grad=False)
-        lstm_output, _ = self.lstm(lstm_input, (h0, h0))
+        if self.on_cuda:
+            lstm_output, _ = torch.nn.DataParallel(self.lstm)(lstm_input, (h0, h0))
+        else:
+            lstm_output, _ = self.lstm(lstm_input, (h0, h0))
 
         logpdf = 0
         for time_step in range(example_trace.length):
@@ -484,7 +487,10 @@ class Artifact(nn.Module):
             current_distribution = current_sample.distribution
 
             proposal_input = lstm_output[time_step]
-            proposal_output = self.proposal_layers[(current_address, current_instance)](proposal_input)
+            if self.on_cuda:
+                proposal_output = torch.nn.DataParallel(self.proposal_layers[(current_address, current_instance)])(proposal_input)
+            else:
+                proposal_output = self.proposal_layers[(current_address, current_instance)](proposal_input)
 
             if isinstance(current_distribution, UniformDiscrete):
                 log_weights = torch.log(proposal_output + util.epsilon)
