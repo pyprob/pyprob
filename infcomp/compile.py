@@ -108,14 +108,7 @@ def main():
         time_stamp = util.get_time_stamp()
         artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
         util.init_logger('{0}/{1}'.format(opt.dir, 'infcomp-compile-log' + time_stamp))
-        util.init(opt)
-
-        util.log_print()
-        util.log_print(colored('[] Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
-        util.log_print()
-        util.log_print('Compilation Mode')
-        util.log_print()
-        util.log_configuration(opt)
+        util.init(opt, 'Compilation Mode')
 
         with BatchRequester(opt.server) as requester:
             if opt.resume:

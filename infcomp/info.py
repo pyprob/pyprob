@@ -30,6 +30,7 @@ def main():
         parser.add_argument('--nth', help='show the nth artifact (-1: last, -2: second-to-last, etc.)', type=int, default=-1)
         parser.add_argument('--cuda', help='use CUDA', action='store_true')
         parser.add_argument('--device', help='selected CUDA device (-1: all, 0: 1st device, 1: 2nd device, etc.)', default=-1, type=int)
+        parser.add_argument('--seed', help='random seed', default=4, type=int)
         parser.add_argument('--structure', help='show extra information about artifact structure', action='store_true')
         parser.add_argument('--savePlot', help='save loss plot to file (supported formats: eps, jpg, png, pdf, svg, tif)', type=str)
         parser.add_argument('--showPlot', help='show the loss plot in screen', action='store_true')
@@ -42,13 +43,7 @@ def main():
 
         time_stamp = util.get_time_stamp()
         util.init_logger('{0}/{1}'.format(opt.dir, 'infcomp-info-log' + time_stamp))
-
-        util.log_print()
-        util.log_print(colored('[] Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
-        util.log_print()
-        util.log_print('Artifact Info')
-        util.log_print()
-        util.log_configuration(opt)
+        util.init(opt, 'Artifact Info')
 
         util.log_print()
         util.log_print(colored('[] Artifact', 'blue', attrs=['bold']))
