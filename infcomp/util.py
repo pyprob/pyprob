@@ -136,7 +136,7 @@ def load_artifact(file_name, cuda=False, print_info=True):
         log_print()
 
     if cuda:
-        artifact.move_to_cuda(torch.cuda.current_device()) # we do this even if the artifact is already on CUDA, to support moving between different CUDA devices
+        artifact.move_to_cuda(opt.device) # we do this even if the artifact is already on CUDA, to support moving between different CUDA devices
         if not artifact.on_cuda:
             log_warning('Loading CPU artifact to CUDA')
             log_print()
