@@ -368,19 +368,19 @@ class Artifact(nn.Module):
 
     def move_to_cuda(self):
         self.on_cuda = True
-        self.cuda()
-        self.one_hot_address_empty = self.one_hot_address_empty.cuda()
-        self.one_hot_instance_empty = self.one_hot_instance_empty.cuda()
-        self.one_hot_distribution_empty = self.one_hot_distribution_empty.cuda()
+        self.cuda(opt.device)
+        self.one_hot_address_empty = self.one_hot_address_empty.cuda(opt.device)
+        self.one_hot_instance_empty = self.one_hot_instance_empty.cuda(opt.device)
+        self.one_hot_distribution_empty = self.one_hot_distribution_empty.cuda(opt.device)
         for k, t in self.one_hot_address.items():
-            self.one_hot_address[k] = t.cuda()
+            self.one_hot_address[k] = t.cuda(opt.device)
         for k, t in self.one_hot_instance.items():
-            self.one_hot_instance[k] = t.cuda()
+            self.one_hot_instance[k] = t.cuda(opt.device)
         for k, t in self.one_hot_distribution.items():
-            self.one_hot_distribution[k] = t.cuda()
+            self.one_hot_distribution[k] = t.cuda(opt.device)
         for sub_batch in self.valid_batch:
             for trace in sub_batch:
-                trace.cuda()
+                trace.cuda(opt.device)
         self.optimizer_state = None
 
     def move_to_cpu(self):
