@@ -50,7 +50,7 @@ def main():
         util.log_print()
 
         file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'infcomp-artifact'), opt.nth)
-        artifact = util.load_artifact(file_name, opt.cuda, opt.devices)
+        artifact = util.load_artifact(file_name, opt.cuda, opt.device)
 
         if opt.structure:
             util.log_print()
