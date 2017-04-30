@@ -35,6 +35,7 @@ def main():
         parser.add_argument('--savePlot', help='save loss plot to file (supported formats: eps, jpg, png, pdf, svg, tif)', type=str)
         parser.add_argument('--showPlot', help='show the loss plot in screen', action='store_true')
         parser.add_argument('--saveHist', help='save the training and validation loss history (csv)', type=str)
+        parser.add_argument('--visdom', help='use Visdom for visualizations', action='store_true')
         opt = parser.parse_args()
 
         if opt.version:

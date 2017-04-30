@@ -33,6 +33,7 @@ def main():
         parser.add_argument('--seed', help='random seed', default=4, type=int)
         parser.add_argument('--debug', help='show debugging information as requests arrive', action='store_true')
         parser.add_argument('--server', help='address and port to bind this inference server', default='tcp://127.0.0.1:6666')
+        parser.add_argument('--visdom', help='use Visdom for visualizations', action='store_true')        
         opt = parser.parse_args()
 
         if opt.version:
