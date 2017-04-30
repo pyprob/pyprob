@@ -49,7 +49,7 @@ def main():
             util.log_print()
 
             file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'infcomp-artifact'), opt.nth)
-            artifact = util.load_artifact(file_name, opt.cuda)
+            artifact = util.load_artifact(file_name, opt.cuda, opt.device)
 
             prev_artifact_total_traces = artifact.total_traces
             prev_artifact_total_iterations = artifact.total_iterations

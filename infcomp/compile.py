@@ -117,7 +117,7 @@ def main():
                 util.log_print()
 
                 resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.dir, 'infcomp-artifact'), -1)
-                artifact = util.load_artifact(resume_artifact_file, opt.cuda)
+                artifact = util.load_artifact(resume_artifact_file, opt.cuda, opt.device)
 
                 prev_artifact_total_traces = artifact.total_traces
                 prev_artifact_total_iterations = artifact.total_iterations

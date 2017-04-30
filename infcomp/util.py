@@ -111,7 +111,7 @@ def log_warning(line):
     print(colored('Warning: ' + line, 'red', attrs=['bold']))
     logger.warning('Warning: ' + line)
 
-def load_artifact(file_name, cuda=False, print_info=True):
+def load_artifact(file_name, cuda=False, device_id=-1, print_info=True):
     try:
         if cuda:
             artifact = torch.load(file_name)
@@ -136,10 +136,18 @@ def load_artifact(file_name, cuda=False, print_info=True):
         log_print()
 
     if cuda:
-        artifact.move_to_cuda(opt.device) # we do this even if the artifact is already on CUDA, to support moving between different CUDA devices
-        if not artifact.on_cuda:
-            log_warning('Loading CPU artifact to CUDA')
+        if device_id == -1:
+            device_id = torch.cuda.current_device()
+
+        if artifact.on_cuda:
+            if device_id != artifact.cuda_device_id:
+                log_warning('Loading CUDA (device {0}) artifact to CUDA (device {1})'.format(artifact.cuda_device_id, device_id))
+                log_print()
+                artifact.move_to_cuda(device_id)
+        else:
+            log_warning('Loading CPU artifact to CUDA (device {0})'.format(device_id))
             log_print()
+            artifact.move_to_cuda(device_id)
     else:
         if artifact.on_cuda:
             log_warning('Loading CUDA artifact to CPU')
