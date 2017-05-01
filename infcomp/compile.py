@@ -206,7 +206,7 @@ def main():
                 vis_valid_loss = util.vis.line(X=x, Y=y, opts=dict(title='Validation loss', xlabel='Trace', ylabel='Loss'))
                 vis_trace_histogram = util.vis.histogram(torch.zeros(2), opts=dict(title='Trace length', numbins=10))
                 vis_performance = util.vis.line(X=torch.zeros(2),Y=torch.zeros(2), opts=dict(xlabel='Minibatch', ylabel='Traces / s', title='Performance'))
-                vis_time = util.vis.line(X=torch.zeros(2),Y=torch.zeros(2), opts=dict(xlabel='Minibatch', ylabel='ms', title='Waiting for minibatch'))
+                vis_time = util.vis.line(X=torch.zeros(2),Y=torch.zeros(2), opts=dict(xlabel='Minibatch', ylabel='ms', title='Waiting time for minibatch'))
                 vis_address = util.vis.text(', '.join(list(artifact.one_hot_address.keys())), opts=dict(title='Addresses'))
                 vis_distribution = util.vis.text(', '.join(list(artifact.one_hot_distribution.keys())), opts=dict(title='Distributions'))
                 vis_params = util.vis.line(X=torch.Tensor([0, 1]),Y=torch.Tensor([artifact.num_parameters / 1e6, artifact.num_parameters / 1e6]), opts=dict(xlabel='Minibatch', ylabel='M', title='Number of parameters'))
