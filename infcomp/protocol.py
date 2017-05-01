@@ -22,6 +22,7 @@ import infcomp.flatbuffers.Categorical
 import flatbuffers
 import sys
 import numpy as np
+import time
 
 def NDArray_to_Tensor(ndarray):
     b = ndarray._tab.Bytes
@@ -176,9 +177,13 @@ class BatchRequester(object):
         self.requester.send_request(message)
 
     def receive_batch(self, standardize=False):
+        time1 = time.time()
+
         sys.stdout.write('Waiting for new batch...                                 \r')
         sys.stdout.flush()
         data = self.requester.receive_reply()
+        time2 = time.time()
+
         sys.stdout.write('New batch received, processing...                        \r')
         sys.stdout.flush()
         b = self.get_batch(data, standardize)
@@ -187,7 +192,9 @@ class BatchRequester(object):
         bs = self.get_sub_batches(b)
         sys.stdout.write('                                                         \r')
         sys.stdout.flush()
-        return bs
+        time3 = time.time()
+
+        return bs, time2 - time1, time3 - time2
 
 
 class ProposalReplier(object):

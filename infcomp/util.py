@@ -90,9 +90,13 @@ def init(opt, mode=''):
     log_print()
 
     if opt.visdom:
-        import visdom
-        global vis
-        vis = visdom.Visdom()
+        try:
+            import visdom
+            global vis
+            vis = visdom.Visdom()
+        except:
+            log_warning('Visdom server not available, disabling')
+            opt.visdom = False
 
 def init_logger(file_name):
     global logger
@@ -160,6 +164,13 @@ def load_artifact(file_name, cuda=False, device_id=-1, print_info=True):
             artifact.move_to_cpu()
 
     return artifact
+
+def get_trace_lengths(batch):
+    ret = []
+    for sub_batch in batch:
+        for trace in sub_batch:
+            ret.append(trace.length)
+    return ret
 
 def standardize(t):
     mean = torch.mean(t)

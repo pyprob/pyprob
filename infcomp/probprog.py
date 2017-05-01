@@ -9,10 +9,12 @@ class Sample(object):
         return 'Sample({0}, {1}, {2}, {3})'.format(self.address, self.instance, self.value.size(), self.distribution)
     __str__ = __repr__
     def cuda(self, device_id=None):
-        self.value = self.value.cuda(device_id)
+        if not self.value is None:
+            self.value = self.value.cuda(device_id)
         self.distribution.cuda(device_id)
     def cpu(self):
-        self.value = self.value.cpu()
+        if not self.value is None:
+            self.value = self.value.cpu()
         self.distribution.cpu()
 
 class Trace(object):
@@ -29,11 +31,13 @@ class Trace(object):
         self.samples.append(s)
         self.length = len(self.samples)
     def cuda(self, device_id=None):
-        self.observes = self.observes.cuda(device_id)
+        if not self.observes is None:
+            self.observes = self.observes.cuda(device_id)
         for i in range(len(self.samples)):
             self.samples[i].cuda(device_id)
     def cpu(self):
-        self.observes = self.observes.cpu()
+        if not self.observes is None:
+            self.observes = self.observes.cpu()
         for i in range(len(self.samples)):
             self.samples[i].cpu()
 
@@ -50,9 +54,11 @@ class UniformDiscrete(object):
     def name(self):
         return 'UniformDiscrete'
     def cuda(self, device_id=None):
-        self.proposal_probabilities = self.proposal_probabilities.cuda(device_id)
+        if not self.proposal_probabilities is None:
+            self.proposal_probabilities = self.proposal_probabilities.cuda(device_id)
     def cpu(self):
-        self.proposal_probabilities = self.proposal_probabilities.cpu()
+        if not self.proposal_probabilities is None:
+            self.proposal_probabilities = self.proposal_probabilities.cpu()
 
 class Normal(object):
     def __init__(self, prior_mean, prior_std):
@@ -100,9 +106,11 @@ class Discrete(object):
     def name(self):
         return 'Discrete'
     def cuda(self, device_id=None):
-        self.proposal_probabilities = self.proposal_probabilities.cuda(device_id)
+        if not self.proposal_probabilities is None:
+            self.proposal_probabilities = self.proposal_probabilities.cuda(device_id)
     def cpu(self):
-        self.proposal_probabilities = self.proposal_probabilities.cpu()
+        if not self.proposal_probabilities is None:
+            self.proposal_probabilities = self.proposal_probabilities.cpu()
 
 class Categorical(object):
     def __init__(self, prior_size):
@@ -116,6 +124,8 @@ class Categorical(object):
     def name(self):
         return 'Categorical'
     def cuda(self, device_id=None):
-        self.proposal_probabilities = self.proposal_probabilities.cuda(device_id)
+        if not self.proposal_probabilities is None:
+            self.proposal_probabilities = self.proposal_probabilities.cuda(device_id)
     def cpu(self):
-        self.proposal_probabilities = self.proposal_probabilities.cpu()
+        if not self.proposal_probabilities is None:
+            self.proposal_probabilities = self.proposal_probabilities.cpu()

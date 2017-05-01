@@ -141,12 +141,12 @@ def main():
 
                 artifact = Artifact()
                 artifact.on_cuda = opt.cuda
-                artifact.cuda_device_id = opt.device
+                artifact.cuda_device_id = torch.cuda.current_device()
                 artifact.standardize = opt.standardize
                 artifact.set_one_hot_dims(opt.oneHotDim, opt.oneHotDim, 5)
                 artifact.valid_size = opt.validSize
                 requester.request_batch(artifact.valid_size)
-                artifact.valid_batch = requester.receive_batch(artifact.standardize)
+                artifact.valid_batch, _, _ = requester.receive_batch(artifact.standardize)
 
                 example_observes = artifact.valid_batch[0][0].observes
                 artifact.set_observe_embedding(example_observes, opt.obsEmb, opt.obsEmbDim)
@@ -165,7 +165,9 @@ def main():
             if (not artifact.optimizer_state is None) and (artifact.optimizer == opt.optimizer):
                 optimizer.load_state_dict(artifact.optimizer_state)
 
+
             iteration = 0
+            iteration_batch = 0
             trace = 0
             start_time = time.time()
             improvement_time = start_time
@@ -194,18 +196,21 @@ def main():
                 else:
                     x = torch.Tensor(artifact.train_history_trace)
                     y = torch.Tensor(artifact.train_history_loss)
-                vis_train_loss = util.vis.line(X=x, Y=y, opts=dict(title='Training loss',
-                                                                   xlabel='Trace',
-                                                                   ylabel='Loss'))
+                vis_train_loss = util.vis.line(X=x, Y=y, opts=dict(title='Training loss', xlabel='Trace', ylabel='Loss'))
                 if len(artifact.valid_history_trace) == 0:
                     x = torch.zeros(1)
                     y = torch.Tensor([artifact.valid_history_loss[-1]])
                 else:
                     x = torch.Tensor(artifact.valid_history_trace)
                     y = torch.Tensor(artifact.valid_history_loss)
-                vis_valid_loss = util.vis.line(X=x, Y=y, opts=dict(title='Validation loss',
-                                                                   xlabel='Trace',
-                                                                   ylabel='Loss'))
+                vis_valid_loss = util.vis.line(X=x, Y=y, opts=dict(title='Validation loss', xlabel='Trace', ylabel='Loss'))
+                vis_trace_histogram = util.vis.histogram(torch.zeros(2), opts=dict(title='Trace length', numbins=10))
+                vis_performance = util.vis.line(X=torch.zeros(2),Y=torch.zeros(2), opts=dict(xlabel='Minibatch', ylabel='Traces / s', title='Performance'))
+                vis_time = util.vis.line(X=torch.zeros(2),Y=torch.zeros(2), opts=dict(xlabel='Minibatch', ylabel='ms', title='Waiting for minibatch'))
+                vis_address = util.vis.text(', '.join(list(artifact.one_hot_address.keys())), opts=dict(title='Addresses'))
+                vis_distribution = util.vis.text(', '.join(list(artifact.one_hot_distribution.keys())), opts=dict(title='Distributions'))
+                vis_params = util.vis.line(X=torch.Tensor([0, 1]),Y=torch.Tensor([artifact.num_parameters / 1e6, artifact.num_parameters / 1e6]), opts=dict(xlabel='Minibatch', ylabel='M', title='Number of parameters'))
+
 
             time_str = util.days_hours_mins_secs(prev_artifact_total_training_seconds + (time.time() - start_time))
             improvement_time_str = util.days_hours_mins_secs(time.time() - improvement_time)
@@ -216,9 +221,24 @@ def main():
             stop = False
             requester.request_batch(opt.batchSize)
             while not stop:
-                batch = requester.receive_batch(artifact.standardize)
+                iteration_batch += 1
+                batch, time_wait, _ = requester.receive_batch(artifact.standardize)
                 requester.request_batch(opt.batchSize)
-                artifact.polymorph(batch)
+                if artifact.polymorph(batch):
+                    if opt.visdom:
+                        util.vis.text(', '.join(list(artifact.one_hot_address.keys())), win=vis_address)
+                        util.vis.text(', '.join(list(artifact.one_hot_distribution.keys())), win=vis_distribution)
+                        util.vis.line(X=torch.Tensor([iteration_batch]).unsqueeze(0),Y=torch.Tensor([artifact.num_parameters / 1e6]).unsqueeze(0), win=vis_params, update='append')
+
+                if opt.visdom:
+                    tl = util.get_trace_lengths(batch)
+                    if len(tl) < 2:
+                        tl.append(tl[-1]) # Temporary, due to a bug in Visdom
+                    util.vis.histogram(torch.Tensor(tl), win=vis_trace_histogram)
+                    if trace > 0:
+                        util.vis.line(X=torch.Tensor([iteration_batch]).unsqueeze(0),Y=torch.Tensor([time_wait * 1000]).unsqueeze(0), win=vis_time, update='append')
+                        traces_per_sec = artifact.total_traces / artifact.total_training_seconds
+                        util.vis.line(X=torch.Tensor([iteration_batch]).unsqueeze(0),Y=torch.Tensor([traces_per_sec]).unsqueeze(0), win=vis_performance, update='append')
 
                 for sub_batch in batch:
                     iteration += 1
