@@ -203,7 +203,6 @@ class Artifact(nn.Module):
         self.total_traces = None
         self.updates = 0
         self.optimizer = None
-        self.optimizer_state = None
 
     def get_structure(self):
         ret = str(next(enumerate(self.modules()))[1])
@@ -384,7 +383,6 @@ class Artifact(nn.Module):
         for sub_batch in self.valid_batch:
             for trace in sub_batch:
                 trace.cuda(device_id)
-        self.optimizer_state = None
 
     def move_to_cpu(self):
         self.on_cuda = False
@@ -401,7 +399,6 @@ class Artifact(nn.Module):
         for sub_batch in self.valid_batch:
             for trace in sub_batch:
                 trace.cpu()
-        self.optimizer_state = None
 
     def valid_loss(self, data_parallel=False):
         loss = 0
