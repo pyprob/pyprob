@@ -4,8 +4,8 @@
   (:require [clojure.edn :refer [read-string]]
             [clojure.tools.cli :as cli]
             [clojure.string :as str]
-            anglican.csis.csis
-            [anglican.csis.network :refer :all]
+            anglican.infcomp.csis
+            [anglican.infcomp.network :refer :all]
             [anglican.inference :refer [infer]]
             [anglican.state :refer [get-result get-log-weight]]))
 
@@ -62,40 +62,39 @@
 (defn usage [summary]
   (str "Usage:
 
-       For COMPILATION, run with the following flags:
+COMPILATION
 
-       ```
-       -m compile \\
-       -n queries.gmm-fixed-number-of-clusters \\
-       -q gmm-fixed-number-of-clusters \\
-       -o COMPILE-combine-observes-fn \\
-       -s COMPILE-combine-samples-fn \\
-       -a COMPILE-query-args
-       ```
+Start the compilation server:
 
-       Then run the following from torch-csis:
+```
+lein run -- \\
+--mode compile \\
+--namespace queries.gaussian
+```
 
-       ```
-       th compile.lua --batchSize 16 --validSize 16 --validInterval 256 --obsEmb lenet --obsEmbDim 8 --lstmDim 4 --obsSmooth
-       ```
+Then run the following to train the neural network:
 
-       For INFERENCE, run with the following flags:
+```
+python -m infcomp.compile
+```
 
-       ```
-       -m infer \\
-       -n queries.gmm-fixed-number-of-clusters \\
-       -q gmm-fixed-number-of-clusters \\
-       -E INFER-observe-embedder-input \\
-       -A INFER-query-args
-       ```
+INFERENCE
 
-       This must be run while running the following from torch-csis:
+Start the inference server:
 
-       ```
-       th infer.lua --latest
-       ```
+```
+python -m infcomp.infer
+```
 
-       \n" summary))
+Then run inference:
+```
+lein run -- \\
+--mode infer \\
+--namespace queries.gaussian \\
+--infer-query-args-value [2.3]
+```
+
+\n" summary))
 
 (defn error-msg [errors]
   (str/join "\n\t" (cons "ERROR parsing the command line:" errors)))
@@ -112,9 +111,6 @@
      errors (binding [*out* *err*]
               (println (error-msg errors)))
 
-;;      (empty? arguments) (binding [*out* *err*]
-;;                           (println (usage summary)))
-
      ;; Further checks
      ;; ...
 
@@ -122,10 +118,14 @@
      (try
        ;; Load the query.
        (let [ns-name (:namespace options)
-             query (load-var ns-name (:query options))]
+             query-name (or (:query options) (str/replace ns-name #".+\." ""))
+             query (load-var ns-name query-name)]
          (if (= (:mode options) :compile)
-           ;; Start a compilation server
-           (let [combine-observes-fn (load-var ns-name (:compile-combine-observes-fn options))
+           ;; Compile
+           (let [combine-observes-fn (if (:compile-combine-observes-fn options)
+                                       (load-var ns-name (:compile-combine-observes-fn options))
+                                       (fn [observes]
+                                         (:value (first observes))))
                  combine-samples-fn (if (:compile-combine-samples-fn options)
                                       (load-var ns-name (:compile-combine-samples-fn options))
                                       identity)
@@ -142,11 +142,11 @@
                            ";; Compile query arguments:       %s\n"
                            ";; Compile query arguments value: %s\n")
                       ns-name
-                      (:query options)
+                      query-name
                       tcp-endpoint
-                      (or (:compile-combine-observes-fn options) "nil")
-                      (or (:compile-combine-samples-fn options) "nil")
-                      (or (:compile-query-args options) "nil")
+                      (or (:compile-combine-observes-fn options) "default: (fn [observes] (:value (first observes)))")
+                      (or (:compile-combine-samples-fn options) "default: identity")
+                      (or (:compile-query-args options) "default: nil")
                       (if query-args
                         (str (apply str (take 77 (str query-args))) "...")
                         "nil")))
@@ -157,7 +157,7 @@
                                      :combine-samples-fn combine-samples-fn)
              (println (str "Compilation server started at " tcp-endpoint "...")))
 
-           ;; Perform inference
+           ;; Infer
            (let [query-args (if (:infer-query-args options)
                               (load-var ns-name (:infer-query-args options))
                               (:infer-query-args-value options))
@@ -181,7 +181,7 @@
                            ";; Observe embedder input value: %s\n"
                            ";; Number of samples:            %s\n")
                       ns-name
-                      query
+                      query-name
                       tcp-endpoint
                       (or (:infer-query-args options) "nil")
                       (if query-args

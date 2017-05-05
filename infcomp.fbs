@@ -1,0 +1,82 @@
+namespace infcomp.flatbuffers;
+
+union MessageBody { TracesFromPriorRequest, ObservesInitRequest, ProposalRequest, TracesFromPriorReply, ObservesInitReply, ProposalReply }
+
+table Message {
+    body:MessageBody;
+}
+
+root_type Message;
+
+union Distribution { Categorical, Discrete, Flip, Normal, UniformDiscrete }
+
+table NDArray {
+    data:[double];
+    shape:[int];
+}
+
+table Categorical {
+    prior_size:int;
+    proposal_probabilities:NDArray;
+}
+
+table Discrete {
+    prior_size:int;
+    proposal_probabilities:NDArray;
+}
+
+table Flip {
+    proposal_probability:double;
+}
+
+table Normal {
+    prior_mean:double;
+    prior_std:double;
+    proposal_mean:double;
+    proposal_std:double;
+}
+
+table UniformDiscrete {
+    prior_min:int;
+    prior_size:int;
+    proposal_probabilities:NDArray;
+}
+
+table Sample {
+    time:int;
+    address:string;
+    instance:int;
+    distribution:Distribution;
+    value:NDArray;
+}
+
+table Trace {
+    observes:NDArray;
+    samples:[Sample];
+}
+
+table TracesFromPriorRequest {
+    num_traces:int;
+}
+
+table TracesFromPriorReply {
+    traces:[Trace];
+}
+
+table ObservesInitRequest {
+    observes:NDArray;
+}
+
+table ObservesInitReply {
+    success:bool;
+}
+
+table ProposalRequest {
+    current_sample:Sample;
+    previous_sample:Sample;
+}
+
+table ProposalReply {
+    success:bool;
+    distribution:Distribution;
+}
