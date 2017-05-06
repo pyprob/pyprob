@@ -167,9 +167,8 @@ def load_artifact(file_name, cuda=False, device_id=-1, print_info=True):
 
 def get_trace_lengths(batch):
     ret = []
-    for sub_batch in batch:
-        for trace in sub_batch:
-            ret.append(trace.length)
+    for trace in batch:
+        ret.append(trace.length)
     return ret
 
 def standardize(t):
