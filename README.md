@@ -1,6 +1,8 @@
 # PyTorch library for Inference Compilation and Universal Probabilistic Programming
 
-This repository contains the [PyTorch](http://pytorch.org/)-based neural network component of `infcomp`, an inference compilation library. Inference compilation is a technique for performing fast inference in generative models implemented as [probabilistic programs](http://probabilistic-programming.org), using deep neural networks to parameterize proposal distributions of a sequential importance sampling inference engine.
+This repository contains the [PyTorch](http://pytorch.org/)-based neural network component of `infcomp`, an inference compilation library. 
+
+Inference compilation is a technique for performing fast inference in generative models implemented as [probabilistic programs](http://probabilistic-programming.org), using deep neural networks to parameterize proposal distributions of a sequential importance sampling inference engine.
 
 The [Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/)-based probabilistic programming component is available as a [Clojure library](https://github.com/probprog/anglican-inference-compilation). The PyTorch and Anglican components communicate over [ZeroMQ](http://zeromq.org/) using a [FlatBuffers](https://google.github.io/flatbuffers/)-based protocol.
 
