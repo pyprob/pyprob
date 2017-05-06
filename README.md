@@ -70,7 +70,7 @@ Our [paper](https://arxiv.org/abs/1610.09900) provides an in-depth explanation o
 
 If you use this technique or the code, please use the following citation:
 ```
-@inproceedings{le-2016-inference-compilation,
+@inproceedings{le-2016-inference,
   author = {Le, Tuan Anh and Baydin, Atılım Güneş and Wood, Frank},
   booktitle = {Proceedings of the 20th International Conference on Artificial Intelligence and Statistics (AISTATS)},
   title = {Inference Compilation and Universal Probabilistic Programming},
