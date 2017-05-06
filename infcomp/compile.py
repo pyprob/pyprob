@@ -215,8 +215,9 @@ def main():
             time_str = util.days_hours_mins_secs(prev_artifact_total_training_seconds + (time.time() - time_start))
             time_improvement_str = util.days_hours_mins_secs(time.time() - time_improvement)
             trace_str = '{:5}'.format('{:,}'.format(prev_artifact_total_traces + trace))
-            util.log_print('{{:{0}}}'.format(len(time_str)).format('Train. time') + ' │ ' + '{{:{0}}}'.format(len(trace_str)).format('Trace') + ' │ Training loss   │ Last valid. loss│ Best val. loss|' + '{{:{0}}}'.format(len(time_improvement_str)).format('T.since best'))
-            util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(time_improvement_str))
+            traces_per_sec_str = '   '
+            util.log_print('{{:{0}}}'.format(len(time_str)).format('Train. time') + ' │ ' + '{{:{0}}}'.format(len(trace_str)).format('Trace') + ' │ Training loss   │ Last valid. loss│ Best val. loss|' + '{{:{0}}}'.format(len(time_improvement_str)).format('T.since best') + ' │ TPS')
+            util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(time_improvement_str) + '─┼─' + '─'*len(traces_per_sec_str))
 
             stop = False
             requester.request_batch(opt.batchSize)
@@ -230,18 +231,21 @@ def main():
                         util.vis.text(', '.join(list(artifact.one_hot_distribution.keys())), win=vis_distribution)
                         util.vis.line(X=torch.Tensor([iteration_batch]).unsqueeze(0),Y=torch.Tensor([artifact.num_parameters / 1e6]).unsqueeze(0), win=vis_params, update='append')
 
+                # Time statistics
+                time_spent_last_batch = time.time() - time_last_batch
+                if time_spent_validation != -1:
+                    time_spent_last_batch -= time_spent_validation
+                time_last_batch = time.time()
+                traces_per_sec = opt.batchSize / time_spent_last_batch
+
+
                 if opt.visdom:
                     tl = util.get_trace_lengths(batch)
                     if len(tl) < 2:
                         tl.append(tl[-1]) # Temporary, due to a bug in Visdom
                     util.vis.histogram(torch.Tensor(tl), win=vis_trace_histogram)
                     if trace > 0:
-                        time_spent_last_batch = time.time() - time_last_batch
-                        if time_spent_validation != -1:
-                            time_spent_last_batch -= time_spent_validation
-                        time_last_batch = time.time()
                         util.vis.line(X=torch.Tensor([iteration_batch]).unsqueeze(0),Y=torch.Tensor([time_wait * 1000]).unsqueeze(0), win=vis_time, update='append')
-                        traces_per_sec = opt.batchSize / time_spent_last_batch
                         util.vis.line(X=torch.Tensor([iteration_batch]).unsqueeze(0),Y=torch.Tensor([traces_per_sec]).unsqueeze(0), win=vis_performance, update='append')
 
                 for sub_batch in batch:
@@ -291,11 +295,13 @@ def main():
 
                     time_str = util.days_hours_mins_secs(prev_artifact_total_training_seconds + (time.time() - time_start))
                     trace_str = '{:5}'.format('{:,}'.format(prev_artifact_total_traces + trace))
+                    traces_per_sec_str = '{:3}'.format('{:,}'.format(int(traces_per_sec)))
 
+                    # Compute validation loss as needed
                     time_spent_validation = -1
                     if (trace - last_validation_trace > opt.validTraces) or stop:
                         time_validation_start = time.time()
-                        util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(time_improvement_str))
+                        util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(time_improvement_str) + '─┼─' + '─'*len(traces_per_sec_str))
                         improved, (valid_loss_str, valid_loss_best_str) = validate(artifact, opt, artifact_file)
                         if improved:
                             time_improvement = time.time()
@@ -307,11 +313,11 @@ def main():
                         time_spent_validation = time.time() - time_validation_start
 
                     time_improvement_str = util.days_hours_mins_secs(time.time() - time_improvement)
-                    util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} '.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, time_improvement_str))
+                    util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} | {6}'.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, time_improvement_str, traces_per_sec_str))
             util.log_print('Stopped after {0} traces'.format(trace))
     except KeyboardInterrupt:
         util.log_print('Shutdown requested')
-        util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(time_improvement_str))
+        util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(time_improvement_str) + '─┼─' + '─'*len(traces_per_sec_str))
         improved, (valid_loss_str, valid_loss_best_str) = validate(artifact, opt, artifact_file)
         if improved:
             time_improvement = time.time()
