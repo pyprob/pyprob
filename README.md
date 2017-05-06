@@ -1,6 +1,8 @@
 # PyTorch library for Inference Compilation and Universal Probabilistic Programming
 
-This repository contains the [PyTorch](http://pytorch.org/)-based neural network component of `infcomp`, an inference compilation library. Inference compilation is a technique for performing fast inference in generative models implemented as [probabilistic programs](http://probabilistic-programming.org), using deep neural networks to parameterize proposal distributions of a sequential importance sampling inference engine.
+This repository contains the [PyTorch](http://pytorch.org/)-based neural network component of `infcomp`, an inference compilation library. 
+
+Inference compilation is a technique for performing fast inference in generative models implemented as [probabilistic programs](http://probabilistic-programming.org), using deep neural networks to parameterize proposal distributions of a sequential importance sampling inference engine.
 
 The [Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/)-based probabilistic programming component is available as a [Clojure library](https://github.com/probprog/anglican-inference-compilation). The PyTorch and Anglican components communicate over [ZeroMQ](http://zeromq.org/) using a [FlatBuffers](https://google.github.io/flatbuffers/)-based protocol.
 
@@ -14,7 +16,7 @@ Prerequisites:
 * Python 3.5 or higher. We recommend [Anaconda](https://www.continuum.io/).
 * Install latest PyTorch by following instructions on their [web site](http://pytorch.org/).
 
-Clone this repository and install the `infcomp` Python package using:
+Clone this repository and install the Python `infcomp` package using:
 
 ```
 git clone git@github.com:probprog/pytorch-infcomp.git
@@ -68,7 +70,7 @@ Our [paper](https://arxiv.org/abs/1610.09900) provides an in-depth explanation o
 
 If you use this technique or the code, please use the following citation:
 ```
-@inproceedings{le-2016-inference-compilation,
+@inproceedings{le-2016-inference,
   author = {Le, Tuan Anh and Baydin, Atılım Güneş and Wood, Frank},
   booktitle = {Proceedings of the 20th International Conference on Artificial Intelligence and Statistics (AISTATS)},
   title = {Inference Compilation and Universal Probabilistic Programming},
