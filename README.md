@@ -16,7 +16,7 @@ Prerequisites:
 * Python 3.5 or higher. We recommend [Anaconda](https://www.continuum.io/).
 * Install latest PyTorch by following instructions on their [web site](http://pytorch.org/).
 
-Clone this repository and install the `infcomp` Python package using:
+Clone this repository and install the Python `infcomp` package using:
 
 ```
 git clone git@github.com:probprog/pytorch-infcomp.git
