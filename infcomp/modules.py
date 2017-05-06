@@ -518,10 +518,10 @@ class Artifact(nn.Module):
 
                     smp_var = Variable(smp, requires_grad=False)
                     sample_layer = self.sample_layers[(prev_address, prev_instance)]
-                    if data_parallel and self.on_cuda:
-                        prev_sample_embedding = torch.nn.DataParallel(sample_layer)(smp_var)
-                    else:
-                        prev_sample_embedding = sample_layer(smp_var)
+                    # if data_parallel and self.on_cuda:
+                    #     prev_sample_embedding = torch.nn.DataParallel(sample_layer)(smp_var)
+                    # else:
+                    prev_sample_embedding = sample_layer(smp_var)
 
                     prev_one_hot_address = self.one_hot_address[prev_address]
                     prev_one_hot_instance = self.one_hot_instance[prev_instance]
@@ -582,10 +582,10 @@ class Artifact(nn.Module):
 
                 proposal_input = p
                 proposal_layer = self.proposal_layers[(current_address, current_instance)]
-                if data_parallel and self.on_cuda:
-                    proposal_output = torch.nn.DataParallel(proposal_layer)(proposal_input)
-                else:
-                    proposal_output = proposal_layer(proposal_input)
+                # if data_parallel and self.on_cuda:
+                #     proposal_output = torch.nn.DataParallel(proposal_layer)(proposal_input)
+                # else:
+                proposal_output = proposal_layer(proposal_input)
 
                 if isinstance(current_distribution, UniformDiscrete):
                     log_weights = torch.log(proposal_output + util.epsilon)

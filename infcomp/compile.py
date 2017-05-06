@@ -183,7 +183,6 @@ def main():
             if prev_artifact_total_traces == 0:
                 artifact.valid_history_trace.append(prev_artifact_total_traces + iteration)
                 artifact.valid_history_loss.append(artifact.valid_loss_best)
-            print(artifact.valid_loss_best)
             valid_loss_best_str = '{:+.6e}'.format(artifact.valid_loss_best)
             valid_loss_str = '{:+.6e}  '.format(artifact.valid_history_loss[-1])
             last_validation_trace = 0
