@@ -73,7 +73,7 @@ def main():
                 if replier.new_trace:
                     time_step = 0
                     obs = replier.observes
-                    observe_embedding = artifact.observe_layer.forward_single(Variable(obs.unsqueeze(0), volatile=True))
+                    observe_embedding = artifact.observe_layer.forward(Variable(obs.unsqueeze(0), volatile=True))
                     replier.reply_observes_received()
 
                     if opt.debug:

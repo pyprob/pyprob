@@ -25,6 +25,7 @@ class Batch(object):
     def __init__(self, traces, sort=True):
         self.batch = traces
         self.length = len(traces)
+        self.traces_lengths = []
         self.traces_max_length = 0
         self.observes_max_length = 0
         sb = {}
@@ -42,7 +43,8 @@ class Batch(object):
             self.sub_batches.append(t)
         if sort:
             # Sort the batch in decreasing trace length.
-            self.batch = sorted(self.batch, reverse=True, key=lambda x: x.length)
+            self.batch = sorted(self.batch, reverse=True, key=lambda t: t.length)
+        self.traces_lengths = [t.length for t in self.batch]
     def __getitem__(self, key):
         return self.batch[key]
     def __setitem__(self, key, value):
@@ -119,8 +121,6 @@ class SampleEmbeddingFC(nn.Module):
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
     def forward(self, x):
         return F.relu(self.lin1(x))
-    def forward_single(self, x):
-        return self.forward(x)
 
 class ObserveEmbeddingFC(nn.Module):
     def __init__(self, input_example_non_batch, output_dim):
@@ -134,8 +134,6 @@ class ObserveEmbeddingFC(nn.Module):
         x = F.relu(self.lin1(x.view(-1, self.input_dim)))
         x = F.relu(self.lin2(x))
         return x
-    def forward_single(self, x):
-        return self.forward(x)
 
 class ObserveEmbeddingLSTM(nn.Module):
     def __init__(self, input_example_non_batch, output_dim):
@@ -145,15 +143,15 @@ class ObserveEmbeddingLSTM(nn.Module):
         self.lstm = nn.LSTM(self.input_dim, self.output_dim, 1, batch_first=True)
     def forward(self, x):
         batch_size = x.size(0)
-        h0 = Variable(util.Tensor(1, batch_size, self.output_dim).zero_(), requires_grad=False)
-        x, (_, _) = self.lstm(x, (h0, h0))
-        return x
-    def forward_single(self, x):
-        batch_size = x.size(0)
         # seq_len = x.size(1)
         h0 = Variable(util.Tensor(1, batch_size, self.output_dim).zero_(), requires_grad=False)
         _, (x, _) = self.lstm(x, (h0, h0))
         return x[0]
+    def forward_packed(self, x, batch_size):
+        h0 = Variable(util.Tensor(1, batch_size, self.output_dim).zero_(), requires_grad=False)
+        x, (_, _) = self.lstm(x, (h0, h0))
+        return x
+
 
 class ObserveEmbeddingCNN6(nn.Module):
     def __init__(self, input_example_non_batch, output_dim):
@@ -195,8 +193,6 @@ class ObserveEmbeddingCNN6(nn.Module):
         x = F.relu(self.lin1(x))
         x = F.relu(self.lin2(x))
         return x
-    def forward_single(self, x):
-        return self.forward(x)
 
 class Artifact(nn.Module):
     def __init__(self):
@@ -455,6 +451,7 @@ class Artifact(nn.Module):
 
             # We need to sort observes in the batch in decreasing length. This is a requirement for batching variable length sequences through RNNs.
             batch_sorted_by_observes = batch.sort_by_observes_length()
+            observes_lengths = [t.observes.size(0) for t in batch_sorted_by_observes]
             observes_feature_length = batch[0].observes.size(1)
             obs = util.Tensor(batch.length, batch.observes_max_length, observes_feature_length).zero_()
             for b in range(batch.length):
@@ -462,10 +459,9 @@ class Artifact(nn.Module):
                 for t in range(o.size(0)):
                     obs[b, t] = o[t]
             obs_var = Variable(obs, requires_grad=False)
-            if data_parallel and self.on_cuda:
-                obs_emb = torch.nn.DataParallel(self.observe_layer)(obs_var)
-            else:
-                obs_emb = self.observe_layer(obs_var)
+            obs_var = torch.nn.utils.rnn.pack_padded_sequence(obs_var, observes_lengths, batch_first=True)
+            obs_emb = self.observe_layer.forward_packed(obs_var, batch.length)
+            obs_emb, _ = torch.nn.utils.rnn.pad_packed_sequence(obs_emb, batch_first=True)
 
             for b in range(batch.length):
                 seq_len = batch_sorted_by_observes[b].observes.size(0)
@@ -551,12 +547,14 @@ class Artifact(nn.Module):
             t = torch.cat(t).view(batch.length, -1)
             lstm_input.append(t)
         lstm_input = torch.cat(lstm_input).view(batch.traces_max_length, batch.length, -1)
+        lstm_input = torch.nn.utils.rnn.pack_padded_sequence(lstm_input, batch.traces_lengths)
 
         h0 = Variable(util.Tensor(self.lstm_depth, batch.length, self.lstm_dim).zero_(), requires_grad=False)
         if data_parallel and self.on_cuda:
             lstm_output, _ = torch.nn.DataParallel(self.lstm, dim=1)(lstm_input, (h0, h0))
         else:
             lstm_output, _ = self.lstm(lstm_input, (h0, h0))
+        lstm_output, _ = torch.nn.utils.rnn.pad_packed_sequence(lstm_output)
 
         for b in range(batch.length):
             trace = batch[b]
