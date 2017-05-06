@@ -368,11 +368,11 @@ class Artifact(nn.Module):
 
         self.observe_layer = observe_layer
 
-    def set_lstm(self, lstm_dim, lstm_depth):
+    def set_lstm(self, lstm_dim, lstm_depth, dropout):
         self.lstm_dim = lstm_dim
         self.lstm_depth = lstm_depth
         self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + 2 * (self.one_hot_address_dim + self.one_hot_instance_dim + self.one_hot_distribution_dim)
-        self.lstm = nn.LSTM(self.lstm_input_dim, lstm_dim, lstm_depth)
+        self.lstm = nn.LSTM(self.lstm_input_dim, lstm_dim, lstm_depth, dropout=dropout)
 
     def set_one_hot_dims(self, one_hot_address_dim, one_hot_instance_dim, one_hot_distribution_dim):
         self.one_hot_address_dim =one_hot_address_dim

@@ -97,6 +97,7 @@ def main():
         parser.add_argument('--smpEmbDim', help='sample embedding dimension', default=1, type=int)
         parser.add_argument('--lstmDim', help='lstm hidden unit dimension', default=256, type=int)
         parser.add_argument('--lstmDepth', help='number of stacked lstms', default=2, type=int)
+        parser.add_argument('--dropout', help='dropout value', default=0.2, type=float)
         parser.add_argument('--softmaxBoost', help='multiplier before softmax', default=20.0, type=float)
         parser.add_argument('--keepArtifacts', help='keep all previously best artifacts during training, do not overwrite', action='store_true')
         parser.add_argument('--visdom', help='use Visdom for visualizations', action='store_true')
@@ -154,7 +155,7 @@ def main():
                 example_observes = artifact.valid_batch[0].observes
                 artifact.set_observe_embedding(example_observes, opt.obsEmb, opt.obsEmbDim)
                 artifact.set_sample_embedding(opt.smpEmb, opt.smpEmbDim)
-                artifact.set_lstm(opt.lstmDim, opt.lstmDepth)
+                artifact.set_lstm(opt.lstmDim, opt.lstmDepth, opt.dropout)
 
                 artifact.softmax_boost = opt.softmaxBoost
 
