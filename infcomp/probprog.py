@@ -5,6 +5,8 @@ class Sample(object):
         self.value = None
         self.value_dim = None
         self.distribution = None
+        self.lstm_input = None
+        self.lstm_output = None
     def __repr__(self):
         return 'Sample({0}, {1}, {2}, {3})'.format(self.address, self.instance, self.value.size(), self.distribution)
     __str__ = __repr__
@@ -20,10 +22,11 @@ class Sample(object):
 class Trace(object):
     def __init__(self):
         self.observes = None
+        self.observes_embedding = None
         self.samples = []
         self.length = None
     def __repr__(self):
-        return 'Trace(length:{0}; samples:{1}; observes:{2}'.format(self.length, '|'.join(['{0}({1})'.format(sample.address, sample.instance) for sample in self.samples]), self.observes.size()) + ')'
+        return 'Trace(length:{0}; samples:{1}; observes.dim():{2}'.format(self.length, '|'.join(['{0}({1})'.format(sample.address, sample.instance) for sample in self.samples]), self.observes.dim()) + ')'
     __str__ = __repr__
     def set_observes(self, o):
         self.observes = o

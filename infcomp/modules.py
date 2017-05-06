@@ -21,6 +21,41 @@ import math
 import datetime
 import gc
 
+class Batch(object):
+    def __init__(self, traces, sort=True):
+        self.batch = traces
+        self.length = len(traces)
+        self.traces_max_length = 0
+        self.observes_max_length = 0
+        sb = {}
+        for trace in traces:
+            if trace.length > self.traces_max_length:
+                self.traces_max_length = trace.length
+            if trace.observes.size(0) > self.observes_max_length:
+                self.observes_max_length = trace.observes.size(0)
+            h = hash(str(trace))
+            if not h in sb:
+                sb[h] = []
+            sb[h].append(trace)
+        self.sub_batches = []
+        for _, t in sb.items():
+            self.sub_batches.append(t)
+        if sort:
+            # Sort the batch in decreasing trace length.
+            self.batch = sorted(self.batch, reverse=True, key=lambda x: x.length)
+    def __getitem__(self, key):
+        return self.batch[key]
+    def __setitem__(self, key, value):
+        self.batch[key] = value
+    def cuda(self, device_id=None):
+        for trace in self.batch:
+            trace.cuda(device_id)
+    def cpu(self):
+        for trace in self.batch:
+            trace.cpu()
+    def sort_by_observes_length(self):
+        return Batch(sorted(self.batch, reverse=True, key=lambda x:x.observes.nelement()), False)
+
 class ProposalUniformDiscrete(nn.Module):
     def __init__(self, input_dim, output_min, output_dim, softmax_boost=1.0):
         super(ProposalUniformDiscrete, self).__init__()
@@ -84,6 +119,8 @@ class SampleEmbeddingFC(nn.Module):
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
     def forward(self, x):
         return F.relu(self.lin1(x))
+    def forward_single(self, x):
+        return self.forward(x)
 
 class ObserveEmbeddingFC(nn.Module):
     def __init__(self, input_example_non_batch, output_dim):
@@ -97,6 +134,8 @@ class ObserveEmbeddingFC(nn.Module):
         x = F.relu(self.lin1(x.view(-1, self.input_dim)))
         x = F.relu(self.lin2(x))
         return x
+    def forward_single(self, x):
+        return self.forward(x)
 
 class ObserveEmbeddingLSTM(nn.Module):
     def __init__(self, input_example_non_batch, output_dim):
@@ -106,7 +145,12 @@ class ObserveEmbeddingLSTM(nn.Module):
         self.lstm = nn.LSTM(self.input_dim, self.output_dim, 1, batch_first=True)
     def forward(self, x):
         batch_size = x.size(0)
-        seq_len = x.size(1)
+        h0 = Variable(util.Tensor(1, batch_size, self.output_dim).zero_(), requires_grad=False)
+        x, (_, _) = self.lstm(x, (h0, h0))
+        return x
+    def forward_single(self, x):
+        batch_size = x.size(0)
+        # seq_len = x.size(1)
         h0 = Variable(util.Tensor(1, batch_size, self.output_dim).zero_(), requires_grad=False)
         _, (x, _) = self.lstm(x, (h0, h0))
         return x[0]
@@ -151,6 +195,8 @@ class ObserveEmbeddingCNN6(nn.Module):
         x = F.relu(self.lin1(x))
         x = F.relu(self.lin2(x))
         return x
+    def forward_single(self, x):
+        return self.forward(x)
 
 class Artifact(nn.Module):
     def __init__(self):
@@ -257,7 +303,7 @@ class Artifact(nn.Module):
             batch = self.valid_batch
 
         layers_changed = False
-        for sub_batch in batch:
+        for sub_batch in batch.sub_batches:
             example_trace = sub_batch[0]
             for sample in example_trace.samples:
                 address = sample.address
@@ -380,9 +426,7 @@ class Artifact(nn.Module):
             self.one_hot_instance[k] = t.cuda(device_id)
         for k, t in self.one_hot_distribution.items():
             self.one_hot_distribution[k] = t.cuda(device_id)
-        for sub_batch in self.valid_batch:
-            for trace in sub_batch:
-                trace.cuda(device_id)
+        self.valid_batch.cuda(device_id)
 
     def move_to_cpu(self):
         self.on_cuda = False
@@ -396,150 +440,195 @@ class Artifact(nn.Module):
             self.one_hot_instance[k] = t.cpu()
         for k, t in self.one_hot_distribution.items():
             self.one_hot_distribution[k] = t.cpu()
-        for sub_batch in self.valid_batch:
-            for trace in sub_batch:
-                trace.cpu()
+        self.valid_batch.cpu()
 
     def valid_loss(self, data_parallel=False):
-        loss = 0
-        for sub_batch in self.valid_batch:
-            loss += self.loss(sub_batch, data_parallel)
-        return loss.data[0] / len(self.valid_batch)
+        return self.loss(self.valid_batch, data_parallel).data[0]
 
-    def loss(self, sub_batch, data_parallel=False):
+    def loss(self, batch, data_parallel=False):
         gc.collect()
-        sub_batch_size = len(sub_batch)
-        example_observes = sub_batch[0].observes
 
-        obs = torch.cat([sub_batch[b].observes for b in range(sub_batch_size)])
-        if example_observes.dim() == 1:
-            obs = obs.view(sub_batch_size, example_observes.size()[0])
-        elif example_observes.dim() == 2:
-            obs = obs.view(sub_batch_size, example_observes.size()[0], example_observes.size()[1])
-        elif example_observes.dim() == 3:
-            obs = obs.view(sub_batch_size, example_observes.size()[0], example_observes.size()[1], example_observes.size()[2])
+        example_observes = batch[0].observes
+        if isinstance(self.observe_layer, ObserveEmbeddingLSTM):
+            if example_observes.dim() != 2:
+                util.log_error('RNN observation embedding requires an observation shape of (T x F), where T is sequence length and F is feature length. Received observation with shape: {0}'.format(example_observes.size()))
+
+            # We need to sort observes in the batch in decreasing length. This is a requirement for batching variable length sequences through RNNs.
+            batch_sorted_by_observes = batch.sort_by_observes_length()
+            observes_feature_length = batch[0].observes.size(1)
+            obs = util.Tensor(batch.length, batch.observes_max_length, observes_feature_length).zero_()
+            for b in range(batch.length):
+                o = batch_sorted_by_observes[b].observes
+                for t in range(o.size(0)):
+                    obs[b, t] = o[t]
+            obs_var = Variable(obs, requires_grad=False)
+            if data_parallel and self.on_cuda:
+                obs_emb = torch.nn.DataParallel(self.observe_layer)(obs_var)
+            else:
+                obs_emb = self.observe_layer(obs_var)
+
+            for b in range(batch.length):
+                seq_len = batch_sorted_by_observes[b].observes.size(0)
+                batch_sorted_by_observes[b].observes_embedding = obs_emb[b, seq_len - 1]
         else:
-            util.log_error('Unsupported observation shape: {0}'.format(example_observes.size()))
+            obs = torch.cat([batch[b].observes for b in range(batch.length)]);
+            if example_observes.dim() == 1:
+                obs = obs.view(batch.length, example_observes.size()[0])
+            elif example_observes.dim() == 2:
+                obs = obs.view(batch.length, example_observes.size()[0], example_observes.size()[1])
+            elif example_observes.dim() == 3:
+                obs = obs.view(batch.length, example_observes.size()[0], example_observes.size()[1], example_observes.size()[2])
+            else:
+                util.log_error('Unsupported observation dimensions: {0}'.format(example_observes.size()))
 
-        obs_var = Variable(obs, requires_grad=False)
-        if data_parallel and self.on_cuda:
-            observe_embedding = torch.nn.DataParallel(self.observe_layer)(obs_var)
-        else:
-            observe_embedding = self.observe_layer(obs_var)
+            obs_var = Variable(obs, requires_grad=False)
+            if data_parallel and self.on_cuda:
+                obs_emb = torch.nn.DataParallel(self.observe_layer)(obs_var)
+            else:
+                obs_emb = self.observe_layer(obs_var)
 
-        example_trace = sub_batch[0]
+            for b in range(batch.length):
+                batch[b].observes_embedding = obs_emb[b]
+
+        for sub_batch in batch.sub_batches:
+            sub_batch_size = len(sub_batch)
+            example_trace = sub_batch[0]
+            for time_step in range(example_trace.length):
+                current_sample = example_trace.samples[time_step]
+                current_address = current_sample.address
+                current_instance = current_sample.instance
+                current_distribution = current_sample.distribution
+
+                current_one_hot_address = self.one_hot_address[current_address]
+                current_one_hot_instance = self.one_hot_instance[current_instance]
+                current_one_hot_distribution = self.one_hot_distribution[current_distribution.name()]
+
+                if time_step == 0:
+                    prev_sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).zero_(), requires_grad=False)
+
+                    prev_one_hot_address = self.one_hot_address_empty
+                    prev_one_hot_instance = self.one_hot_instance_empty
+                    prev_one_hot_distribution = self.one_hot_distribution_empty
+                else:
+                    prev_sample = example_trace.samples[time_step - 1]
+                    prev_address = prev_sample.address
+                    prev_instance = prev_sample.instance
+                    prev_distribution = prev_sample.distribution
+                    smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, prev_sample.value.nelement())
+
+                    smp_var = Variable(smp, requires_grad=False)
+                    sample_layer = self.sample_layers[(prev_address, prev_instance)]
+                    if data_parallel and self.on_cuda:
+                        prev_sample_embedding = torch.nn.DataParallel(sample_layer)(smp_var)
+                    else:
+                        prev_sample_embedding = sample_layer(smp_var)
+
+                    prev_one_hot_address = self.one_hot_address[prev_address]
+                    prev_one_hot_instance = self.one_hot_instance[prev_instance]
+                    prev_one_hot_distribution = self.one_hot_distribution[prev_distribution.name()]
+
+                for b in range(sub_batch_size):
+                    t = torch.cat([sub_batch[b].observes_embedding,
+                                   prev_sample_embedding[b],
+                                   prev_one_hot_address,
+                                   prev_one_hot_instance,
+                                   prev_one_hot_distribution,
+                                   current_one_hot_address,
+                                   current_one_hot_instance,
+                                   current_one_hot_distribution])
+                    sub_batch[b].samples[time_step].lstm_input = t
+
 
         lstm_input = []
-        for time_step in range(example_trace.length):
-            current_sample = example_trace.samples[time_step]
-            current_address = current_sample.address
-            current_instance = current_sample.instance
-            current_distribution = current_sample.distribution
-
-            current_one_hot_address = self.one_hot_address[current_address]
-            current_one_hot_instance = self.one_hot_instance[current_instance]
-            current_one_hot_distribution = self.one_hot_distribution[current_distribution.name()]
-
-            if time_step == 0:
-                prev_sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).zero_(), requires_grad=False)
-
-                prev_one_hot_address = self.one_hot_address_empty
-                prev_one_hot_instance = self.one_hot_instance_empty
-                prev_one_hot_distribution = self.one_hot_distribution_empty
-            else:
-                prev_sample = example_trace.samples[time_step - 1]
-                prev_address = prev_sample.address
-                prev_instance = prev_sample.instance
-                prev_distribution = prev_sample.distribution
-                smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, prev_sample.value.nelement())
-
-                smp_var = Variable(smp, requires_grad=False)
-                sample_layer = self.sample_layers[(prev_address, prev_instance)]
-                if data_parallel and self.on_cuda:
-                    prev_sample_embedding = torch.nn.DataParallel(sample_layer)(smp_var)
-                else:
-                    prev_sample_embedding = sample_layer(smp_var)
-
-                prev_one_hot_address = self.one_hot_address[prev_address]
-                prev_one_hot_instance = self.one_hot_instance[prev_instance]
-                prev_one_hot_distribution = self.one_hot_distribution[prev_distribution.name()]
-
+        for time_step in range(batch.traces_max_length):
             t = []
-            for b in range(sub_batch_size):
-                t.append(torch.cat([observe_embedding[b],
-                                    prev_sample_embedding[b],
-                                    prev_one_hot_address,
-                                    prev_one_hot_instance,
-                                    prev_one_hot_distribution,
-                                    current_one_hot_address,
-                                    current_one_hot_instance,
-                                    current_one_hot_distribution]))
-            t = torch.cat(t).view(sub_batch_size, -1)
+            for b in range(batch.length):
+                trace = batch[b]
+                if time_step < trace.length:
+                    t.append(trace.samples[time_step].lstm_input)
+                else:
+                    t.append(Variable(util.Tensor(self.lstm_input_dim).zero_()))
+            t = torch.cat(t).view(batch.length, -1)
             lstm_input.append(t)
-        lstm_input = torch.cat(lstm_input).view(example_trace.length, sub_batch_size, -1)
+        lstm_input = torch.cat(lstm_input).view(batch.traces_max_length, batch.length, -1)
 
-        h0 = Variable(util.Tensor(self.lstm_depth, sub_batch_size, self.lstm_dim).zero_(), requires_grad=False)
+        h0 = Variable(util.Tensor(self.lstm_depth, batch.length, self.lstm_dim).zero_(), requires_grad=False)
         if data_parallel and self.on_cuda:
             lstm_output, _ = torch.nn.DataParallel(self.lstm, dim=1)(lstm_input, (h0, h0))
         else:
             lstm_output, _ = self.lstm(lstm_input, (h0, h0))
 
+        for b in range(batch.length):
+            trace = batch[b]
+            for time_step in range(trace.length):
+                trace.samples[time_step].lstm_output = lstm_output[time_step, b]
+
+
         logpdf = 0
-        for time_step in range(example_trace.length):
-            current_sample = example_trace.samples[time_step]
-            current_address = current_sample.address
-            current_instance = current_sample.instance
-            current_distribution = current_sample.distribution
+        for sub_batch in batch.sub_batches:
+            sub_batch_size = len(sub_batch)
+            example_trace = sub_batch[0]
 
-            proposal_input = lstm_output[time_step]
-            proposal_layer = self.proposal_layers[(current_address, current_instance)]
-            if data_parallel and self.on_cuda:
-                proposal_output = torch.nn.DataParallel(proposal_layer)(proposal_input)
-            else:
-                proposal_output = proposal_layer(proposal_input)
+            for time_step in range(example_trace.length):
+                current_sample = example_trace.samples[time_step]
+                current_address = current_sample.address
+                current_instance = current_sample.instance
+                current_distribution = current_sample.distribution
 
-            if isinstance(current_distribution, UniformDiscrete):
-                log_weights = torch.log(proposal_output + util.epsilon)
+                p = []
                 for b in range(sub_batch_size):
-                    value = sub_batch[b].samples[time_step].value[0]
-                    min = sub_batch[b].samples[time_step].distribution.prior_min
-                    logpdf += log_weights[b, int(value) - min] # Should we average this over dimensions? See http://pytorch.org/docs/nn.html#torch.nn.KLDivLoss
-            elif isinstance(current_distribution, Normal):
-                means = proposal_output[:, 0]
-                stds = proposal_output[:, 1]
+                    p.append(sub_batch[b].samples[time_step].lstm_output)
+                p = torch.cat(p).view(sub_batch_size, -1)
 
-                # prior_means = util.Tensor([sub_batch[b].samples[time_step].distribution.prior_mean for b in range(sub_batch_size)])
-                # prior_stds =  util.Tensor([sub_batch[b].samples[time_step].distribution.prior_std for b in range(sub_batch_size)])
+                proposal_input = p
+                proposal_layer = self.proposal_layers[(current_address, current_instance)]
+                if data_parallel and self.on_cuda:
+                    proposal_output = torch.nn.DataParallel(proposal_layer)(proposal_input)
+                else:
+                    proposal_output = proposal_layer(proposal_input)
 
-                two_std_squares = 2 * stds * stds + util.epsilon
-                two_pi_std_squares = math.pi * two_std_squares
-                half_log_two_pi_std_squares = 0.5 * torch.log(two_pi_std_squares + util.epsilon)
-                for b in range(sub_batch_size):
-                    value = sub_batch[b].samples[time_step].value[0]
-                    mean = means[b]
-                    two_std_square = two_std_squares[b]
-                    half_log_two_pi_std_square = half_log_two_pi_std_squares[b]
-                    logpdf -= half_log_two_pi_std_square + ((value - mean)**2) / two_std_square
-            elif isinstance(current_distribution, Flip):
-                log_probabilities = torch.log(proposal_output + util.epsilon)
-                log_one_minus_probabilities = torch.log(1 - proposal_output + util.epsilon)
-                for b in range(sub_batch_size):
-                    value = sub_batch[b].samples[time_step].value[0]
-                    if value > 0:
-                        logpdf += log_probabilities[b]
-                    else:
-                        logpdf += log_one_minus_probabilities[b]
-            elif isinstance(current_distribution, Discrete):
-                log_weights = torch.log(proposal_output + util.epsilon)
-                for b in range(sub_batch_size):
-                    value = sub_batch[b].samples[time_step].value[0]
-                    logpdf += log_weights[b, int(value)]
-            elif isinstance(current_distribution, Categorical):
-                log_weights = torch.log(proposal_output + util.epsilon)
-                for b in range(sub_batch_size):
-                    value = sub_batch[b].samples[time_step].value[0]
-                    logpdf += log_weights[b, int(value)]
-            else:
-                util.log_error('Unsupported distribution: ' + current_distribution.name())
+                if isinstance(current_distribution, UniformDiscrete):
+                    log_weights = torch.log(proposal_output + util.epsilon)
+                    for b in range(sub_batch_size):
+                        value = sub_batch[b].samples[time_step].value[0]
+                        min = sub_batch[b].samples[time_step].distribution.prior_min
+                        logpdf += log_weights[b, int(value) - min] # Should we average this over dimensions? See http://pytorch.org/docs/nn.html#torch.nn.KLDivLoss
+                elif isinstance(current_distribution, Normal):
+                    means = proposal_output[:, 0]
+                    stds = proposal_output[:, 1]
 
-        return -logpdf / sub_batch_size
+                    # prior_means = util.Tensor([sub_batch[b].samples[time_step].distribution.prior_mean for b in range(sub_batch_size)])
+                    # prior_stds =  util.Tensor([sub_batch[b].samples[time_step].distribution.prior_std for b in range(sub_batch_size)])
+
+                    two_std_squares = 2 * stds * stds + util.epsilon
+                    two_pi_std_squares = math.pi * two_std_squares
+                    half_log_two_pi_std_squares = 0.5 * torch.log(two_pi_std_squares + util.epsilon)
+                    for b in range(sub_batch_size):
+                        value = sub_batch[b].samples[time_step].value[0]
+                        mean = means[b]
+                        two_std_square = two_std_squares[b]
+                        half_log_two_pi_std_square = half_log_two_pi_std_squares[b]
+                        logpdf -= half_log_two_pi_std_square + ((value - mean)**2) / two_std_square
+                elif isinstance(current_distribution, Flip):
+                    log_probabilities = torch.log(proposal_output + util.epsilon)
+                    log_one_minus_probabilities = torch.log(1 - proposal_output + util.epsilon)
+                    for b in range(sub_batch_size):
+                        value = sub_batch[b].samples[time_step].value[0]
+                        if value > 0:
+                            logpdf += log_probabilities[b]
+                        else:
+                            logpdf += log_one_minus_probabilities[b]
+                elif isinstance(current_distribution, Discrete):
+                    log_weights = torch.log(proposal_output + util.epsilon)
+                    for b in range(sub_batch_size):
+                        value = sub_batch[b].samples[time_step].value[0]
+                        logpdf += log_weights[b, int(value)]
+                elif isinstance(current_distribution, Categorical):
+                    log_weights = torch.log(proposal_output + util.epsilon)
+                    for b in range(sub_batch_size):
+                        value = sub_batch[b].samples[time_step].value[0]
+                        logpdf += log_weights[b, int(value)]
+                else:
+                    util.log_error('Unsupported distribution: ' + current_distribution.name())
+
+        return -logpdf / batch.length

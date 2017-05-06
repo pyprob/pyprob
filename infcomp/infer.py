@@ -33,7 +33,7 @@ def main():
         parser.add_argument('--seed', help='random seed', default=4, type=int)
         parser.add_argument('--debug', help='show debugging information as requests arrive', action='store_true')
         parser.add_argument('--server', help='address and port to bind this inference server', default='tcp://127.0.0.1:6666')
-        parser.add_argument('--visdom', help='use Visdom for visualizations', action='store_true')        
+        parser.add_argument('--visdom', help='use Visdom for visualizations', action='store_true')
         opt = parser.parse_args()
 
         if opt.version:
@@ -73,7 +73,7 @@ def main():
                 if replier.new_trace:
                     time_step = 0
                     obs = replier.observes
-                    observe_embedding = artifact.observe_layer(Variable(obs.unsqueeze(0), volatile=True))
+                    observe_embedding = artifact.observe_layer.forward_single(Variable(obs.unsqueeze(0), volatile=True))
                     replier.reply_observes_received()
 
                     if opt.debug:

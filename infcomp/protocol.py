@@ -120,7 +120,7 @@ class BatchRequester(object):
     def __exit__(self, exception_type, exception_value, traceback):
         self.requester.close()
 
-    def get_batch(self, data, standardize):
+    def get_traces(self, data, standardize):
         message_body = get_message_body(data)
         if not isinstance(message_body, infcomp.flatbuffers.TracesFromPriorReply.TracesFromPriorReply):
             util.log_error('Expecting a TracesFromPriorReply, but received {0}'.format(message_body))
@@ -143,21 +143,10 @@ class BatchRequester(object):
                 trace.add_sample(sample)
 
             traces.append(trace)
+
         return traces
 
-    def get_sub_batches(self, batch):
-        sb = {}
-        for trace in batch:
-            h = hash(str(trace))
-            if not h in sb:
-                sb[h] = []
-            sb[h].append(trace)
-        ret = []
-        for _, t in sb.items():
-            ret.append(t)
-        return ret
-
-    def request_batch(self, n):
+    def request_traces(self, n):
         # allocate buffer
         builder = flatbuffers.Builder(64) # actual message is around 36 bytes
 
@@ -176,25 +165,20 @@ class BatchRequester(object):
         message = builder.Output()
         self.requester.send_request(message)
 
-    def receive_batch(self, standardize=False):
+    def receive_traces(self, standardize=False):
         time1 = time.time()
 
-        sys.stdout.write('Waiting for new batch...                                 \r')
+        sys.stdout.write('Waiting for traces from prior...                         \r')
         sys.stdout.flush()
         data = self.requester.receive_reply()
         time2 = time.time()
 
-        sys.stdout.write('New batch received, processing...                        \r')
+        sys.stdout.write('New traces received, processing...                       \r')
         sys.stdout.flush()
-        b = self.get_batch(data, standardize)
-        sys.stdout.write('New batch received, splitting into sub-batches...        \r')
-        sys.stdout.flush()
-        bs = self.get_sub_batches(b)
-        sys.stdout.write('                                                         \r')
-        sys.stdout.flush()
+        traces = self.get_traces(data, standardize)
         time3 = time.time()
 
-        return bs, time2 - time1, time3 - time2
+        return traces, time2 - time1, time3 - time2
 
 
 class ProposalReplier(object):
