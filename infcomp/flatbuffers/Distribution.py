@@ -9,4 +9,8 @@ class Distribution(object):
     Flip = 3
     Normal = 4
     UniformDiscrete = 5
+    VMF = 6
+    Poisson = 7
+    UniformContinuous = 8
+    MultivariateNormal = 9
 

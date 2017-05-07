@@ -1,6 +1,13 @@
 namespace infcomp.flatbuffers;
 
-union MessageBody { TracesFromPriorRequest, ObservesInitRequest, ProposalRequest, TracesFromPriorReply, ObservesInitReply, ProposalReply }
+union MessageBody {
+    TracesFromPriorRequest,
+    ObservesInitRequest,
+    ProposalRequest,
+    TracesFromPriorReply,
+    ObservesInitReply,
+    ProposalReply
+}
 
 table Message {
     body:MessageBody;
@@ -8,7 +15,17 @@ table Message {
 
 root_type Message;
 
-union Distribution { Categorical, Discrete, Flip, Normal, UniformDiscrete }
+union Distribution {
+    Categorical,
+    Discrete,
+    Flip,
+    Normal,
+    UniformDiscrete,
+    VMF,
+    Poisson,
+    UniformContinuous,
+    MultivariateNormal
+}
 
 table NDArray {
     data:[double];
@@ -41,6 +58,34 @@ table UniformDiscrete {
     prior_size:int;
     proposal_probabilities:NDArray;
 }
+
+table VMF {
+    prior_mu:NDArray;
+    prior_kappa:double;
+
+    proposal_mu:NDArray;
+    proposal_kappa:double;
+}
+
+table MultivariateNormal {
+    prior_mean:NDArray;
+    prior_sigma:NDArray;
+
+    proposal_mean:NDArray;
+    proposal_sigma:NDArray;
+}
+
+table Poisson {
+    prior_lambda:double;
+
+    proposal_lambda:double;
+}
+
+table UniformContinuous {
+    prior_min:double;
+    prior_max:double;
+}
+
 
 table Sample {
     time:int;
