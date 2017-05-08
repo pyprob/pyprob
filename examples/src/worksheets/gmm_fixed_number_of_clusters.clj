@@ -8,9 +8,9 @@
 
 ;; @@
 (ns gmm-fixed-number-of-clusters
-  (:require anglican.infcomp.csis
+  (:require anglican.csis.csis
             anglican.smc
-            [anglican.infcomp.network :refer :all]
+            [anglican.csis.network :refer :all]
             [anglican.inference :refer [infer]]
             [anglican.stat :refer [collect-results]]
             [clojure.core.matrix :as m]
@@ -113,19 +113,12 @@
 ;;; {"type":"html","content":"<span class='clj-var'>#&#x27;gmm-fixed-number-of-clusters/torch-connection</span>","value":"#'gmm-fixed-number-of-clusters/torch-connection"}
 ;; <=
 
-;; @@
-torch-connection
-;; @@
-;; =>
-;;; {"type":"list-like","open":"<span class='clj-map'>{</span>","close":"<span class='clj-map'>}</span>","separator":", ","items":[{"type":"list-like","open":"","close":"","separator":" ","items":[{"type":"html","content":"<span class='clj-keyword'>:socket</span>","value":":socket"},{"type":"html","content":"<span class='clj-unkown'>#object[org.zeromq.ZMQ$Socket 0x4510764a &quot;org.zeromq.ZMQ$Socket@4510764a&quot;]</span>","value":"#object[org.zeromq.ZMQ$Socket 0x4510764a \"org.zeromq.ZMQ$Socket@4510764a\"]"}],"value":"[:socket #object[org.zeromq.ZMQ$Socket 0x4510764a \"org.zeromq.ZMQ$Socket@4510764a\"]]"},{"type":"list-like","open":"","close":"","separator":" ","items":[{"type":"html","content":"<span class='clj-keyword'>:server</span>","value":":server"},{"type":"html","content":"<span class='clj-unkown'>#object[clojure.core$future_call$reify__6962 0x47e089bc {:status :ready, :val &quot;Unknown exception: java.lang.IllegalArgumentException: No matching clause: class anglican.runtime.mvn-distribution&quot;}]</span>","value":"#object[clojure.core$future_call$reify__6962 0x47e089bc {:status :ready, :val \"Unknown exception: java.lang.IllegalArgumentException: No matching clause: class anglican.runtime.mvn-distribution\"}]"}],"value":"[:server #object[clojure.core$future_call$reify__6962 0x47e089bc {:status :ready, :val \"Unknown exception: java.lang.IllegalArgumentException: No matching clause: class anglican.runtime.mvn-distribution\"}]]"},{"type":"list-like","open":"","close":"","separator":" ","items":[{"type":"html","content":"<span class='clj-keyword'>:context</span>","value":":context"},{"type":"html","content":"<span class='clj-unkown'>#object[org.zeromq.ZMQ$Context 0x6672ba81 &quot;org.zeromq.ZMQ$Context@6672ba81&quot;]</span>","value":"#object[org.zeromq.ZMQ$Context 0x6672ba81 \"org.zeromq.ZMQ$Context@6672ba81\"]"}],"value":"[:context #object[org.zeromq.ZMQ$Context 0x6672ba81 \"org.zeromq.ZMQ$Context@6672ba81\"]]"}],"value":"{:socket #object[org.zeromq.ZMQ$Socket 0x4510764a \"org.zeromq.ZMQ$Socket@4510764a\"], :server #object[clojure.core$future_call$reify__6962 0x47e089bc {:status :ready, :val \"Unknown exception: java.lang.IllegalArgumentException: No matching clause: class anglican.runtime.mvn-distribution\"}], :context #object[org.zeromq.ZMQ$Context 0x6672ba81 \"org.zeromq.ZMQ$Context@6672ba81\"]}"}
-;; <=
-
 ;; **
-;;; Then run the following to train the neural network:
+;;; Now, run `compile.lua` from the [Torch side](https://github.com/tuananhle7/torch-csis) until you're happy, e.g.:
 ;;; 
-;;; `python -m infcomp.compile --obsEmb cnn6 --obsEmbDim 20 --lstmDim 20`
+;;; `th compile.lua --batchSize 16 --validSize 16 --validInterval 128 --obsEmb lenet --obsEmbDim 8 --lstmDim 4 --obsSmooth`
 ;;; 
-;;; When you're happy, you can stop the training by running the following (also, end neural network training via Ctrl-C):
+;;; When you're happy, you can stop the training by running the following (also, end Torch training via Ctrl-C):
 ;; **
 
 ;; @@
@@ -133,7 +126,7 @@ torch-connection
 (stop-torch-connection torch-connection)
 ;; @@
 ;; =>
-;;; {"type":"html","content":"<span class='clj-string'>&quot;Unknown exception: java.lang.IllegalArgumentException: No matching clause: class anglican.runtime.mvn-distribution&quot;</span>","value":"\"Unknown exception: java.lang.IllegalArgumentException: No matching clause: class anglican.runtime.mvn-distribution\""}
+;;; {"type":"html","content":"<span class='clj-string'>&quot;Torch connection terminated.&quot;</span>","value":"\"Torch connection terminated.\""}
 ;; <=
 
 ;; **
@@ -155,7 +148,7 @@ torch-connection
             (observe (mvn mean (mmul var (identity-matrix 2))) %)
             cluster)
          data)))
-(def smp (first (anglican.infcomp.prior/sample-from-prior gmm-fixed [(repeatedly num-data-points rand) [1 1 1] [[-0.3 -0.2] [0.1 0.1] [0.7 0.0]] [0.005 0.005 0.005]])))
+(def smp (first (anglican.csis.prior/sample-from-prior gmm-fixed [(repeatedly num-data-points rand) [1 1 1] [[-0.3 -0.2] [0.1 0.1] [0.7 0.0]] [0.005 0.005 0.005]])))
 (def data (map :value (:observes smp)))
 (def ground-means (map :value (:samples smp)))
 (def observe-embedder-input (gridify (move-to-unit-box data) grid-dimensions))

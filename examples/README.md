@@ -1,117 +1,149 @@
-# Inference Compilation: Examples
+# Examples of Inference Compilation and Universal Probabilistic Programming
 
 This is a Leiningen project containing several example probabilistic programs for compiled inference. Check out the [main project page][project-page-link] and a more detailed [tutorial][tutorial-link].
 
 ## Contents
-1. [Gaussian](#1-gaussian)
+1. [Minimal](#1-minimal)
 2. [Gaussian Mixture Model with fixed number of clusters](#2-gaussian-mixture-model-with-fixed-number-of-clusters)
 3. [Gaussian Mixture Model with variable number of clusters](#3-gaussian-mixture-model-with-variable-number-of-clusters)
 4. [Wikipedia's Captcha](#4-wikipedias-captcha)
 5. [Facebook's Captcha](#5-facebooks-captcha)
 6. [Gorilla REPL Notebooks](#6-gorilla-repl-notebooks)
 
-## 1. Gaussian
+## 1. Minimal
 This is a minimal example used to test if everything is running.
 
 ### Compilation
-Start the compilation server:
+Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode compile \
---namespace queries.gaussian
+--namespace queries.minimal \
+--query minimal \
+--compile-combine-observes-fn combine-observes-fn \
+--compile-query-args-value "[[1 2]]"
 ```
 
-Then run the following to train the neural network:
+At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-python -m infcomp.compile
+$ th compile.lua \
+--batchSize 16 \
+--validSize 16 \
+--validInterval 256 \
+--obsEmbDim 16 \
+--lstmDim 16
 ```
 
 ### Inference
-Start the inference server:
+Run:
 ```
-python -m infcomp.infer
+$ lein run -- \
+--mode infer \
+--namespace queries.minimal \
+--query minimal \
+--infer-query-args-value "[[1 2]]"
 ```
 
-Then run inference:
+At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-lein run -- \
---mode infer \
---namespace queries.gaussian \
---infer-query-args-value [2.3]
+$ th infer.lua --latest
 ```
 
 ## 2. Gaussian Mixture Model with fixed number of clusters
 Compiled artifact for this probabilistic program was used to produce plots in [Figure 4 in the paper][paper-figure4-link].
 
 ### Compilation
-Start the compilation server:
+Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode compile \
 --namespace queries.gmm-fixed-number-of-clusters \
+--query gmm-fixed-number-of-clusters \
 --compile-combine-observes-fn combine-observes-fn \
 --compile-combine-samples-fn combine-samples-fn \
 --compile-query-args-value "[$(python src/helpers/io/csv2edn.py resources/gmm-data/gmm.csv) {:mu-0 [0 0] :Sigma-0 [[0.1 0] [0 0.1]]}]"
 ```
 
-Then run the following to train the neural network:
+At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-python -m infcomp.compile \
---obsEmb cnn6 \
+$ th compile.lua \
+--cuda \
+--batchSize 32 \
+--validInterval 1000 \
+--obsEmb lenet \
 --obsEmbDim 20 \
 --lstmDim 20 \
+--oneHotDim 3 \
+--obsSmooth
 ```
 
 ### Inference
-Start the inference server:
+Run:
 ```
-python -m infcomp.infer
-```
-
-Then run inference:
-```
-lein run -- \
+$ lein run -- \
 --mode infer \
 --namespace queries.gmm-fixed-number-of-clusters \
+--query gmm-fixed-number-of-clusters \
 --infer-observe-embedder-input-value "$(python src/helpers/io/csv2hst.py resources/gmm-data/gmm.csv)" \
 --infer-query-args-value "[$(python src/helpers/io/csv2edn.py resources/gmm-data/gmm.csv) {:mu-0 [0 0] :Sigma-0 [[0.1 0] [0 0.1]]}]"
+```
+
+At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
+```
+$ th infer.lua --cuda --latest
+```
+
+**Pre-trained artifact.** You can also [download a pre-trained artifact][gmm-fixed-number-of-clusters-artifact-link] to the `data/` folder and run
+```
+$ th infer.lua --cuda --artifact gmm-fixed-number-of-clusters-compile-artifact-161012-102419
 ```
 
 ## 3. Gaussian Mixture Model with variable number of clusters
 Compiled artifact for this probabilistic program was used to produce plots in [Figure 2 in the paper][paper-figure2-link].
 
 ### Compilation
-Start the compilation server:
+Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode compile \
 --namespace queries.gmm-variable-number-of-clusters \
+--query gmm-variable-number-of-clusters \
 --compile-combine-observes-fn combine-observes-fn \
 --compile-combine-samples-fn combine-samples-fn \
 --compile-query-args-value "[$(python src/helpers/io/csv2edn.py resources/gmm-data/gmm.csv) {:mu-0 [0 0] :Sigma-0 [[0.1 0] [0 0.1]]}]"
 ```
 
-Then run the following to train the neural network:
+At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-python -m infcomp.compile \
---obsEmb cnn6 \
---obsEmbDim 256 \
---lstmDim 256
+$ th compile.lua \
+--cuda \
+--obsEmb cnn6-96x96 \
+--lstmDim 256 \
+--obsSmooth \
+--validInterval 5000 \
+--batchSize 64 \
+--obsEmbDim 256
 ```
 
 ### Inference
-Start the inference server:
+Run:
 ```
-python -m infcomp.infer
-```
-
-Then run inference:
-```
-lein run -- \
+$ lein run -- \
 --mode infer \
 --namespace queries.gmm-variable-number-of-clusters \
+--query gmm-variable-number-of-clusters \
 --infer-observe-embedder-input-value "$(python src/helpers/io/csv2hst.py resources/gmm-data/gmm.csv)" \
 --infer-query-args-value "[$(python src/helpers/io/csv2edn.py resources/gmm-data/gmm.csv) {:mu-0 [0 0] :Sigma-0 [[0.1 0] [0 0.1]]}]"
+```
+
+At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
+```
+$ th infer.lua --cuda --latest
+```
+
+**Pre-trained artifact.** You can also [download a pre-trained artifact][gmm-variable-number-of-clusters-artifact-link] to the `data/` folder and run
+```
+$ th infer.lua --cuda --artifact gmm-variable-number-of-clusters-compile-artifact-161129-003541
 ```
 
 The code and data for clustering detector hits of images from the [PASCAL VOC 2007][pascal-voc-2007-link] dataset to reproduce [Figure 2 of the paper][paper-figure2-link] are in [examples/plots/gmm-variable-number-of-clusters/detector-hits-clustering][detector-hits-clustering-link]. We used [Hakan Bilen][hakan-bilen-link]'s and [Abhishek Dutta][abishkek-dutta-link]'s [MatConvNet][matconvnet-link] implementation of the [Fast R-CNN][fast-rcnn-link] detector. We are very grateful to Hakan for showing us how to use their code.
@@ -120,67 +152,92 @@ The code and data for clustering detector hits of images from the [PASCAL VOC 20
 Compiled artifact for this probabilistic program was used to break [Wikipedia's Captcha][wikipedia-captcha-link], which was described in [Section 4.2 of the paper][paper-section4-2-link].
 
 ### Compilation
-Start the compilation server:
+Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode compile \
---namespace queries.captcha-wikipedia
+--namespace queries.captcha-wikipedia \
+--query captcha-wikipedia \
+--compile-combine-observes-fn combine-observes-fn \
+--compile-query-args-value "[nil]"
 ```
 
-Then run the following to train the neural network:
+At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-python -m infcomp.compile \
+$ th compile.lua \
+--cuda \
+--validInterval 10000 \
 --obsEmb cnn6 \
 --obsEmbDim 1024 \
---lstmDim 512
+--lstmDepth 2 \
+--batchSize 64
 ```
 
 ### Inference
-Start the inference server:
+Run:
 ```
-python -m infcomp.infer
-```
-
-Then run inference:
-```
-lein run -- \
+$ lein run -- \
 --mode infer \
 --namespace queries.captcha-wikipedia \
+--query captcha-wikipedia \
 --infer-query-args-value "[$(python src/helpers/io/png2edn.py resources/wikipedia-dataset/agavelooms.png)]"
+```
+
+At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
+```
+$ th infer.lua --latest
+```
+
+**Pre-trained artifact.** You can also [download a pre-trained artifact][captcha-wikipedia-artifact-link] to the `data/` folder and run
+```
+$ th infer.lua --cuda --artifact captcha-wikipedia-compile-artifact-161130-111531
 ```
 
 ## 5. Facebook's Captcha
 Compiled artifact for this probabilistic program was used to break Facebook's Captcha, which was described in [Section 4.2 of the paper][paper-section4-2-link].
 
 ### Compilation
-Start the compilation server:
+Run:
 ```
-lein run -- \
+$ lein run -- \
 --mode compile \
---namespace queries.captcha-facebook
+--namespace queries.captcha-facebook \
+--query captcha-facebook \
+--compile-combine-observes-fn combine-observes-fn \
+--compile-query-args-value "[nil]"
 ```
 
-Then run the following to train the neural network:
+At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
 ```
-python -m infcomp.compile \
+$ th compile.lua \
+--cuda \
 --obsEmb cnn6 \
 --obsEmbDim 1024 \
---lstmDim 512
+--lstmDepth 2 \
+--batchSize 64 \
+--validInterval 10000
 ```
 
 ### Inference
-Start the inference server:
+Run:
 ```
-python -m infcomp.infer
-```
-
-Then run inference:
-```
-lein run -- \
+$ lein run -- \
 --mode infer \
 --namespace queries.captcha-facebook \
+--query captcha-facebook \
 --infer-query-args-value "[$(python src/helpers/io/png2edn.py resources/facebook-dataset/2MsLet.png)]"
 ```
+
+At the same time, run the following from [torch-csis][torch-csis-repo-link] root:
+```
+$ th infer.lua --latest
+```
+
+**Pre-trained artifact.** You can also [download a pre-trained artifact][captcha-facebook-artifact-link] to the `data/` folder and run
+```
+$ th infer.lua --cuda --artifact captcha-facebook-compile-artifact-161208-000053
+```
+
 
 ## 6. Gorilla REPL Notebooks
 [Gorilla REPL][gorilla-repl-link] is a Jupyter-like, notebook-style Clojure REPL. All above examples have a corresponding Gorilla REPL version. To open the notebooks, run
