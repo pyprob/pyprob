@@ -9,9 +9,7 @@
 
 import infcomp
 from infcomp import util
-from infcomp.protocol import ProposalReplier
-import infcomp.flatbuffers.ObservesInitRequest
-import infcomp.flatbuffers.ProposalRequest
+from infcomp.comm import ProposalReplier
 import torch
 from torch.autograd import Variable
 import argparse

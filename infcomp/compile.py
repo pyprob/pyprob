@@ -9,7 +9,7 @@
 
 import infcomp
 from infcomp import util
-from infcomp.protocol import BatchRequester
+from infcomp.comm import BatchRequester
 from infcomp.modules import Artifact, Batch
 
 import argparse

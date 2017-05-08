@@ -10,7 +10,6 @@
 import infcomp
 from infcomp import util
 import sys
-from infcomp.flatbuffers import TracesFromPriorRequest
 import zmq
 from termcolor import colored
 

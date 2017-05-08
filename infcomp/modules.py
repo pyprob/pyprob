@@ -127,7 +127,7 @@ class ProposalUniformContinuous(nn.Module):
         ks = x[:,1].unsqueeze(1)
         modes = nn.Sigmoid()(modes)
         ks = nn.Softplus()(ks)
-        return torch.cat([modes, ks], 1)
+        return torch.cat([(modes * (self.prior_max - self.prior_min) + self.prior_min), ks], 1)
 
 class SampleEmbeddingFC(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -644,19 +644,20 @@ class Artifact(nn.Module):
                         value = sub_batch[b].samples[time_step].value[0]
                         logpdf += log_weights[b, int(value)]
                 elif isinstance(current_distribution, UniformContinuous):
-                    modes = proposal_output[:, 0]
-                    ks = proposal_output[:, 1]
+                    normalized_modes = proposal_output[:, 0]
+                    normalized_ks = proposal_output[:, 1] + 2
+                    alphas = normalized_modes * (normalized_ks - 2) + 1
+                    betas = (1 - normalized_modes) * (normalized_ks - 2) + 1
+                    beta_funs = util.beta(alphas, betas)
                     for b in range(sub_batch_size):
                         value = sub_batch[b].samples[time_step].value[0]
-                        normalized_mode = modes[b]
-                        normalized_k = ks[b] + 2
                         prior_min = sub_batch[b].samples[time_step].distribution.prior_min
                         prior_max = sub_batch[b].samples[time_step].distribution.prior_max
                         normalized_value = (value - prior_min) / (prior_max - prior_min)
-                        alpha = normalized_mode * (normalized_k - 2) + 1
-                        beta = (1 - normalized_mode) * (normalized_k - 2) + 1
-                        # contribution from torch.log(beta_func(alpha, beta) + util.epsilon) omitted temporarily
-                        logpdf += -torch.log(util.beta(alpha, beta)) + (alpha - 1) * np.log(normalized_value + util.epsilon) + (beta - 1) * np.log(1 - normalized_value + util.epsilon) - np.log(prior_max - prior_min)
+                        alpha = alphas[b]
+                        beta = betas[b]
+                        beta_fun = beta_funs[b]
+                        logpdf += (alpha - 1) * np.log(normalized_value + util.epsilon) + (beta - 1) * np.log(1 - normalized_value + util.epsilon) - torch.log(beta_fun) - np.log(prior_max - prior_min)
                 else:
                     util.log_error('Unsupported distribution: ' + current_distribution.name())
 

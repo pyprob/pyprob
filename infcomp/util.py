@@ -8,10 +8,6 @@
 #
 
 import infcomp
-import infcomp.flatbuffers.Message
-import infcomp.flatbuffers.MessageBody
-import infcomp.flatbuffers.TracesFromPriorRequest
-import infcomp.flatbuffers.TracesFromPriorReply
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -28,18 +24,25 @@ from pprint import pformat
 import cpuinfo
 
 epsilon = 1e-8
+beta_res = 1000
+beta_step = 1/beta_res
 
 def get_time_stamp():
     return datetime.datetime.fromtimestamp(time.time()).strftime('-%Y%m%d-%H%M%S')
 
 def init(opt, mode=''):
     global Tensor
+    global beta_integration_domain
+    beta_integration_domain = Variable(torch.linspace(beta_step/2,1-(beta_step/2),beta_res), requires_grad=False)
+
     torch.manual_seed(opt.seed)
     if torch.cuda.is_available() and opt.cuda:
         torch.cuda.set_device(opt.device)
         torch.cuda.manual_seed(opt.seed)
         torch.backends.cudnn.enabled = True
         Tensor = torch.cuda.FloatTensor
+
+        beta_integration_domain = beta_integration_domain.cuda()
     else:
         Tensor = torch.FloatTensor
         opt.cuda = False
@@ -206,10 +209,11 @@ class Spinner(object):
         if self.i > 3:
             self.i = 0
 
-def beta(a,b,res=20):
-    step = 1/res
-    a = a.repeat(res)
-    b = b.repeat(res)
-    x = Variable(torch.linspace(step/2,1-(step/2),res))
-    fx = (x**(a-1)) * ((1-x)**(b-1))
-    return torch.sum(fx) * step
+def beta(a, b):
+    n = a.nelement()
+    assert b.nelement() == n, 'a and b must have the same number of elements'
+    a_min_one = (a-1).repeat(beta_res,1).t()
+    b_min_one = (b-1).repeat(beta_res,1).t()
+    x = beta_integration_domain.repeat(n,1)
+    fx = (x**a_min_one) * ((1-x)**b_min_one)
+    return torch.sum(fx,1).squeeze() * beta_step
