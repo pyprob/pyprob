@@ -124,10 +124,10 @@ class ProposalUniformContinuous(nn.Module):
     def forward(self, x):
         x = self.lin1(x)
         modes = x[:,0].unsqueeze(1)
-        ks = x[:,1].unsqueeze(1)
+        certainties = x[:,1].unsqueeze(1)
         modes = nn.Sigmoid()(modes)
-        ks = nn.Softplus()(ks)
-        return torch.cat([(modes * (self.prior_max - self.prior_min) + self.prior_min), ks], 1)
+        certainties = nn.Softplus()(certainties)
+        return torch.cat([(modes * (self.prior_max - self.prior_min) + self.prior_min), certainties], 1)
 
 class SampleEmbeddingFC(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -645,9 +645,9 @@ class Artifact(nn.Module):
                         logpdf += log_weights[b, int(value)]
                 elif isinstance(current_distribution, UniformContinuous):
                     normalized_modes = proposal_output[:, 0]
-                    normalized_ks = proposal_output[:, 1] + 2
-                    alphas = normalized_modes * (normalized_ks - 2) + 1
-                    betas = (1 - normalized_modes) * (normalized_ks - 2) + 1
+                    normalized_certainties = proposal_output[:, 1] + 2
+                    alphas = normalized_modes * (normalized_certainties - 2) + 1
+                    betas = (1 - normalized_modes) * (normalized_certainties - 2) + 1
                     beta_funs = util.beta(alphas, betas)
                     for b in range(sub_batch_size):
                         value = sub_batch[b].samples[time_step].value[0]

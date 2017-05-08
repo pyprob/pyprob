@@ -68,13 +68,13 @@ class UniformContinuous(object):
         self.prior_min = prior_min
         self.prior_max = prior_max
         self.proposal_mode = None
-        self.proposal_k = None
+        self.proposal_certainty = None
     def __repr__(self):
-        return 'UniformContinuous(prior_min:{0}; prior_max:{1}; proposal_mode:{2}; proposal_k:{3})'.format(self.prior_min, self.prior_max, self.proposal_mode, self.proposal_k)
+        return 'UniformContinuous(prior_min:{0}; prior_max:{1}; proposal_mode:{2}; proposal_certainty:{3})'.format(self.prior_min, self.prior_max, self.proposal_mode, self.proposal_certainty)
     __str__ = __repr__
-    def set_proposalparams(self, tensor_of_proposal_mode_k):
-        self.proposal_mode = tensor_of_proposal_mode_k[0]
-        self.proposal_k = tensor_of_proposal_mode_k[1]
+    def set_proposalparams(self, tensor_of_proposal_mode_certainty):
+        self.proposal_mode = tensor_of_proposal_mode_certainty[0]
+        self.proposal_certainty = tensor_of_proposal_mode_certainty[1]
     def name(self):
         return 'UniformContinuous'
     def cuda(self, device_id=None):

@@ -286,7 +286,7 @@ class ProposalReplier(object):
                 # construct UniformContinuous
                 infcomp.protocol.UniformContinuous.UniformContinuousStart(builder)
                 infcomp.protocol.UniformContinuous.UniformContinuousAddProposalMode(builder, p.proposal_mode)
-                infcomp.protocol.UniformContinuous.UniformContinuousAddProposalK(builder, p.proposal_k)
+                infcomp.protocol.UniformContinuous.UniformContinuousAddProposalCertainty(builder, p.proposal_certainty)
                 distribution = infcomp.protocol.UniformContinuous.UniformContinuousEnd(builder)
                 distribution_type = infcomp.protocol.Distribution.Distribution().UniformContinuous
             else:
