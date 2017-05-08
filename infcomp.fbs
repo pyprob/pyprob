@@ -84,6 +84,9 @@ table Poisson {
 table UniformContinuous {
     prior_min:double;
     prior_max:double;
+
+    proposal_mode:double;
+    proposal_k:double;
 }
 
 

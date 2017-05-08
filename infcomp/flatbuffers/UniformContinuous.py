@@ -32,7 +32,23 @@ class UniformContinuous(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-def UniformContinuousStart(builder): builder.StartObject(2)
+    # UniformContinuous
+    def ProposalMode(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+    # UniformContinuous
+    def ProposalK(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
+        return 0.0
+
+def UniformContinuousStart(builder): builder.StartObject(4)
 def UniformContinuousAddPriorMin(builder, priorMin): builder.PrependFloat64Slot(0, priorMin, 0.0)
 def UniformContinuousAddPriorMax(builder, priorMax): builder.PrependFloat64Slot(1, priorMax, 0.0)
+def UniformContinuousAddProposalMode(builder, proposalMode): builder.PrependFloat64Slot(2, proposalMode, 0.0)
+def UniformContinuousAddProposalK(builder, proposalK): builder.PrependFloat64Slot(3, proposalK, 0.0)
 def UniformContinuousEnd(builder): return builder.EndObject()

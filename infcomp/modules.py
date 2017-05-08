@@ -9,7 +9,7 @@
 
 import infcomp
 from infcomp import util
-from infcomp.probprog import UniformDiscrete, Normal, Flip, Discrete, Categorical
+from infcomp.probprog import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous
 import torch
 import torch.nn as nn
 import torch.nn.init as init
@@ -113,6 +113,21 @@ class ProposalCategorical(nn.Module):
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
     def forward(self, x):
         return F.softmax(self.lin1(x).mul_(self.softmax_boost))
+
+class ProposalUniformContinuous(nn.Module):
+    def __init__(self, input_dim, prior_min, prior_max):
+        super(ProposalUniformContinuous, self).__init__()
+        self.lin1 = nn.Linear(input_dim, 2)
+        self.prior_min = prior_min
+        self.prior_max = prior_max
+        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
+    def forward(self, x):
+        x = self.lin1(x)
+        modes = x[:,0].unsqueeze(1)
+        ks = x[:,1].unsqueeze(1)
+        modes = nn.Sigmoid()(modes)
+        ks = nn.Softplus()(ks)
+        return torch.cat([modes, ks], 1)
 
 class SampleEmbeddingFC(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -327,6 +342,8 @@ class Artifact(nn.Module):
                         proposal_layer = ProposalDiscrete(self.lstm_dim, distribution.prior_size, self.softmax_boost)
                     elif isinstance(distribution, Categorical):
                         proposal_layer = ProposalCategorical(self.lstm_dim, distribution.prior_size, self.softmax_boost)
+                    elif isinstance(distribution, UniformContinuous):
+                        proposal_layer = ProposalUniformContinuous(self.lstm_dim, distribution.prior_min, distribution.prior_max)
                     else:
                         util.log_error('Unsupported distribution: ' + sample.distribution.name())
                     self.sample_layers[(address, instance)] = sample_layer
@@ -439,9 +456,9 @@ class Artifact(nn.Module):
         self.valid_batch.cpu()
 
     def valid_loss(self, data_parallel=False):
-        return self.loss(self.valid_batch, data_parallel).data[0]
+        return self.loss(self.valid_batch, data_parallel, False).data[0]
 
-    def loss(self, batch, data_parallel=False):
+    def loss(self, batch, data_parallel=False, volatile=False):
         gc.collect()
 
         example_observes = batch[0].observes
@@ -458,7 +475,7 @@ class Artifact(nn.Module):
                 o = batch_sorted_by_observes[b].observes
                 for t in range(o.size(0)):
                     obs[b, t] = o[t]
-            obs_var = Variable(obs, requires_grad=False)
+            obs_var = Variable(obs, requires_grad=False, volatile=volatile)
             obs_var = torch.nn.utils.rnn.pack_padded_sequence(obs_var, observes_lengths, batch_first=True)
             obs_emb = self.observe_layer.forward_packed(obs_var, batch.length)
             obs_emb, _ = torch.nn.utils.rnn.pad_packed_sequence(obs_emb, batch_first=True)
@@ -477,7 +494,7 @@ class Artifact(nn.Module):
             else:
                 util.log_error('Unsupported observation dimensions: {0}'.format(example_observes.size()))
 
-            obs_var = Variable(obs, requires_grad=False)
+            obs_var = Variable(obs, requires_grad=False, volatile=volatile)
             if data_parallel and self.on_cuda:
                 obs_emb = torch.nn.DataParallel(self.observe_layer)(obs_var)
             else:
@@ -500,7 +517,7 @@ class Artifact(nn.Module):
                 current_one_hot_distribution = self.one_hot_distribution[current_distribution.name()]
 
                 if time_step == 0:
-                    prev_sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).zero_(), requires_grad=False)
+                    prev_sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).zero_(), requires_grad=False, volatile=volatile)
 
                     prev_one_hot_address = self.one_hot_address_empty
                     prev_one_hot_instance = self.one_hot_instance_empty
@@ -512,7 +529,7 @@ class Artifact(nn.Module):
                     prev_distribution = prev_sample.distribution
                     smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, prev_sample.value.nelement())
 
-                    smp_var = Variable(smp, requires_grad=False)
+                    smp_var = Variable(smp, requires_grad=False, volatile=volatile)
                     sample_layer = self.sample_layers[(prev_address, prev_instance)]
                     # if data_parallel and self.on_cuda:
                     #     prev_sample_embedding = torch.nn.DataParallel(sample_layer)(smp_var)
@@ -543,13 +560,13 @@ class Artifact(nn.Module):
                 if time_step < trace.length:
                     t.append(trace.samples[time_step].lstm_input)
                 else:
-                    t.append(Variable(util.Tensor(self.lstm_input_dim).zero_()))
+                    t.append(Variable(util.Tensor(self.lstm_input_dim).zero_(), volatile=volatile))
             t = torch.cat(t).view(batch.length, -1)
             lstm_input.append(t)
         lstm_input = torch.cat(lstm_input).view(batch.traces_max_length, batch.length, -1)
         lstm_input = torch.nn.utils.rnn.pack_padded_sequence(lstm_input, batch.traces_lengths)
 
-        h0 = Variable(util.Tensor(self.lstm_depth, batch.length, self.lstm_dim).zero_(), requires_grad=False)
+        h0 = Variable(util.Tensor(self.lstm_depth, batch.length, self.lstm_dim).zero_(), requires_grad=False, volatile=volatile)
         if data_parallel and self.on_cuda:
             lstm_output, _ = torch.nn.DataParallel(self.lstm, dim=1)(lstm_input, (h0, h0))
         else:
@@ -626,6 +643,20 @@ class Artifact(nn.Module):
                     for b in range(sub_batch_size):
                         value = sub_batch[b].samples[time_step].value[0]
                         logpdf += log_weights[b, int(value)]
+                elif isinstance(current_distribution, UniformContinuous):
+                    modes = proposal_output[:, 0]
+                    ks = proposal_output[:, 1]
+                    for b in range(sub_batch_size):
+                        value = sub_batch[b].samples[time_step].value[0]
+                        normalized_mode = modes[b]
+                        normalized_k = ks[b] + 2
+                        prior_min = sub_batch[b].samples[time_step].distribution.prior_min
+                        prior_max = sub_batch[b].samples[time_step].distribution.prior_max
+                        normalized_value = (value - prior_min) / (prior_max - prior_min)
+                        alpha = normalized_mode * (normalized_k - 2) + 1
+                        beta = (1 - normalized_mode) * (normalized_k - 2) + 1
+                        # contribution from torch.log(beta_func(alpha, beta) + util.epsilon) omitted temporarily
+                        logpdf += (alpha - 1) * np.log(normalized_value + util.epsilon) + (beta - 1) * np.log(1 - normalized_value + util.epsilon) - np.log(prior_max - prior_min)
                 else:
                     util.log_error('Unsupported distribution: ' + current_distribution.name())
 

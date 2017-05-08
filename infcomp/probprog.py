@@ -50,7 +50,7 @@ class UniformDiscrete(object):
         self.prior_size = prior_size
         self.proposal_probabilities = None
     def __repr__(self):
-        return 'UniformDiscrete(prior_min:{0}; prior_max:{1}; proposal_probabilities:{2})'.format(self.prior_min, self.prior_size, self.proposal_probabilities)
+        return 'UniformDiscrete(prior_min:{0}; prior_size:{1}; proposal_probabilities:{2})'.format(self.prior_min, self.prior_size, self.proposal_probabilities)
     __str__ = __repr__
     def set_proposalparams(self, proposal_probabilities):
         self.proposal_probabilities = proposal_probabilities
@@ -62,6 +62,25 @@ class UniformDiscrete(object):
     def cpu(self):
         if not self.proposal_probabilities is None:
             self.proposal_probabilities = self.proposal_probabilities.cpu()
+
+class UniformContinuous(object):
+    def __init__(self, prior_min, prior_max):
+        self.prior_min = prior_min
+        self.prior_max = prior_max
+        self.proposal_mode = None
+        self.proposal_k = None
+    def __repr__(self):
+        return 'UniformContinuous(prior_min:{0}; prior_max:{1}; proposal_mode:{2}; proposal_k:{3})'.format(self.prior_min, self.prior_max, self.proposal_mode, self.proposal_k)
+    __str__ = __repr__
+    def set_proposalparams(self, tensor_of_proposal_mode_k):
+        self.proposal_mode = tensor_of_proposal_mode_k[0]
+        self.proposal_k = tensor_of_proposal_mode_k[1]
+    def name(self):
+        return 'UniformContinuous'
+    def cuda(self, device_id=None):
+        return
+    def cpu(self):
+        return
 
 class Normal(object):
     def __init__(self, prior_mean, prior_std):
