@@ -656,7 +656,7 @@ class Artifact(nn.Module):
                         alpha = normalized_mode * (normalized_k - 2) + 1
                         beta = (1 - normalized_mode) * (normalized_k - 2) + 1
                         # contribution from torch.log(beta_func(alpha, beta) + util.epsilon) omitted temporarily
-                        logpdf += (alpha - 1) * np.log(normalized_value + util.epsilon) + (beta - 1) * np.log(1 - normalized_value + util.epsilon) - np.log(prior_max - prior_min)
+                        logpdf += -torch.log(util.beta(alpha, beta)) + (alpha - 1) * np.log(normalized_value + util.epsilon) + (beta - 1) * np.log(1 - normalized_value + util.epsilon) - np.log(prior_max - prior_min)
                 else:
                     util.log_error('Unsupported distribution: ' + current_distribution.name())
 

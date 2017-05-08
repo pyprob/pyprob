@@ -15,6 +15,7 @@ import infcomp.flatbuffers.TracesFromPriorReply
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
 import time
 import datetime
 import logging
@@ -204,3 +205,11 @@ class Spinner(object):
         self.i +=1
         if self.i > 3:
             self.i = 0
+
+def beta(a,b,res=20):
+    step = 1/res
+    a = a.repeat(res)
+    b = b.repeat(res)
+    x = Variable(torch.linspace(step/2,1-(step/2),res))
+    fx = (x**(a-1)) * ((1-x)**(b-1))
+    return torch.sum(fx) * step
