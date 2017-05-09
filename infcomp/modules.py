@@ -154,14 +154,14 @@ class ProposalCategorical(nn.Module):
         self.softmax_boost = softmax_boost
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
     def forward(self, x, samples=None):
-        return F.softmax(self.lin1(x).mul_(self.softmax_boost))
+        return True, F.softmax(self.lin1(x).mul_(self.softmax_boost))
     def logpdf(self, x, samples):
         _, proposal_output = self.forward(x)
         batch_size = len(samples)
         log_weights = torch.log(proposal_output + util.epsilon)
         l = 0
         for b in range(batch_size):
-            value = sub_batch[b].samples[time_step].value[0]
+            value = samples[b].value[0]
             l += log_weights[b, int(value)]
         return l
 

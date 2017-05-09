@@ -91,6 +91,7 @@ def main():
         parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=64, type=int)
         parser.add_argument('--standardize', help='standardize observations', action='store_true')
         parser.add_argument('--resume', help='resume training of the latest artifact', action='store_true')
+        parser.add_argument('--obsReshape', help='reshape a 1d observation to a given shape (example: 100 -> 10x10 or 5x20)', default='', type=str)
         parser.add_argument('--obsEmb', help='observation embedding', choices=['fc', 'cnn6', 'lstm'], default='fc', type=str)
         parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=128, type=int)
         parser.add_argument('--smpEmb', help='sample embedding', choices=['fc'], default='fc', type=str)
