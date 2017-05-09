@@ -250,12 +250,16 @@ class ProposalReplier(object):
                 proposal_probabilities = Tensor_to_NDArray(builder, p.proposal_probabilities)
                 # construct UniformDiscrete
                 infcomp.protocol.UniformDiscrete.UniformDiscreteStart(builder)
+                infcomp.protocol.UniformDiscrete.UniformDiscreteAddPriorMin(builder, p.prior_min)
+                infcomp.protocol.UniformDiscrete.UniformDiscreteAddPriorSize(builder, p.prior_size)
                 infcomp.protocol.UniformDiscrete.UniformDiscreteAddProposalProbabilities(builder, proposal_probabilities)
                 distribution = infcomp.protocol.UniformDiscrete.UniformDiscreteEnd(builder)
                 distribution_type = infcomp.protocol.Distribution.Distribution().UniformDiscrete
             elif isinstance(p, Normal):
                 # construct Normal
                 infcomp.protocol.Normal.NormalStart(builder)
+                infcomp.protocol.Normal.NormalAddPriorMean(builder, p.prior_mean)
+                infcomp.protocol.Normal.NormalAddPriorStd(builder, p.prior_std)
                 infcomp.protocol.Normal.NormalAddProposalMean(builder, p.proposal_mean)
                 infcomp.protocol.Normal.NormalAddProposalStd(builder, p.proposal_std)
                 distribution = infcomp.protocol.Normal.NormalEnd(builder)
@@ -271,6 +275,7 @@ class ProposalReplier(object):
                 proposal_probabilities = Tensor_to_NDArray(builder, p.proposal_probabilities)
                 # construct Discrete
                 infcomp.protocol.Discrete.DiscreteStart(builder)
+                infcomp.protocol.Discrete.DiscreteAddPriorSize(builder, p.prior_size)
                 infcomp.protocol.Discrete.DiscreteAddProposalProbabilities(builder, proposal_probabilities)
                 distribution = infcomp.protocol.Discrete.DiscreteEnd(builder)
                 distribution_type = infcomp.protocol.Distribution.Distribution().Discrete
@@ -279,12 +284,15 @@ class ProposalReplier(object):
                 proposal_probabilities = Tensor_to_NDArray(builder, p.proposal_probabilities)
                 # construct Categorical
                 infcomp.protocol.Categorical.CategoricalStart(builder)
+                infcomp.protocol.Categorical.CategoricalAddPriorSize(builder, p.prior_size)
                 infcomp.protocol.Categorical.CategoricalAddProposalProbabilities(builder, proposal_probabilities)
                 distribution = infcomp.protocol.Categorical.CategoricalEnd(builder)
                 distribution_type = infcomp.protocol.Distribution.Distribution().Categorical
             elif isinstance(p, UniformContinuous):
                 # construct UniformContinuous
                 infcomp.protocol.UniformContinuous.UniformContinuousStart(builder)
+                infcomp.protocol.UniformContinuous.UniformContinuousAddPriorMin(builder, p.prior_min)
+                infcomp.protocol.UniformContinuous.UniformContinuousAddPriorMax(builder, p.prior_max)
                 infcomp.protocol.UniformContinuous.UniformContinuousAddProposalMode(builder, p.proposal_mode)
                 infcomp.protocol.UniformContinuous.UniformContinuousAddProposalCertainty(builder, p.proposal_certainty)
                 distribution = infcomp.protocol.UniformContinuous.UniformContinuousEnd(builder)
