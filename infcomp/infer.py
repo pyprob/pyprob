@@ -30,7 +30,7 @@ def main():
         parser.add_argument('--device', help='selected CUDA device (-1: all, 0: 1st device, 1: 2nd device, etc.)', default=-1, type=int)
         parser.add_argument('--seed', help='random seed', default=4, type=int)
         parser.add_argument('--debug', help='show debugging information as requests arrive', action='store_true')
-        parser.add_argument('--server', help='address and port to bind this inference server', default='tcp://127.0.0.1:6666')
+        parser.add_argument('--server', help='address and port to bind this inference server', default='tcp://0.0.0.0:6666')
         parser.add_argument('--visdom', help='use Visdom for visualizations', action='store_true')
         opt = parser.parse_args()
 
@@ -90,13 +90,6 @@ def main():
                     prev_instance = prev_sample.instance
                     prev_distribution = prev_sample.distribution
 
-                    if opt.debug:
-                        util.log_print('ProposalRequest')
-                        util.log_print('Time: {0}'.format(time_step))
-                        util.log_print('Previous  address          : {0}, instance: {1}, distribution: {2}, value: {3}'.format(prev_address, prev_instance, prev_distribution, prev_sample.value.size()))
-                        util.log_print('Current (requested) address: {0}, instance: {1}, distribution: {2}'.format(current_address, current_instance, current_distribution))
-                        util.log_print()
-
                     success = True
                     if not (current_address, current_instance) in artifact.proposal_layers:
                         util.log_warning('No proposal layer for: {0}, {1}'.format(current_address, current_instance))
@@ -146,32 +139,39 @@ def main():
                             util.log_warning('Unknown distribution (previous): {0}'.format(prev_distribution.name()))
                             success = False
 
-                    if success:
-                        t = [observe_embedding[0],
-                             prev_sample_embedding[0],
-                             prev_one_hot_address,
-                             prev_one_hot_instance,
-                             prev_one_hot_distribution,
-                             current_one_hot_address,
-                             current_one_hot_instance,
-                             current_one_hot_distribution]
-                        t = torch.cat(t).unsqueeze(0)
-                        lstm_input = t.unsqueeze(0)
+                    t = [observe_embedding[0],
+                         prev_sample_embedding[0],
+                         prev_one_hot_address,
+                         prev_one_hot_instance,
+                         prev_one_hot_distribution,
+                         current_one_hot_address,
+                         current_one_hot_instance,
+                         current_one_hot_distribution]
+                    t = torch.cat(t).unsqueeze(0)
+                    lstm_input = t.unsqueeze(0)
 
-                        if time_step == 0:
-                            h0 = Variable(util.Tensor(artifact.lstm_depth, 1, artifact.lstm_dim).zero_(), volatile=True)
-                            lstm_hidden_state = (h0, h0)
-                            lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
-                        else:
-                            lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
-
-                        proposal_input = lstm_output[0]
-                        proposal_output = artifact.proposal_layers[(current_address, current_instance)](proposal_input)
-                        current_sample.distribution.set_proposalparams(proposal_output[0].data)
+                    if time_step == 0:
+                        h0 = Variable(util.Tensor(artifact.lstm_depth, 1, artifact.lstm_dim).zero_(), volatile=True)
+                        lstm_hidden_state = (h0, h0)
+                        lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
                     else:
-                        util.log_warning('Proposal will be made from the prior.')
+                        lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
 
+                    proposal_input = lstm_output[0]
+                    success, proposal_output = artifact.proposal_layers[(current_address, current_instance)].forward(proposal_input, [current_sample])
+                    current_sample.distribution.set_proposalparams(proposal_output[0].data)
+
+                    if not success:
+                        util.log_warning('Proposal will be made from the prior.')
                     replier.reply_proposal(success, current_sample.distribution)
+
+
+                    if opt.debug:
+                        util.log_print('ProposalRequest')
+                        util.log_print('Time: {0}'.format(time_step))
+                        util.log_print('Previous  address          : {0}, instance: {1}, distribution: {2}, value: {3}'.format(prev_address, prev_instance, prev_distribution, prev_sample.value.size()))
+                        util.log_print('Current (requested) address: {0}, instance: {1}, distribution: {2}'.format(current_address, current_instance, current_distribution))
+                        util.log_print()
 
                     time_step += 1
     except KeyboardInterrupt:

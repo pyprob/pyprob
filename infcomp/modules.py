@@ -59,33 +59,53 @@ class Batch(object):
         return Batch(sorted(self.batch, reverse=True, key=lambda x:x.observes.nelement()), False)
 
 class ProposalUniformDiscrete(nn.Module):
-    def __init__(self, input_dim, output_min, output_dim, softmax_boost=1.0):
+    def __init__(self, input_dim, output_dim, softmax_boost=1.0):
         super(ProposalUniformDiscrete, self).__init__()
         self.lin1 = nn.Linear(input_dim, output_dim)
         self.softmax_boost = softmax_boost
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
-    def forward(self, x):
-        return F.softmax(self.lin1(x).mul_(self.softmax_boost))
+    def forward(self, x, samples=None):
+        return True, F.softmax(self.lin1(x).mul_(self.softmax_boost))
+    def logpdf(self, x, samples):
+        _, proposal_output = self.forward(x)
+        batch_size = len(samples)
+        log_weights = torch.log(proposal_output + util.epsilon)
+        l = 0
+        for b in range(batch_size):
+            value = samples[b].value[0]
+            min = samples[b].distribution.prior_min
+            l += log_weights[b, int(value) - min] # Should we average this over dimensions? See http://pytorch.org/docs/nn.html#torch.nn.KLDivLoss
+        return l
 
 class ProposalNormal(nn.Module):
-    def __init__(self, input_dim, prior_mean, prior_std):
+    def __init__(self, input_dim):
         super(ProposalNormal, self).__init__()
         self.lin1 = nn.Linear(input_dim, 2)
-        self.prior_mean = prior_mean
-        self.prior_std = prior_std
-        # self.meanMultiplier = nn.Parameter(util.Tensor(1).fill_(1))
-        # self.stdMultiplier = nn.Parameter(util.Tensor(1).fill_(1))
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
-    def forward(self, x):
+    def forward(self, x, samples):
         x = self.lin1(x)
         means = x[:,0].unsqueeze(1)
         stds = x[:,1].unsqueeze(1)
-        # means = nn.Tanh()(means)
-        # stds = nn.Sigmoid()(stds)
         stds = nn.Softplus()(stds)
-        # means = means * self.meanMultiplier.expand_as(means)
-        # stds = stds * self.stdMultiplier.expand_as(stds)
-        return torch.cat([(means * self.prior_std) + self.prior_mean, stds * self.prior_std], 1)
+        prior_means = Variable(util.Tensor([s.distribution.prior_mean for s in samples]), requires_grad=False)
+        prior_stds = Variable(util.Tensor([s.distribution.prior_std for s in samples]), requires_grad=False)
+        return True, torch.cat([(means * prior_stds) + prior_means, stds * prior_stds], 1)
+    def logpdf(self, x, samples):
+        _, proposal_output = self.forward(x, samples)
+        batch_size = len(samples)
+        means = proposal_output[:, 0]
+        stds = proposal_output[:, 1]
+        two_std_squares = 2 * stds * stds + util.epsilon
+        two_pi_std_squares = math.pi * two_std_squares
+        half_log_two_pi_std_squares = 0.5 * torch.log(two_pi_std_squares + util.epsilon)
+        l = 0
+        for b in range(batch_size):
+            value = samples[b].value[0]
+            mean = means[b]
+            two_std_square = two_std_squares[b]
+            half_log_two_pi_std_square = half_log_two_pi_std_squares[b]
+            l -= half_log_two_pi_std_square + ((value - mean)**2) / two_std_square
+        return l
 
 class ProposalFlip(nn.Module):
     def __init__(self, input_dim, softmax_boost=1.0):
@@ -93,41 +113,93 @@ class ProposalFlip(nn.Module):
         self.lin1 = nn.Linear(input_dim, 1)
         self.softmax_boost = softmax_boost
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
-    def forward(self, x):
-        return nn.Sigmoid()(self.lin1(x).mul_(self.softmax_boost))
+    def forward(self, x, samples=None):
+        return True, nn.Sigmoid()(self.lin1(x).mul_(self.softmax_boost))
+    def logpdf(self, x, samples):
+        _, proposal_output = self.forward(x)
+        batch_size = len(samples)
+        log_probabilities = torch.log(proposal_output + util.epsilon)
+        log_one_minus_probabilities = torch.log(1 - proposal_output + util.epsilon)
+        l = 0
+        for b in range(batch_size):
+            value = samples[b].value[0]
+            if value > 0:
+                l += log_probabilities[b]
+            else:
+                l += log_one_minus_probabilities[b]
+        return l
 
 class ProposalDiscrete(nn.Module):
-    def __init__(self, input_dim, output_size, softmax_boost=1.0):
+    def __init__(self, input_dim, output_dim, softmax_boost=1.0):
         super(ProposalDiscrete, self).__init__()
-        self.lin1 = nn.Linear(input_dim, output_size)
+        self.lin1 = nn.Linear(input_dim, output_dim)
         self.softmax_boost = softmax_boost
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
-    def forward(self, x):
-        return F.softmax(self.lin1(x).mul_(self.softmax_boost))
+    def forward(self, x, samples=None):
+        return True, F.softmax(self.lin1(x).mul_(self.softmax_boost))
+    def logpdf(self, x, samples):
+        _, proposal_output = self.forward(x)
+        batch_size = len(samples)
+        log_weights = torch.log(proposal_output + util.epsilon)
+        l = 0
+        for b in range(batch_size):
+            value = samples[b].value[0]
+            l += log_weights[b, int(value)]
+        return l
 
 class ProposalCategorical(nn.Module):
-    def __init__(self, input_dim, output_size, softmax_boost=1.0):
+    def __init__(self, input_dim, output_dim, softmax_boost=1.0):
         super(ProposalCategorical, self).__init__()
-        self.lin1 = nn.Linear(input_dim, output_size)
+        self.lin1 = nn.Linear(input_dim, output_dim)
         self.softmax_boost = softmax_boost
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
-    def forward(self, x):
+    def forward(self, x, samples=None):
         return F.softmax(self.lin1(x).mul_(self.softmax_boost))
+    def logpdf(self, x, samples):
+        _, proposal_output = self.forward(x)
+        batch_size = len(samples)
+        log_weights = torch.log(proposal_output + util.epsilon)
+        l = 0
+        for b in range(batch_size):
+            value = sub_batch[b].samples[time_step].value[0]
+            l += log_weights[b, int(value)]
+        return l
 
 class ProposalUniformContinuous(nn.Module):
-    def __init__(self, input_dim, prior_min, prior_max):
+    def __init__(self, input_dim):
         super(ProposalUniformContinuous, self).__init__()
         self.lin1 = nn.Linear(input_dim, 2)
-        self.prior_min = prior_min
-        self.prior_max = prior_max
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
-    def forward(self, x):
+    def forward(self, x, samples):
         x = self.lin1(x)
         modes = x[:,0].unsqueeze(1)
         certainties = x[:,1].unsqueeze(1)
         modes = nn.Sigmoid()(modes)
-        certainties = nn.Softplus()(certainties)
-        return torch.cat([(modes * (self.prior_max - self.prior_min) + self.prior_min), certainties], 1)
+        certainties = nn.Softplus()(certainties) * 20
+        prior_mins = Variable(util.Tensor([s.distribution.prior_min for s in samples]), requires_grad=False)
+        prior_maxs = Variable(util.Tensor([s.distribution.prior_max for s in samples]), requires_grad=False)
+        return True, torch.cat([(modes * (prior_maxs - prior_mins) + prior_mins), certainties], 1)
+    def logpdf(self, x, samples):
+        _, proposal_output = self.forward(x, samples)
+        prior_mins = Variable(util.Tensor([s.distribution.prior_min for s in samples]), requires_grad=False)
+        prior_maxs = Variable(util.Tensor([s.distribution.prior_max for s in samples]), requires_grad=False)
+        batch_size = len(samples)
+        modes = (proposal_output[:, 0] - prior_mins) / (prior_maxs - prior_mins)
+        certainties = proposal_output[:, 1] + 2
+        alphas = modes * (certainties - 2) + 1
+        betas = (1 - modes) * (certainties - 2) + 1
+        beta_funs = util.beta(alphas, betas)
+        l = 0
+        for b in range(batch_size):
+            value = samples[b].value[0]
+            prior_min = samples[b].distribution.prior_min
+            prior_max = samples[b].distribution.prior_max
+            normalized_value = (value - prior_min) / (prior_max - prior_min)
+            alpha = alphas[b]
+            beta = betas[b]
+            beta_fun = beta_funs[b]
+            l += (alpha - 1) * np.log(normalized_value + util.epsilon) + (beta - 1) * np.log(1 - normalized_value + util.epsilon) - torch.log(beta_fun + util.epsilon) - np.log(prior_max - prior_min + util.epsilon)
+        return l
 
 class SampleEmbeddingFC(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -166,7 +238,6 @@ class ObserveEmbeddingLSTM(nn.Module):
         h0 = Variable(util.Tensor(1, batch_size, self.output_dim).zero_(), requires_grad=False)
         x, (_, _) = self.lstm(x, (h0, h0))
         return x
-
 
 class ObserveEmbeddingCNN6(nn.Module):
     def __init__(self, input_example_non_batch, output_dim):
@@ -335,7 +406,7 @@ class Artifact(nn.Module):
                     if isinstance(distribution, UniformDiscrete):
                         proposal_layer = ProposalUniformDiscrete(self.lstm_dim, distribution.prior_min, distribution.prior_size, self.softmax_boost)
                     elif isinstance(distribution, Normal):
-                        proposal_layer = ProposalNormal(self.lstm_dim, distribution.prior_mean, distribution.prior_std)
+                        proposal_layer = ProposalNormal(self.lstm_dim)
                     elif isinstance(distribution, Flip):
                         proposal_layer = ProposalFlip(self.lstm_dim, self.softmax_boost)
                     elif isinstance(distribution, Discrete):
@@ -343,7 +414,7 @@ class Artifact(nn.Module):
                     elif isinstance(distribution, Categorical):
                         proposal_layer = ProposalCategorical(self.lstm_dim, distribution.prior_size, self.softmax_boost)
                     elif isinstance(distribution, UniformContinuous):
-                        proposal_layer = ProposalUniformContinuous(self.lstm_dim, distribution.prior_min, distribution.prior_max)
+                        proposal_layer = ProposalUniformContinuous(self.lstm_dim)
                     else:
                         util.log_error('Unsupported distribution: ' + sample.distribution.name())
                     self.sample_layers[(address, instance)] = sample_layer
@@ -588,77 +659,15 @@ class Artifact(nn.Module):
                 current_sample = example_trace.samples[time_step]
                 current_address = current_sample.address
                 current_instance = current_sample.instance
-                current_distribution = current_sample.distribution
 
                 p = []
                 for b in range(sub_batch_size):
                     p.append(sub_batch[b].samples[time_step].lstm_output)
                 p = torch.cat(p).view(sub_batch_size, -1)
-
                 proposal_input = p
+
+                current_samples = [sub_batch[b].samples[time_step] for b in range(sub_batch_size)]
                 proposal_layer = self.proposal_layers[(current_address, current_instance)]
-                # if data_parallel and self.on_cuda:
-                #     proposal_output = torch.nn.DataParallel(proposal_layer)(proposal_input)
-                # else:
-                proposal_output = proposal_layer(proposal_input)
-
-                if isinstance(current_distribution, UniformDiscrete):
-                    log_weights = torch.log(proposal_output + util.epsilon)
-                    for b in range(sub_batch_size):
-                        value = sub_batch[b].samples[time_step].value[0]
-                        min = sub_batch[b].samples[time_step].distribution.prior_min
-                        logpdf += log_weights[b, int(value) - min] # Should we average this over dimensions? See http://pytorch.org/docs/nn.html#torch.nn.KLDivLoss
-                elif isinstance(current_distribution, Normal):
-                    means = proposal_output[:, 0]
-                    stds = proposal_output[:, 1]
-
-                    # prior_means = util.Tensor([sub_batch[b].samples[time_step].distribution.prior_mean for b in range(sub_batch_size)])
-                    # prior_stds =  util.Tensor([sub_batch[b].samples[time_step].distribution.prior_std for b in range(sub_batch_size)])
-
-                    two_std_squares = 2 * stds * stds + util.epsilon
-                    two_pi_std_squares = math.pi * two_std_squares
-                    half_log_two_pi_std_squares = 0.5 * torch.log(two_pi_std_squares + util.epsilon)
-                    for b in range(sub_batch_size):
-                        value = sub_batch[b].samples[time_step].value[0]
-                        mean = means[b]
-                        two_std_square = two_std_squares[b]
-                        half_log_two_pi_std_square = half_log_two_pi_std_squares[b]
-                        logpdf -= half_log_two_pi_std_square + ((value - mean)**2) / two_std_square
-                elif isinstance(current_distribution, Flip):
-                    log_probabilities = torch.log(proposal_output + util.epsilon)
-                    log_one_minus_probabilities = torch.log(1 - proposal_output + util.epsilon)
-                    for b in range(sub_batch_size):
-                        value = sub_batch[b].samples[time_step].value[0]
-                        if value > 0:
-                            logpdf += log_probabilities[b]
-                        else:
-                            logpdf += log_one_minus_probabilities[b]
-                elif isinstance(current_distribution, Discrete):
-                    log_weights = torch.log(proposal_output + util.epsilon)
-                    for b in range(sub_batch_size):
-                        value = sub_batch[b].samples[time_step].value[0]
-                        logpdf += log_weights[b, int(value)]
-                elif isinstance(current_distribution, Categorical):
-                    log_weights = torch.log(proposal_output + util.epsilon)
-                    for b in range(sub_batch_size):
-                        value = sub_batch[b].samples[time_step].value[0]
-                        logpdf += log_weights[b, int(value)]
-                elif isinstance(current_distribution, UniformContinuous):
-                    normalized_modes = proposal_output[:, 0]
-                    normalized_certainties = proposal_output[:, 1] + 2
-                    alphas = normalized_modes * (normalized_certainties - 2) + 1
-                    betas = (1 - normalized_modes) * (normalized_certainties - 2) + 1
-                    beta_funs = util.beta(alphas, betas)
-                    for b in range(sub_batch_size):
-                        value = sub_batch[b].samples[time_step].value[0]
-                        prior_min = sub_batch[b].samples[time_step].distribution.prior_min
-                        prior_max = sub_batch[b].samples[time_step].distribution.prior_max
-                        normalized_value = (value - prior_min) / (prior_max - prior_min)
-                        alpha = alphas[b]
-                        beta = betas[b]
-                        beta_fun = beta_funs[b]
-                        logpdf += (alpha - 1) * np.log(normalized_value + util.epsilon) + (beta - 1) * np.log(1 - normalized_value + util.epsilon) - torch.log(beta_fun) - np.log(prior_max - prior_min)
-                else:
-                    util.log_error('Unsupported distribution: ' + current_distribution.name())
+                logpdf += proposal_layer.logpdf(proposal_input, current_samples)
 
         return -logpdf / batch.length
