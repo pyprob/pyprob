@@ -164,7 +164,6 @@ def main():
                     if not success:
                         util.log_warning('Proposal will be made from the prior.')
                     replier.reply_proposal(success, current_sample.distribution)
-                    print(current_sample.distribution)
 
 
                     if opt.debug:
