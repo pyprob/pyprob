@@ -91,7 +91,7 @@ def main():
         parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=64, type=int)
         parser.add_argument('--standardize', help='standardize observations', action='store_true')
         parser.add_argument('--resume', help='resume training of the latest artifact', action='store_true')
-        parser.add_argument('--obsReshape', help='reshape a 1d observation to a given shape (example: 100 -> 10x10 or 5x20)', default='', type=str)
+        parser.add_argument('--obsReshape', help='reshape a 1d observation to a given shape (example: "1x10x10" will reshape 100 -> 1x10x10)', default='', type=str)
         parser.add_argument('--obsEmb', help='observation embedding', choices=['fc', 'cnn6', 'lstm'], default='fc', type=str)
         parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=128, type=int)
         parser.add_argument('--smpEmb', help='sample embedding', choices=['fc'], default='fc', type=str)
@@ -154,7 +154,15 @@ def main():
                 artifact.valid_batch = Batch(traces)
 
                 example_observes = artifact.valid_batch[0].observes
-                artifact.set_observe_embedding(example_observes, opt.obsEmb, opt.obsEmbDim)
+                if opt.obsReshape != '':
+                    try:
+                        obs_reshape = [int(x) for x in opt.obsReshape.split('x')]
+                        reshape_test = example_observes.view(obs_reshape)
+                    except:
+                        util.log_error('Invalid obsReshape argument. Expecting a format where dimensions are separated by "x" (example: "1x10x10"). The total number of elements in the original 1d input and the requested shape should be the same (example: 100 -> "1x10x10" or "2x50").')
+                    artifact.set_observe_embedding(example_observes, opt.obsEmb, opt.obsEmbDim, obs_reshape)
+                else:
+                    artifact.set_observe_embedding(example_observes, opt.obsEmb, opt.obsEmbDim)
                 artifact.set_sample_embedding(opt.smpEmb, opt.smpEmbDim)
                 artifact.set_lstm(opt.lstmDim, opt.lstmDepth, opt.dropout)
 

@@ -240,8 +240,12 @@ class ObserveEmbeddingLSTM(nn.Module):
         return x
 
 class ObserveEmbeddingCNN6(nn.Module):
-    def __init__(self, input_example_non_batch, output_dim):
+    def __init__(self, input_example_non_batch, output_dim, reshape=None):
         super(ObserveEmbeddingCNN6, self).__init__()
+        self.reshape = reshape
+        if not self.reshape is None:
+            input_example_non_batch = input_example_non_batch.view(self.reshape)
+            self.reshape.insert(0, -1) # For correct handling of the batch dimension in self.forward
         if input_example_non_batch.dim() == 2:
             self.input_sample = input_example_non_batch.unsqueeze(0).cpu()
         elif input_example_non_batch.dim() == 3:
@@ -272,8 +276,10 @@ class ObserveEmbeddingCNN6(nn.Module):
         x = nn.MaxPool2d(2)(x)
         return x
     def forward(self, x):
-        if x.dim() == 3:
-            x = x.unsqueeze(1) # Add a channel dimension of 1 after the batch dimension. Temporary. This can be removed once we ensure that we always get 2d images as 3d tensors of form (num_channels x height x width) from the protocol.
+        if not self.reshape is None:
+            x = x.view(self.reshape)
+        if x.dim() == 3: # This indicates that there are no channel dimensions and we have BxHxW
+            x = x.unsqueeze(1) # Add a channel dimension of 1 after the batch dimension so that we have BxCxHxW
         x = self.forward_cnn(x)
         x = x.view(-1, self.cnn_output_dim)
         x = F.relu(self.lin1(x))
@@ -437,13 +443,13 @@ class Artifact(nn.Module):
         self.smp_emb = smp_emb
         self.smp_emb_dim = smp_emb_dim
 
-    def set_observe_embedding(self, example_observes, obs_emb, obs_emb_dim):
+    def set_observe_embedding(self, example_observes, obs_emb, obs_emb_dim, obs_reshape=None):
         self.obs_emb = obs_emb
         self.obs_emb_dim = obs_emb_dim
         if obs_emb == 'fc':
             observe_layer = ObserveEmbeddingFC(Variable(example_observes), obs_emb_dim)
         elif obs_emb == 'cnn6':
-            observe_layer = ObserveEmbeddingCNN6(Variable(example_observes), obs_emb_dim)
+            observe_layer = ObserveEmbeddingCNN6(Variable(example_observes), obs_emb_dim, obs_reshape)
             observe_layer.configure()
         elif obs_emb == 'lstm':
             observe_layer = ObserveEmbeddingLSTM(Variable(example_observes), obs_emb_dim)
