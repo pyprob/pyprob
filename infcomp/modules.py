@@ -176,6 +176,7 @@ class ProposalUniformContinuous(nn.Module):
         certainties = x[:,1].unsqueeze(1)
         modes = nn.Sigmoid()(modes)
         certainties = nn.Softplus()(certainties) * 20
+        # check if mins are < maxs, if not, raise warning and return success = false
         prior_mins = Variable(util.Tensor([s.distribution.prior_min for s in samples]), requires_grad=False)
         prior_maxs = Variable(util.Tensor([s.distribution.prior_max for s in samples]), requires_grad=False)
         return True, torch.cat([(modes * (prior_maxs - prior_mins) + prior_mins), certainties], 1)
@@ -477,7 +478,7 @@ class Artifact(nn.Module):
             util.log_print(colored('Polymorphing, new address         : ' + address, 'magenta', attrs=['bold']))
             i = len(self.one_hot_address)
             if i >= self.one_hot_address_dim:
-                log_error('one_hot_address overflow: {0}'.format(i))
+                util.log_error('one_hot_address overflow: {0}'.format(i))
             t = util.Tensor(self.one_hot_address_dim).zero_()
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_address[address] = Variable(t, requires_grad=False)
@@ -487,7 +488,7 @@ class Artifact(nn.Module):
             util.log_print(colored('Polymorphing, new instance        : ' + str(instance), 'magenta', attrs=['bold']))
             i = len(self.one_hot_instance)
             if i >= self.one_hot_instance_dim:
-                log_error('one_hot_instance overflow: {0}'.format(i))
+                util.log_error('one_hot_instance overflow: {0}'.format(i))
             t = util.Tensor(self.one_hot_instance_dim).zero_()
             t.narrow(0, i, 1).fill_(1)
             self.one_hot_instance[instance] = Variable(t, requires_grad=False)
