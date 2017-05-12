@@ -20,6 +20,7 @@ from termcolor import colored
 import math
 import datetime
 import gc
+import sys
 
 class Batch(object):
     def __init__(self, traces, sort=True):
@@ -166,16 +167,17 @@ class ProposalCategorical(nn.Module):
         return l
 
 class ProposalUniformContinuous(nn.Module):
-    def __init__(self, input_dim):
+    def __init__(self, input_dim, softplus_boost=1.0):
         super(ProposalUniformContinuous, self).__init__()
         self.lin1 = nn.Linear(input_dim, 2)
+        self.softplus_boost = softplus_boost
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
     def forward(self, x, samples):
         x = self.lin1(x)
         modes = x[:,0].unsqueeze(1)
         certainties = x[:,1].unsqueeze(1)
         modes = nn.Sigmoid()(modes)
-        certainties = nn.Softplus()(certainties) * 20
+        certainties = nn.Softplus()(certainties) * self.softplus_boost
         # check if mins are < maxs, if not, raise warning and return success = false
         prior_mins = Variable(util.Tensor([s.distribution.prior_min for s in samples]), requires_grad=False)
         prior_maxs = Variable(util.Tensor([s.distribution.prior_max for s in samples]), requires_grad=False)
@@ -323,6 +325,8 @@ class Artifact(nn.Module):
         self.obs_emb = None
         self.obs_emb_dim = None
         self.num_parameters = None
+        self.trace_length_min = sys.maxsize
+        self.trace_length_max = 0
         self.train_loss_best = math.inf
         self.train_loss_worst = -math.inf
         self.valid_loss_best = None
@@ -356,6 +360,9 @@ class Artifact(nn.Module):
         addresses = ' '.join(list(self.one_hot_address.keys()))
         instances = ' '.join(map(str, list(self.one_hot_instance.keys())))
         distributions = ' '.join(list(self.one_hot_distribution.keys()))
+        num_addresses = len(self.one_hot_address.keys())
+        num_instances = len(self.one_hot_instance.keys())
+        num_distributions = len(self.one_hot_distribution.keys())
         info = '\n'.join(['Model name            : {0}'.format(self.model_name),
                           'Created               : {0}'.format(self.created),
                           'Modified              : {0}'.format(self.modified),
@@ -384,7 +391,12 @@ class Artifact(nn.Module):
                           colored('Softmax boost         : {0}'.format(self.softmax_boost), 'cyan'),
                           colored('Addresses             : {0}'.format(addresses), 'yellow'),
                           colored('Instances             : {0}'.format(instances), 'yellow'),
-                          colored('Distributions         : {0}'.format(distributions), 'yellow')])
+                          colored('Distributions         : {0}'.format(distributions), 'yellow'),
+                          colored('Num. of addresses     : {0}'.format(num_addresses), 'yellow'),
+                          colored('Num. of instances     : {0}'.format(num_instances), 'yellow'),
+                          colored('Num. of distributions : {0}'.format(num_distributions), 'yellow'),
+                          colored('Min. trace length     : {0}'.format(self.trace_length_min), 'yellow'),
+                          colored('Max. trace length     : {0}'.format(self.trace_length_max), 'yellow')])
         return info
 
     def polymorph(self, batch=None):
@@ -394,6 +406,12 @@ class Artifact(nn.Module):
         layers_changed = False
         for sub_batch in batch.sub_batches:
             example_trace = sub_batch[0]
+
+            if example_trace.length > self.trace_length_max:
+                self.trace_length_max = example_trace.length
+            if example_trace.length < self.trace_length_min:
+                self.trace_length_min = example_trace.length
+
             for sample in example_trace.samples:
                 address = sample.address
                 instance = sample.instance
@@ -421,7 +439,7 @@ class Artifact(nn.Module):
                     elif isinstance(distribution, Categorical):
                         proposal_layer = ProposalCategorical(self.lstm_dim, distribution.prior_size, self.softmax_boost)
                     elif isinstance(distribution, UniformContinuous):
-                        proposal_layer = ProposalUniformContinuous(self.lstm_dim)
+                        proposal_layer = ProposalUniformContinuous(self.lstm_dim, self.softmax_boost)
                     else:
                         util.log_error('Unsupported distribution: ' + sample.distribution.name())
                     self.sample_layers[(address, instance)] = sample_layer
