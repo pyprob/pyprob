@@ -147,7 +147,7 @@ def main():
                 else:
                     artifact.cuda_device_id = opt.device
                 artifact.standardize = opt.standardize
-                artifact.set_one_hot_dims(opt.oneHotDim, opt.oneHotDim, 5)
+                artifact.set_one_hot_dims(opt.oneHotDim, opt.oneHotDim, 6)
                 artifact.valid_size = opt.validSize
                 requester.request_traces(artifact.valid_size)
                 traces, _, _ = requester.receive_traces(artifact.standardize)

@@ -21,6 +21,7 @@ import math
 import datetime
 import gc
 import sys
+import random
 
 class Batch(object):
     def __init__(self, traces, sort=True):
@@ -31,6 +32,8 @@ class Batch(object):
         self.observes_max_length = 0
         sb = {}
         for trace in traces:
+            if trace.length is None:
+                util.log_error('Received a trace of length zero.')
             if trace.length > self.traces_max_length:
                 self.traces_max_length = trace.length
             if trace.observes.size(0) > self.observes_max_length:
@@ -357,12 +360,14 @@ class Artifact(nn.Module):
         loss_change_per_sec = loss_change / self.total_training_seconds
         loss_change_per_iter = loss_change / self.total_iterations
         loss_change_per_trace = loss_change / self.total_traces
-        addresses = ' '.join(list(self.one_hot_address.keys()))
-        instances = ' '.join(map(str, list(self.one_hot_instance.keys())))
+        addresses = '; '.join(list(self.one_hot_address.keys()))
+        instances = '; '.join(map(str, list(self.one_hot_instance.keys())))
         distributions = ' '.join(list(self.one_hot_distribution.keys()))
         num_addresses = len(self.one_hot_address.keys())
         num_instances = len(self.one_hot_instance.keys())
         num_distributions = len(self.one_hot_distribution.keys())
+        address_collisions = max(0, num_addresses - self.one_hot_address_dim)
+        instance_collisions = max(0, num_instances - self.one_hot_instance_dim)
         info = '\n'.join(['Model name            : {0}'.format(self.model_name),
                           'Created               : {0}'.format(self.created),
                           'Modified              : {0}'.format(self.modified),
@@ -390,13 +395,15 @@ class Artifact(nn.Module):
                           colored('LSTM depth            : {:,}'.format(self.lstm_depth), 'cyan'),
                           colored('Softmax boost         : {0}'.format(self.softmax_boost), 'cyan'),
                           colored('Addresses             : {0}'.format(addresses), 'yellow'),
+                          colored('Num. addresses        : {0}'.format(num_addresses), 'yellow'),
+                          colored('Address collisions    : {0}'.format(address_collisions), 'yellow'),
                           colored('Instances             : {0}'.format(instances), 'yellow'),
+                          colored('Num. instances        : {0}'.format(num_instances), 'yellow'),
+                          colored('Instance collisions   : {0}'.format(instance_collisions), 'yellow'),
                           colored('Distributions         : {0}'.format(distributions), 'yellow'),
-                          colored('Num. of addresses     : {0}'.format(num_addresses), 'yellow'),
-                          colored('Num. of instances     : {0}'.format(num_instances), 'yellow'),
-                          colored('Num. of distributions : {0}'.format(num_distributions), 'yellow'),
-                          colored('Min. trace length     : {0}'.format(self.trace_length_min), 'yellow'),
-                          colored('Max. trace length     : {0}'.format(self.trace_length_max), 'yellow')])
+                          colored('Num. distributions    : {0}'.format(num_distributions), 'yellow'),
+                          colored('Shortest trace seen   : {0}'.format(self.trace_length_min), 'yellow'),
+                          colored('Longest  trace seen   : {0}'.format(self.trace_length_max), 'yellow')])
         return info
 
     def polymorph(self, batch=None):
@@ -429,7 +436,7 @@ class Artifact(nn.Module):
                     else:
                         util.log_error('Unsupported sample embedding: ' + self.smp_emb)
                     if isinstance(distribution, UniformDiscrete):
-                        proposal_layer = ProposalUniformDiscrete(self.lstm_dim, distribution.prior_min, distribution.prior_size, self.softmax_boost)
+                        proposal_layer = ProposalUniformDiscrete(self.lstm_dim, distribution.prior_size, self.softmax_boost)
                     elif isinstance(distribution, Normal):
                         proposal_layer = ProposalNormal(self.lstm_dim)
                     elif isinstance(distribution, Flip):
@@ -493,34 +500,40 @@ class Artifact(nn.Module):
 
     def add_one_hot_address(self, address):
         if not address in self.one_hot_address:
-            util.log_print(colored('Polymorphing, new address         : ' + address, 'magenta', attrs=['bold']))
+            util.log_print(colored('Polymorphing, new address         : ' + util.truncate_str(address), 'magenta', attrs=['bold']))
             i = len(self.one_hot_address)
-            if i >= self.one_hot_address_dim:
-                util.log_error('one_hot_address overflow: {0}'.format(i))
-            t = util.Tensor(self.one_hot_address_dim).zero_()
-            t.narrow(0, i, 1).fill_(1)
-            self.one_hot_address[address] = Variable(t, requires_grad=False)
+            if i < self.one_hot_address_dim:
+                t = util.Tensor(self.one_hot_address_dim).zero_()
+                t.narrow(0, i, 1).fill_(1)
+                self.one_hot_address[address] = Variable(t, requires_grad=False)
+            else:
+                util.log_warning('Overflow (collision) in one_hot_address. Allowed: {0}; Encountered: {1}'.format(self.one_hot_address_dim, i + 1))
+                self.one_hot_address[address] = random.choice(list(self.one_hot_address.values()))
 
     def add_one_hot_instance(self, instance):
         if not instance in self.one_hot_instance:
             util.log_print(colored('Polymorphing, new instance        : ' + str(instance), 'magenta', attrs=['bold']))
             i = len(self.one_hot_instance)
-            if i >= self.one_hot_instance_dim:
-                util.log_error('one_hot_instance overflow: {0}'.format(i))
-            t = util.Tensor(self.one_hot_instance_dim).zero_()
-            t.narrow(0, i, 1).fill_(1)
-            self.one_hot_instance[instance] = Variable(t, requires_grad=False)
+            if i < self.one_hot_instance_dim:
+                t = util.Tensor(self.one_hot_instance_dim).zero_()
+                t.narrow(0, i, 1).fill_(1)
+                self.one_hot_instance[instance] = Variable(t, requires_grad=False)
+            else:
+                util.log_warning('Overflow (collision) in one_hot_instance. Allowed: {0}; Encountered: {1}'.format(self.one_hot_instance_dim, i + 1))
+                self.one_hot_instance[instance] = random.choice(list(self.one_hot_instance.values()))
 
     def add_one_hot_distribution(self, distribution):
         distribution_name = distribution.name()
         if not distribution_name in self.one_hot_distribution:
             util.log_print(colored('Polymorphing, new distribution    : ' + distribution_name, 'magenta', attrs=['bold']))
             i = len(self.one_hot_distribution)
-            if i >= self.one_hot_distribution_dim:
-                util.log_error('one_hot_distribution overflow: {0}'.format(i))
-            t = util.Tensor(self.one_hot_distribution_dim).zero_()
-            t.narrow(0, i, 1).fill_(1)
-            self.one_hot_distribution[distribution_name] = Variable(t, requires_grad=False)
+            if i < self.one_hot_distribution_dim:
+                t = util.Tensor(self.one_hot_distribution_dim).zero_()
+                t.narrow(0, i, 1).fill_(1)
+                self.one_hot_distribution[distribution_name] = Variable(t, requires_grad=False)
+            else:
+                util.log_warning('Overflow (collision) in one_hot_distribution. Allowed: {0}; Encountered: {1}'.format(self.one_hot_distribution_dim, i + 1))
+                self.one_hot_distribution[distribution_name] = random.choice(list(self.one_hot_distribution.values()))
 
     def move_to_cuda(self, device_id=None):
         self.on_cuda = True
