@@ -453,7 +453,7 @@ class Artifact(nn.Module):
                     self.proposal_layers[(address, instance)] = proposal_layer
                     self.add_module('sample_layer({0}, {1})'.format(address, instance), sample_layer)
                     self.add_module('proposal_layer({0}, {1})'.format(address, instance), proposal_layer)
-                    util.log_print(colored('Polymorphing, new layers attached : {0}, {1}'.format(address, instance), 'magenta', attrs=['bold']))
+                    util.log_print(colored('Polymorphing, new layers attached : {0}, {1}'.format(util.truncate_str(address), instance), 'magenta', attrs=['bold']))
                     layers_changed = True
 
         if layers_changed:
