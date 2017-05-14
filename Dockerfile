@@ -1,10 +1,13 @@
 FROM gbaydin/pytorch-cudnnv6
 
+ARG INFCOMP_VERSION="unknown"
+ARG GIT_COMMIT="unknown"
+
 LABEL project="pytorch-infcomp"
 LABEL url="https://github.com/probprog/pytorch-infcomp"
 LABEL maintainer="Atilim Gunes Baydin <gunes@robots.ox.ac.uk>"
-ARG INFCOMP_VERSION=unknown
 LABEL version=$INFCOMP_VERSION
+LABEL git_commit=$GIT_COMMIT
 
 RUN mkdir /home/pytorch-infcomp
 COPY . /home/pytorch-infcomp
