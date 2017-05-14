@@ -127,7 +127,7 @@ def get_sample(s):
     return sample
 
 class BatchRequester(object):
-    def __init__(self, data_source, standardize=False, batch_pool=False, request_ahead=128):
+    def __init__(self, data_source, standardize=False, batch_pool=False, request_ahead=256):
         if batch_pool:
             self.requester = infcomp.pool.Requester(data_source)
         else:
@@ -143,18 +143,18 @@ class BatchRequester(object):
     def __exit__(self, exception_type, exception_value, traceback):
         self.requester.close()
 
-    def get_traces(self, n):
+    def get_traces(self, n, discard_source=False):
         t0 = time.time()
         while len(self.queue) < n:
-            self.receive_traces_to_queue()
+            self.receive_traces_to_queue(discard_source)
             self.request_traces(n)
         ret = [self.queue.popleft() for i in range(n)]
         return ret, time.time() - t0
 
-    def receive_traces_to_queue(self):
+    def receive_traces_to_queue(self, discard_source=False):
         sys.stdout.write('Waiting for traces from prior...                         \r')
         sys.stdout.flush()
-        data = self.requester.receive_reply()
+        data = self.requester.receive_reply(discard_source)
         sys.stdout.write('Processing new traces from prior...                      \r')
         sys.stdout.flush()
         traces = self.read_traces(data)

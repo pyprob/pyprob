@@ -59,5 +59,5 @@ class Requester(object):
     def send_request(self, request):
         self.socket.send(request)
 
-    def receive_reply(self):
+    def receive_reply(self, discard_source=True):
         return self.socket.recv()

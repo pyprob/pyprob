@@ -158,7 +158,7 @@ def main():
                 artifact.standardize = opt.standardize
                 artifact.set_one_hot_dims(opt.oneHotDim, 6)
                 artifact.valid_size = opt.validSize
-                traces, _ = requester.get_traces(artifact.valid_size)
+                traces, _ = requester.get_traces(artifact.valid_size, discard_source=True)
                 artifact.valid_batch = Batch(traces)
 
                 example_observes = artifact.valid_batch[0].observes
