@@ -22,6 +22,9 @@ from glob import glob
 from termcolor import colored
 from pprint import pformat
 import cpuinfo
+import locale
+
+if locale.getpreferredencoding().upper() != 'UTF-8': locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 epsilon = 1e-8
 beta_res = 1000
