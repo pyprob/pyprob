@@ -12,7 +12,7 @@ LABEL maintainer="Atilim Gunes Baydin <gunes@robots.ox.ac.uk>"
 LABEL version=$INFCOMP_VERSION
 LABEL git_commit=$GIT_COMMIT
 
-RUN mkdir /code/pytorch-infcomp
+RUN mkdir -p /code/pytorch-infcomp
 COPY . /code/pytorch-infcomp
 
 RUN chmod a+x /code/pytorch-infcomp/compile
