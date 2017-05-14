@@ -9,6 +9,9 @@ LABEL maintainer="Atilim Gunes Baydin <gunes@robots.ox.ac.uk>"
 LABEL version=$INFCOMP_VERSION
 LABEL git_commit=$GIT_COMMIT
 
+RUN apt update
+RUN apt install libx11-dev
+
 RUN mkdir /home/pytorch-infcomp
 COPY . /home/pytorch-infcomp
 
