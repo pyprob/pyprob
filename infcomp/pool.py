@@ -34,7 +34,6 @@ class Requester(object):
         files = list(map(lambda f:os.path.join(self.pool_path, f), files))
         for f in self.discarded_files:
             files.remove(f)
-            print('removing ' + f)
         return files
 
     def close(self):
@@ -49,13 +48,14 @@ class Requester(object):
         pool_was_empty = False
         while pool_empty:
             current_files = self.current_files()
-            if (len(current_files) > 0):
+            num_files = len(current_files)
+            if (num_files > 0):
                 pool_empty = False
                 if pool_was_empty:
-                    util.log_warning('Protocol: new data appeared in batch pool, resuming')
+                    util.log_print(colored('Protocol: resuming, new data appeared in batch pool (currently with {0} files) at {1}').format(num_files, pool_path), 'yellow', attrs=['bold']))
             else:
                 if not pool_was_empty:
-                    util.log_warning('Protocol: empty batch pool, waiting for new data')
+                    util.log_print(colored('Protocol: waiting for new data, empty batch pool at {0}').format(num_files, pool_path), 'yellow', attrs=['bold']))
                     pool_was_empty = True
                 time.sleep(0.5)
 
