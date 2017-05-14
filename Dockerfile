@@ -3,6 +3,9 @@ FROM gbaydin/pytorch-cudnnv6
 RUN apt update
 RUN apt install -y libx11-dev
 
+ENV LANG=en_US.UTF-8
+ENV PATH="/code/pytorch-infcomp:${PATH}"
+
 ARG INFCOMP_VERSION="unknown"
 ARG GIT_COMMIT="unknown"
 
@@ -21,7 +24,5 @@ RUN chmod a+x /code/pytorch-infcomp/info
 
 RUN pip install -r /code/pytorch-infcomp/requirements.txt
 RUN pip install /code/pytorch-infcomp
-
-ENV PATH="/code/pytorch-infcomp:${PATH}"
 
 CMD bash
