@@ -1,6 +1,10 @@
-FROM continuumio/anaconda3
+FROM gbaydin/pytorch-cudnnv6
 
-LABEL maintainer "gunes@robots.ox.ac.uk"
+LABEL project="pytorch-infcomp"
+LABEL url="https://github.com/probprog/pytorch-infcomp"
+LABEL maintainer="Atilim Gunes Baydin <gunes@robots.ox.ac.uk>"
+ARG INFCOMP_VERSION=unknown
+LABEL version=$INFCOMP_VERSION
 
 RUN mkdir /home/pytorch-infcomp
 COPY . /home/pytorch-infcomp
@@ -8,8 +12,6 @@ COPY . /home/pytorch-infcomp
 RUN chmod a+x /home/pytorch-infcomp/compile
 RUN chmod a+x /home/pytorch-infcomp/infer
 RUN chmod a+x /home/pytorch-infcomp/info
-
-RUN conda install pytorch torchvision -c soumith
 
 RUN pip install -r /home/pytorch-infcomp/requirements.txt
 RUN pip install /home/pytorch-infcomp
