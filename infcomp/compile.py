@@ -124,7 +124,7 @@ def main():
             data_source = opt.batchPool
             batch_pool = True
 
-        with BatchRequester(data_source, batch_pool) as requester:
+        with BatchRequester(data_source, opt.standardize, batch_pool) as requester:
             if opt.resume:
                 util.log_print()
                 util.log_print(colored('[] Resuming artifact', 'blue', attrs=['bold']))
@@ -132,6 +132,7 @@ def main():
 
                 resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.dir, 'infcomp-artifact'), -1)
                 artifact = util.load_artifact(resume_artifact_file, opt.cuda, opt.device)
+                requester.standardize = artifact.standardize
 
                 prev_artifact_total_traces = artifact.total_traces
                 prev_artifact_total_iterations = artifact.total_iterations
@@ -157,8 +158,7 @@ def main():
                 artifact.standardize = opt.standardize
                 artifact.set_one_hot_dims(opt.oneHotDim, 6)
                 artifact.valid_size = opt.validSize
-                requester.request_traces(artifact.valid_size)
-                traces, _, _ = requester.receive_traces(artifact.standardize)
+                traces, _ = requester.get_traces(artifact.valid_size)
                 artifact.valid_batch = Batch(traces)
 
                 example_observes = artifact.valid_batch[0].observes
@@ -239,12 +239,10 @@ def main():
             util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(time_improvement_str) + '─┼─' + '─'*len(traces_per_sec_str))
 
             stop = False
-            requester.request_traces(opt.batchSize)
             while not stop:
                 iteration_batch += 1
-                traces, time_wait, _ = requester.receive_traces(artifact.standardize)
+                traces, time_wait = requester.get_traces(opt.batchSize)
                 batch = Batch(traces)
-                requester.request_traces(opt.batchSize)
                 if artifact.polymorph(batch):
                     if opt.visdom:
                         util.vis.text(', '.join(list(artifact.one_hot_address.keys())), win=vis_address)

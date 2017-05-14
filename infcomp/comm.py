@@ -34,6 +34,7 @@ import flatbuffers
 import sys
 import numpy as np
 import time
+from collections import deque
 
 def NDArray_to_Tensor(ndarray):
     b = ndarray._tab.Bytes
@@ -126,11 +127,15 @@ def get_sample(s):
     return sample
 
 class BatchRequester(object):
-    def __init__(self, data_source, batch_pool=False):
+    def __init__(self, data_source, standardize=False, batch_pool=False, request_ahead=128):
         if batch_pool:
             self.requester = infcomp.pool.Requester(data_source)
         else:
             self.requester = infcomp.zmq.Requester(data_source)
+        self.standardize = standardize
+        self.request_ahead = request_ahead
+        self.queue = deque([])
+        self.request_traces(self.request_ahead)
 
     def __enter__(self):
         return self
@@ -138,7 +143,26 @@ class BatchRequester(object):
     def __exit__(self, exception_type, exception_value, traceback):
         self.requester.close()
 
-    def get_traces(self, data, standardize):
+    def get_traces(self, n):
+        t0 = time.time()
+        while len(self.queue) < n:
+            self.receive_traces_to_queue()
+            self.request_traces(n)
+        ret = [self.queue.popleft() for i in range(n)]
+        return ret, time.time() - t0
+
+    def receive_traces_to_queue(self):
+        sys.stdout.write('Waiting for traces from prior...                         \r')
+        sys.stdout.flush()
+        data = self.requester.receive_reply()
+        sys.stdout.write('New traces received, processing...                       \r')
+        sys.stdout.flush()
+        traces = self.read_traces(data)
+        sys.stdout.write('                                                         \r')
+        sys.stdout.flush()
+        self.queue.extend(traces)
+
+    def read_traces(self, data):
         message_body = get_message_body(data)
         if not isinstance(message_body, infcomp.protocol.TracesFromPriorReply.TracesFromPriorReply):
             util.log_error('Expecting a TracesFromPriorReply, but received {0}'.format(message_body))
@@ -150,7 +174,7 @@ class BatchRequester(object):
 
             t = message_body.Traces(i)
             obs = NDArray_to_Tensor(t.Observes())
-            if standardize:
+            if self.standardize:
                 obs = util.standardize(obs)
             trace.set_observes(obs)
 
@@ -182,21 +206,6 @@ class BatchRequester(object):
 
         message = builder.Output()
         self.requester.send_request(message)
-
-    def receive_traces(self, standardize=False):
-        time1 = time.time()
-
-        sys.stdout.write('Waiting for traces from prior...                         \r')
-        sys.stdout.flush()
-        data = self.requester.receive_reply()
-        time2 = time.time()
-
-        sys.stdout.write('New traces received, processing...                       \r')
-        sys.stdout.flush()
-        traces = self.get_traces(data, standardize)
-        time3 = time.time()
-
-        return traces, time2 - time1, time3 - time2
 
 
 class ProposalReplier(object):
