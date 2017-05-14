@@ -26,6 +26,7 @@ import cpuinfo
 epsilon = 1e-8
 beta_res = 1000
 beta_step = 1/beta_res
+ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
 
 def get_time_stamp():
     return datetime.datetime.fromtimestamp(time.time()).strftime('-%Y%m%d-%H%M%S')
@@ -112,7 +113,6 @@ def init_logger(file_name):
 
 def log_print(line=''):
     print(line)
-    ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
     logger.info(ansi_escape.sub('', line))
 
 def log_error(line):
