@@ -10,7 +10,7 @@ LABEL version=$INFCOMP_VERSION
 LABEL git_commit=$GIT_COMMIT
 
 RUN apt update
-RUN apt install libx11-dev
+RUN apt install -y libx11-dev
 
 RUN mkdir /home/pytorch-infcomp
 COPY . /home/pytorch-infcomp
