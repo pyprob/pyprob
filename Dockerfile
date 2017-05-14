@@ -1,14 +1,14 @@
 FROM gbaydin/pytorch-cudnnv6
 
-RUN locale-gen en_US.UTF-8
-ENV LANG=en_US.UTF-8  
+ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 ENV PYTHONIOENCODING=UTF-8
 ENV PATH="/code/pytorch-infcomp:${PATH}"
 
 RUN apt update
-RUN apt install -y libx11-dev nano tmux
+RUN apt install -y libx11-dev locales nano tmux
+RUN locale-gen en_US.UTF-8
 
 ARG INFCOMP_VERSION="unknown"
 ARG GIT_COMMIT="unknown"
