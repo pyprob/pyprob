@@ -29,7 +29,7 @@ class Requester(object):
 
     def current_files(self):
         files = [name for name in os.listdir(self.pool_path)]
-        files = list(map(lambda f:self.pool_path + f, files))
+        files = list(map(lambda f:os.path.join(self.pool_path, f), files))
         return files
 
     def close(self):
