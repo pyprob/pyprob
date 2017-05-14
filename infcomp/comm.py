@@ -155,7 +155,7 @@ class BatchRequester(object):
         sys.stdout.write('Waiting for traces from prior...                         \r')
         sys.stdout.flush()
         data = self.requester.receive_reply()
-        sys.stdout.write('New traces received, processing...                       \r')
+        sys.stdout.write('Processing new traces from prior...                      \r')
         sys.stdout.flush()
         traces = self.read_traces(data)
         sys.stdout.write('                                                         \r')
