@@ -112,18 +112,20 @@ def init_logger(file_name):
     logger.addHandler(logger_file_handler)
     logger.setLevel(logging.INFO)
 
+def remove_non_ascii(s): return ''.join(i for i in s if ord(i)<128)
+
 def log_print(line=''):
     print(line)
-    logger.info(ansi_escape.sub('', line))
+    logger.info(remove_non_ascii(ansi_escape.sub('', line)))
 
 def log_error(line):
     print(colored('Error: ' + line, 'red', attrs=['bold']))
-    logger.error('Error: ' + line)
+    logger.error(remove_non_ascii('Error: ' + line))
     quit()
 
 def log_warning(line):
     print(colored('Warning: ' + line, 'red', attrs=['bold']))
-    logger.warning('Warning: ' + line)
+    logger.warning(remove_non_ascii('Warning: ' + line))
 
 def load_artifact(file_name, cuda=False, device_id=-1, print_info=True):
     try:
