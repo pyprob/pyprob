@@ -18,7 +18,6 @@ import time
 
 class Requester(object):
     def __init__(self, pool_path):
-        self.discarded_files = []
         self.pool_path = pool_path
         num_files = len(self.current_files())
         util.log_print(colored('Protocol: working with batch pool (currently with {0} files) at {1}'.format(num_files, pool_path), 'yellow', attrs=['bold']))
@@ -32,8 +31,6 @@ class Requester(object):
     def current_files(self):
         files = [name for name in os.listdir(self.pool_path)]
         files = list(map(lambda f:os.path.join(self.pool_path, f), files))
-        for f in self.discarded_files:
-            files.remove(f)
         return files
 
     def close(self):
@@ -64,5 +61,5 @@ class Requester(object):
         with open(current_file, 'rb') as f:
             ret = bytearray(f.read())
         if discard_source:
-            self.discarded_files.append(current_file)
+            os.remove(current_file)
         return ret
