@@ -8,8 +8,6 @@ ENV PATH="/code/pytorch-infcomp:${PATH}"
 
 RUN apt update
 RUN apt install -y libx11-dev locales nano tmux
-RUN locale-gen en_US en_US.UTF-8
-RUN dpkg-reconfigure locales
 
 ARG INFCOMP_VERSION="unknown"
 ARG GIT_COMMIT="unknown"
@@ -29,6 +27,5 @@ RUN chmod a+x /code/pytorch-infcomp/info
 
 RUN pip install -r /code/pytorch-infcomp/requirements.txt
 RUN pip install /code/pytorch-infcomp
-
 
 CMD bash
