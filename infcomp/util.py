@@ -4,7 +4,7 @@
 #
 # Tuan-Anh Le, Atilim Gunes Baydin
 # University of Oxford
-# May 2016 -- March 2017
+# May 2016 -- May 2017
 #
 
 import infcomp
@@ -197,7 +197,7 @@ def file_starting_with(pattern, n):
 
 def truncate_str(s, length=40):
     return (s[:length] + '...') if len(s) > length else s
-    
+
 class Spinner(object):
     def __init__(self):
         self.i = 0

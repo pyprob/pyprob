@@ -4,7 +4,7 @@
 #
 # Tuan-Anh Le, Atilim Gunes Baydin
 # University of Oxford
-# May 2016 -- March 2017
+# May 2016 -- May 2017
 #
 
 import infcomp
@@ -310,13 +310,10 @@ class Artifact(nn.Module):
         self.pytorch_version = torch.__version__
         self.standardize = True
         self.one_hot_address = {}
-        self.one_hot_instance = {}
         self.one_hot_distribution = {}
         self.one_hot_address_dim = None
-        self.one_hot_instance_dim = None
         self.one_hot_distribution_dim = None
         self.one_hot_address_empty = None
-        self.one_hot_instance_empty = None
         self.one_hot_distribution_empty = None
         self.valid_size = None
         self.valid_batch = None
@@ -361,13 +358,10 @@ class Artifact(nn.Module):
         loss_change_per_iter = loss_change / self.total_iterations
         loss_change_per_trace = loss_change / self.total_traces
         addresses = '; '.join(list(self.one_hot_address.keys()))
-        instances = '; '.join(map(str, list(self.one_hot_instance.keys())))
         distributions = ' '.join(list(self.one_hot_distribution.keys()))
         num_addresses = len(self.one_hot_address.keys())
-        num_instances = len(self.one_hot_instance.keys())
         num_distributions = len(self.one_hot_distribution.keys())
         address_collisions = max(0, num_addresses - self.one_hot_address_dim)
-        instance_collisions = max(0, num_instances - self.one_hot_instance_dim)
         info = '\n'.join(['Model name            : {0}'.format(self.model_name),
                           'Created               : {0}'.format(self.created),
                           'Modified              : {0}'.format(self.modified),
@@ -397,9 +391,6 @@ class Artifact(nn.Module):
                           colored('Addresses             : {0}'.format(addresses), 'yellow'),
                           colored('Num. addresses        : {0}'.format(num_addresses), 'yellow'),
                           colored('Address collisions    : {0}'.format(address_collisions), 'yellow'),
-                          colored('Instances             : {0}'.format(instances), 'yellow'),
-                          colored('Num. instances        : {0}'.format(num_instances), 'yellow'),
-                          colored('Instance collisions   : {0}'.format(instance_collisions), 'yellow'),
                           colored('Distributions         : {0}'.format(distributions), 'yellow'),
                           colored('Num. distributions    : {0}'.format(num_distributions), 'yellow'),
                           colored('Shortest trace seen   : {0}'.format(self.trace_length_min), 'yellow'),
@@ -421,16 +412,15 @@ class Artifact(nn.Module):
 
             for sample in example_trace.samples:
                 address = sample.address
-                instance = sample.instance
+                # instance = sample.instance
                 distribution = sample.distribution
 
                 # update the artifact's one-hot dictionary as needed
                 self.add_one_hot_address(address)
-                self.add_one_hot_instance(instance)
                 self.add_one_hot_distribution(distribution)
 
                 # update the artifact's sample and proposal layers as needed
-                if not (address, instance) in self.sample_layers:
+                if not address in self.sample_layers:
                     if self.smp_emb == 'fc':
                         sample_layer = SampleEmbeddingFC(sample.value.nelement(), self.smp_emb_dim)
                     else:
@@ -449,11 +439,11 @@ class Artifact(nn.Module):
                         proposal_layer = ProposalUniformContinuous(self.lstm_dim, self.softmax_boost)
                     else:
                         util.log_error('Unsupported distribution: ' + sample.distribution.name())
-                    self.sample_layers[(address, instance)] = sample_layer
-                    self.proposal_layers[(address, instance)] = proposal_layer
-                    self.add_module('sample_layer({0}, {1})'.format(address, instance), sample_layer)
-                    self.add_module('proposal_layer({0}, {1})'.format(address, instance), proposal_layer)
-                    util.log_print(colored('Polymorphing, new layers attached : {0}, {1}'.format(util.truncate_str(address), instance), 'magenta', attrs=['bold']))
+                    self.sample_layers[address] = sample_layer
+                    self.proposal_layers[address] = proposal_layer
+                    self.add_module('sample_layer({0})'.format(address), sample_layer)
+                    self.add_module('proposal_layer({0})'.format(address), proposal_layer)
+                    util.log_print(colored('Polymorphing, new layers attached : {0}'.format(util.truncate_str(address)), 'magenta', attrs=['bold']))
                     layers_changed = True
 
         if layers_changed:
@@ -487,15 +477,13 @@ class Artifact(nn.Module):
     def set_lstm(self, lstm_dim, lstm_depth, dropout):
         self.lstm_dim = lstm_dim
         self.lstm_depth = lstm_depth
-        self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + 2 * (self.one_hot_address_dim + self.one_hot_instance_dim + self.one_hot_distribution_dim)
+        self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + 2 * (self.one_hot_address_dim + self.one_hot_distribution_dim)
         self.lstm = nn.LSTM(self.lstm_input_dim, lstm_dim, lstm_depth, dropout=dropout)
 
-    def set_one_hot_dims(self, one_hot_address_dim, one_hot_instance_dim, one_hot_distribution_dim):
+    def set_one_hot_dims(self, one_hot_address_dim, one_hot_distribution_dim):
         self.one_hot_address_dim =one_hot_address_dim
-        self.one_hot_instance_dim = one_hot_instance_dim
         self.one_hot_distribution_dim = one_hot_distribution_dim
         self.one_hot_address_empty = Variable(util.Tensor(self.one_hot_address_dim).zero_(), requires_grad=False)
-        self.one_hot_instance_empty = Variable(util.Tensor(self.one_hot_instance_dim).zero_(), requires_grad=False)
         self.one_hot_distribution_empty = Variable(util.Tensor(self.one_hot_distribution_dim).zero_(), requires_grad=False)
 
     def add_one_hot_address(self, address):
@@ -509,18 +497,6 @@ class Artifact(nn.Module):
             else:
                 util.log_warning('Overflow (collision) in one_hot_address. Allowed: {0}; Encountered: {1}'.format(self.one_hot_address_dim, i + 1))
                 self.one_hot_address[address] = random.choice(list(self.one_hot_address.values()))
-
-    def add_one_hot_instance(self, instance):
-        if not instance in self.one_hot_instance:
-            util.log_print(colored('Polymorphing, new instance        : ' + str(instance), 'magenta', attrs=['bold']))
-            i = len(self.one_hot_instance)
-            if i < self.one_hot_instance_dim:
-                t = util.Tensor(self.one_hot_instance_dim).zero_()
-                t.narrow(0, i, 1).fill_(1)
-                self.one_hot_instance[instance] = Variable(t, requires_grad=False)
-            else:
-                util.log_warning('Overflow (collision) in one_hot_instance. Allowed: {0}; Encountered: {1}'.format(self.one_hot_instance_dim, i + 1))
-                self.one_hot_instance[instance] = random.choice(list(self.one_hot_instance.values()))
 
     def add_one_hot_distribution(self, distribution):
         distribution_name = distribution.name()
@@ -540,12 +516,9 @@ class Artifact(nn.Module):
         self.cuda_device_id = device_id
         self.cuda(device_id)
         self.one_hot_address_empty = self.one_hot_address_empty.cuda(device_id)
-        self.one_hot_instance_empty = self.one_hot_instance_empty.cuda(device_id)
         self.one_hot_distribution_empty = self.one_hot_distribution_empty.cuda(device_id)
         for k, t in self.one_hot_address.items():
             self.one_hot_address[k] = t.cuda(device_id)
-        for k, t in self.one_hot_instance.items():
-            self.one_hot_instance[k] = t.cuda(device_id)
         for k, t in self.one_hot_distribution.items():
             self.one_hot_distribution[k] = t.cuda(device_id)
         self.valid_batch.cuda(device_id)
@@ -554,12 +527,9 @@ class Artifact(nn.Module):
         self.on_cuda = False
         self.cpu()
         self.one_hot_address_empty = self.one_hot_address_empty.cpu()
-        self.one_hot_instance_empty = self.one_hot_instance_empty.cpu()
         self.one_hot_distribution_empty = self.one_hot_distribution_empty.cpu()
         for k, t in self.one_hot_address.items():
             self.one_hot_address[k] = t.cpu()
-        for k, t in self.one_hot_instance.items():
-            self.one_hot_instance[k] = t.cpu()
         for k, t in self.one_hot_distribution.items():
             self.one_hot_distribution[k] = t.cpu()
         self.valid_batch.cpu()
@@ -618,45 +588,39 @@ class Artifact(nn.Module):
             for time_step in range(example_trace.length):
                 current_sample = example_trace.samples[time_step]
                 current_address = current_sample.address
-                current_instance = current_sample.instance
+                # current_instance = current_sample.instance
                 current_distribution = current_sample.distribution
 
                 current_one_hot_address = self.one_hot_address[current_address]
-                current_one_hot_instance = self.one_hot_instance[current_instance]
                 current_one_hot_distribution = self.one_hot_distribution[current_distribution.name()]
 
                 if time_step == 0:
                     prev_sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).zero_(), requires_grad=False, volatile=volatile)
 
                     prev_one_hot_address = self.one_hot_address_empty
-                    prev_one_hot_instance = self.one_hot_instance_empty
                     prev_one_hot_distribution = self.one_hot_distribution_empty
                 else:
                     prev_sample = example_trace.samples[time_step - 1]
                     prev_address = prev_sample.address
-                    prev_instance = prev_sample.instance
                     prev_distribution = prev_sample.distribution
                     smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, prev_sample.value.nelement())
 
                     smp_var = Variable(smp, requires_grad=False, volatile=volatile)
-                    sample_layer = self.sample_layers[(prev_address, prev_instance)]
+                    sample_layer = self.sample_layers[prev_address]
                     # if data_parallel and self.on_cuda:
                     #     prev_sample_embedding = torch.nn.DataParallel(sample_layer)(smp_var)
                     # else:
                     prev_sample_embedding = sample_layer(smp_var)
 
                     prev_one_hot_address = self.one_hot_address[prev_address]
-                    prev_one_hot_instance = self.one_hot_instance[prev_instance]
                     prev_one_hot_distribution = self.one_hot_distribution[prev_distribution.name()]
 
                 for b in range(sub_batch_size):
                     t = torch.cat([sub_batch[b].observes_embedding,
                                    prev_sample_embedding[b],
                                    prev_one_hot_address,
-                                   prev_one_hot_instance,
                                    prev_one_hot_distribution,
                                    current_one_hot_address,
-                                   current_one_hot_instance,
                                    current_one_hot_distribution])
                     sub_batch[b].samples[time_step].lstm_input = t
 
@@ -696,7 +660,7 @@ class Artifact(nn.Module):
             for time_step in range(example_trace.length):
                 current_sample = example_trace.samples[time_step]
                 current_address = current_sample.address
-                current_instance = current_sample.instance
+                # current_instance = current_sample.instance
 
                 p = []
                 for b in range(sub_batch_size):
@@ -705,7 +669,7 @@ class Artifact(nn.Module):
                 proposal_input = p
 
                 current_samples = [sub_batch[b].samples[time_step] for b in range(sub_batch_size)]
-                proposal_layer = self.proposal_layers[(current_address, current_instance)]
+                proposal_layer = self.proposal_layers[current_address]
                 logpdf += proposal_layer.logpdf(proposal_input, current_samples)
 
         return -logpdf / batch.length

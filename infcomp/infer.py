@@ -4,7 +4,7 @@
 #
 # Tuan-Anh Le, Atilim Gunes Baydin
 # University of Oxford
-# May 2016 -- March 2017
+# May 2016 -- May 2017
 #
 
 import infcomp
@@ -82,27 +82,22 @@ def main():
                 else:
                     current_sample = replier.current_sample
                     current_address = current_sample.address
-                    current_instance = current_sample.instance
+                    # current_instance = current_sample.instance
                     current_distribution = current_sample.distribution
 
                     prev_sample = replier.previous_sample
                     prev_address = prev_sample.address
-                    prev_instance = prev_sample.instance
+                    # prev_instance = prev_sample.instance
                     prev_distribution = prev_sample.distribution
 
                     success = True
-                    if not (current_address, current_instance) in artifact.proposal_layers:
-                        util.log_warning('No proposal layer for: {0}, {1}'.format(current_address, current_instance))
+                    if not current_address in artifact.proposal_layers:
+                        util.log_warning('No proposal layer for: {0}'.format(current_address))
                         success = False
                     if current_address in artifact.one_hot_address:
                         current_one_hot_address = artifact.one_hot_address[current_address]
                     else:
                         util.log_warning('Unknown address (current): {0}'.format(current_address))
-                        success = False
-                    if current_instance in artifact.one_hot_instance:
-                        current_one_hot_instance = artifact.one_hot_instance[current_instance]
-                    else:
-                        util.log_warning('Unknown instance (current): {0}'.format(current_instance))
                         success = False
                     if current_distribution.name() in artifact.one_hot_distribution:
                         current_one_hot_distribution = artifact.one_hot_distribution[current_distribution.name()]
@@ -114,24 +109,18 @@ def main():
                         prev_sample_embedding = Variable(util.Tensor(1, artifact.smp_emb_dim).zero_(), volatile=True)
 
                         prev_one_hot_address = artifact.one_hot_address_empty
-                        prev_one_hot_instance = artifact.one_hot_instance_empty
                         prev_one_hot_distribution = artifact.one_hot_distribution_empty
                     else:
-                        if (prev_address, prev_instance) in artifact.sample_layers:
-                            prev_sample_embedding = artifact.sample_layers[(prev_address, prev_instance)](Variable(prev_sample.value.unsqueeze(0), volatile=True))
+                        if prev_address in artifact.sample_layers:
+                            prev_sample_embedding = artifact.sample_layers[prev_address](Variable(prev_sample.value.unsqueeze(0), volatile=True))
                         else:
-                            util.log_warning('No sample embedding layer for: {0}, {1}'.format(prev_address, prev_instance))
+                            util.log_warning('No sample embedding layer for: {0}'.format(prev_address))
                             success = False
 
                         if prev_address in artifact.one_hot_address:
                             prev_one_hot_address = artifact.one_hot_address[prev_address]
                         else:
                             util.log_warning('Unknown address (previous): {0}'.format(prev_address))
-                            success = False
-                        if prev_instance in artifact.one_hot_instance:
-                            prev_one_hot_instance = artifact.one_hot_instance[prev_instance]
-                        else:
-                            util.log_warning('Unknown instance (previous): {0}'.format(prev_instance))
                             success = False
                         if prev_distribution.name() in artifact.one_hot_distribution:
                             prev_one_hot_distribution = artifact.one_hot_distribution[prev_distribution.name()]
@@ -142,10 +131,8 @@ def main():
                     t = [observe_embedding[0],
                          prev_sample_embedding[0],
                          prev_one_hot_address,
-                         prev_one_hot_instance,
                          prev_one_hot_distribution,
                          current_one_hot_address,
-                         current_one_hot_instance,
                          current_one_hot_distribution]
                     t = torch.cat(t).unsqueeze(0)
                     lstm_input = t.unsqueeze(0)
@@ -158,7 +145,7 @@ def main():
                         lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
 
                     proposal_input = lstm_output[0]
-                    success, proposal_output = artifact.proposal_layers[(current_address, current_instance)].forward(proposal_input, [current_sample])
+                    success, proposal_output = artifact.proposal_layers[current_address].forward(proposal_input, [current_sample])
                     current_sample.distribution.set_proposalparams(proposal_output[0].data)
 
                     if not success:
@@ -169,8 +156,8 @@ def main():
                     if opt.debug:
                         util.log_print('ProposalRequest')
                         util.log_print('Time: {0}'.format(time_step))
-                        util.log_print('Previous  address          : {0}, instance: {1}, distribution: {2}, value: {3}'.format(prev_address, prev_instance, prev_distribution, prev_sample.value.size()))
-                        util.log_print('Current (requested) address: {0}, instance: {1}, distribution: {2}'.format(current_address, current_instance, current_distribution))
+                        util.log_print('Previous  address          : {0}, distribution: {1}, value: {2}'.format(prev_address, prev_distribution, prev_sample.value.size()))
+                        util.log_print('Current (requested) address: {0}, distribution: {1}'.format(current_address, current_distribution))
                         util.log_print()
 
                     time_step += 1

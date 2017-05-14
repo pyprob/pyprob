@@ -4,7 +4,7 @@
 #
 # Tuan-Anh Le, Atilim Gunes Baydin
 # University of Oxford
-# May 2016 -- March 2017
+# May 2016 -- May 2017
 #
 
 import infcomp
@@ -102,6 +102,7 @@ def main():
         parser.add_argument('--softmaxBoost', help='multiplier before softmax', default=20.0, type=float)
         parser.add_argument('--keepArtifacts', help='keep all previously best artifacts during training, do not overwrite', action='store_true')
         parser.add_argument('--visdom', help='use Visdom for visualizations', action='store_true')
+        parser.add_argument('--batchPool', help='use batches stored in files under the given path (instead of online training with ZMQ)', default='', type=str)
         opt = parser.parse_args()
 
         if opt.version:
@@ -116,7 +117,14 @@ def main():
         if opt.visdom:
             util.vis.close()
 
-        with BatchRequester(opt.server) as requester:
+        if opt.batchPool == '':
+            data_source = opt.server
+            batch_pool = False
+        else:
+            data_source = opt.batchPool
+            batch_pool = True
+
+        with BatchRequester(data_source, batch_pool) as requester:
             if opt.resume:
                 util.log_print()
                 util.log_print(colored('[] Resuming artifact', 'blue', attrs=['bold']))
@@ -147,7 +155,7 @@ def main():
                 else:
                     artifact.cuda_device_id = opt.device
                 artifact.standardize = opt.standardize
-                artifact.set_one_hot_dims(opt.oneHotDim, opt.oneHotDim, 6)
+                artifact.set_one_hot_dims(opt.oneHotDim, 6)
                 artifact.valid_size = opt.validSize
                 requester.request_traces(artifact.valid_size)
                 traces, _, _ = requester.receive_traces(artifact.standardize)

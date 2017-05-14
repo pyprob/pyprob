@@ -1,3 +1,12 @@
+#
+# Oxford Inference Compilation
+# https://arxiv.org/abs/1610.09900
+#
+# Tuan-Anh Le, Atilim Gunes Baydin
+# University of Oxford
+# May 2016 -- May 2017
+#
+
 class Sample(object):
     def __init__(self):
         self.address = None

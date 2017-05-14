@@ -1,5 +1,15 @@
+#
+# Oxford Inference Compilation
+# https://arxiv.org/abs/1610.09900
+#
+# Tuan-Anh Le, Atilim Gunes Baydin
+# University of Oxford
+# May 2016 -- May 2017
+#
+
 import infcomp
 import infcomp.zmq
+import infcomp.pool
 from infcomp import util
 from infcomp.probprog import Sample, Trace, UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous
 import infcomp.protocol.Message
@@ -116,8 +126,11 @@ def get_sample(s):
     return sample
 
 class BatchRequester(object):
-    def __init__(self, server_address):
-        self.requester = infcomp.zmq.Requester(server_address)
+    def __init__(self, data_source, batch_pool=False):
+        if batch_pool:
+            self.requester = infcomp.pool.Requester(data_source)
+        else:
+            self.requester = infcomp.zmq.Requester(data_source)
 
     def __enter__(self):
         return self

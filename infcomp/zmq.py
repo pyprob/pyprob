@@ -4,7 +4,7 @@
 #
 # Tuan-Anh Le, Atilim Gunes Baydin
 # University of Oxford
-# May 2016 -- March 2017
+# May 2016 -- May 2017
 #
 
 import infcomp
