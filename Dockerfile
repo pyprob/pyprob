@@ -1,5 +1,7 @@
 FROM continuumio/anaconda3
 
+LABEL maintainer "gunes@robots.ox.ac.uk"
+
 RUN mkdir /home/pytorch-infcomp
 COPY . /home/pytorch-infcomp
 
