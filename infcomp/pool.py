@@ -38,7 +38,7 @@ class Requester(object):
 
     def close(self):
         num_files = len(self.current_files())
-        util.log_print(colored('Protocol: leaving batch pool (currently with {0} files) at {1}'.format(num_files, pool_path), 'yellow', attrs=['bold']))
+        util.log_print(colored('Protocol: leaving batch pool (currently with {0} files) at {1}'.format(num_files, self.pool_path), 'yellow', attrs=['bold']))
 
     def send_request(self, request):
         return
