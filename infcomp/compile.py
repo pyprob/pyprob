@@ -92,7 +92,7 @@ def main():
         parser.add_argument('--standardize', help='standardize observations', action='store_true')
         parser.add_argument('--resume', help='resume training of the latest artifact', action='store_true')
         parser.add_argument('--obsReshape', help='reshape a 1d observation to a given shape (example: "1x10x10" will reshape 100 -> 1x10x10)', default='', type=str)
-        parser.add_argument('--obsEmb', help='observation embedding', choices=['fc', 'cnn6', 'lstm'], default='fc', type=str)
+        parser.add_argument('--obsEmb', help='observation embedding', choices=['fc', 'cnn2d6c', 'cnn3d4c', 'lstm'], default='fc', type=str)
         parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=128, type=int)
         parser.add_argument('--smpEmb', help='sample embedding', choices=['fc'], default='fc', type=str)
         parser.add_argument('--smpEmbDim', help='sample embedding dimension', default=1, type=int)

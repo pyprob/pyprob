@@ -134,7 +134,7 @@ def load_artifact(file_name, cuda=False, device_id=-1, print_info=True):
         else:
             artifact = torch.load(file_name, map_location=lambda storage, loc: storage)
     except:
-        log_error('Cannot load file')
+        log_error('load_artifact: Cannot load file')
     if artifact.code_version != infcomp.__version__:
         log_print()
         log_warning('Different code versions (artifact: {0}, current: {1})'.format(artifact.code_version, infcomp.__version__))

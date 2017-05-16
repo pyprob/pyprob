@@ -85,7 +85,7 @@ def get_message_body(message_buffer):
     elif body_type == infcomp.protocol.MessageBody.MessageBody().ProposalRequest:
         message_body = infcomp.protocol.ProposalRequest.ProposalRequest()
     else:
-        log_error('Unexpected body: MessageBody id: {0}'.format(bodyType))
+        log_error('get_message_body: Unexpected body: MessageBody id: {0}'.format(bodyType))
     message_body.Init(message.Body().Bytes, message.Body().Pos)
     return message_body
 
@@ -123,7 +123,7 @@ def get_sample(s):
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
             sample.distribution = UniformContinuous(p.PriorMin(), p.PriorMax())
         else:
-            util.log_error('Unknown distribution:Distribution id: {0}.'.format(distribution_type))
+            util.log_error('get_sample: Unknown distribution:Distribution id: {0}.'.format(distribution_type))
     return sample
 
 class BatchRequester(object):
@@ -165,7 +165,7 @@ class BatchRequester(object):
     def read_traces(self, data):
         message_body = get_message_body(data)
         if not isinstance(message_body, infcomp.protocol.TracesFromPriorReply.TracesFromPriorReply):
-            util.log_error('Expecting a TracesFromPriorReply, but received {0}'.format(message_body))
+            util.log_error('read_traces: Expecting a TracesFromPriorReply, but received {0}'.format(message_body))
 
         traces_length = message_body.TracesLength()
         traces = []
@@ -174,6 +174,7 @@ class BatchRequester(object):
 
             t = message_body.Traces(i)
             obs = NDArray_to_Tensor(t.Observes())
+            print(obs.size())
             if self.standardize:
                 obs = util.standardize(obs)
             trace.set_observes(obs)
@@ -237,7 +238,7 @@ class ProposalReplier(object):
             self.previous_sample = get_sample(previous_sample)
             self.new_trace = False
         else:
-            util.log_error('Expecting ObservesInitRequest or ProposalRequest, but received {0}'.format(message_body))
+            util.log_error('receive_request: Expecting ObservesInitRequest or ProposalRequest, but received {0}'.format(message_body))
 
     def reply_observes_received(self):
         # allocate buffer
@@ -320,7 +321,7 @@ class ProposalReplier(object):
                 distribution = infcomp.protocol.UniformContinuous.UniformContinuousEnd(builder)
                 distribution_type = infcomp.protocol.Distribution.Distribution().UniformContinuous
             else:
-                util.log_error('Unsupported proposal distribution: {0}'.format(p))
+                util.log_error('reply_proposal: Unsupported proposal distribution: {0}'.format(p))
 
             # construct message body (ProposalReply)
             infcomp.protocol.ProposalReply.ProposalReplyStart(builder)

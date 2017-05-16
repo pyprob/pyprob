@@ -21,7 +21,7 @@ class Requester(object):
         self.discarded_files = []
         self.pool_path = pool_path
         num_files = len(self.current_files())
-        util.log_print(colored('Protocol: working with batch pool (currently with {0} files) at {1}'.format(num_files, pool_path), 'yellow', attrs=['bold']))
+        util.log_print(colored('Protocol: working with batch pool (currently with {0} file(s)) at {1}'.format(num_files, pool_path), 'yellow', attrs=['bold']))
 
     def __enter__(self):
         return self
@@ -38,7 +38,7 @@ class Requester(object):
 
     def close(self):
         num_files = len(self.current_files())
-        util.log_print(colored('Protocol: leaving batch pool (currently with {0} files) at {1}'.format(num_files, self.pool_path), 'yellow', attrs=['bold']))
+        util.log_print(colored('Protocol: leaving batch pool (currently with {0} file(s)) at {1}'.format(num_files, self.pool_path), 'yellow', attrs=['bold']))
 
     def send_request(self, request):
         return
@@ -52,7 +52,7 @@ class Requester(object):
             if (num_files > 0):
                 pool_empty = False
                 if pool_was_empty:
-                    util.log_print(colored('Protocol: resuming, new data appeared in batch pool (currently with {0} files) at {1}'.format(num_files, self.pool_path), 'yellow', attrs=['bold']))
+                    util.log_print(colored('Protocol: resuming, new data appeared in batch pool (currently with {0} file(s)) at {1}'.format(num_files, self.pool_path), 'yellow', attrs=['bold']))
             else:
                 if not pool_was_empty:
                     util.log_print(colored('Protocol: waiting for new data, empty batch pool at {0}'.format(self.pool_path), 'yellow', attrs=['bold']))

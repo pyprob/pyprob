@@ -33,7 +33,7 @@ class Batch(object):
         sb = {}
         for trace in traces:
             if trace.length is None:
-                util.log_error('Received a trace of length zero.')
+                util.log_error('Batch: Received a trace of length zero.')
             if trace.length > self.traces_max_length:
                 self.traces_max_length = trace.length
             if trace.observes.size(0) > self.observes_max_length:
@@ -245,9 +245,9 @@ class ObserveEmbeddingLSTM(nn.Module):
         x, (_, _) = self.lstm(x, (h0, h0))
         return x
 
-class ObserveEmbeddingCNN6(nn.Module):
+class ObserveEmbeddingCNN2D6C(nn.Module):
     def __init__(self, input_example_non_batch, output_dim, reshape=None):
-        super(ObserveEmbeddingCNN6, self).__init__()
+        super(ObserveEmbeddingCNN2D6C, self).__init__()
         self.reshape = reshape
         if not self.reshape is None:
             input_example_non_batch = input_example_non_batch.view(self.reshape)
@@ -257,7 +257,7 @@ class ObserveEmbeddingCNN6(nn.Module):
         elif input_example_non_batch.dim() == 3:
             self.input_sample = input_example_non_batch.cpu()
         else:
-            util.log_error('Expecting a 3d input_example_non_batch (num_channels x height x width) or a 2d input_example_non_batch (height x width). Received: {0}'.format(input_example_non_batch.size()))
+            util.log_error('ObserveEmbeddingCNN2D6C: Expecting a 3d input_example_non_batch (num_channels x height x width) or a 2d input_example_non_batch (height x width). Received: {0}'.format(input_example_non_batch.size()))
         self.input_channels = self.input_sample.size(0)
         self.output_dim = output_dim
         self.conv1 = nn.Conv2d(self.input_channels, 64, 3)
@@ -286,6 +286,48 @@ class ObserveEmbeddingCNN6(nn.Module):
             x = x.view(self.reshape)
         if x.dim() == 3: # This indicates that there are no channel dimensions and we have BxHxW
             x = x.unsqueeze(1) # Add a channel dimension of 1 after the batch dimension so that we have BxCxHxW
+        x = self.forward_cnn(x)
+        x = x.view(-1, self.cnn_output_dim)
+        x = F.relu(self.lin1(x))
+        x = F.relu(self.lin2(x))
+        return x
+
+class ObserveEmbeddingCNN3D4C(nn.Module):
+    def __init__(self, input_example_non_batch, output_dim, reshape=None):
+        super(ObserveEmbeddingCNN3D4C, self).__init__()
+        self.reshape = reshape
+        if not self.reshape is None:
+            input_example_non_batch = input_example_non_batch.view(self.reshape)
+            self.reshape.insert(0, -1) # For correct handling of the batch dimension in self.forward
+        if input_example_non_batch.dim() == 3:
+            self.input_sample = input_example_non_batch.unsqueeze(0).cpu()
+        elif input_example_non_batch.dim() == 4:
+            self.input_sample = input_example_non_batch.cpu()
+        else:
+            util.log_error('ObserveEmbeddingCNN3D4C: Expecting a 4d input_example_non_batch (num_channels x depth x height x width) or a 3d input_example_non_batch (depth x height x width). Received: {0}'.format(input_example_non_batch.size()))
+        self.input_channels = self.input_sample.size(0)
+        self.output_dim = output_dim
+        self.conv1 = nn.Conv3d(self.input_channels, 64, 3)
+        self.conv2 = nn.Conv3d(64, 64, 3)
+        self.conv3 = nn.Conv3d(64, 128, 3)
+        self.conv4 = nn.Conv3d(128, 128, 3)
+    def configure(self):
+        self.cnn_output_dim = self.forward_cnn(self.input_sample.unsqueeze(0)).view(-1).size(0)
+        self.lin1 = nn.Linear(self.cnn_output_dim, self.output_dim)
+        self.lin2 = nn.Linear(self.output_dim, self.output_dim)
+    def forward_cnn(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = nn.MaxPool3d(2)(x)
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+        x = nn.MaxPool3d(2)(x)
+        return x
+    def forward(self, x):
+        if not self.reshape is None:
+            x = x.view(self.reshape)
+        if x.dim() == 4: # This indicates that there are no channel dimensions and we have BxDxHxW
+            x = x.unsqueeze(1) # Add a channel dimension of 1 after the batch dimension so that we have BxCxDxHxW
         x = self.forward_cnn(x)
         x = x.view(-1, self.cnn_output_dim)
         x = F.relu(self.lin1(x))
@@ -447,7 +489,7 @@ class Artifact(nn.Module):
                     if self.smp_emb == 'fc':
                         sample_layer = SampleEmbeddingFC(sample.value.nelement(), self.smp_emb_dim)
                     else:
-                        util.log_error('Unsupported sample embedding: ' + self.smp_emb)
+                        util.log_error('polymorph: Unsupported sample embedding: ' + self.smp_emb)
                     if isinstance(distribution, UniformDiscrete):
                         proposal_layer = ProposalUniformDiscrete(self.lstm_dim, distribution.prior_size, self.softmax_boost)
                     elif isinstance(distribution, Normal):
@@ -461,7 +503,7 @@ class Artifact(nn.Module):
                     elif isinstance(distribution, UniformContinuous):
                         proposal_layer = ProposalUniformContinuous(self.lstm_dim, self.softmax_boost)
                     else:
-                        util.log_error('Unsupported distribution: ' + sample.distribution.name())
+                        util.log_error('polymorph: Unsupported distribution: ' + sample.distribution.name())
                     self.sample_layers[address] = sample_layer
                     self.proposal_layers[address] = proposal_layer
                     self.add_module('sample_layer({0})'.format(address), sample_layer)
@@ -487,13 +529,16 @@ class Artifact(nn.Module):
         self.obs_emb_dim = obs_emb_dim
         if obs_emb == 'fc':
             observe_layer = ObserveEmbeddingFC(Variable(example_observes), obs_emb_dim)
-        elif obs_emb == 'cnn6':
-            observe_layer = ObserveEmbeddingCNN6(Variable(example_observes), obs_emb_dim, obs_reshape)
+        elif obs_emb == 'cnn2d6c':
+            observe_layer = ObserveEmbeddingCNN2D6C(Variable(example_observes), obs_emb_dim, obs_reshape)
+            observe_layer.configure()
+        elif obs_emb == 'cnn3d4c':
+            observe_layer = ObserveEmbeddingCNN3D4C(Variable(example_observes), obs_emb_dim, obs_reshape)
             observe_layer.configure()
         elif obs_emb == 'lstm':
             observe_layer = ObserveEmbeddingLSTM(Variable(example_observes), obs_emb_dim)
         else:
-            util.log_error('Unsupported observation embedding: ' + obs_emb)
+            util.log_error('set_observe_embedding: Unsupported observation embedding: ' + obs_emb)
 
         self.observe_layer = observe_layer
 
@@ -566,7 +611,7 @@ class Artifact(nn.Module):
         example_observes = batch[0].observes
         if isinstance(self.observe_layer, ObserveEmbeddingLSTM):
             if example_observes.dim() != 2:
-                util.log_error('RNN observation embedding requires an observation shape of (T x F), where T is sequence length and F is feature length. Received observation with shape: {0}'.format(example_observes.size()))
+                util.log_error('loss: RNN observation embedding requires an observation shape of (T x F), where T is sequence length and F is feature length. Received observation with shape: {0}'.format(example_observes.size()))
 
             # We need to sort observes in the batch in decreasing length. This is a requirement for batching variable length sequences through RNNs.
             batch_sorted_by_observes = batch.sort_by_observes_length()
@@ -594,7 +639,7 @@ class Artifact(nn.Module):
             elif example_observes.dim() == 3:
                 obs = obs.view(batch.length, example_observes.size()[0], example_observes.size()[1], example_observes.size()[2])
             else:
-                util.log_error('Unsupported observation dimensions: {0}'.format(example_observes.size()))
+                util.log_error('loss: Unsupported observation dimensions: {0}'.format(example_observes.size()))
 
             obs_var = Variable(obs, requires_grad=False, volatile=volatile)
             if data_parallel and self.on_cuda:
