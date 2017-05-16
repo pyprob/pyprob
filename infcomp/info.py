@@ -34,7 +34,9 @@ def main():
         parser.add_argument('--structure', help='show extra information about artifact structure', action='store_true')
         parser.add_argument('--savePlot', help='save loss plot to file (supported formats: eps, jpg, png, pdf, svg, tif)', type=str)
         parser.add_argument('--showPlot', help='show the loss plot in screen', action='store_true')
-        parser.add_argument('--saveHist', help='save the training and validation loss history (csv)', type=str)
+        parser.add_argument('--saveLoss', help='save the training and validation loss history (csv)', type=str)
+        parser.add_argument('--saveHistAddress', help='save the histogram of addresses (csv)', type=str)
+        parser.add_argument('--saveHistTrace', help='save the histogram of trace lengths (csv)', type=str)
         parser.add_argument('--visdom', help='use Visdom for visualizations', action='store_true')
         opt = parser.parse_args()
 
@@ -80,12 +82,42 @@ def main():
                 util.log_print('Saving loss plot to file: ' + opt.savePlot)
                 fig.savefig(opt.savePlot)
 
-        if not opt.saveHist is None:
-            util.log_print('Saving training and validation loss history to file: ' + opt.saveHist)
-            with open(opt.saveHist, 'w') as f:
+        if not opt.saveLoss is None:
+            util.log_print('Saving training and validation loss history to file: ' + opt.saveLoss)
+            with open(opt.saveLoss, 'w') as f:
                 data = [artifact.train_history_trace, artifact.train_history_loss, artifact.valid_history_trace, artifact.valid_history_loss]
                 writer = csv.writer(f)
                 writer.writerow(['train_trace', 'train_loss', 'valid_trace', 'valid_loss'])
+                for values in zip_longest(*data):
+                    writer.writerow(values)
+
+        if not opt.saveHistAddress is None:
+            util.log_print('Saving address histogram to file: ' + opt.saveHistAddress)
+            with open(opt.saveHistAddress, 'w') as f:
+                data_address = []
+                data_distribution = []
+                data_count = []
+                for address in artifact.address_histogram:
+                    data_address.append(address)
+                    data_distribution.append(artifact.address_distributions[address])
+                    data_count.append(artifact.address_histogram[address])
+                data = [data_address, data_distribution, data_count]
+                writer = csv.writer(f)
+                writer.writerow(['address', 'distribution', 'count'])
+                for values in zip_longest(*data):
+                    writer.writerow(values)
+
+        if not opt.saveHistTrace is None:
+            util.log_print('Saving trace length histogram to file: ' + opt.saveHistTrace)
+            with open(opt.saveHistTrace, 'w') as f:
+                data_trace_length = []
+                data_count = []
+                for trace_length in artifact.trace_length_histogram:
+                    data_trace_length.append(trace_length)
+                    data_count.append(artifact.trace_length_histogram[trace_length])
+                data = [data_trace_length, data_count]
+                writer = csv.writer(f)
+                writer.writerow(['trace_length', 'count'])
                 for values in zip_longest(*data):
                     writer.writerow(values)
 

@@ -315,6 +315,9 @@ class Artifact(nn.Module):
         self.one_hot_distribution_dim = None
         self.one_hot_address_empty = None
         self.one_hot_distribution_empty = None
+        self.address_distributions = {}
+        self.address_histogram = {}
+        self.trace_length_histogram = {}
         self.valid_size = None
         self.valid_batch = None
         self.lstm_dim = None
@@ -361,6 +364,13 @@ class Artifact(nn.Module):
         distributions = ' '.join(list(self.one_hot_distribution.keys()))
         num_addresses = len(self.one_hot_address.keys())
         num_distributions = len(self.one_hot_distribution.keys())
+        sum = 0
+        total_count = 0
+        for trace_length in self.trace_length_histogram:
+            count = self.trace_length_histogram[trace_length]
+            sum += trace_length * count
+            total_count += count
+        trace_length_mean = sum / total_count
         address_collisions = max(0, num_addresses - self.one_hot_address_dim)
         info = '\n'.join(['Model name            : {0}'.format(self.model_name),
                           'Created               : {0}'.format(self.created),
@@ -393,8 +403,7 @@ class Artifact(nn.Module):
                           colored('Address collisions    : {0}'.format(address_collisions), 'yellow'),
                           colored('Distributions         : {0}'.format(distributions), 'yellow'),
                           colored('Num. distributions    : {0}'.format(num_distributions), 'yellow'),
-                          colored('Shortest trace seen   : {0}'.format(self.trace_length_min), 'yellow'),
-                          colored('Longest  trace seen   : {0}'.format(self.trace_length_max), 'yellow')])
+                          colored('Trace lengths seen    : min: {0}, max: {1}, mean: {2}'.format(self.trace_length_min, self.trace_length_max, trace_length_mean), 'yellow')])
         return info
 
     def polymorph(self, batch=None):
@@ -404,16 +413,30 @@ class Artifact(nn.Module):
         layers_changed = False
         for sub_batch in batch.sub_batches:
             example_trace = sub_batch[0]
+            example_trace_length = example_trace.length
 
-            if example_trace.length > self.trace_length_max:
-                self.trace_length_max = example_trace.length
-            if example_trace.length < self.trace_length_min:
-                self.trace_length_min = example_trace.length
+            if example_trace_length > self.trace_length_max:
+                self.trace_length_max = example_trace_length
+            if example_trace_length < self.trace_length_min:
+                self.trace_length_min = example_trace_length
+
+            if example_trace_length in self.trace_length_histogram:
+                self.trace_length_histogram[example_trace_length] += len(sub_batch)
+            else:
+                self.trace_length_histogram[example_trace_length] = len(sub_batch)
 
             for sample in example_trace.samples:
                 address = sample.address
                 # instance = sample.instance
                 distribution = sample.distribution
+
+                if address in self.address_histogram:
+                    self.address_histogram[address] += 1
+                else:
+                    self.address_histogram[address] = 1
+
+                if address not in self.address_distributions:
+                    self.address_distributions[address] = distribution.name()
 
                 # update the artifact's one-hot dictionary as needed
                 self.add_one_hot_address(address)
