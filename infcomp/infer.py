@@ -128,27 +128,27 @@ def main():
                             util.log_warning('Unknown distribution (previous): {0}'.format(prev_distribution.name()))
                             success = False
 
-                    t = [observe_embedding[0],
-                         prev_sample_embedding[0],
-                         prev_one_hot_address,
-                         prev_one_hot_distribution,
-                         current_one_hot_address,
-                         current_one_hot_distribution]
-                    t = torch.cat(t).unsqueeze(0)
-                    lstm_input = t.unsqueeze(0)
+                    if success:
+                        t = [observe_embedding[0],
+                             prev_sample_embedding[0],
+                             prev_one_hot_address,
+                             prev_one_hot_distribution,
+                             current_one_hot_address,
+                             current_one_hot_distribution]
+                        t = torch.cat(t).unsqueeze(0)
+                        lstm_input = t.unsqueeze(0)
 
-                    if time_step == 0:
-                        h0 = Variable(util.Tensor(artifact.lstm_depth, 1, artifact.lstm_dim).zero_(), volatile=True)
-                        lstm_hidden_state = (h0, h0)
-                        lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
+                        if time_step == 0:
+                            h0 = Variable(util.Tensor(artifact.lstm_depth, 1, artifact.lstm_dim).zero_(), volatile=True)
+                            lstm_hidden_state = (h0, h0)
+                            lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
+                        else:
+                            lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
+
+                        proposal_input = lstm_output[0]
+                        success, proposal_output = artifact.proposal_layers[current_address].forward(proposal_input, [current_sample])
+                        current_sample.distribution.set_proposalparams(proposal_output[0].data)
                     else:
-                        lstm_output, lstm_hidden_state = artifact.lstm(lstm_input, lstm_hidden_state)
-
-                    proposal_input = lstm_output[0]
-                    success, proposal_output = artifact.proposal_layers[current_address].forward(proposal_input, [current_sample])
-                    current_sample.distribution.set_proposalparams(proposal_output[0].data)
-
-                    if not success:
                         util.log_warning('Proposal will be made from the prior.')
                     replier.reply_proposal(success, current_sample.distribution)
 
