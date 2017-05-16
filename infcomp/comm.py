@@ -174,7 +174,6 @@ class BatchRequester(object):
 
             t = message_body.Traces(i)
             obs = NDArray_to_Tensor(t.Observes())
-            print(obs.size())
             if self.standardize:
                 obs = util.standardize(obs)
             trace.set_observes(obs)
