@@ -103,6 +103,7 @@ def main():
         parser.add_argument('--keepArtifacts', help='keep all previously best artifacts during training, do not overwrite', action='store_true')
         parser.add_argument('--visdom', help='use Visdom for visualizations', action='store_true')
         parser.add_argument('--batchPool', help='use batches stored in files under the given path (instead of online training with ZMQ)', default='', type=str)
+        parser.add_argument('--truncateBackprop', help='use truncated backpropagation through time if sequence length is greater than the given value (-1: disabled)', default=-1, type=int)
         opt = parser.parse_args()
 
         if opt.version:
@@ -271,13 +272,7 @@ def main():
                 sys.stdout.flush()
 
                 artifact.train()
-                optimizer.zero_grad()
-                loss = artifact.loss(batch, opt.parallel)
-                loss.backward()
-                if opt.clip > 0:
-                    torch.nn.utils.clip_grad_norm(artifact.parameters(), opt.clip)
-
-                optimizer.step()
+                loss = artifact.loss(batch, optimizer=optimizer, truncate=opt.truncateBackprop, grad_clip=opt.clip, data_parallel=opt.parallel)
                 train_loss = loss.data[0]
 
                 trace += batch.length
