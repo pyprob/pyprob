@@ -22,7 +22,6 @@ import datetime
 import gc
 import sys
 import random
-import time
 
 class Batch(object):
     def __init__(self, traces, sort=True):
@@ -608,8 +607,6 @@ class Artifact(nn.Module):
 
     def loss(self, batch, optimizer=None, truncate=-1, grad_clip=-1, data_parallel=False, volatile=False):
         gc.collect()
-        print(batch.traces_max_length)
-        t_start = time.time()
 
         example_observes = batch[0].observes
         if isinstance(self.observe_layer, ObserveEmbeddingLSTM):
@@ -782,7 +779,5 @@ class Artifact(nn.Module):
                 optimizer.step()
 
             loss += logpdf
-
-        print('duration', time.time() - t_start)
 
         return loss
