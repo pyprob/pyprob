@@ -18,6 +18,8 @@ import datetime
 import sys
 from pprint import pformat
 import os
+from itertools import zip_longest
+import csv
 import traceback
 
 def main():
@@ -32,11 +34,19 @@ def main():
         parser.add_argument('--debug', help='show debugging information as requests arrive', action='store_true')
         parser.add_argument('--server', help='address and port to bind this inference server', default='tcp://0.0.0.0:6666')
         parser.add_argument('--visdom', help='use Visdom for visualizations', action='store_true')
+        parser.add_argument('--saveHistAddress', help='save the histogram of addresses (csv)', type=str)
+        parser.add_argument('--saveHistTrace', help='save the histogram of trace lengths (csv)', type=str)
         opt = parser.parse_args()
 
         if opt.version:
             print(infcomp.__version__)
             quit()
+
+        if not opt.saveHistAddress is None:
+            address_histogram = {}
+            address_distributions = {}
+        if not opt.saveHistTrace is None:
+            trace_length_histogram = {}
 
         time_stamp = util.get_time_stamp()
         util.init_logger('{0}/{1}'.format(opt.dir, 'infcomp-infer-log' + time_stamp))
@@ -69,6 +79,14 @@ def main():
                 replier.receive_request(artifact.standardize)
 
                 if replier.new_trace:
+
+                    if not opt.saveHistTrace is None:
+                        if time_step != 0:
+                            if time_step in trace_length_histogram:
+                                trace_length_histogram[time_step] += 1
+                            else:
+                                trace_length_histogram[time_step] = 1
+
                     time_step = 0
                     obs = replier.observes
                     observe_embedding = artifact.observe_layer.forward(Variable(obs.unsqueeze(0), volatile=True))
@@ -79,6 +97,7 @@ def main():
                         util.log_print('Time: reset')
                         util.log_print('observes: {0}'.format(str(obs.size())))
                         util.log_print()
+
                 else:
                     current_sample = replier.current_sample
                     current_address = current_sample.address
@@ -89,6 +108,14 @@ def main():
                     prev_address = prev_sample.address
                     # prev_instance = prev_sample.instance
                     prev_distribution = prev_sample.distribution
+
+                    if not opt.saveHistAddress is None:
+                        if current_address in address_histogram:
+                            address_histogram[current_address] += 1
+                        else:
+                            address_histogram[current_address] = 1
+                        if current_address not in address_distributions:
+                            address_distributions[current_address] = current_distribution.name()
 
                     success = True
                     if not current_address in artifact.proposal_layers:
@@ -161,10 +188,41 @@ def main():
                         util.log_print()
 
                     time_step += 1
+
     except KeyboardInterrupt:
         util.log_print('Shutdown requested')
     except Exception:
         traceback.print_exc(file=sys.stdout)
+
+    if not opt.saveHistAddress is None:
+        util.log_print('Saving address histogram to file: ' + opt.saveHistAddress)
+        with open(opt.saveHistAddress, 'w') as f:
+            data_address = []
+            data_distribution = []
+            data_count = []
+            for address in address_histogram:
+                data_address.append(address)
+                data_distribution.append(address_distributions[address])
+                data_count.append(address_histogram[address])
+            data = [data_address, data_distribution, data_count]
+            writer = csv.writer(f)
+            writer.writerow(['address', 'distribution', 'count'])
+            for values in zip_longest(*data):
+                writer.writerow(values)
+
+    if not opt.saveHistTrace is None:
+        util.log_print('Saving trace length histogram to file: ' + opt.saveHistTrace)
+        with open(opt.saveHistTrace, 'w') as f:
+            data_trace_length = []
+            data_count = []
+            for trace_length in trace_length_histogram:
+                data_trace_length.append(trace_length)
+                data_count.append(trace_length_histogram[trace_length])
+            data = [data_trace_length, data_count]
+            writer = csv.writer(f)
+            writer.writerow(['trace_length', 'count'])
+            for values in zip_longest(*data):
+                writer.writerow(values)
     sys.exit(0)
 
 if __name__ == "__main__":
