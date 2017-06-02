@@ -151,6 +151,7 @@ def main():
                 prev_artifact_total_training_seconds = 0
 
                 artifact = Artifact()
+                artifact.dropout = opt.dropout
                 artifact.on_cuda = opt.cuda
                 if opt.cuda:
                     artifact.cuda_device_id = torch.cuda.current_device()
@@ -173,7 +174,7 @@ def main():
                 else:
                     artifact.set_observe_embedding(example_observes, opt.obsEmb, opt.obsEmbDim)
                 artifact.set_sample_embedding(opt.smpEmb, opt.smpEmbDim)
-                artifact.set_lstm(opt.lstmDim, opt.lstmDepth, opt.dropout)
+                artifact.set_lstm(opt.lstmDim, opt.lstmDepth)
 
                 artifact.softmax_boost = opt.softmaxBoost
 

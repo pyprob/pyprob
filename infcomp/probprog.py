@@ -160,3 +160,22 @@ class Categorical(object):
     def cpu(self):
         if not self.proposal_probabilities is None:
             self.proposal_probabilities = self.proposal_probabilities.cpu()
+
+class Laplace(object):
+    def __init__(self, prior_location, prior_scale):
+        self.prior_location = prior_location
+        self.prior_scale = prior_scale
+        self.proposal_location = None
+        self.proposal_scale = None
+    def __repr__(self):
+        return 'Laplace(prior_location:{0}; prior_scale:{1}; proposal_location:{2}; proposal_scale:{3})'.format(self.prior_location, self.prior_scale, self.proposal_location, self.proposal_scale)
+    __str__ = __repr__
+    def set_proposalparams(self, tensor_of_proposal_location_scale):
+        self.proposal_location = tensor_of_proposal_location_scale[0]
+        self.proposal_scale = tensor_of_proposal_location_scale[1]
+    def name(self):
+        return 'Laplace'
+    def cuda(self, device_id=None):
+        return
+    def cpu(self):
+        return

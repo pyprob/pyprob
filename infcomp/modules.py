@@ -9,7 +9,7 @@
 
 import infcomp
 from infcomp import util
-from infcomp.probprog import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous
+from infcomp.probprog import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace
 import torch
 import torch.nn as nn
 import torch.nn.init as init
@@ -63,13 +63,20 @@ class Batch(object):
         return Batch(sorted(self.batch, reverse=True, key=lambda x:x.observes.nelement()), False)
 
 class ProposalUniformDiscrete(nn.Module):
-    def __init__(self, input_dim, output_dim, softmax_boost=1.0):
+    def __init__(self, input_dim, output_dim, dropout=0, softmax_boost=1.0):
         super(ProposalUniformDiscrete, self).__init__()
-        self.lin1 = nn.Linear(input_dim, output_dim)
+        self.lin1 = nn.Linear(input_dim, input_dim)
+        self.lin2 = nn.Linear(input_dim, output_dim)
+        self.drop = nn.Dropout(dropout)
         self.softmax_boost = softmax_boost
-        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
+        init.xavier_uniform(self.lin1.weight, gain=init.calculate_gain('relu'))
+        init.xavier_uniform(self.lin2.weight)
     def forward(self, x, samples=None):
-        return True, F.softmax(self.lin1(x).mul_(self.softmax_boost))
+        x = self.drop(x)
+        x = F.relu(self.lin1(x))
+        x = self.drop(x)
+        x = F.softmax(self.lin2(x).mul_(self.softmax_boost))
+        return True, x
     def logpdf(self, x, samples):
         _, proposal_output = self.forward(x)
         batch_size = len(samples)
@@ -82,12 +89,18 @@ class ProposalUniformDiscrete(nn.Module):
         return l
 
 class ProposalNormal(nn.Module):
-    def __init__(self, input_dim):
+    def __init__(self, input_dim, dropout=0):
         super(ProposalNormal, self).__init__()
-        self.lin1 = nn.Linear(input_dim, 2)
-        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
+        self.lin1 = nn.Linear(input_dim, input_dim)
+        self.lin2 = nn.Linear(input_dim, 2)
+        self.drop = nn.Dropout(dropout)
+        init.xavier_uniform(self.lin1.weight, gain=init.calculate_gain('relu'))
+        init.xavier_uniform(self.lin2.weight)
     def forward(self, x, samples):
-        x = self.lin1(x)
+        x = self.drop(x)
+        x = F.relu(self.lin1(x))
+        x = self.drop(x)
+        x = self.lin2(x)
         means = x[:,0].unsqueeze(1)
         stds = x[:,1].unsqueeze(1)
         stds = nn.Softplus()(stds)
@@ -111,14 +124,54 @@ class ProposalNormal(nn.Module):
             l -= half_log_two_pi_std_square + ((value - mean)**2) / two_std_square
         return l
 
+class ProposalLaplace(nn.Module):
+    def __init__(self, input_dim, dropout=0):
+        super(ProposalLaplace, self).__init__()
+        self.lin1 = nn.Linear(input_dim, input_dim)
+        self.lin2 = nn.Linear(input_dim, 2)
+        self.drop = nn.Dropout(dropout)
+        init.xavier_uniform(self.lin1.weight, gain=init.calculate_gain('relu'))
+        init.xavier_uniform(self.lin2.weight)
+    def forward(self, x, samples):
+        x = self.drop(x)
+        x = F.relu(self.lin1(x))
+        x = self.drop(x)
+        x = self.lin2(x)
+        locations = x[:,0].unsqueeze(1)
+        scales = x[:,1].unsqueeze(1)
+        scales = nn.Softplus()(scales)
+        prior_locations = Variable(util.Tensor([s.distribution.prior_location for s in samples]), requires_grad=False)
+        prior_scales = Variable(util.Tensor([s.distribution.prior_scale for s in samples]), requires_grad=False)
+        return True, torch.cat([(locations * prior_scales) + prior_locations, scales * prior_scales], 1)
+    def logpdf(self, x, samples):
+        _, proposal_output = self.forward(x, samples)
+        batch_size = len(samples)
+        locations = proposal_output[:, 0]
+        scales = proposal_output[:, 1] + util.epsilon
+        log_two_scales = torch.log(2 * scales)
+        l = 0
+        for b in range(batch_size):
+            value = samples[b].value[0]
+            location = locations[b]
+            scale = scales[b]
+            l -= log_two_scales[b] + torch.abs(value - location) / scale
+        return l
+
 class ProposalFlip(nn.Module):
-    def __init__(self, input_dim, softmax_boost=1.0):
+    def __init__(self, input_dim, dropout=0, softmax_boost=1.0):
         super(ProposalFlip, self).__init__()
-        self.lin1 = nn.Linear(input_dim, 1)
+        self.lin1 = nn.Linear(input_dim, input_dim)
+        self.lin2 = nn.Linear(input_dim, 1)
+        self.drop = nn.Dropout(dropout)
         self.softmax_boost = softmax_boost
-        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
+        init.xavier_uniform(self.lin1.weight, gain=init.calculate_gain('relu'))
+        init.xavier_uniform(self.lin2.weight)
     def forward(self, x, samples=None):
-        return True, nn.Sigmoid()(self.lin1(x).mul_(self.softmax_boost))
+        x = self.drop(x)
+        x = F.relu(self.lin1(x))
+        x = self.drop(x)
+        x = F.sigmoid(self.lin2(x).mul_(self.softmax_boost))
+        return True, x
     def logpdf(self, x, samples):
         _, proposal_output = self.forward(x)
         batch_size = len(samples)
@@ -134,13 +187,19 @@ class ProposalFlip(nn.Module):
         return l
 
 class ProposalDiscrete(nn.Module):
-    def __init__(self, input_dim, output_dim, softmax_boost=1.0):
+    def __init__(self, input_dim, output_dim, dropout=0, softmax_boost=1.0):
         super(ProposalDiscrete, self).__init__()
-        self.lin1 = nn.Linear(input_dim, output_dim)
+        self.lin1 = nn.Linear(input_dim, input_dim)
+        self.lin2 = nn.Linear(input_dim, output_dim)
+        self.drop = nn.Dropout(dropout)
         self.softmax_boost = softmax_boost
-        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
+        init.xavier_uniform(self.lin1.weight, gain=init.calculate_gain('relu'))
     def forward(self, x, samples=None):
-        return True, F.softmax(self.lin1(x).mul_(self.softmax_boost))
+        x = self.drop(x)
+        x = F.relu(self.lin1(x))
+        x = self.drop(x)
+        x = F.softmax(self.lin2(x).mul_(self.softmax_boost))
+        return True, x
     def logpdf(self, x, samples):
         _, proposal_output = self.forward(x)
         batch_size = len(samples)
@@ -152,13 +211,20 @@ class ProposalDiscrete(nn.Module):
         return l
 
 class ProposalCategorical(nn.Module):
-    def __init__(self, input_dim, output_dim, softmax_boost=1.0):
+    def __init__(self, input_dim, output_dim, dropout=0, softmax_boost=1.0):
         super(ProposalCategorical, self).__init__()
-        self.lin1 = nn.Linear(input_dim, output_dim)
+        self.lin1 = nn.Linear(input_dim, input_dim)
+        self.lin2 = nn.Linear(input_dim, output_dim)
+        self.drop = nn.Dropout(dropout)
         self.softmax_boost = softmax_boost
-        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
+        init.xavier_uniform(self.lin1.weight, gain=init.calculate_gain('relu'))
+        init.xavier_uniform(self.lin2.weight)
     def forward(self, x, samples=None):
-        return True, F.softmax(self.lin1(x).mul_(self.softmax_boost))
+        x = self.drop(x)
+        x = f.relu(self.lin1(x))
+        x = self.drop(x)
+        x = F.softmax(self.lin2(x).mul_(self.softmax_boost))
+        return True, x
     def logpdf(self, x, samples):
         _, proposal_output = self.forward(x)
         batch_size = len(samples)
@@ -170,18 +236,24 @@ class ProposalCategorical(nn.Module):
         return l
 
 class ProposalUniformContinuous(nn.Module):
-    def __init__(self, input_dim, softplus_boost=1.0):
+    def __init__(self, input_dim, dropout=0, softplus_boost=1.0):
         super(ProposalUniformContinuous, self).__init__()
-        self.lin1 = nn.Linear(input_dim, 2)
+        self.lin1 = nn.Linear(input_dim, input_dim)
+        self.lin2 = nn.Linear(input_dim, 2)
+        self.drop = nn.Dropout(dropout)
         self.softplus_boost = softplus_boost
-        init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
+        init.xavier_uniform(self.lin1.weight, gain=init.calculate_gain('relu'))
+        init.xavier_uniform(self.lin2.weight)
     def forward(self, x, samples):
-        x = self.lin1(x)
+        x = self.drop(x)
+        x = F.relu(self.lin1(x))
+        x = self.drop(x)
+        x = self.lin2(x)
         modes = x[:,0].unsqueeze(1)
         certainties = x[:,1].unsqueeze(1)
         modes = nn.Sigmoid()(modes)
         certainties = nn.Softplus()(certainties) * self.softplus_boost
-        # check if mins are < maxs, if not, raise warning and return success = false
+        # To do: check if mins are < maxs, if not, raise warning and return success = false
         prior_mins = Variable(util.Tensor([s.distribution.prior_min for s in samples]), requires_grad=False)
         prior_maxs = Variable(util.Tensor([s.distribution.prior_max for s in samples]), requires_grad=False)
         return True, torch.cat([(modes * (prior_maxs - prior_mins) + prior_mins), certainties], 1)
@@ -208,7 +280,7 @@ class ProposalUniformContinuous(nn.Module):
         return l
 
 class SampleEmbeddingFC(nn.Module):
-    def __init__(self, input_dim, output_dim):
+    def __init__(self, input_dim, output_dim, dropout=0):
         super(SampleEmbeddingFC, self).__init__()
         self.lin1 = nn.Linear(input_dim, output_dim)
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
@@ -216,16 +288,19 @@ class SampleEmbeddingFC(nn.Module):
         return F.relu(self.lin1(x))
 
 class ObserveEmbeddingFC(nn.Module):
-    def __init__(self, input_example_non_batch, output_dim):
+    def __init__(self, input_example_non_batch, output_dim, dropout=0):
         super(ObserveEmbeddingFC, self).__init__()
         self.input_dim = input_example_non_batch.nelement()
         self.lin1 = nn.Linear(self.input_dim, output_dim)
         self.lin2 = nn.Linear(output_dim, output_dim)
+        self.drop = nn.Dropout(dropout)
         init.xavier_uniform(self.lin1.weight, gain=np.sqrt(2.0))
         init.xavier_uniform(self.lin2.weight, gain=np.sqrt(2.0))
     def forward(self, x):
         x = F.relu(self.lin1(x.view(-1, self.input_dim)))
+        x = self.drop(x)
         x = F.relu(self.lin2(x))
+        x = self.drop(x)
         return x
 
 class ObserveEmbeddingLSTM(nn.Module):
@@ -387,6 +462,7 @@ class Artifact(nn.Module):
         self.total_traces = None
         self.updates = 0
         self.optimizer = None
+        self.dropout = 0.2
 
     def get_structure(self):
         ret = str(next(enumerate(self.modules()))[1])
@@ -491,17 +567,19 @@ class Artifact(nn.Module):
                     else:
                         util.log_error('polymorph: Unsupported sample embedding: ' + self.smp_emb)
                     if isinstance(distribution, UniformDiscrete):
-                        proposal_layer = ProposalUniformDiscrete(self.lstm_dim, distribution.prior_size, self.softmax_boost)
+                        proposal_layer = ProposalUniformDiscrete(self.lstm_dim, distribution.prior_size, self.dropout, self.softmax_boost)
                     elif isinstance(distribution, Normal):
-                        proposal_layer = ProposalNormal(self.lstm_dim)
+                        proposal_layer = ProposalNormal(self.lstm_dim, self.dropout)
                     elif isinstance(distribution, Flip):
-                        proposal_layer = ProposalFlip(self.lstm_dim, self.softmax_boost)
+                        proposal_layer = ProposalFlip(self.lstm_dim, self.dropout, self.softmax_boost)
                     elif isinstance(distribution, Discrete):
-                        proposal_layer = ProposalDiscrete(self.lstm_dim, distribution.prior_size, self.softmax_boost)
+                        proposal_layer = ProposalDiscrete(self.lstm_dim, distribution.prior_size, self.dropout, self.softmax_boost)
                     elif isinstance(distribution, Categorical):
-                        proposal_layer = ProposalCategorical(self.lstm_dim, distribution.prior_size, self.softmax_boost)
+                        proposal_layer = ProposalCategorical(self.lstm_dim, distribution.prior_size, self.dropout, self.softmax_boost)
                     elif isinstance(distribution, UniformContinuous):
-                        proposal_layer = ProposalUniformContinuous(self.lstm_dim, self.softmax_boost)
+                        proposal_layer = ProposalUniformContinuous(self.lstm_dim, self.dropout, self.softmax_boost)
+                    elif isinstance(distribution, Laplace):
+                        proposal_layer = ProposalLaplace(self.lstm_dim, self.dropout)
                     else:
                         util.log_error('polymorph: Unsupported distribution: ' + sample.distribution.name())
                     self.sample_layers[address] = sample_layer
@@ -542,11 +620,11 @@ class Artifact(nn.Module):
 
         self.observe_layer = observe_layer
 
-    def set_lstm(self, lstm_dim, lstm_depth, dropout):
+    def set_lstm(self, lstm_dim, lstm_depth):
         self.lstm_dim = lstm_dim
         self.lstm_depth = lstm_depth
         self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + 2 * (self.one_hot_address_dim + self.one_hot_distribution_dim)
-        self.lstm = nn.LSTM(self.lstm_input_dim, lstm_dim, lstm_depth, dropout=dropout)
+        self.lstm = nn.LSTM(self.lstm_input_dim, lstm_dim, lstm_depth, dropout=self.dropout)
 
     def set_one_hot_dims(self, one_hot_address_dim, one_hot_distribution_dim):
         self.one_hot_address_dim =one_hot_address_dim

@@ -11,7 +11,7 @@ import infcomp
 import infcomp.zmq
 import infcomp.pool
 from infcomp import util
-from infcomp.probprog import Sample, Trace, UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous
+from infcomp.probprog import Sample, Trace, UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace
 import infcomp.protocol.Message
 import infcomp.protocol.MessageBody
 import infcomp.protocol.TracesFromPriorRequest
@@ -29,6 +29,7 @@ import infcomp.protocol.Flip
 import infcomp.protocol.Discrete
 import infcomp.protocol.Categorical
 import infcomp.protocol.UniformContinuous
+import infcomp.protocol.Laplace
 
 import flatbuffers
 import sys
@@ -122,6 +123,10 @@ def get_sample(s):
             p = infcomp.protocol.UniformContinuous.UniformContinuous()
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
             sample.distribution = UniformContinuous(p.PriorMin(), p.PriorMax())
+        elif distribution_type == infcomp.protocol.Distribution.Distribution().Laplace:
+            p = infcomp.protocol.Laplace.Laplace()
+            p.Init(s.Distribution().Bytes, s.Distribution().Pos)
+            sample.distribution = Laplace(p.PriorLocation(), p.PriorScale())
         else:
             util.log_error('get_sample: Unknown distribution:Distribution id: {0}.'.format(distribution_type))
     return sample
@@ -319,6 +324,15 @@ class ProposalReplier(object):
                 infcomp.protocol.UniformContinuous.UniformContinuousAddProposalCertainty(builder, p.proposal_certainty)
                 distribution = infcomp.protocol.UniformContinuous.UniformContinuousEnd(builder)
                 distribution_type = infcomp.protocol.Distribution.Distribution().UniformContinuous
+            elif isinstance(p, Laplace):
+                # construct Laplace
+                infcomp.protocol.Laplace.LaplaceStart(builder)
+                infcomp.protocol.Laplace.LaplaceAddPriorLocation(builder, p.prior_location)
+                infcomp.protocol.Laplace.LaplaceAddPriorScale(builder, p.prior_scale)
+                infcomp.protocol.Laplace.LaplaceAddProposalLocation(builder, p.proposal_location)
+                infcomp.protocol.Laplace.LaplaceAddProposalScale(builder, p.proposal_scale)
+                distribution = infcomp.protocol.Laplace.LaplaceEnd(builder)
+                distribution_type = infcomp.protocol.Distribution.Distribution().Laplace
             else:
                 util.log_error('reply_proposal: Unsupported proposal distribution: {0}'.format(p))
 

@@ -13,4 +13,5 @@ class Distribution(object):
     Poisson = 7
     UniformContinuous = 8
     MultivariateNormal = 9
+    Laplace = 10
 
