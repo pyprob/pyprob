@@ -320,6 +320,33 @@ class ObserveEmbeddingLSTM(nn.Module):
         x, (_, _) = self.lstm(x, (h0, h0))
         return x
 
+class ObserveEmbeddingCNN1D2C(nn.Module):
+    def __init__(self, input_example_non_batch, output_dim):
+        super(ObserveEmbeddingCNN1D2C, self).__init__()
+        self.input_dim = input_example_non_batch.nelement()
+        self.input_sample = input_example_non_batch.view(1, -1).cpu()
+        self.output_dim = output_dim
+        self.conv1 = nn.Conv1d(1, 64, 3, padding=1)
+        self.conv2 = nn.Conv1d(64, 64, 3, padding=1)
+    def configure(self):
+        cnn_out = self.forward_cnn(self.input_sample.unsqueeze(0))
+        self.cnn_output_dim = cnn_out.view(-1).size(0)
+        self.lin1 = nn.Linear(self.cnn_output_dim, self.output_dim)
+        self.lin2 = nn.Linear(self.output_dim, self.output_dim)
+    def forward_cnn(self, x):
+        x = F.relu(self.conv1(x))
+        x = nn.MaxPool1d(2)(x)
+        x = F.relu(self.conv2(x))
+        x = nn.MaxPool1d(2)(x)
+        return x
+    def forward(self, x):
+        x = x.view(-1, 1, self.input_dim)
+        x = self.forward_cnn(x)
+        x = x.view(-1, self.cnn_output_dim)
+        x = F.relu(self.lin1(x))
+        x = F.relu(self.lin2(x))
+        return x
+
 class ObserveEmbeddingCNN2D6C(nn.Module):
     def __init__(self, input_example_non_batch, output_dim, reshape=None):
         super(ObserveEmbeddingCNN2D6C, self).__init__()
@@ -607,6 +634,9 @@ class Artifact(nn.Module):
         self.obs_emb_dim = obs_emb_dim
         if obs_emb == 'fc':
             observe_layer = ObserveEmbeddingFC(Variable(example_observes), obs_emb_dim)
+        elif obs_emb == 'cnn1d2c':
+            observe_layer = ObserveEmbeddingCNN1D2C(Variable(example_observes), obs_emb_dim)
+            observe_layer.configure()
         elif obs_emb == 'cnn2d6c':
             observe_layer = ObserveEmbeddingCNN2D6C(Variable(example_observes), obs_emb_dim, obs_reshape)
             observe_layer.configure()
