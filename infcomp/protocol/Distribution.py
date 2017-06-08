@@ -4,14 +4,16 @@
 
 class Distribution(object):
     NONE = 0
-    Categorical = 1
-    Discrete = 2
-    Flip = 3
-    Normal = 4
-    UniformDiscrete = 5
-    VMF = 6
-    Poisson = 7
-    UniformContinuous = 8
-    MultivariateNormal = 9
-    Laplace = 10
+    Beta = 1
+    Categorical = 2
+    Discrete = 3
+    Flip = 4
+    Gamma = 5
+    Laplace = 6
+    MultivariateNormal = 7
+    Normal = 8
+    Poisson = 9
+    UniformContinuous = 10
+    UniformDiscrete = 11
+    VMF = 12
 

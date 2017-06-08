@@ -9,7 +9,7 @@
 
 import infcomp
 from infcomp import util
-from infcomp.probprog import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace
+from infcomp.probprog import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta
 import torch
 import torch.nn as nn
 import torch.nn.init as init
@@ -277,6 +277,84 @@ class ProposalUniformContinuous(nn.Module):
             beta = betas[b]
             beta_fun = beta_funs[b]
             l += (alpha - 1) * np.log(normalized_value + util.epsilon) + (beta - 1) * np.log(1 - normalized_value + util.epsilon) - torch.log(beta_fun + util.epsilon) - np.log(prior_max - prior_min + util.epsilon)
+        return l
+
+class ProposalGamma(nn.Module):
+    def __init__(self, input_dim, dropout=0, softplus_boost=1.0):
+        super(ProposalGamma, self).__init__()
+        self.lin1 = nn.Linear(input_dim, input_dim)
+        self.lin2 = nn.Linear(input_dim, 2)
+        self.drop = nn.Dropout(dropout)
+        self.softplus_boost = softplus_boost
+        init.xavier_uniform(self.lin1.weight, gain=init.calculate_gain('relu'))
+        init.xavier_uniform(self.lin2.weight)
+    def forward(self, x, samples):
+        x = self.drop(x)
+        x = F.relu(self.lin1(x))
+        x = self.drop(x)
+        x = self.lin2(x)
+        locations = x[:, 0].unsqueeze(1)
+        locations = nn.Softplus()(locations) * self.softplus_boost
+        scales = x[:, 1].unsqueeze(1)
+        scales = nn.Softplus()(scales) * self.softplus_boost
+        return True, torch.cat([locations, scales], 1)
+    def logpdf(self, x, samples):
+        # FoldedNormal logpdf
+        # https://en.wikipedia.org/wiki/Folded_normal_distribution
+        _, proposal_output = self.forward(x, samples)
+        batch_size = len(samples)
+        locations = proposal_output[:, 0]
+        scales = proposal_output[:, 1]
+        two_scales = 2 * scales + util.epsilon
+        half_log_two_pi_scales = 0.5 * torch.log(math.pi * two_scales + util.epsilon)
+        l = 0
+        for b in range(batch_size):
+            value = samples[b].value[0]
+            if value < 0:
+                l += 0
+            else:
+                location = locations[b]
+                two_scale = two_scales[b]
+                half_log_two_pi_scale = half_log_two_pi_scales[b]
+                logpdf_1 = -half_log_two_pi_scale - ((value - location)**2) / two_scale
+                logpdf_2 = -half_log_two_pi_scale - ((value + location)**2) / two_scale
+                l += util.logsumexp(torch.cat([logpdf_1, logpdf_2]))
+        return l
+
+class ProposalBeta(nn.Module):
+    def __init__(self, input_dim, dropout=0, softplus_boost=1.0):
+        super(ProposalBeta, self).__init__()
+        self.lin1 = nn.Linear(input_dim, input_dim)
+        self.lin2 = nn.Linear(input_dim, 2)
+        self.drop = nn.Dropout(dropout)
+        self.softplus_boost = softplus_boost
+        init.xavier_uniform(self.lin1.weight, gain=init.calculate_gain('relu'))
+        init.xavier_uniform(self.lin2.weight)
+    def forward(self, x, samples):
+        x = self.drop(x)
+        x = F.relu(self.lin1(x))
+        x = self.drop(x)
+        x = self.lin2(x)
+        modes = x[:,0].unsqueeze(1)
+        certainties = x[:,1].unsqueeze(1)
+        modes = nn.Sigmoid()(modes)
+        certainties = nn.Softplus()(certainties) * self.softplus_boost
+        return True, torch.cat([modes, certainties], 1)
+    def logpdf(self, x, samples):
+        _, proposal_output = self.forward(x, samples)
+        batch_size = len(samples)
+        modes = proposal_output[:, 0]
+        certainties = proposal_output[:, 1] + 2
+        alphas = modes * (certainties - 2) + 1
+        betas = (1 - modes) * (certainties - 2) + 1
+        beta_funs = util.beta(alphas, betas)
+        l = 0
+        for b in range(batch_size):
+            value = samples[b].value[0]
+            alpha = alphas[b]
+            beta = betas[b]
+            beta_fun = beta_funs[b]
+            l += (alpha - 1) * np.log(value + util.epsilon) + (beta - 1) * np.log(1 - value + util.epsilon) - torch.log(beta_fun + util.epsilon)
         return l
 
 class SampleEmbeddingFC(nn.Module):
@@ -593,12 +671,16 @@ class Artifact(nn.Module):
                         sample_layer = SampleEmbeddingFC(sample.value.nelement(), self.smp_emb_dim)
                     else:
                         util.log_error('polymorph: Unsupported sample embedding: ' + self.smp_emb)
-                    if isinstance(distribution, UniformDiscrete):
+                    if isinstance(distribution, Beta):
+                        proposal_layer = ProposalBeta(self.lstm_dim, self.dropout, self.softmax_boost)
+                    elif isinstance(distribution, UniformDiscrete):
                         proposal_layer = ProposalUniformDiscrete(self.lstm_dim, distribution.prior_size, self.dropout, self.softmax_boost)
                     elif isinstance(distribution, Normal):
                         proposal_layer = ProposalNormal(self.lstm_dim, self.dropout)
                     elif isinstance(distribution, Flip):
                         proposal_layer = ProposalFlip(self.lstm_dim, self.dropout, self.softmax_boost)
+                    elif isinstance(distribution, Gamma):
+                        proposal_layer = ProposalGamma(self.lstm_dim, self.dropout, self.softmax_boost)
                     elif isinstance(distribution, Discrete):
                         proposal_layer = ProposalDiscrete(self.lstm_dim, distribution.prior_size, self.dropout, self.softmax_boost)
                     elif isinstance(distribution, Categorical):

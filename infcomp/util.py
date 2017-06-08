@@ -223,3 +223,17 @@ def beta(a, b):
     x = beta_integration_domain.repeat(n,1)
     fx = (x**a_min_one) * ((1-x)**b_min_one)
     return torch.sum(fx,1).squeeze() * beta_step
+
+def logsumexp(x, dim=0):
+    '''
+    https://en.wikipedia.org/wiki/LogSumExp
+    input:
+        x: Tensor/Variable [dim_1 * dim_2 * ... * dim_N]
+        dim: n
+    output: Tensor/Variable [dim_1 * ... * dim_{n - 1} * 1 * dim_{n + 1} * ... * dim_N]
+    '''
+
+    x_max, _ = x.max(dim)
+    x_diff = x - x_max.expand_as(x)
+
+    return x_max + x_diff.exp().sum(dim).log()

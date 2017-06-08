@@ -11,7 +11,7 @@ import infcomp
 import infcomp.zmq
 import infcomp.pool
 from infcomp import util
-from infcomp.probprog import Sample, Trace, UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace
+from infcomp.probprog import Sample, Trace, UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta
 import infcomp.protocol.Message
 import infcomp.protocol.MessageBody
 import infcomp.protocol.TracesFromPriorRequest
@@ -30,6 +30,8 @@ import infcomp.protocol.Discrete
 import infcomp.protocol.Categorical
 import infcomp.protocol.UniformContinuous
 import infcomp.protocol.Laplace
+import infcomp.protocol.Gamma
+import infcomp.protocol.Beta
 
 import flatbuffers
 import sys
@@ -127,6 +129,10 @@ def get_sample(s):
             p = infcomp.protocol.Laplace.Laplace()
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
             sample.distribution = Laplace(p.PriorLocation(), p.PriorScale())
+        elif distribution_type == infcomp.protocol.Distribution.Distribution().Gamma:
+            sample.distribution = Gamma()
+        elif distribution_type == infcomp.protocol.Distribution.Distribution().Beta:
+            sample.distribution = Beta()
         else:
             util.log_error('get_sample: Unknown distribution:Distribution id: {0}.'.format(distribution_type))
     return sample
@@ -333,6 +339,20 @@ class ProposalReplier(object):
                 infcomp.protocol.Laplace.LaplaceAddProposalScale(builder, p.proposal_scale)
                 distribution = infcomp.protocol.Laplace.LaplaceEnd(builder)
                 distribution_type = infcomp.protocol.Distribution.Distribution().Laplace
+            elif isinstance(p, Gamma):
+                # construct Gamma
+                infcomp.protocol.Gamma.GammaStart(builder)
+                infcomp.protocol.Gamma.GammaAddProposalLocation(builder, p.proposal_location)
+                infcomp.protocol.Gamma.GammaAddProposalScale(builder, p.proposal_scale)
+                distribution = infcomp.protocol.Gamma.GammaEnd(builder)
+                distribution_type = infcomp.protocol.Distribution.Distribution().Gamma
+            elif isinstance(p, Beta):
+                # construct Beta
+                infcomp.protocol.Beta.BetaStart(builder)
+                infcomp.protocol.Beta.BetaAddProposalMode(builder, p.proposal_mode)
+                infcomp.protocol.Beta.BetaAddProposalCertainty(builder, p.proposal_certainty)
+                distribution = infcomp.protocol.Beta.BetaEnd(builder)
+                distribution_type = infcomp.protocol.Distribution.Distribution().Beta
             else:
                 util.log_error('reply_proposal: Unsupported proposal distribution: {0}'.format(p))
 

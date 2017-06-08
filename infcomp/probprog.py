@@ -179,3 +179,37 @@ class Laplace(object):
         return
     def cpu(self):
         return
+
+class Gamma(object):
+    def __init__(self):
+        self.proposal_location = None
+        self.proposal_scale = None
+    def __repr__(self):
+        return 'Gamma(proposal_location:{0}; proposal_scale:{1})'.format(self.proposal_location, self.proposal_scale)
+    __str__ = __repr__
+    def set_proposalparams(self, tensor_of_proposal_location_scale):
+        self.proposal_location = tensor_of_proposal_location_scale[0]
+        self.proposal_scale = tensor_of_proposal_location_scale[1]
+    def name(self):
+        return 'Gamma'
+    def cuda(self, device_id=None):
+        return
+    def cpu(self):
+        return
+
+class Beta(object):
+    def __init__(self):
+        self.proposal_mode = None
+        self.proposal_certainty = None
+    def __repr__(self):
+        return 'Beta(proposal_mode:{0}; proposal_certainty:{1})'.format(self.proposal_mode, self.proposal_certainty)
+    __str__ = __repr__
+    def set_proposalparams(self, tensor_of_proposal_mode_certainty):
+        self.proposal_mode = tensor_of_proposal_mode_certainty[0]
+        self.proposal_certainty = tensor_of_proposal_mode_certainty[1]
+    def name(self):
+        return 'Beta'
+    def cuda(self, device_id=None):
+        return
+    def cpu(self):
+        return
