@@ -11,7 +11,7 @@
 ;; @@
 (ns worksheets.gaussian
   (:require [anglican.runtime :refer :all]
-            [anglican.emit :refer [defquery query]]
+            [anglican.emit :refer [defquery]]
             [anglican.stat :refer [empirical-distribution collect-results]]
             anglican.infcomp.csis
             anglican.importance
