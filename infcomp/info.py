@@ -26,7 +26,7 @@ def main():
     try:
         parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Artifact Info)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         parser.add_argument('-v', '--version', help='show version information', action='store_true')
-        parser.add_argument('--dir', help='directory to save artifacts and logs', default='.')
+        parser.add_argument('--dir', help='directory for loading artifacts and saving logs', default='.')
         parser.add_argument('--nth', help='show the nth artifact (-1: last, -2: second-to-last, etc.)', type=int, default=-1)
         parser.add_argument('--cuda', help='use CUDA', action='store_true')
         parser.add_argument('--device', help='selected CUDA device (-1: all, 0: 1st device, 1: 2nd device, etc.)', default=-1, type=int)

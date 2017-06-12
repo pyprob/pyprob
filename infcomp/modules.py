@@ -221,7 +221,7 @@ class ProposalCategorical(nn.Module):
         init.xavier_uniform(self.lin2.weight)
     def forward(self, x, samples=None):
         x = self.drop(x)
-        x = f.relu(self.lin1(x))
+        x = F.relu(self.lin1(x))
         x = self.drop(x)
         x = F.softmax(self.lin2(x).mul_(self.softmax_boost))
         return True, x

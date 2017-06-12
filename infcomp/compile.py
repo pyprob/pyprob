@@ -73,7 +73,7 @@ def main():
     try:
         parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Compilation Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         parser.add_argument('-v', '--version', help='show version information', action='store_true')
-        parser.add_argument('--dir', help='directory to save artifacts and logs', default='.')
+        parser.add_argument('--dir', help='directory for saving artifacts and logs', default='.')
         parser.add_argument('--cuda', help='use CUDA', action='store_true')
         parser.add_argument('--device', help='selected CUDA device (-1: all, 0: 1st device, 1: 2nd device, etc.)', default=-1, type=int)
         parser.add_argument('--parallel', help='parallelize on CUDA using DataParallel', action='store_true')
