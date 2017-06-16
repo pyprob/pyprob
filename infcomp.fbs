@@ -17,21 +17,28 @@ root_type Message;
 file_identifier "INFC";
 
 union Distribution {
+    Beta,
     Categorical,
     Discrete,
     Flip,
+    Gamma,
+    Laplace,
+    MultivariateNormal,
     Normal,
-    UniformDiscrete,
-    VMF,
     Poisson,
     UniformContinuous,
-    MultivariateNormal,
-    Laplace
+    UniformDiscrete,
+    VMF
 }
 
 table NDArray {
     data:[double];
     shape:[int];
+}
+
+table Beta {
+    proposal_mode:double;      // [0, 1]
+    proposal_certainty:double; // [0, infinity)
 }
 
 table Categorical {
@@ -48,24 +55,16 @@ table Flip {
     proposal_probability:double;
 }
 
-table Normal {
-    prior_mean:double;
-    prior_std:double;
-    proposal_mean:double;
-    proposal_std:double;
+table Gamma {
+    proposal_location:double; // [0, infinity)
+    proposal_scale:double;    // [0, infinity)
 }
 
-table UniformDiscrete {
-    prior_min:int;
-    prior_size:int;
-    proposal_probabilities:NDArray;
-}
-
-table VMF {
-    prior_mu:NDArray;
-    prior_kappa:double;
-    proposal_mu:NDArray;
-    proposal_kappa:double;
+table Laplace {
+    prior_location:double;
+    prior_scale:double;
+    proposal_location:double;
+    proposal_scale:double;
 }
 
 table MultivariateNormal {
@@ -73,6 +72,13 @@ table MultivariateNormal {
     prior_sigma:NDArray;
     proposal_mean:NDArray;
     proposal_sigma:NDArray;
+}
+
+table Normal {
+    prior_mean:double;
+    prior_std:double;
+    proposal_mean:double;
+    proposal_std:double;
 }
 
 table Poisson {
@@ -87,11 +93,17 @@ table UniformContinuous {
     proposal_certainty:double; // [0, infinity)
 }
 
-table Laplace {
-    prior_location:double;
-    prior_scale:double;
-    proposal_location:double;
-    proposal_scale:double;
+table UniformDiscrete {
+    prior_min:int;
+    prior_size:int;
+    proposal_probabilities:NDArray;
+}
+
+table VMF {
+    prior_mu:NDArray;
+    prior_kappa:double;
+    proposal_mu:NDArray;
+    proposal_kappa:double;
 }
 
 table Sample {
