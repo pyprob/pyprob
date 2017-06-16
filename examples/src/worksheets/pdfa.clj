@@ -13,15 +13,14 @@
             [anglican.infcomp.network :refer :all]
             [anglican.inference :refer [infer]]
             [anglican.stat :refer [empirical-distribution collect-predicts collect-by collect-results]]
-            [helpers.gmm :refer [normalize]])
+            [helpers.gmm :refer [normalize]]
+            [rhizome.viz]
+            [clojure.string])
   (:use [anglican emit runtime]
         [gorilla-plot core]))
 
 (anglican.infcomp.core/reset-infcomp-addressing-scheme!)
 ;; @@
-;; =>
-;;; {"type":"html","content":"<span class='clj-unkown'>#function[anglican.infcomp.core/reset-infcomp-addressing-scheme!$fn--26285$fn--26286]</span>","value":"#function[anglican.infcomp.core/reset-infcomp-addressing-scheme!$fn--26285$fn--26286]"}
-;; <=
 
 ;; **
 ;;; ## Model
@@ -53,6 +52,66 @@
 ;; =>
 ;;; {"type":"html","content":"<span class='clj-var'>#&#x27;pdfa/pdfa</span>","value":"#'pdfa/pdfa"}
 ;; <=
+
+;; **
+;;; ## Enable processing of query output
+;; **
+
+;; @@
+(defn new-pdfa [alphabet K transition emissiondist]
+  (let [alphabet (map str (seq alphabet))
+
+        states (range K)
+
+        edges (into {} (map (fn [state]
+                              [state (into {} (map #(vector % (transition state %))
+                                                   alphabet))])
+                            states))
+
+        probs (into {} (map (fn [state]
+                              [state (into {} (:categories (emissiondist state)))])
+                            states))]
+    {:edges edges
+     :probs probs}))
+;; @@
+
+;; @@
+(defn pdfa-states [pdfa]
+  (keys (:edges pdfa)))
+
+(defn pdfa-edges [pdfa]
+  (let [t (:edges pdfa)]
+    (into {} (map (fn [state]
+                    [state (vec (set (vals (get t state))))])
+                  (keys t)))))
+;; @@
+
+;; @@
+(defn pdfa-node->descriptor [pdfa]
+   (fn [node]
+     {:label (str node)}))
+
+(defn pdfa-edge->descriptor [pdfa]
+  (fn [state nextstate]
+    (let [edges (get-in pdfa [:edges state])
+          probs (get-in pdfa [:probs state])
+          
+          emissions (filter #(= nextstate (get edges %))
+                            (keys edges))
+          probs (into {}
+                      (map #(vector % (get probs %))
+                           emissions))]
+      {:label (clojure.string/join "|" (map #(str (get probs %) %)
+                                            emissions))})))
+;; @@
+
+;; @@
+(defn view-pdfa [pdfa]
+  (rhizome.viz/view-graph (pdfa-states pdfa)
+                          (pdfa-edges pdfa)
+                          :node->descriptor (pdfa-node->descriptor pdfa)
+                          :edge->descriptor (pdfa-edge->descriptor pdfa)))
+;; @@
 
 ;; **
 ;;; ## Train a compilation artifact
