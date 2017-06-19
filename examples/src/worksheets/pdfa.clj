@@ -26,38 +26,7 @@
 ;; <=
 
 ;; **
-;;; ## Model
-;; **
-
-;; @@
-(with-primitive-procedures [normalize]
-  (defquery pdfa [observedsequence alphabet]
-    (let [K (sample (uniform-discrete 1 5))
-          nextstatedist (discrete (repeat K 1))
-          emissionprior (fn [] (normalize (repeatedly (count alphabet) (fn [] (sample (uniform-continuous 0 1))))))
-          transition (mem (fn [state symbol] (sample nextstatedist)))
-          emissiondist (mem (fn [state] (categorical (zipmap alphabet (emissionprior)))))
-          N (count observedsequence)]
-      (loop [obs observedsequence
-             state [0]]
-        (if (not (empty? obs))
-          (let [currentstate (peek state)
-                _ (observe (emissiondist currentstate) (first obs))
-                nextstate (transition currentstate (first obs))]
-            (recur (rest obs)
-                   (conj state nextstate)))
-          {:K K
-           :alphabet alphabet
-           :transition transition
-           :emissiondist emissiondist}
-          )))))
-;; @@
-;; =>
-;;; {"type":"html","content":"<span class='clj-var'>#&#x27;pdfa/pdfa</span>","value":"#'pdfa/pdfa"}
-;; <=
-
-;; **
-;;; ## Enable processing of query output
+;;; ## PDFA object
 ;; **
 
 ;; @@
@@ -126,6 +95,34 @@
 ;; @@
 ;; =>
 ;;; {"type":"html","content":"<span class='clj-var'>#&#x27;pdfa/view-pdfa</span>","value":"#'pdfa/view-pdfa"}
+;; <=
+
+;; **
+;;; ## Model
+;; **
+
+;; @@
+(with-primitive-procedures [new-pdfa normalize]
+  (defquery pdfa [observedsequence alphabet]
+    (let [K (sample (uniform-discrete 1 5))
+          nextstatedist (discrete (repeat K 1))
+          emissionprior (fn [] (normalize (repeatedly (count alphabet) (fn [] (sample (uniform-continuous 0 1))))))
+          transition (mem (fn [state symbol] (sample nextstatedist)))
+          emissiondist (mem (fn [state] (categorical (zipmap alphabet (emissionprior)))))
+          N (count observedsequence)
+          pdfa ]
+      (loop [obs observedsequence
+             state [0]]
+        (if (not (empty? obs))
+          (let [currentstate (peek state)
+                _ (observe (emissiondist currentstate) (first obs))
+                nextstate (transition currentstate (first obs))]
+            (recur (rest obs)
+                   (conj state nextstate)))
+          (new-pdfa alphabet K transition emissiondist))))))
+;; @@
+;; =>
+;;; {"type":"html","content":"<span class='clj-var'>#&#x27;pdfa/pdfa</span>","value":"#'pdfa/pdfa"}
 ;; <=
 
 ;; **
