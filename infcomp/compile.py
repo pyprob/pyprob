@@ -158,7 +158,7 @@ def main():
                 else:
                     artifact.cuda_device_id = opt.device
                 artifact.standardize = opt.standardize
-                artifact.set_one_hot_dims(opt.oneHotDim, 7)
+                artifact.set_one_hot_dims(opt.oneHotDim, 9)
                 artifact.valid_size = opt.validSize
                 traces, _ = requester.get_traces(artifact.valid_size, discard_source=True)
                 artifact.valid_batch = Batch(traces)
@@ -326,7 +326,7 @@ def main():
                     time_spent_validation = time.time() - time_validation_start
 
                 time_improvement_str = util.days_hours_mins_secs(time.time() - time_improvement)
-                util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} | {6}'.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, time_improvement_str, traces_per_sec_str))
+                util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} │ {6}'.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, time_improvement_str, traces_per_sec_str))
 
             util.log_print('Stopped after {0} traces'.format(trace))
     except KeyboardInterrupt:
