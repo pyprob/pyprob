@@ -198,7 +198,7 @@ def file_starting_with(pattern, n):
         log_error('Cannot find file')
     return ret
 
-def truncate_str(s, length=40):
+def truncate_str(s, length=80):
     return (s[:length] + '...') if len(s) > length else s
 
 class Spinner(object):

@@ -38,7 +38,7 @@ class Batch(object):
                 self.traces_max_length = trace.length
             if trace.observes.size(0) > self.observes_max_length:
                 self.observes_max_length = trace.observes.size(0)
-            h = hash(str(trace))
+            h = hash(trace.addresses_suffixed())
             if not h in sb:
                 sb[h] = []
             sb[h].append(trace)
@@ -77,7 +77,7 @@ class ProposalUniformDiscrete(nn.Module):
         x = self.drop(x)
         x = F.softmax(self.lin2(x).mul_(self.softmax_boost))
         return True, x
-    def logpdf(self, x, samples):
+    def loss(self, x, samples):
         _, proposal_output = self.forward(x)
         batch_size = len(samples)
         log_weights = torch.log(proposal_output + util.epsilon)
@@ -85,7 +85,7 @@ class ProposalUniformDiscrete(nn.Module):
         for b in range(batch_size):
             value = samples[b].value[0]
             min = samples[b].distribution.prior_min
-            l += log_weights[b, int(value) - min] # Should we average this over dimensions? See http://pytorch.org/docs/nn.html#torch.nn.KLDivLoss
+            l -= log_weights[b, int(value) - min] # Should we average this over dimensions? See http://pytorch.org/docs/nn.html#torch.nn.KLDivLoss
         return l
 
 class ProposalNormal(nn.Module):
@@ -107,7 +107,7 @@ class ProposalNormal(nn.Module):
         prior_means = Variable(util.Tensor([s.distribution.prior_mean for s in samples]), requires_grad=False)
         prior_stds = Variable(util.Tensor([s.distribution.prior_std for s in samples]), requires_grad=False)
         return True, torch.cat([(means * prior_stds) + prior_means, stds * prior_stds], 1)
-    def logpdf(self, x, samples):
+    def loss(self, x, samples):
         _, proposal_output = self.forward(x, samples)
         batch_size = len(samples)
         means = proposal_output[:, 0]
@@ -121,7 +121,7 @@ class ProposalNormal(nn.Module):
             mean = means[b]
             two_std_square = two_std_squares[b]
             half_log_two_pi_std_square = half_log_two_pi_std_squares[b]
-            l -= half_log_two_pi_std_square + ((value - mean)**2) / two_std_square
+            l += half_log_two_pi_std_square + ((value - mean)**2) / two_std_square
         return l
 
 class ProposalLaplace(nn.Module):
@@ -143,7 +143,7 @@ class ProposalLaplace(nn.Module):
         prior_locations = Variable(util.Tensor([s.distribution.prior_location for s in samples]), requires_grad=False)
         prior_scales = Variable(util.Tensor([s.distribution.prior_scale for s in samples]), requires_grad=False)
         return True, torch.cat([(locations * prior_scales) + prior_locations, scales * prior_scales], 1)
-    def logpdf(self, x, samples):
+    def loss(self, x, samples):
         _, proposal_output = self.forward(x, samples)
         batch_size = len(samples)
         locations = proposal_output[:, 0]
@@ -154,7 +154,7 @@ class ProposalLaplace(nn.Module):
             value = samples[b].value[0]
             location = locations[b]
             scale = scales[b]
-            l -= log_two_scales[b] + torch.abs(value - location) / scale
+            l += log_two_scales[b] + torch.abs(value - location) / scale
         return l
 
 class ProposalFlip(nn.Module):
@@ -172,7 +172,7 @@ class ProposalFlip(nn.Module):
         x = self.drop(x)
         x = F.sigmoid(self.lin2(x).mul_(self.softmax_boost))
         return True, x
-    def logpdf(self, x, samples):
+    def loss(self, x, samples):
         _, proposal_output = self.forward(x)
         batch_size = len(samples)
         log_probabilities = torch.log(proposal_output + util.epsilon)
@@ -181,9 +181,9 @@ class ProposalFlip(nn.Module):
         for b in range(batch_size):
             value = samples[b].value[0]
             if value > 0:
-                l += log_probabilities[b]
+                l -= log_probabilities[b]
             else:
-                l += log_one_minus_probabilities[b]
+                l -= log_one_minus_probabilities[b]
         return l
 
 class ProposalDiscrete(nn.Module):
@@ -200,14 +200,17 @@ class ProposalDiscrete(nn.Module):
         x = self.drop(x)
         x = F.softmax(self.lin2(x).mul_(self.softmax_boost))
         return True, x
-    def logpdf(self, x, samples):
+    def loss(self, x, samples):
         _, proposal_output = self.forward(x)
+        # print(x.size())
+        # print(proposal_output.size())
         batch_size = len(samples)
         log_weights = torch.log(proposal_output + util.epsilon)
         l = 0
         for b in range(batch_size):
+            # print(samples[b].distribution.prior_size)
             value = samples[b].value[0]
-            l += log_weights[b, int(value)]
+            l -= log_weights[b, int(value)]
         return l
 
 class ProposalCategorical(nn.Module):
@@ -225,14 +228,14 @@ class ProposalCategorical(nn.Module):
         x = self.drop(x)
         x = F.softmax(self.lin2(x).mul_(self.softmax_boost))
         return True, x
-    def logpdf(self, x, samples):
+    def loss(self, x, samples):
         _, proposal_output = self.forward(x)
         batch_size = len(samples)
         log_weights = torch.log(proposal_output + util.epsilon)
         l = 0
         for b in range(batch_size):
             value = samples[b].value[0]
-            l += log_weights[b, int(value)]
+            l -= log_weights[b, int(value)]
         return l
 
 class ProposalUniformContinuous(nn.Module):
@@ -257,7 +260,7 @@ class ProposalUniformContinuous(nn.Module):
         prior_mins = Variable(util.Tensor([s.distribution.prior_min for s in samples]), requires_grad=False)
         prior_maxs = Variable(util.Tensor([s.distribution.prior_max for s in samples]), requires_grad=False)
         return True, torch.cat([(modes * (prior_maxs - prior_mins) + prior_mins), certainties], 1)
-    def logpdf(self, x, samples):
+    def loss(self, x, samples):
         _, proposal_output = self.forward(x, samples)
         prior_mins = Variable(util.Tensor([s.distribution.prior_min for s in samples]), requires_grad=False)
         prior_maxs = Variable(util.Tensor([s.distribution.prior_max for s in samples]), requires_grad=False)
@@ -276,7 +279,7 @@ class ProposalUniformContinuous(nn.Module):
             alpha = alphas[b]
             beta = betas[b]
             beta_fun = beta_funs[b]
-            l += (alpha - 1) * np.log(normalized_value + util.epsilon) + (beta - 1) * np.log(1 - normalized_value + util.epsilon) - torch.log(beta_fun + util.epsilon) - np.log(prior_max - prior_min + util.epsilon)
+            l -= (alpha - 1) * np.log(normalized_value + util.epsilon) + (beta - 1) * np.log(1 - normalized_value + util.epsilon) - torch.log(beta_fun + util.epsilon) - np.log(prior_max - prior_min + util.epsilon)
         return l
 
 class ProposalGamma(nn.Module):
@@ -298,7 +301,7 @@ class ProposalGamma(nn.Module):
         scales = x[:, 1].unsqueeze(1)
         scales = nn.Softplus()(scales) * self.softplus_boost
         return True, torch.cat([locations, scales], 1)
-    def logpdf(self, x, samples):
+    def loss(self, x, samples):
         # FoldedNormal logpdf
         # https://en.wikipedia.org/wiki/Folded_normal_distribution
         _, proposal_output = self.forward(x, samples)
@@ -311,14 +314,14 @@ class ProposalGamma(nn.Module):
         for b in range(batch_size):
             value = samples[b].value[0]
             if value < 0:
-                l += 0
+                l -= 0
             else:
                 location = locations[b]
                 two_scale = two_scales[b]
                 half_log_two_pi_scale = half_log_two_pi_scales[b]
                 logpdf_1 = -half_log_two_pi_scale - ((value - location)**2) / two_scale
                 logpdf_2 = -half_log_two_pi_scale - ((value + location)**2) / two_scale
-                l += util.logsumexp(torch.cat([logpdf_1, logpdf_2]))
+                l -= util.logsumexp(torch.cat([logpdf_1, logpdf_2]))
         return l
 
 class ProposalBeta(nn.Module):
@@ -340,7 +343,7 @@ class ProposalBeta(nn.Module):
         modes = nn.Sigmoid()(modes)
         certainties = nn.Softplus()(certainties) * self.softplus_boost
         return True, torch.cat([modes, certainties], 1)
-    def logpdf(self, x, samples):
+    def loss(self, x, samples):
         _, proposal_output = self.forward(x, samples)
         batch_size = len(samples)
         modes = proposal_output[:, 0]
@@ -354,7 +357,7 @@ class ProposalBeta(nn.Module):
             alpha = alphas[b]
             beta = betas[b]
             beta_fun = beta_funs[b]
-            l += (alpha - 1) * np.log(value + util.epsilon) + (beta - 1) * np.log(1 - value + util.epsilon) - torch.log(beta_fun + util.epsilon)
+            l -= (alpha - 1) * np.log(value + util.epsilon) + (beta - 1) * np.log(1 - value + util.epsilon) - torch.log(beta_fun + util.epsilon)
         return l
 
 class SampleEmbeddingFC(nn.Module):
@@ -584,7 +587,7 @@ class Artifact(nn.Module):
         loss_change_per_iter = loss_change / self.total_iterations
         loss_change_per_trace = loss_change / self.total_traces
         addresses = '; '.join(list(self.one_hot_address.keys()))
-        distributions = ' '.join(list(self.one_hot_distribution.keys()))
+        distributions = '; '.join(list(self.one_hot_distribution.keys()))
         num_addresses = len(self.one_hot_address.keys())
         num_distributions = len(self.one_hot_distribution.keys())
         sum = 0
@@ -615,9 +618,9 @@ class Artifact(nn.Module):
                           colored('Loss change / trace   : {:+.6e}'.format(loss_change_per_trace), 'green'),
                           colored('Validation set size   : {:,}'.format(self.valid_size), 'green'),
                           colored('Observe embedding     : {0}'.format(self.obs_emb), 'cyan'),
-                          colored('Observe emb. dim.     : {:,}'.format(self.obs_emb_dim), 'cyan'),
+                          colored('Observe embedding dim.: {:,}'.format(self.obs_emb_dim), 'cyan'),
                           colored('Sample embedding      : {0}'.format(self.smp_emb), 'cyan'),
-                          colored('Sample emb. dim.      : {:,}'.format(self.smp_emb_dim), 'cyan'),
+                          colored('Sample embedding dim. : {:,}'.format(self.smp_emb_dim), 'cyan'),
                           colored('LSTM dim.             : {:,}'.format(self.lstm_dim), 'cyan'),
                           colored('LSTM depth            : {:,}'.format(self.lstm_depth), 'cyan'),
                           colored('Softmax boost         : {0}'.format(self.softmax_boost), 'cyan'),
@@ -626,7 +629,7 @@ class Artifact(nn.Module):
                           colored('Address collisions    : {0}'.format(address_collisions), 'yellow'),
                           colored('Distributions         : {0}'.format(distributions), 'yellow'),
                           colored('Num. distributions    : {0}'.format(num_distributions), 'yellow'),
-                          colored('Trace lengths seen    : min: {0}, max: {1}, mean: {2}'.format(self.trace_length_min, self.trace_length_max, trace_length_mean), 'yellow')])
+                          colored('Trace lengths seen    : min: {0}, max: {1}, mean: {2:.2f}'.format(self.trace_length_min, self.trace_length_max, trace_length_mean), 'yellow')])
         return info
 
     def polymorph(self, batch=None):
@@ -649,7 +652,7 @@ class Artifact(nn.Module):
                 self.trace_length_histogram[example_trace_length] = len(sub_batch)
 
             for sample in example_trace.samples:
-                address = sample.address
+                address = sample.address_suffixed
                 # instance = sample.instance
                 distribution = sample.distribution
 
@@ -659,7 +662,7 @@ class Artifact(nn.Module):
                     self.address_histogram[address] = 1
 
                 if address not in self.address_distributions:
-                    self.address_distributions[address] = distribution.name()
+                    self.address_distributions[address] = distribution.name
 
                 # update the artifact's one-hot dictionary as needed
                 self.add_one_hot_address(address)
@@ -690,7 +693,7 @@ class Artifact(nn.Module):
                     elif isinstance(distribution, Laplace):
                         proposal_layer = ProposalLaplace(self.lstm_dim, self.dropout)
                     else:
-                        util.log_error('polymorph: Unsupported distribution: ' + sample.distribution.name())
+                        util.log_error('polymorph: Unsupported distribution: ' + sample.distribution.name)
                     self.sample_layers[address] = sample_layer
                     self.proposal_layers[address] = proposal_layer
                     self.add_module('sample_layer({0})'.format(address), sample_layer)
@@ -757,7 +760,7 @@ class Artifact(nn.Module):
                 self.one_hot_address[address] = random.choice(list(self.one_hot_address.values()))
 
     def add_one_hot_distribution(self, distribution):
-        distribution_name = distribution.name()
+        distribution_name = distribution.name
         if not distribution_name in self.one_hot_distribution:
             util.log_print(colored('Polymorphing, new distribution    : ' + distribution_name, 'magenta', attrs=['bold']))
             i = len(self.one_hot_distribution)
@@ -817,7 +820,7 @@ class Artifact(nn.Module):
 
         if truncate == -1:
             truncate = batch.traces_max_length
-        loss = 0
+        batch_loss = 0
         lstm_h = Variable(util.Tensor(self.lstm_depth, batch.length, self.lstm_dim).zero_(), requires_grad=False, volatile=volatile)
         lstm_c = lstm_h
         empty_lstm_input = Variable(util.Tensor(self.lstm_input_dim).zero_(), volatile=volatile)
@@ -870,14 +873,18 @@ class Artifact(nn.Module):
             for sub_batch in batch.sub_batches:
                 sub_batch_size = len(sub_batch)
                 example_trace = sub_batch[0]
+                # print('sub_batch_size', sub_batch_size)
+                # print('example_trace', str(example_trace))
+                # print('example_trace_addresses', example_trace.addresses())
+                # print('example_trace_suffixed_addresses', example_trace.addresses_suffixed())
                 for time_step in range(time_step_start, min(time_step_end, example_trace.length)):
                     current_sample = example_trace.samples[time_step]
-                    current_address = current_sample.address
+                    current_address = current_sample.address_suffixed
                     # current_instance = current_sample.instance
                     current_distribution = current_sample.distribution
 
                     current_one_hot_address = self.one_hot_address[current_address]
-                    current_one_hot_distribution = self.one_hot_distribution[current_distribution.name()]
+                    current_one_hot_distribution = self.one_hot_distribution[current_distribution.name]
 
                     if time_step == 0:
                         prev_sample_embedding = Variable(util.Tensor(sub_batch_size, self.smp_emb_dim).zero_(), requires_grad=False, volatile=volatile)
@@ -886,7 +893,7 @@ class Artifact(nn.Module):
                         prev_one_hot_distribution = self.one_hot_distribution_empty
                     else:
                         prev_sample = example_trace.samples[time_step - 1]
-                        prev_address = prev_sample.address
+                        prev_address = prev_sample.address_suffixed
                         prev_distribution = prev_sample.distribution
                         smp = torch.cat([sub_batch[b].samples[time_step - 1].value for b in range(sub_batch_size)]).view(sub_batch_size, prev_sample.value.nelement())
 
@@ -898,7 +905,7 @@ class Artifact(nn.Module):
                         prev_sample_embedding = sample_layer(smp_var)
 
                         prev_one_hot_address = self.one_hot_address[prev_address]
-                        prev_one_hot_distribution = self.one_hot_distribution[prev_distribution.name()]
+                        prev_one_hot_distribution = self.one_hot_distribution[prev_distribution.name]
 
                     for b in range(sub_batch_size):
                         t = torch.cat([sub_batch[b].observes_embedding,
@@ -939,14 +946,14 @@ class Artifact(nn.Module):
                     trace.samples[time_step].lstm_output = lstm_output[time_step - time_step_start, b]
 
 
-            logpdf = 0
+            loss = 0
             for sub_batch in batch.sub_batches:
                 sub_batch_size = len(sub_batch)
                 example_trace = sub_batch[0]
 
                 for time_step in range(time_step_start, min(time_step_end, example_trace.length)):
                     current_sample = example_trace.samples[time_step]
-                    current_address = current_sample.address
+                    current_address = current_sample.address_suffixed
                     # current_instance = current_sample.instance
 
                     p = []
@@ -957,17 +964,17 @@ class Artifact(nn.Module):
 
                     current_samples = [sub_batch[b].samples[time_step] for b in range(sub_batch_size)]
                     proposal_layer = self.proposal_layers[current_address]
-                    logpdf += proposal_layer.logpdf(proposal_input, current_samples)
+                    loss += proposal_layer.loss(proposal_input, current_samples)
 
-            logpdf = -logpdf / batch.length
+            loss = loss / batch.length
 
             if not optimizer is None:
                 optimizer.zero_grad()
-                logpdf.backward()
+                loss.backward()
                 if grad_clip > 0:
                     torch.nn.utils.clip_grad_norm(self.parameters(), grad_clip)
                 optimizer.step()
 
-            loss += logpdf
+            batch_loss += loss
 
-        return loss
+        return batch_loss

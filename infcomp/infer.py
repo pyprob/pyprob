@@ -100,12 +100,12 @@ def main():
 
                 else:
                     current_sample = replier.current_sample
-                    current_address = current_sample.address
+                    current_address = current_sample.address_suffixed
                     # current_instance = current_sample.instance
                     current_distribution = current_sample.distribution
 
                     prev_sample = replier.previous_sample
-                    prev_address = prev_sample.address
+                    prev_address = prev_sample.address_suffixed
                     # prev_instance = prev_sample.instance
                     prev_distribution = prev_sample.distribution
 
@@ -115,7 +115,7 @@ def main():
                         else:
                             address_histogram[current_address] = 1
                         if current_address not in address_distributions:
-                            address_distributions[current_address] = current_distribution.name()
+                            address_distributions[current_address] = current_distribution.name
 
                     success = True
                     if not current_address in artifact.proposal_layers:
@@ -126,10 +126,10 @@ def main():
                     else:
                         util.log_warning('Unknown address (current): {0}'.format(current_address))
                         success = False
-                    if current_distribution.name() in artifact.one_hot_distribution:
-                        current_one_hot_distribution = artifact.one_hot_distribution[current_distribution.name()]
+                    if current_distribution.name in artifact.one_hot_distribution:
+                        current_one_hot_distribution = artifact.one_hot_distribution[current_distribution.name]
                     else:
-                        util.log_warning('Unknown distribution (current): {0}'.format(current_distribution.name()))
+                        util.log_warning('Unknown distribution (current): {0}'.format(current_distribution.name))
                         success = False
 
                     if time_step == 0:
@@ -149,10 +149,10 @@ def main():
                         else:
                             util.log_warning('Unknown address (previous): {0}'.format(prev_address))
                             success = False
-                        if prev_distribution.name() in artifact.one_hot_distribution:
-                            prev_one_hot_distribution = artifact.one_hot_distribution[prev_distribution.name()]
+                        if prev_distribution.name in artifact.one_hot_distribution:
+                            prev_one_hot_distribution = artifact.one_hot_distribution[prev_distribution.name]
                         else:
-                            util.log_warning('Unknown distribution (previous): {0}'.format(prev_distribution.name()))
+                            util.log_warning('Unknown distribution (previous): {0}'.format(prev_distribution.name))
                             success = False
 
                     if success:

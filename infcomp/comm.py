@@ -135,6 +135,7 @@ def get_sample(s):
             sample.distribution = Beta()
         else:
             util.log_error('get_sample: Unknown distribution:Distribution id: {0}.'.format(distribution_type))
+        sample.address_suffixed = sample.address + sample.distribution.address_suffix
     return sample
 
 class BatchRequester(object):
