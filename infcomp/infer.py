@@ -15,6 +15,7 @@ from torch.autograd import Variable
 import argparse
 from termcolor import colored
 import datetime
+import time
 import sys
 from pprint import pformat
 import os
@@ -73,12 +74,38 @@ def main():
             observe_embedding = None
             lstm_hidden_state = None
             time_step = 0
-            spinner = util.Spinner()
+            # spinner = util.Spinner()
+            time_last_new_trace = time.time()
+            duration_last_trace = 0
+            traces_per_sec = 0
+            max_traces_per_sec = 0
+            traces_per_sec_str = '-       '
+            max_traces_per_sec_str = '-       '
+            total_traces = 0
+            sys.stdout.write('TPS      │ Max. TPS │ Total traces\n')
+            sys.stdout.write('─────────┼──────────┼─────────────\n')
+            sys.stdout.flush()
+
             while True:
-                spinner.spin()
+                # spinner.spin()
+                sys.stdout.write('{0} │ {1} │ {2}      \r'.format(traces_per_sec_str, max_traces_per_sec_str, total_traces))
+                sys.stdout.flush()
                 replier.receive_request(artifact.standardize)
 
                 if replier.new_trace:
+                    total_traces += 1
+                    duration_last_trace = max(util.epsilon, time.time() - time_last_new_trace)
+                    time_last_new_trace = time.time()
+                    traces_per_sec = 1 / duration_last_trace
+                    if traces_per_sec > max_traces_per_sec:
+                        max_traces_per_sec = traces_per_sec
+                        max_traces_per_sec_str = '{:8}'.format('{:,}'.format(int(max_traces_per_sec)))
+                    if traces_per_sec < 1:
+                        traces_per_sec_str = '-       '
+                    else:
+                        traces_per_sec_str = '{:8}'.format('{:,}'.format(int(traces_per_sec)))
+
+                    # print(duration_last_trace)
 
                     if not opt.saveHistTrace is None:
                         if time_step != 0:

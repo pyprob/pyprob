@@ -252,7 +252,7 @@ def main():
                         util.vis.line(X=torch.Tensor([iteration_batch]).unsqueeze(0),Y=torch.Tensor([artifact.num_parameters / 1e6]).unsqueeze(0), win=vis_params, update='append')
 
                 # Time statistics
-                time_spent_last_batch = time.time() - time_last_batch
+                time_spent_last_batch = max(util.epsilon, time.time() - time_last_batch)
                 if time_spent_validation != -1:
                     time_spent_last_batch -= time_spent_validation
                 time_last_batch = time.time()
