@@ -385,30 +385,31 @@ class ObserveEmbeddingFC(nn.Module):
         return x
 
 class ObserveEmbeddingLSTM(nn.Module):
-    def __init__(self, input_example_non_batch, output_dim):
+    def __init__(self, input_example_non_batch, output_dim, dropout=0):
         super(ObserveEmbeddingLSTM, self).__init__()
         self.input_dim = input_example_non_batch.size(1)
         self.output_dim = output_dim
-        self.lstm = nn.LSTM(self.input_dim, self.output_dim, 1, batch_first=True)
+        self.lstm = nn.LSTM(self.input_dim, self.output_dim, 2, batch_first=True, dropout=dropout)
     def forward(self, x):
         batch_size = x.size(0)
         # seq_len = x.size(1)
-        h0 = Variable(util.Tensor(1, batch_size, self.output_dim).zero_(), requires_grad=False)
+        h0 = Variable(util.Tensor(2, batch_size, self.output_dim).zero_(), requires_grad=False)
         _, (x, _) = self.lstm(x, (h0, h0))
         return x[0]
     def forward_packed(self, x, batch_size):
-        h0 = Variable(util.Tensor(1, batch_size, self.output_dim).zero_(), requires_grad=False)
+        h0 = Variable(util.Tensor(2, batch_size, self.output_dim).zero_(), requires_grad=False)
         x, (_, _) = self.lstm(x, (h0, h0))
         return x
 
 class ObserveEmbeddingCNN1D2C(nn.Module):
-    def __init__(self, input_example_non_batch, output_dim):
+    def __init__(self, input_example_non_batch, output_dim, dropout=0):
         super(ObserveEmbeddingCNN1D2C, self).__init__()
         self.input_dim = input_example_non_batch.nelement()
         self.input_sample = input_example_non_batch.view(1, -1).cpu()
         self.output_dim = output_dim
         self.conv1 = nn.Conv1d(1, 64, 3, padding=1)
         self.conv2 = nn.Conv1d(64, 64, 3, padding=1)
+        self.drop = nn.Dropout(dropout)
     def configure(self):
         cnn_out = self.forward_cnn(self.input_sample.unsqueeze(0))
         self.cnn_output_dim = cnn_out.view(-1).size(0)
@@ -425,11 +426,13 @@ class ObserveEmbeddingCNN1D2C(nn.Module):
         x = self.forward_cnn(x)
         x = x.view(-1, self.cnn_output_dim)
         x = F.relu(self.lin1(x))
+        x = self.drop(x)
         x = F.relu(self.lin2(x))
+        x = self.drop(x)
         return x
 
 class ObserveEmbeddingCNN2D6C(nn.Module):
-    def __init__(self, input_example_non_batch, output_dim, reshape=None):
+    def __init__(self, input_example_non_batch, output_dim, reshape=None, dropout=0):
         super(ObserveEmbeddingCNN2D6C, self).__init__()
         self.reshape = reshape
         if not self.reshape is None:
@@ -449,6 +452,7 @@ class ObserveEmbeddingCNN2D6C(nn.Module):
         self.conv4 = nn.Conv2d(128, 128, 3)
         self.conv5 = nn.Conv2d(128, 128, 3)
         self.conv6 = nn.Conv2d(128, 128, 3)
+        self.drop = nn.Dropout(dropout)
     def configure(self):
         self.cnn_output_dim = self.forward_cnn(self.input_sample.unsqueeze(0)).view(-1).size(0)
         self.lin1 = nn.Linear(self.cnn_output_dim, self.output_dim)
@@ -472,11 +476,13 @@ class ObserveEmbeddingCNN2D6C(nn.Module):
         x = self.forward_cnn(x)
         x = x.view(-1, self.cnn_output_dim)
         x = F.relu(self.lin1(x))
+        x = self.drop(x)
         x = F.relu(self.lin2(x))
+        x = self.drop(x)
         return x
 
 class ObserveEmbeddingCNN3D4C(nn.Module):
-    def __init__(self, input_example_non_batch, output_dim, reshape=None):
+    def __init__(self, input_example_non_batch, output_dim, reshape=None, dropout=0):
         super(ObserveEmbeddingCNN3D4C, self).__init__()
         self.reshape = reshape
         if not self.reshape is None:
@@ -494,6 +500,7 @@ class ObserveEmbeddingCNN3D4C(nn.Module):
         self.conv2 = nn.Conv3d(64, 64, 3)
         self.conv3 = nn.Conv3d(64, 128, 3)
         self.conv4 = nn.Conv3d(128, 128, 3)
+        self.drop = nn.Dropout(dropout)
     def configure(self):
         self.cnn_output_dim = self.forward_cnn(self.input_sample.unsqueeze(0)).view(-1).size(0)
         self.lin1 = nn.Linear(self.cnn_output_dim, self.output_dim)
@@ -514,7 +521,9 @@ class ObserveEmbeddingCNN3D4C(nn.Module):
         x = self.forward_cnn(x)
         x = x.view(-1, self.cnn_output_dim)
         x = F.relu(self.lin1(x))
+        x = self.drop(x)
         x = F.relu(self.lin2(x))
+        x = self.drop(x)
         return x
 
 class Artifact(nn.Module):
@@ -718,18 +727,18 @@ class Artifact(nn.Module):
         self.obs_emb = obs_emb
         self.obs_emb_dim = obs_emb_dim
         if obs_emb == 'fc':
-            observe_layer = ObserveEmbeddingFC(Variable(example_observes), obs_emb_dim)
+            observe_layer = ObserveEmbeddingFC(Variable(example_observes), obs_emb_dim, dropout=self.dropout)
         elif obs_emb == 'cnn1d2c':
-            observe_layer = ObserveEmbeddingCNN1D2C(Variable(example_observes), obs_emb_dim)
+            observe_layer = ObserveEmbeddingCNN1D2C(Variable(example_observes), obs_emb_dim, dropout=self.dropout)
             observe_layer.configure()
         elif obs_emb == 'cnn2d6c':
-            observe_layer = ObserveEmbeddingCNN2D6C(Variable(example_observes), obs_emb_dim, obs_reshape)
+            observe_layer = ObserveEmbeddingCNN2D6C(Variable(example_observes), obs_emb_dim, obs_reshape, dropout=self.dropout)
             observe_layer.configure()
         elif obs_emb == 'cnn3d4c':
-            observe_layer = ObserveEmbeddingCNN3D4C(Variable(example_observes), obs_emb_dim, obs_reshape)
+            observe_layer = ObserveEmbeddingCNN3D4C(Variable(example_observes), obs_emb_dim, obs_reshape, dropout=self.dropout)
             observe_layer.configure()
         elif obs_emb == 'lstm':
-            observe_layer = ObserveEmbeddingLSTM(Variable(example_observes), obs_emb_dim)
+            observe_layer = ObserveEmbeddingLSTM(Variable(example_observes), obs_emb_dim, dropout=self.dropout)
         else:
             util.log_error('set_observe_embedding: Unsupported observation embedding: ' + obs_emb)
 
