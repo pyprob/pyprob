@@ -568,8 +568,6 @@ class Artifact(nn.Module):
         self.train_loss_worst = -math.inf
         self.valid_loss_best = None
         self.valid_loss_worst = None
-        self.valid_loss_initial = None
-        self.valid_loss_final = None
         self.valid_history_trace = []
         self.valid_history_loss = []
         self.train_history_trace = []
@@ -591,7 +589,9 @@ class Artifact(nn.Module):
         iter_per_sec = self.total_iterations / self.total_training_seconds
         traces_per_sec = self.total_traces / self.total_training_seconds
         traces_per_iter = self.total_traces / self.total_iterations
-        loss_change = self.valid_loss_final - self.valid_loss_initial
+        training_loss_initial = self.train_history_loss[0]
+        training_loss_final = self.train_history_loss[-1]
+        loss_change = self.training_loss_final - self.training_loss_initial
         loss_change_per_sec = loss_change / self.total_training_seconds
         loss_change_per_iter = loss_change / self.total_iterations
         loss_change_per_trace = loss_change / self.total_traces
@@ -620,8 +620,8 @@ class Artifact(nn.Module):
                           colored('Total training traces : {:,}'.format(self.total_traces), 'yellow', attrs=['bold']),
                           colored('Traces / s            : {:,.2f}'.format(traces_per_sec), 'yellow'),
                           colored('Traces / iteration    : {:,.2f}'.format(traces_per_iter), 'yellow'),
-                          colored('Initial loss          : {:+.6e}'.format(self.valid_loss_initial), 'green'),
-                          colored('Final loss            : {:+.6e}'.format(self.valid_loss_final), 'green', attrs=['bold']),
+                          colored('Initial loss          : {:+.6e}'.format(training_loss_initial), 'green'),
+                          colored('Final loss            : {:+.6e}'.format(training_loss_final), 'green', attrs=['bold']),
                           colored('Loss change / s       : {:+.6e}'.format(loss_change_per_sec), 'green'),
                           colored('Loss change / iter.   : {:+.6e}'.format(loss_change_per_iter), 'green'),
                           colored('Loss change / trace   : {:+.6e}'.format(loss_change_per_trace), 'green'),

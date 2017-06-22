@@ -26,49 +26,6 @@ import os
 import traceback
 from threading import Thread
 
-def validate(artifact, opt, artifact_file):
-    sys.stdout.write('Computing validation loss...                             \r')
-    sys.stdout.flush()
-
-    artifact.eval()
-    valid_loss = artifact.valid_loss(opt.parallel)
-
-    artifact.valid_history_trace.append(artifact.total_traces)
-    artifact.valid_history_loss.append(valid_loss)
-
-    valid_loss_best_str = '{:+.6e}'.format(artifact.valid_loss_best)
-    improved = False
-    if valid_loss < artifact.valid_loss_best:
-        artifact.valid_loss_best = valid_loss
-        valid_loss_str = colored('{:+.6e} ▼'.format(valid_loss), 'green', attrs=['bold'])
-        valid_loss_best_str = colored('{:+.6e}'.format(artifact.valid_loss_best), 'green', attrs=['bold'])
-
-        sys.stdout.write('Updating best artifact on disk...                        \r')
-        sys.stdout.flush()
-        artifact.valid_loss_final = valid_loss
-        artifact.modified = datetime.datetime.now()
-        artifact.updates += 1
-        artifact.optimizer = opt.optimizer
-        if opt.keepArtifacts:
-            time_stamp = util.get_time_stamp()
-            artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
-        def save_artifact():
-            torch.save(artifact, artifact_file)
-        a = Thread(target=save_artifact)
-        a.start()
-        a.join()
-        improved = True
-    elif valid_loss > artifact.valid_loss_worst:
-        artifact.valid_loss_worst = valid_loss
-        valid_loss_str = colored('{:+.6e} ▲'.format(valid_loss), 'red', attrs=['bold'])
-    elif valid_loss < artifact.valid_history_loss[-1]:
-        valid_loss_str = colored('{:+.6e}  '.format(valid_loss), 'green')
-    elif valid_loss > artifact.valid_history_loss[-1]:
-        valid_loss_str = colored('{:+.6e}  '.format(valid_loss), 'red')
-    else:
-        valid_loss_str = '{:+.6e}  '.format(valid_loss)
-    return improved, (valid_loss_str, valid_loss_best_str)
-
 def main():
     try:
         parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Compilation Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -197,8 +154,6 @@ def main():
                 artifact.valid_loss_best = artifact.valid_loss(opt.parallel)
             if artifact.valid_loss_worst is None:
                 artifact.valid_loss_worst = artifact.valid_loss_best
-            if artifact.valid_loss_initial is None:
-                artifact.valid_loss_initial = artifact.valid_loss_best
             if prev_artifact_total_traces == 0:
                 artifact.valid_history_trace.append(prev_artifact_total_traces + iteration)
                 artifact.valid_history_loss.append(artifact.valid_loss_best)
@@ -296,6 +251,23 @@ def main():
                 if train_loss < artifact.train_loss_best:
                     artifact.train_loss_best = train_loss
                     train_loss_str = colored('{:+.6e} ▼'.format(train_loss), 'green', attrs=['bold'])
+
+
+                    sys.stdout.write('Updating best artifact on disk...                        \r')
+                    sys.stdout.flush()
+                    artifact.modified = datetime.datetime.now()
+                    artifact.updates += 1
+                    artifact.optimizer = opt.optimizer
+                    if opt.keepArtifacts:
+                        time_stamp = util.get_time_stamp()
+                        artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
+                    def save_artifact():
+                        torch.save(artifact, artifact_file)
+                    a = Thread(target=save_artifact)
+                    a.start()
+                    a.join()
+                    time_improvement = time.time()
+
                 elif train_loss > artifact.train_loss_worst:
                     artifact.train_loss_worst = train_loss
                     train_loss_str = colored('{:+.6e} ▲'.format(train_loss), 'red', attrs=['bold'])
@@ -315,9 +287,32 @@ def main():
                 if (trace - last_validation_trace > opt.validTraces) or stop:
                     time_validation_start = time.time()
                     util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(time_improvement_str) + '─┼─' + '─'*len(traces_per_sec_str))
-                    improved, (valid_loss_str, valid_loss_best_str) = validate(artifact, opt, artifact_file)
-                    if improved:
-                        time_improvement = time.time()
+
+                    sys.stdout.write('Computing validation loss...                             \r')
+                    sys.stdout.flush()
+
+                    artifact.eval()
+                    valid_loss = artifact.valid_loss(opt.parallel)
+
+                    artifact.valid_history_trace.append(artifact.total_traces)
+                    artifact.valid_history_loss.append(valid_loss)
+
+                    valid_loss_best_str = '{:+.6e}'.format(artifact.valid_loss_best)
+
+                    if valid_loss < artifact.valid_loss_best:
+                        artifact.valid_loss_best = valid_loss
+                        valid_loss_str = colored('{:+.6e} ▼'.format(valid_loss), 'green', attrs=['bold'])
+                        valid_loss_best_str = colored('{:+.6e}'.format(artifact.valid_loss_best), 'green', attrs=['bold'])
+                    elif valid_loss > artifact.valid_loss_worst:
+                        artifact.valid_loss_worst = valid_loss
+                        valid_loss_str = colored('{:+.6e} ▲'.format(valid_loss), 'red', attrs=['bold'])
+                    elif valid_loss < artifact.valid_history_loss[-1]:
+                        valid_loss_str = colored('{:+.6e}  '.format(valid_loss), 'green')
+                    elif valid_loss > artifact.valid_history_loss[-1]:
+                        valid_loss_str = colored('{:+.6e}  '.format(valid_loss), 'red')
+                    else:
+                        valid_loss_str = '{:+.6e}  '.format(valid_loss)
+
                     last_validation_trace = trace - 1
                     if opt.visdom:
                         x = torch.Tensor([artifact.valid_history_trace[-1]])
@@ -331,13 +326,6 @@ def main():
             util.log_print('Stopped after {0} traces'.format(trace))
     except KeyboardInterrupt:
         util.log_print('Shutdown requested')
-        util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(time_improvement_str) + '─┼─' + '─'*len(traces_per_sec_str))
-        improved, (valid_loss_str, valid_loss_best_str) = validate(artifact, opt, artifact_file)
-        if improved:
-            time_improvement = time.time()
-        last_validation_trace = trace - 1
-        time_improvement_str = util.days_hours_mins_secs(time.time() - time_improvement)
-        util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} '.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, time_improvement_str))
     except Exception:
         traceback.print_exc(file=sys.stdout)
     sys.exit(0)
