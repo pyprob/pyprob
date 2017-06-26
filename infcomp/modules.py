@@ -591,7 +591,7 @@ class Artifact(nn.Module):
         traces_per_iter = self.total_traces / self.total_iterations
         training_loss_initial = self.train_history_loss[0]
         training_loss_final = self.train_history_loss[-1]
-        loss_change = self.training_loss_final - self.training_loss_initial
+        loss_change = training_loss_final - training_loss_initial
         loss_change_per_sec = loss_change / self.total_training_seconds
         loss_change_per_iter = loss_change / self.total_iterations
         loss_change_per_trace = loss_change / self.total_traces

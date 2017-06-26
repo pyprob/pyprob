@@ -43,7 +43,7 @@ def main():
         parser.add_argument('--clip', help='gradient clipping (-1: disabled)', default=-1, type=float)
         parser.add_argument('--batchSize', help='training batch size', default=128, type=int)
         parser.add_argument('--validSize', help='validation set size', default=256, type=int)
-        parser.add_argument('--validTraces', help='validation interval (traces)', default=1000, type=int)
+        parser.add_argument('--validInterval', help='validation interval (traces)', default=1000, type=int)
         parser.add_argument('--maxTraces', help='stop training after this many traces (-1: disabled)', default=-1, type=int)
         parser.add_argument('--oneHotDim', help='dimension for one-hot encodings', default=64, type=int)
         parser.add_argument('--standardize', help='standardize observations', action='store_true')
@@ -150,6 +150,7 @@ def main():
             time_last_batch = time_start
             time_spent_validation = -1
             train_loss_str = '               '
+            train_loss_best_str = '             '
             if artifact.valid_loss_best is None:
                 artifact.valid_loss_best = artifact.valid_loss(opt.parallel)
             if artifact.valid_loss_worst is None:
@@ -157,7 +158,6 @@ def main():
             if prev_artifact_total_traces == 0:
                 artifact.valid_history_trace.append(prev_artifact_total_traces + iteration)
                 artifact.valid_history_loss.append(artifact.valid_loss_best)
-            valid_loss_best_str = '{:+.6e}'.format(artifact.valid_loss_best)
             valid_loss_str = '{:+.6e}  '.format(artifact.valid_history_loss[-1])
             last_validation_trace = 0
 
@@ -192,8 +192,8 @@ def main():
             time_improvement_str = util.days_hours_mins_secs(time.time() - time_improvement)
             trace_str = '{:5}'.format('{:,}'.format(prev_artifact_total_traces + trace))
             traces_per_sec_str = '   '
-            util.log_print('{{:{0}}}'.format(len(time_str)).format('Train. time') + ' │ ' + '{{:{0}}}'.format(len(trace_str)).format('Trace') + ' │ Training loss   │ Last valid. loss│ Best val. loss|' + '{{:{0}}}'.format(len(time_improvement_str)).format('T.since best') + ' │ TPS')
-            util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(time_improvement_str) + '─┼─' + '─'*len(traces_per_sec_str))
+            util.log_print('{{:{0}}}'.format(len(time_str)).format('Train. time') + ' │ ' + '{{:{0}}}'.format(len(trace_str)).format('Trace') + ' │ Training loss   │ Min.train.loss│ Valid. loss     |' + '{{:{0}}}'.format(len(time_improvement_str)).format('T.since best') + ' │ TPS')
+            util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼───────────────┼─────────────────┼─' + '─'*len(time_improvement_str) + '─┼─' + '─'*len(traces_per_sec_str))
 
             stop = False
             while not stop:
@@ -243,50 +243,11 @@ def main():
                 artifact.train_history_trace.append(artifact.total_traces)
                 artifact.train_history_loss.append(train_loss)
 
-                if opt.visdom:
-                    x = torch.Tensor([artifact.train_history_trace[-1]])
-                    y = torch.Tensor([artifact.train_history_loss[-1]])
-                    util.vis.line(X=x, Y=y, win=vis_train_loss, update='append')
-
-                if train_loss < artifact.train_loss_best:
-                    artifact.train_loss_best = train_loss
-                    train_loss_str = colored('{:+.6e} ▼'.format(train_loss), 'green', attrs=['bold'])
-
-
-                    sys.stdout.write('Updating best artifact on disk...                        \r')
-                    sys.stdout.flush()
-                    artifact.modified = datetime.datetime.now()
-                    artifact.updates += 1
-                    artifact.optimizer = opt.optimizer
-                    if opt.keepArtifacts:
-                        time_stamp = util.get_time_stamp()
-                        artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
-                    def save_artifact():
-                        torch.save(artifact, artifact_file)
-                    a = Thread(target=save_artifact)
-                    a.start()
-                    a.join()
-                    time_improvement = time.time()
-
-                elif train_loss > artifact.train_loss_worst:
-                    artifact.train_loss_worst = train_loss
-                    train_loss_str = colored('{:+.6e} ▲'.format(train_loss), 'red', attrs=['bold'])
-                elif train_loss < artifact.valid_history_loss[-1]:
-                    train_loss_str = colored('{:+.6e}  '.format(train_loss), 'green')
-                elif train_loss > artifact.valid_history_loss[-1]:
-                    train_loss_str = colored('{:+.6e}  '.format(train_loss), 'red')
-                else:
-                    train_loss_str = '{:+.6e}  '.format(train_loss)
-
-                time_str = util.days_hours_mins_secs(prev_artifact_total_training_seconds + (time.time() - time_start))
-                trace_str = '{:5}'.format('{:,}'.format(prev_artifact_total_traces + trace))
-                traces_per_sec_str = '{:3}'.format('{:,}'.format(int(traces_per_sec)))
-
                 # Compute validation loss as needed
                 time_spent_validation = -1
-                if (trace - last_validation_trace > opt.validTraces) or stop:
+                if (trace - last_validation_trace > opt.validInterval) or stop:
                     time_validation_start = time.time()
-                    util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────┼───────────────┼─' + '─'*len(time_improvement_str) + '─┼─' + '─'*len(traces_per_sec_str))
+                    util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼───────────────┼─────────────────┼─' + '─'*len(time_improvement_str) + '─┼─' + '─'*len(traces_per_sec_str))
 
                     sys.stdout.write('Computing validation loss...                             \r')
                     sys.stdout.flush()
@@ -297,12 +258,9 @@ def main():
                     artifact.valid_history_trace.append(artifact.total_traces)
                     artifact.valid_history_loss.append(valid_loss)
 
-                    valid_loss_best_str = '{:+.6e}'.format(artifact.valid_loss_best)
-
                     if valid_loss < artifact.valid_loss_best:
                         artifact.valid_loss_best = valid_loss
                         valid_loss_str = colored('{:+.6e} ▼'.format(valid_loss), 'green', attrs=['bold'])
-                        valid_loss_best_str = colored('{:+.6e}'.format(artifact.valid_loss_best), 'green', attrs=['bold'])
                     elif valid_loss > artifact.valid_loss_worst:
                         artifact.valid_loss_worst = valid_loss
                         valid_loss_str = colored('{:+.6e} ▲'.format(valid_loss), 'red', attrs=['bold'])
@@ -320,8 +278,48 @@ def main():
                         util.vis.line(X=x, Y=y, win=vis_valid_loss, update='append')
                     time_spent_validation = time.time() - time_validation_start
 
+                    train_loss_best_str = '{:+.6e}'.format(artifact.train_loss_best)
+
+                if opt.visdom:
+                    x = torch.Tensor([artifact.train_history_trace[-1]])
+                    y = torch.Tensor([artifact.train_history_loss[-1]])
+                    util.vis.line(X=x, Y=y, win=vis_train_loss, update='append')
+
+                if train_loss < artifact.train_loss_best:
+                    artifact.train_loss_best = train_loss
+                    train_loss_str = colored('{:+.6e} ▼'.format(train_loss), 'green', attrs=['bold'])
+                    train_loss_best_str = colored('{:+.6e}'.format(artifact.train_loss_best), 'green', attrs=['bold'])
+
+                    sys.stdout.write('Updating best artifact on disk...                        \r')
+                    sys.stdout.flush()
+                    artifact.modified = datetime.datetime.now()
+                    artifact.updates += 1
+                    artifact.optimizer = opt.optimizer
+                    if opt.keepArtifacts:
+                        time_stamp = util.get_time_stamp()
+                        artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
+                    def save_artifact():
+                        torch.save(artifact, artifact_file)
+                    a = Thread(target=save_artifact)
+                    a.start()
+                    a.join()
+                    time_improvement = time.time()
+                elif train_loss > artifact.train_loss_worst:
+                    artifact.train_loss_worst = train_loss
+                    train_loss_str = colored('{:+.6e} ▲'.format(train_loss), 'red', attrs=['bold'])
+                elif train_loss < artifact.valid_history_loss[-1]:
+                    train_loss_str = colored('{:+.6e}  '.format(train_loss), 'green')
+                elif train_loss > artifact.valid_history_loss[-1]:
+                    train_loss_str = colored('{:+.6e}  '.format(train_loss), 'red')
+                else:
+                    train_loss_str = '{:+.6e}  '.format(train_loss)
+
+                time_str = util.days_hours_mins_secs(prev_artifact_total_training_seconds + (time.time() - time_start))
+                trace_str = '{:5}'.format('{:,}'.format(prev_artifact_total_traces + trace))
+                traces_per_sec_str = '{:3}'.format('{:,}'.format(int(traces_per_sec)))
+
                 time_improvement_str = util.days_hours_mins_secs(time.time() - time_improvement)
-                util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} │ {6}'.format(time_str, trace_str, train_loss_str, valid_loss_str, valid_loss_best_str, time_improvement_str, traces_per_sec_str))
+                util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} │ {6}'.format(time_str, trace_str, train_loss_str, train_loss_best_str, valid_loss_str, time_improvement_str, traces_per_sec_str))
 
             util.log_print('Stopped after {0} traces'.format(trace))
     except KeyboardInterrupt:
