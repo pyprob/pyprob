@@ -22,6 +22,8 @@ matplotlib.rcParams.update({'font.size': 10})
 matplotlib.rcParams['axes.axisbelow'] = True
 import seaborn as sns
 sns.set_style("ticks")
+colors = [ "dusty purple", "greyish", "faded green", "windows blue", "amber"]
+sns.set_palette(sns.xkcd_palette(colors))
 import matplotlib.pyplot as plt
 import numpy as np
 from itertools import zip_longest
@@ -167,7 +169,7 @@ def main():
                         table.add_row(('Dropout', artifact.dropout))
                         table.add_row(('Standardize inputs', artifact.standardize))
                     with doc.create(Figure(position='H')) as plot:
-                        fig = plt.figure(figsize=(10,6))
+                        fig = plt.figure(figsize=(10,4))
                         ax = plt.subplot(111)
                         ax.plot(artifact.num_params_history_trace, artifact.num_params_history_num_params)
                         plt.xlabel('Traces')
@@ -180,7 +182,7 @@ def main():
                         with doc.create(Tabularx('ll')) as table:
                             table.add_row(('Embedding', artifact.obs_emb))
                             table.add_row(('Size', artifact.obs_emb_dim))
-                    with doc.create(Subsubsection('Sample embedding')):
+                    with doc.create(Subsubsection('Sample embeddings')):
                         with doc.create(Tabularx('ll')) as table:
                             table.add_row(('Embedding', artifact.smp_emb))
                             table.add_row(('Size', artifact.smp_emb_dim))
@@ -363,15 +365,25 @@ def main():
                                 ax = plt.subplot(111)
                                 # ax.imshow(im,cmap=plt.get_cmap('Greys'))
                                 sns.heatmap(im, cbar=False, linecolor='gray', linewidths=.5, cmap='Greys',yticklabels=plt_addresses)
-                                plt.yticks(rotation=0) 
-                                # plt.yticks(np.arange(addresses) + 0.5, plt_addresses)
-                                # plt.xlabel('Unique trace ID')
-                                # plt.ylabel('Count')
-                                # plt.grid()
+                                plt.yticks(rotation=0)
                                 fig.tight_layout()
                                 plot.add_plot(width=NoEscape(r'\textwidth'))
-                                plot.add_caption('Unique trace ' + trace + ': ' + '-'.join(trace_addresses))
+                                plot.add_caption('Unique trace ' + trace + '.')
+                            doc.append(FootnoteText('Full trace:\n'))
+                            doc.append(FootnoteText('-'.join(trace_addresses) + '\n'))
 
+                            doc.append(FootnoteText('Compact trace:\n'))
+                            trace_addresses_repetitions = util.pack_repetitions(trace_addresses)
+                            doc.append(FootnoteText('-'.join([a + 'x' + str(i) for a, i in trace_addresses_repetitions])))
+                            doc.append('\n\n')
+
+                            doc.append(FootnoteText('Sorted repetitions\n'))
+                            sorted_repetitions = sorted(trace_addresses_repetitions, key=lambda x:x[1], reverse=True)
+                            with doc.create(Tabularx('ll')) as table:
+                                table.add_row(FootnoteText('Count'), FootnoteText('Unique address ID'))
+                                table.add_hline()
+                                for a, i in sorted_repetitions:
+                                    table.add_row(FootnoteText(i), FootnoteText(a))
             doc.generate_pdf(opt.saveReport, clean_tex=False)
 
     except KeyboardInterrupt:

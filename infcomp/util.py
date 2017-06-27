@@ -220,6 +220,23 @@ class Spinner(object):
         if self.i > 3:
             self.i = 0
 
+def pack_repetitions(l):
+    if len(l) == 1:
+        return [(l[0], 1)]
+    else:
+        ret = []
+        prev = l[0]
+        prev_count = 1
+        for i in range(1,len(l)):
+            if l[i] == prev:
+                prev_count += 1
+            else:
+                ret.append((prev, prev_count))
+                prev = l[i]
+                prev_count = 1
+        ret.append((prev, prev_count))
+        return ret            
+
 def beta(a, b):
     n = a.nelement()
     assert b.nelement() == n, 'a and b must have the same number of elements'
