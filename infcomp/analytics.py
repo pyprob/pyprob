@@ -22,8 +22,8 @@ matplotlib.rcParams.update({'font.size': 10})
 matplotlib.rcParams['axes.axisbelow'] = True
 import seaborn as sns
 sns.set_style("ticks")
-colors = [ "dusty purple", "greyish", "faded green", "windows blue", "amber"]
-sns.set_palette(sns.xkcd_palette(colors))
+flatui = ["#3b5b92", "#9b59b6", "#3498db", "#95a5a6", "#e74c3c", "#34495e", "#2ecc71"]
+sns.set_palette(sns.color_palette(flatui))
 import matplotlib.pyplot as plt
 import numpy as np
 from itertools import zip_longest
