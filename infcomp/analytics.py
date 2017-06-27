@@ -300,7 +300,7 @@ def main():
                         plt_counts = [artifact.trace_length_histogram[i] if i in artifact.trace_length_histogram else 0 for i in range(0, artifact.trace_length_max + 1)]
                         fig = plt.figure(figsize=(10,5))
                         ax = plt.subplot(111)
-                        ax.bar(plt_lengths, plt_counts)
+                        ax.bar(plt_lengths, plt_counts,linewidth=0.2)
                         plt.xlabel('Length')
                         plt.ylabel('Count')
                         plt.grid()
@@ -355,6 +355,10 @@ def main():
                         with doc.create(Subsubsection('Unique trace ' + trace)):
                             addresses = len(address_to_abbrev)
                             trace_addresses = abbrev_to_addresses[trace]
+
+                            with doc.create(Tabularx('ll')) as table:
+                                table.add_row(FootnoteText('Length'), FootnoteText(len(trace_addresses)))
+                            doc.append('\n')
 
                             im = np.zeros((addresses, len(trace_addresses)))
                             for i in range(len(trace_addresses)):
