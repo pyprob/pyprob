@@ -730,7 +730,7 @@ class Artifact(nn.Module):
             for p in self.parameters():
                 num_params += p.nelement()
             util.log_print(colored('Polymorphing, new trainable params: {:,}'.format(num_params), 'magenta', attrs=['bold']))
-            if self.total_traces:
+            if self.total_traces or len(self.num_params_history_num_params) == 0:
                 self.num_params_history_trace.append(self.total_traces)
                 self.num_params_history_num_params.append(num_params)
         if self.on_cuda:
