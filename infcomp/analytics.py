@@ -19,17 +19,18 @@ from pprint import pformat
 import matplotlib
 matplotlib.use('Agg') # Do not use X server
 matplotlib.rcParams.update({'font.size': 10})
+matplotlib.rcParams.update({'figure.max_open_warning': 0})
 matplotlib.rcParams['axes.axisbelow'] = True
 import seaborn as sns
 sns.set_style("ticks")
-flatui = ["#3b5b92", "#9b59b6", "#3498db", "#95a5a6", "#e74c3c", "#34495e", "#2ecc71"]
-sns.set_palette(sns.color_palette(flatui))
+colors = ["dark grey", "amber", "greyish", "faded green", "dusty purple"]
+sns.set_palette(sns.xkcd_palette(colors))
 import matplotlib.pyplot as plt
 import numpy as np
 from itertools import zip_longest
 import csv
 import traceback
-from pylatex import Document, Section, Subsection, Subsubsection, Command, Figure, Tabularx, LongTable, FootnoteText
+from pylatex import Document, Section, Subsection, Subsubsection, Command, Figure, SubFigure, Tabularx, LongTable, FootnoteText, FlushLeft
 from pylatex.utils import italic, NoEscape
 
 def main():
@@ -360,30 +361,33 @@ def main():
                                 address = trace_addresses[i]
                                 address_i = plt_addresses.index(address)
                                 im[address_i, i] = 1
-                            with doc.create(Figure(position='H')) as plot:
-                                fig = plt.figure(figsize=(10,2))
-                                ax = plt.subplot(111)
-                                # ax.imshow(im,cmap=plt.get_cmap('Greys'))
-                                sns.heatmap(im, cbar=False, linecolor='gray', linewidths=.5, cmap='Greys',yticklabels=plt_addresses)
-                                plt.yticks(rotation=0)
-                                fig.tight_layout()
-                                plot.add_plot(width=NoEscape(r'\textwidth'))
-                                plot.add_caption('Unique trace ' + trace + '.')
-                            doc.append(FootnoteText('Full trace:\n'))
-                            doc.append(FootnoteText('-'.join(trace_addresses) + '\n'))
+                            truncate = 100
+                            for col_start in range(0, len(trace_addresses), truncate):
+                                col_end = min(col_start + truncate, len(trace_addresses))
+                                with doc.create(Figure(position='H')) as plot:
+                                    fig = plt.figure(figsize=(20 * ((col_end + 4 - col_start) / truncate),4))
+                                    ax = plt.subplot(111)
+                                    # ax.imshow(im,cmap=plt.get_cmap('Greys'))
+                                    sns.heatmap(im[:,col_start:col_end], cbar=False, linecolor='gray', linewidths=.5, cmap='Greys',yticklabels=plt_addresses,xticklabels=np.arange(col_start,col_end))
+                                    plt.yticks(rotation=0)
+                                    fig.tight_layout()
+                                    plot.add_plot(width=NoEscape(r'{0}\textwidth'.format((col_end + 4 - col_start) / truncate)))
 
-                            doc.append(FootnoteText('Compact trace:\n'))
-                            trace_addresses_repetitions = util.pack_repetitions(trace_addresses)
-                            doc.append(FootnoteText('-'.join([a + 'x' + str(i) for a, i in trace_addresses_repetitions])))
+                            with doc.create(Tabularx('lp{16cm}')) as table:
+                                table.add_row(FootnoteText('Full'), FootnoteText('-'.join(trace_addresses)))
+                                trace_addresses_repetitions = util.pack_repetitions(trace_addresses)
+                                table.add_row(FootnoteText('Compact'), FootnoteText('-'.join([a + 'x' + str(i) for a, i in trace_addresses_repetitions])))
+
                             doc.append('\n\n')
 
-                            doc.append(FootnoteText('Sorted repetitions\n'))
+                            doc.append(FootnoteText('Sorted repetitions (count > 1)\n'))
                             sorted_repetitions = sorted(trace_addresses_repetitions, key=lambda x:x[1], reverse=True)
                             with doc.create(Tabularx('ll')) as table:
                                 table.add_row(FootnoteText('Count'), FootnoteText('Unique address ID'))
                                 table.add_hline()
                                 for a, i in sorted_repetitions:
-                                    table.add_row(FootnoteText(i), FootnoteText(a))
+                                    if i > 1:
+                                        table.add_row(FootnoteText(i), FootnoteText(a))
             doc.generate_pdf(opt.saveReport, clean_tex=False)
 
     except KeyboardInterrupt:
