@@ -41,7 +41,7 @@ def main():
         parser.add_argument('--momentum', help='momentum (only for sgd)', default=0.9, type=float)
         parser.add_argument('--weightDecay', help='L2 weight decay coefficient', default=0.0005, type=float)
         parser.add_argument('--clip', help='gradient clipping (-1: disabled)', default=-1, type=float)
-        parser.add_argument('--batchSize', help='training batch size', default=128, type=int)
+        parser.add_argument('--batchSize', help='training batch size', default=64, type=int)
         parser.add_argument('--validSize', help='validation set size', default=256, type=int)
         parser.add_argument('--validInterval', help='validation interval (traces)', default=1000, type=int)
         parser.add_argument('--maxTraces', help='stop training after this many traces (-1: disabled)', default=-1, type=int)

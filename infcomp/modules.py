@@ -577,7 +577,7 @@ class Artifact(nn.Module):
         self.train_history_loss = []
         self.total_training_seconds = None
         self.total_iterations = None
-        self.total_traces = None
+        self.total_traces = 0
         self.updates = 0
         self.optimizer = None
         self.dropout = 0.2
@@ -730,9 +730,8 @@ class Artifact(nn.Module):
             for p in self.parameters():
                 num_params += p.nelement()
             util.log_print(colored('Polymorphing, new trainable params: {:,}'.format(num_params), 'magenta', attrs=['bold']))
-            if self.total_traces or len(self.num_params_history_num_params) == 0:
-                self.num_params_history_trace.append(self.total_traces)
-                self.num_params_history_num_params.append(num_params)
+            self.num_params_history_trace.append(self.total_traces)
+            self.num_params_history_num_params.append(num_params)
         if self.on_cuda:
             self.cuda(self.cuda_device_id)
         return layers_changed
