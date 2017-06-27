@@ -2,9 +2,9 @@
 # Oxford Inference Compilation
 # https://arxiv.org/abs/1610.09900
 #
-# Tuan-Anh Le, Atilim Gunes Baydin
+# Atilim Gunes Baydin, Tuan Anh Le, Mario Lezcano Casado, Frank Wood
 # University of Oxford
-# May 2016 -- May 2017
+# May 2016 -- June 2017
 #
 
 import infcomp
@@ -32,6 +32,9 @@ ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
 def get_time_stamp():
     return datetime.datetime.fromtimestamp(time.time()).strftime('-%Y%m%d-%H%M%S')
 
+def get_time_str():
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 def init(opt, mode=''):
     global Tensor
     global beta_integration_domain
@@ -55,7 +58,7 @@ def init(opt, mode=''):
     log_print(mode)
     log_print()
 
-    log_print('Started ' +  str(datetime.datetime.now()))
+    log_print('Started ' + get_time_str())
     log_print()
     log_print('Running on PyTorch ' + torch.__version__)
     log_print()
@@ -112,11 +115,13 @@ def init_logger(file_name):
     logger.addHandler(logger_file_handler)
     logger.setLevel(logging.INFO)
 
-def remove_non_ascii(s): return ''.join(i for i in s if ord(i)<128)
+def remove_non_ascii(s):
+    s = ansi_escape.sub('', s)
+    return ''.join(i for i in s if ord(i)<128)
 
 def log_print(line=''):
     print(line)
-    logger.info(remove_non_ascii(ansi_escape.sub('', line)))
+    logger.info(remove_non_ascii(line))
 
 def log_error(line):
     print(colored('Error: ' + line, 'red', attrs=['bold']))

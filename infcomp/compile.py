@@ -2,9 +2,9 @@
 # Oxford Inference Compilation
 # https://arxiv.org/abs/1610.09900
 #
-# Tuan-Anh Le, Atilim Gunes Baydin
+# Atilim Gunes Baydin, Tuan Anh Le, Mario Lezcano Casado, Frank Wood
 # University of Oxford
-# May 2016 -- May 2017
+# May 2016 -- June 2017
 #
 
 import infcomp
@@ -136,6 +136,7 @@ def main():
                 artifact.softmax_boost = opt.softmaxBoost
 
                 artifact.polymorph()
+                artifact.total_traces = 0
 
             if opt.optimizer == 'adam':
                 optimizer = optim.Adam(artifact.parameters(), lr=opt.learningRate, weight_decay=opt.weightDecay)
@@ -292,7 +293,7 @@ def main():
 
                     sys.stdout.write('Updating best artifact on disk...                        \r')
                     sys.stdout.flush()
-                    artifact.modified = datetime.datetime.now()
+                    artifact.modified = util.get_time_str()
                     artifact.updates += 1
                     artifact.optimizer = opt.optimizer
                     if opt.keepArtifacts:

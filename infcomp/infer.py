@@ -2,9 +2,9 @@
 # Oxford Inference Compilation
 # https://arxiv.org/abs/1610.09900
 #
-# Tuan-Anh Le, Atilim Gunes Baydin
+# Atilim Gunes Baydin, Tuan Anh Le, Mario Lezcano Casado, Frank Wood
 # University of Oxford
-# May 2016 -- May 2017
+# May 2016 -- June 2017
 #
 
 import infcomp

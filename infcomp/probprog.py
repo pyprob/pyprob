@@ -2,9 +2,9 @@
 # Oxford Inference Compilation
 # https://arxiv.org/abs/1610.09900
 #
-# Tuan-Anh Le, Atilim Gunes Baydin
+# Atilim Gunes Baydin, Tuan Anh Le, Mario Lezcano Casado, Frank Wood
 # University of Oxford
-# May 2016 -- May 2017
+# May 2016 -- June 2017
 #
 
 class Sample(object):
@@ -39,9 +39,9 @@ class Trace(object):
         return 'Trace(length:{0}, samples:[{1}], observes.dim():{2})'.format(self.length, ', '.join([str(sample) for sample in self.samples]), self.observes.dim())
     __str__ = __repr__
     def addresses(self):
-        return '|'.join([sample.address for sample in self.samples])
+        return '; '.join([sample.address for sample in self.samples])
     def addresses_suffixed(self):
-        return '|'.join([sample.address_suffixed for sample in self.samples])
+        return '; '.join([sample.address_suffixed for sample in self.samples])
     def set_observes(self, o):
         self.observes = o
     def add_sample(self, s):

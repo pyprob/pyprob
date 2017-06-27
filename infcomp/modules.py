@@ -2,9 +2,9 @@
 # Oxford Inference Compilation
 # https://arxiv.org/abs/1610.09900
 #
-# Tuan-Anh Le, Atilim Gunes Baydin
+# Atilim Gunes Baydin, Tuan Anh Le, Mario Lezcano Casado, Frank Wood
 # University of Oxford
-# May 2016 -- May 2017
+# May 2016 -- June 2017
 #
 
 import infcomp
@@ -536,20 +536,19 @@ class Artifact(nn.Module):
         self.lstm = None
 
         self.model_name = ''
-        self.created = datetime.datetime.now()
-        self.modified = datetime.datetime.now()
+        self.created = util.get_time_str()
+        self.modified = util.get_time_str()
         self.on_cuda = None
         self.cuda_device_id = None
         self.code_version = infcomp.__version__
         self.pytorch_version = torch.__version__
-        self.standardize = True
+        self.standardize = False
         self.one_hot_address = {}
         self.one_hot_distribution = {}
         self.one_hot_address_dim = None
         self.one_hot_distribution_dim = None
         self.one_hot_address_empty = None
         self.one_hot_distribution_empty = None
-        self.address_distributions = {}
         self.address_histogram = {}
         self.trace_length_histogram = {}
         self.valid_size = None
@@ -561,9 +560,13 @@ class Artifact(nn.Module):
         self.smp_emb_dim = None
         self.obs_emb = None
         self.obs_emb_dim = None
-        self.num_parameters = None
+        self.num_params_history_trace = []
+        self.num_params_history_num_params = []
         self.trace_length_min = sys.maxsize
         self.trace_length_max = 0
+        self.trace_examples_histogram = {}
+        self.trace_examples_addresses = {}
+        self.trace_examples_limit = 10000
         self.train_loss_best = math.inf
         self.train_loss_worst = -math.inf
         self.valid_loss_best = None
@@ -579,10 +582,14 @@ class Artifact(nn.Module):
         self.optimizer = None
         self.dropout = 0.2
 
-    def get_structure(self):
+    def get_structure_str(self):
         ret = str(next(enumerate(self.modules()))[1])
+        return ret
+
+    def get_parameter_str(self):
+        ret = ''
         for p in self.parameters():
-            ret = ret + '\n{0} {1}'.format(type(p.data), p.size())
+            ret = ret + '{0} {1}\n'.format(type(p.data), p.size())
         return ret
 
     def get_info(self):
@@ -599,20 +606,20 @@ class Artifact(nn.Module):
         distributions = '; '.join(list(self.one_hot_distribution.keys()))
         num_addresses = len(self.one_hot_address.keys())
         num_distributions = len(self.one_hot_distribution.keys())
-        sum = 0
+        s = 0
         total_count = 0
         for trace_length in self.trace_length_histogram:
             count = self.trace_length_histogram[trace_length]
-            sum += trace_length * count
+            s += trace_length * count
             total_count += count
-        trace_length_mean = sum / total_count
+        trace_length_mean = s / total_count
         address_collisions = max(0, num_addresses - self.one_hot_address_dim)
         info = '\n'.join(['Model name            : {0}'.format(self.model_name),
                           'Created               : {0}'.format(self.created),
                           'Modified              : {0}'.format(self.modified),
                           'Code version          : {0}'.format(self.code_version),
                           'Trained on            : CUDA' if self.on_cuda else 'Trained on            : CPU',
-                          colored('Trainable params      : {:,}'.format(self.num_parameters), 'cyan', attrs=['bold']),
+                          colored('Trainable params      : {:,}'.format(self.num_params_history_num_params[-1]), 'cyan', attrs=['bold']),
                           colored('Total training time   : {0}'.format(util.days_hours_mins_secs(self.total_training_seconds)), 'yellow', attrs=['bold']),
                           colored('Updates to file       : {:,}'.format(self.updates), 'yellow'),
                           colored('Iterations            : {:,}'.format(self.total_iterations), 'yellow'),
@@ -649,6 +656,17 @@ class Artifact(nn.Module):
         for sub_batch in batch.sub_batches:
             example_trace = sub_batch[0]
             example_trace_length = example_trace.length
+            example_trace_str = example_trace.addresses_suffixed()
+
+            if len(self.trace_examples_histogram) < self.trace_examples_limit:
+                if example_trace_str in self.trace_examples_histogram:
+                    self.trace_examples_histogram[example_trace_str] += len(sub_batch)
+                else:
+                    self.trace_examples_histogram[example_trace_str] = len(sub_batch)
+                    self.trace_examples_addresses[example_trace_str] = []
+                    for sample in example_trace.samples:
+                        address = sample.address_suffixed
+                        self.trace_examples_addresses[example_trace_str].append(address)
 
             if example_trace_length > self.trace_length_max:
                 self.trace_length_max = example_trace_length
@@ -666,12 +684,9 @@ class Artifact(nn.Module):
                 distribution = sample.distribution
 
                 if address in self.address_histogram:
-                    self.address_histogram[address] += 1
+                    self.address_histogram[address] += len(sub_batch)
                 else:
-                    self.address_histogram[address] = 1
-
-                if address not in self.address_distributions:
-                    self.address_distributions[address] = distribution.name
+                    self.address_histogram[address] = len(sub_batch)
 
                 # update the artifact's one-hot dictionary as needed
                 self.add_one_hot_address(address)
@@ -711,10 +726,13 @@ class Artifact(nn.Module):
                     layers_changed = True
 
         if layers_changed:
-            self.num_parameters = 0
+            num_params = 0
             for p in self.parameters():
-                self.num_parameters += p.nelement()
-            util.log_print(colored('Polymorphing, new trainable params: {:,}'.format(self.num_parameters), 'magenta', attrs=['bold']))
+                num_params += p.nelement()
+            util.log_print(colored('Polymorphing, new trainable params: {:,}'.format(num_params), 'magenta', attrs=['bold']))
+            if self.total_traces:
+                self.num_params_history_trace.append(self.total_traces)
+                self.num_params_history_num_params.append(num_params)
         if self.on_cuda:
             self.cuda(self.cuda_device_id)
         return layers_changed
