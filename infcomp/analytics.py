@@ -19,6 +19,9 @@ from pprint import pformat
 import matplotlib
 matplotlib.use('Agg') # Do not use X server
 matplotlib.rcParams.update({'font.size': 10})
+matplotlib.rcParams['axes.axisbelow'] = True
+import seaborn as sns
+sns.set_style("ticks")
 import matplotlib.pyplot as plt
 import numpy as np
 from itertools import zip_longest
@@ -164,14 +167,14 @@ def main():
                         table.add_row(('Dropout', artifact.dropout))
                         table.add_row(('Standardize inputs', artifact.standardize))
                     with doc.create(Figure(position='H')) as plot:
-                        fig = plt.figure()
+                        fig = plt.figure(figsize=(10,6))
                         ax = plt.subplot(111)
                         ax.plot(artifact.num_params_history_trace, artifact.num_params_history_num_params)
                         plt.xlabel('Traces')
                         plt.ylabel('Number of parameters')
                         plt.grid()
                         fig.tight_layout()
-                        plot.add_plot()
+                        plot.add_plot(width=NoEscape(r'\textwidth'))
                         plot.add_caption('Number of parameters.')
                     with doc.create(Subsubsection('Observation embedding')):
                         with doc.create(Tabularx('ll')) as table:
@@ -213,7 +216,7 @@ def main():
                         table.add_row(('Loss change / iteration', '{:+.6e}'.format(valid_loss_change_per_iter)))
                         table.add_row(('Loss change / trace', '{:+.6e}'.format(valid_loss_change_per_trace)))
                 with doc.create(Figure(position='H')) as plot:
-                    fig = plt.figure()
+                    fig = plt.figure(figsize=(10,6))
                     ax = plt.subplot(111)
                     ax.plot(artifact.train_history_trace, artifact.train_history_loss, label='Training')
                     ax.plot(artifact.valid_history_trace, artifact.valid_history_loss, label='Validation')
@@ -222,7 +225,7 @@ def main():
                     plt.ylabel('Loss')
                     plt.grid()
                     fig.tight_layout()
-                    plot.add_plot()
+                    plot.add_plot(width=NoEscape(r'\textwidth'))
                     plot.add_caption('Loss plot.')
 
             doc.append(NoEscape(r'\newpage'))
@@ -265,16 +268,16 @@ def main():
                             table.add_row(('{:,}'.format(count), abbrev, FootnoteText(address)))
 
                     with doc.create(Figure(position='H')) as plot:
-                        fig = plt.figure()
+                        fig = plt.figure(figsize=(10,5))
                         ax = plt.subplot(111)
                         plt_x = range(len(plt_addresses))
                         ax.bar(plt_x, plt_counts)
                         plt.xticks(plt_x, plt_addresses)
                         plt.xlabel('Unique address ID')
                         plt.ylabel('Count')
-                        # plt.grid()
+                        plt.grid()
                         fig.tight_layout()
-                        plot.add_plot()
+                        plot.add_plot(width=NoEscape(r'\textwidth'))
                         plot.add_caption('Histogram of address hits.')
 
                 with doc.create(Subsection('Lengths')):
@@ -292,14 +295,14 @@ def main():
                     with doc.create(Figure(position='H')) as plot:
                         plt_lengths = [i for i in range(0, artifact.trace_length_max + 1)]
                         plt_counts = [artifact.trace_length_histogram[i] if i in artifact.trace_length_histogram else 0 for i in range(0, artifact.trace_length_max + 1)]
-                        fig = plt.figure()
+                        fig = plt.figure(figsize=(10,5))
                         ax = plt.subplot(111)
                         ax.bar(plt_lengths, plt_counts)
                         plt.xlabel('Length')
                         plt.ylabel('Count')
-                        # plt.grid()
+                        plt.grid()
                         fig.tight_layout()
-                        plot.add_plot()
+                        plot.add_plot(width=NoEscape(r'\textwidth'))
                         plot.add_caption('Histogram of trace lengths.')
 
                 with doc.create(Subsection('Unique traces encountered')):
@@ -331,38 +334,43 @@ def main():
                             table.add_row(('{:,}'.format(count), abbrev, '{:,}'.format(length), FootnoteText('-'.join(abbrev_to_addresses[abbrev]))))
 
                     with doc.create(Figure(position='H')) as plot:
-                        fig = plt.figure()
+                        fig = plt.figure(figsize=(10,5))
                         ax = plt.subplot(111)
                         plt_x = range(len(plt_traces))
                         ax.bar(plt_x, plt_counts)
                         plt.xticks(plt_x, plt_traces)
                         plt.xlabel('Unique trace ID')
                         plt.ylabel('Count')
-                        # plt.grid()
+                        plt.grid()
                         fig.tight_layout()
-                        plot.add_plot()
+                        plot.add_plot(width=NoEscape(r'\textwidth'))
                         plot.add_caption('Histogram of unique traces.')
 
-                    with doc.create(Subsubsection('T1')):
-                        trace = 'T1'
-                        addresses = len(address_to_abbrev)
-                        trace_addresses = abbrev_to_addresses[trace]
-                        im = np.zeros((addresses, len(trace_addresses)))
-                        for i in range(len(trace_addresses)):
-                            address = trace_addresses[i]
-                            address_i = plt_addresses.index(address)
-                            im[address_i, i] = 1
-                        with doc.create(Figure(position='H')) as plot:
-                            fig = plt.figure()
-                            ax = plt.subplot(111)
-                            ax.imshow(im)
-                            plt.yticks(range(addresses), plt_addresses)
-                            # plt.xlabel('Unique trace ID')
-                            # plt.ylabel('Count')
-                            # plt.grid()
-                            fig.tight_layout()
-                            plot.add_plot()
-                            plot.add_caption('T1.')
+                    for trace, _ in sorted_traces[:10]:
+                        trace = trace_to_abbrev[trace]
+                        doc.append(NoEscape(r'\newpage'))
+                        with doc.create(Subsubsection('Unique trace ' + trace)):
+                            addresses = len(address_to_abbrev)
+                            trace_addresses = abbrev_to_addresses[trace]
+
+                            im = np.zeros((addresses, len(trace_addresses)))
+                            for i in range(len(trace_addresses)):
+                                address = trace_addresses[i]
+                                address_i = plt_addresses.index(address)
+                                im[address_i, i] = 1
+                            with doc.create(Figure(position='H')) as plot:
+                                fig = plt.figure(figsize=(10,2))
+                                ax = plt.subplot(111)
+                                # ax.imshow(im,cmap=plt.get_cmap('Greys'))
+                                sns.heatmap(im, cbar=False, linecolor='gray', linewidths=.5, cmap='Greys',yticklabels=plt_addresses)
+                                plt.yticks(rotation=0) 
+                                # plt.yticks(np.arange(addresses) + 0.5, plt_addresses)
+                                # plt.xlabel('Unique trace ID')
+                                # plt.ylabel('Count')
+                                # plt.grid()
+                                fig.tight_layout()
+                                plot.add_plot(width=NoEscape(r'\textwidth'))
+                                plot.add_caption('Unique trace ' + trace + ': ' + '-'.join(trace_addresses))
 
             doc.generate_pdf(opt.saveReport, clean_tex=False)
 
