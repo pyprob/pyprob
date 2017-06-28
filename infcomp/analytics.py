@@ -372,7 +372,7 @@ def main():
                                     fig = plt.figure(figsize=(20 * ((col_end + 4 - col_start) / truncate),4))
                                     ax = plt.subplot(111)
                                     # ax.imshow(im,cmap=plt.get_cmap('Greys'))
-                                    sns.heatmap(im[:,col_start:col_end], cbar=False, linecolor='gray', linewidths=.5, cmap='Greys',yticklabels=plt_addresses,xticklabels=np.arange(col_start,col_end))
+                                    sns.heatmap(im[:,col_start:col_end], cbar=False, linecolor='lightgray', linewidths=.5, cmap='Greys',yticklabels=plt_addresses,xticklabels=np.arange(col_start,col_end))
                                     plt.yticks(rotation=0)
                                     fig.tight_layout()
                                     plot.add_plot(width=NoEscape(r'{0}\textwidth'.format((col_end + 4 - col_start) / truncate)))

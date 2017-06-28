@@ -97,6 +97,8 @@ def main():
                 prev_artifact_total_training_seconds = artifact.total_training_seconds
 
                 util.log_print('New artifact will be saved to: ' + artifact_file)
+
+                train_loss_best_str = '{:+.6e}'.format(artifact.train_loss_best)
             else:
                 util.log_print()
                 util.log_print(colored('[] New artifact', 'blue', attrs=['bold']))
@@ -137,6 +139,7 @@ def main():
 
                 artifact.polymorph()
                 artifact.total_traces = 0
+                train_loss_best_str = '             '
 
             if opt.optimizer == 'adam':
                 optimizer = optim.Adam(artifact.parameters(), lr=opt.learningRate, weight_decay=opt.weightDecay)
@@ -150,8 +153,8 @@ def main():
             time_improvement = time_start
             time_last_batch = time_start
             time_spent_validation = -1
-            train_loss_str = '               '
-            train_loss_best_str = '             '
+            # train_loss_str = '               '
+
             if artifact.valid_loss_best is None:
                 artifact.valid_loss_best = artifact.valid_loss(opt.parallel)
             if artifact.valid_loss_worst is None:
