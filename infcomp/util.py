@@ -238,9 +238,11 @@ def pack_repetitions(l):
         return ret
 
 def rgb_blend(rgb1,rgb2,blend):
+    # rgb1 and rgb2 are triples of (r, g, b) where r, g, b are between 0 and 1. blend is between 0 and 1.
     return rgb1[0] + (rgb2[0]-rgb1[0])*blend, rgb1[1] + (rgb2[1]-rgb1[1])*blend, rgb1[2] + (rgb2[2]-rgb1[2])*blend
 
 def rgb_to_hex(rgb):
+    # rgb is a triple of (r, g, b) where r, g, b are between 0 and 1.
     return "#{:02x}{:02x}{:02x}".format(int(rgb[0]*255),int(rgb[1]*255),int(rgb[2]*255))
 
 def beta(a, b):
