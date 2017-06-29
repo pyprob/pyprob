@@ -47,7 +47,7 @@ def main():
         parser.add_argument('--seed', help='random seed', default=4, type=int)
         parser.add_argument('--structure', help='show extra information about artifact structure', action='store_true')
         parser.add_argument('--saveReport', help='save a full analytics report (tex and pdf)', type=str)
-        parser.add_argument('--reportMaxTraces', help='maximum number of unique traces to plot in the full analytics report', default=20, type=int)
+        parser.add_argument('--maxUniqueTraces', help='maximum number of unique traces to plot in the full analytics report', default=20, type=int)
         parser.add_argument('--saveLoss', help='save training and validation loss history (csv)', type=str)
         parser.add_argument('--saveAddresses', help='save histogram of addresses (csv)', type=str)
         parser.add_argument('--saveTraceLengths', help='save histogram of trace lengths (csv)', type=str)
@@ -319,6 +319,7 @@ def main():
                 with doc.create(Subsection('Unique traces encountered')):
                     with doc.create(Tabularx('ll')) as table:
                         table.add_row(('Saved unique traces', '{:,}'.format(len(artifact.trace_examples_histogram))))
+                        table.add_row(('Unique traces used in this report', '{:,}'.format(min(len(artifact.trace_examples_histogram), opt.maxUniqueTraces))))
                         table.add_row(('Unique trace memory limit', '{:,}'.format(artifact.trace_examples_limit)))
                     doc.append('\n')
                     with doc.create(LongTable('lllp{16cm}')) as table:
@@ -330,7 +331,7 @@ def main():
                         abbrev_to_trace = {}
                         abbrev_to_addresses = {}
                         abbrev_i = 0
-                        sorted_traces = sorted(artifact.trace_examples_histogram.items(), key=lambda x:x[1], reverse=True)
+                        sorted_traces = sorted(artifact.trace_examples_histogram.items(), key=lambda x:x[1], reverse=True)[:opt.maxUniqueTraces]
                         plt_traces = []
                         plt_counts = []
                         trace_to_count = {}
@@ -363,7 +364,7 @@ def main():
 
                     with doc.create(Figure(position='H')) as plot:
                         master_trace_pairs = {}
-                        for trace, count in sorted_traces[:opt.reportMaxTraces]:
+                        for trace, count in sorted_traces:
                             ta = abbrev_to_addresses[trace_to_abbrev[trace]]
                             for left, right in zip(ta, ta[1:]):
                                 if (left, right) in master_trace_pairs:
@@ -418,10 +419,13 @@ def main():
                         plot.add_plot()
                         plot.add_caption('Succession of unique address IDs (accumulated over all traces).')
 
-                    for trace, _ in sorted_traces[:opt.reportMaxTraces]:
+                    for trace, _ in sorted_traces:
                         trace = trace_to_abbrev[trace]
                         doc.append(NoEscape(r'\newpage'))
                         with doc.create(Subsubsection('Unique trace ' + trace)):
+                            sys.stdout.write('Unique trace {0}...                                       \r'.format(trace))
+                            sys.stdout.flush()
+
                             addresses = len(address_to_abbrev)
                             trace_addresses = abbrev_to_addresses[trace]
 
