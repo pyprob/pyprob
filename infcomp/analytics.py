@@ -32,6 +32,9 @@ import csv
 import traceback
 from pylatex import Document, Section, Subsection, Subsubsection, Command, Figure, SubFigure, Tabularx, LongTable, FootnoteText, FlushLeft
 from pylatex.utils import italic, NoEscape
+import pydotplus
+from io import BytesIO
+import matplotlib.image as mpimg
 
 def main():
     try:
@@ -44,7 +47,7 @@ def main():
         parser.add_argument('--seed', help='random seed', default=4, type=int)
         parser.add_argument('--structure', help='show extra information about artifact structure', action='store_true')
         parser.add_argument('--saveReport', help='save a full analytics report (tex and pdf)', type=str)
-        parser.add_argument('--reportMaxTraces', help='maximum number of unique traces to plot in the full analytics report', default=100)
+        parser.add_argument('--reportMaxTraces', help='maximum number of unique traces to plot in the full analytics report', default=20)
         parser.add_argument('--saveLoss', help='save training and validation loss history (csv)', type=str)
         parser.add_argument('--saveAddresses', help='save histogram of addresses (csv)', type=str)
         parser.add_argument('--saveTraceLengths', help='save histogram of trace lengths (csv)', type=str)
@@ -174,7 +177,7 @@ def main():
                         fig = plt.figure(figsize=(10,4))
                         ax = plt.subplot(111)
                         ax.plot(artifact.num_params_history_trace, artifact.num_params_history_num_params)
-                        plt.xlabel('Traces')
+                        plt.xlabel('Training traces')
                         plt.ylabel('Number of parameters')
                         plt.grid()
                         fig.tight_layout()
@@ -225,7 +228,7 @@ def main():
                     ax.plot(artifact.train_history_trace, artifact.train_history_loss, label='Training')
                     ax.plot(artifact.valid_history_trace, artifact.valid_history_loss, label='Validation')
                     ax.legend()
-                    plt.xlabel('Traces')
+                    plt.xlabel('Training traces')
                     plt.ylabel('Loss')
                     plt.grid()
                     fig.tight_layout()
@@ -262,6 +265,8 @@ def main():
                         sorted_addresses = sorted(artifact.address_histogram.items(), key=lambda x:x[1], reverse=True)
                         plt_addresses = []
                         plt_counts = []
+                        address_to_count = {}
+                        address_count_total = 0
                         for address, count in sorted_addresses:
                             abbrev_i += 1
                             abbrev = 'A' + str(abbrev_i)
@@ -269,6 +274,8 @@ def main():
                             abbrev_to_address[abbrev] = address
                             plt_addresses.append(abbrev)
                             plt_counts.append(count)
+                            address_to_count[abbrev] = count
+                            address_count_total += count
                             table.add_row(('{:,}'.format(count), abbrev, FootnoteText(address)))
 
                     with doc.create(Figure(position='H')) as plot:
@@ -307,7 +314,7 @@ def main():
                         plt.grid()
                         fig.tight_layout()
                         plot.add_plot(width=NoEscape(r'\textwidth'))
-                        plot.add_caption('Histogram of trace lengths.')
+                        plot.add_caption('Histogram of trace lengths (of all traces used during training).')
 
                 with doc.create(Subsection('Unique traces encountered')):
                     with doc.create(Tabularx('ll')) as table:
@@ -326,6 +333,8 @@ def main():
                         sorted_traces = sorted(artifact.trace_examples_histogram.items(), key=lambda x:x[1], reverse=True)
                         plt_traces = []
                         plt_counts = []
+                        trace_to_count = {}
+                        trace_count_total = 0
                         for trace, count in sorted_traces:
                             abbrev_i += 1
                             abbrev = 'T' + str(abbrev_i)
@@ -334,6 +343,8 @@ def main():
                             abbrev_to_addresses[abbrev] = list(map(lambda x:address_to_abbrev[x], artifact.trace_examples_addresses[trace]))
                             plt_traces.append(abbrev)
                             plt_counts.append(count)
+                            trace_to_count[trace] = count
+                            trace_count_total += count
                             length = len(artifact.trace_examples_addresses[trace])
                             table.add_row(('{:,}'.format(count), abbrev, '{:,}'.format(length), FootnoteText('-'.join(abbrev_to_addresses[abbrev]))))
 
@@ -349,6 +360,63 @@ def main():
                         fig.tight_layout()
                         plot.add_plot(width=NoEscape(r'\textwidth'))
                         plot.add_caption('Histogram of unique traces.')
+
+                    with doc.create(Figure(position='H')) as plot:
+                        master_trace_pairs = {}
+                        for trace, count in sorted_traces[:opt.reportMaxTraces]:
+                            ta = abbrev_to_addresses[trace_to_abbrev[trace]]
+                            for left, right in zip(ta, ta[1:]):
+                                if (left, right) in master_trace_pairs:
+                                    master_trace_pairs[(left, right)] += count
+                                else:
+                                    master_trace_pairs[(left, right)] = count
+                        fig = plt.figure(figsize=(10,5))
+                        ax = plt.subplot(111)
+                        master_graph = pydotplus.graphviz.Dot(graph_type='digraph')
+                        for p, w in master_trace_pairs.items():
+                            nodes = master_graph.get_node(p[0])
+                            if len(nodes) > 0:
+                                n0 = nodes[0]
+                            else:
+                                n0 = pydotplus.Node(p[0])
+                                master_graph.add_node(n0)
+                            nodes = master_graph.get_node(p[1])
+                            if len(nodes) > 0:
+                                n1 = nodes[0]
+                            else:
+                                n1 = pydotplus.Node(p[1])
+                                master_graph.add_node(n1)
+                            master_graph.add_edge(pydotplus.Edge(n0,n1, weight=w))
+                        for node in master_graph.get_nodes():
+                            node.set_color('gray')
+                            node.set_fontcolor('gray')
+                        for edge in master_graph.get_edges():
+                            edge.set_color('gray')
+
+
+                        master_graph_annotated = pydotplus.graphviz.graph_from_dot_data(master_graph.to_string())
+                        for node in master_graph_annotated.get_nodes():
+                            color = util.rgb_to_hex(util.rgb_blend((1,1,1), (1,0,0), address_to_count[node.obj_dict['name']] / address_count_total))
+                            node.set_style('filled')
+                            node.set_fillcolor(color)
+                            node.set_color('black')
+                            node.set_fontcolor('black')
+                        for edge in master_graph_annotated.get_edges():
+                            (left, right) = edge.obj_dict['points']
+                            count = master_trace_pairs[(left, right)]
+                            edge.set_label(count)
+                            color = util.rgb_to_hex((count / trace_count_total,0,0))
+                            edge.set_color(color)
+
+                        png_str = master_graph_annotated.create_png(prog=['dot','-Gsize=15,5', '-Gdpi=600'])
+                        bio = BytesIO()
+                        bio.write(png_str)
+                        bio.seek(0)
+                        img = mpimg.imread(bio)
+                        plt.imshow(img)
+                        plt.axis('off')
+                        plot.add_plot()
+                        plot.add_caption('Succession of unique address IDs (accumulated over all traces).')
 
                     for trace, _ in sorted_traces[:opt.reportMaxTraces]:
                         trace = trace_to_abbrev[trace]
@@ -378,21 +446,64 @@ def main():
                                     fig.tight_layout()
                                     plot.add_plot(width=NoEscape(r'{0}\textwidth'.format((col_end + 4 - col_start) / truncate)))
 
+                            with doc.create(Figure(position='H')) as plot:
+                                pairs = {}
+                                for left, right in zip(trace_addresses, trace_addresses[1:]):
+                                    if (left, right) in pairs:
+                                        pairs[(left, right)] += 1
+                                    else:
+                                        pairs[(left, right)] = 1
+
+                                fig = plt.figure(figsize=(10,5))
+                                ax = plt.subplot(111)
+                                graph = pydotplus.graphviz.graph_from_dot_data(master_graph.to_string())
+
+                                trace_address_to_count = {}
+                                for address in trace_addresses:
+                                    if address in trace_address_to_count:
+                                        trace_address_to_count[address] += 1
+                                    else:
+                                        trace_address_to_count[address] = 1
+
+
+                                for p, w in pairs.items():
+                                    left_node = graph.get_node(p[0])[0]
+                                    right_node = graph.get_node(p[1])[0]
+                                    edge = graph.get_edge(p[0], p[1])[0]
+
+                                    color = util.rgb_to_hex(util.rgb_blend((1,1,1), (1,0,0), trace_address_to_count[p[0]] / len(trace_addresses)))
+                                    left_node.set_style('filled')
+                                    left_node.set_fillcolor(color)
+                                    left_node.set_color('black')
+                                    left_node.set_fontcolor('black')
+
+                                    color = util.rgb_to_hex(util.rgb_blend((1,1,1), (1,0,0), trace_address_to_count[p[0]] / len(trace_addresses)))
+                                    right_node.set_style('filled')
+                                    right_node.set_fillcolor(color)
+                                    right_node.set_color('black')
+                                    right_node.set_fontcolor('black')
+
+                                    (left, right) = edge.obj_dict['points']
+                                    edge.set_label(w)
+                                    color = util.rgb_to_hex((w / len(trace_addresses),0,0))
+                                    edge.set_color(color)
+
+                                png_str = graph.create_png(prog=['dot','-Gsize=15,5', '-Gdpi=600'])
+                                bio = BytesIO()
+                                bio.write(png_str)
+                                bio.seek(0)
+                                img = mpimg.imread(bio)
+                                plt.imshow(img)
+                                plt.axis('off')
+                                plot.add_plot()
+                                plot.add_caption('Succession of unique address IDs (for one trace of type ' + trace + ').')
+
+
                             with doc.create(Tabularx('lp{16cm}')) as table:
                                 table.add_row(FootnoteText('Full'), FootnoteText('-'.join(trace_addresses)))
                                 trace_addresses_repetitions = util.pack_repetitions(trace_addresses)
                                 table.add_row(FootnoteText('Compact'), FootnoteText('-'.join([a + 'x' + str(i) for a, i in trace_addresses_repetitions])))
 
-                            doc.append('\n\n')
-
-                            doc.append(FootnoteText('Sorted repetitions (count > 1)\n'))
-                            sorted_repetitions = sorted(trace_addresses_repetitions, key=lambda x:x[1], reverse=True)
-                            with doc.create(Tabularx('ll')) as table:
-                                table.add_row(FootnoteText('Count'), FootnoteText('Unique address ID'))
-                                table.add_hline()
-                                for a, i in sorted_repetitions:
-                                    if i > 1:
-                                        table.add_row(FootnoteText(i), FootnoteText(a))
             doc.generate_pdf(opt.saveReport, clean_tex=False)
 
     except KeyboardInterrupt:

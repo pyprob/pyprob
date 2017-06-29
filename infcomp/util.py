@@ -235,7 +235,13 @@ def pack_repetitions(l):
                 prev = l[i]
                 prev_count = 1
         ret.append((prev, prev_count))
-        return ret            
+        return ret
+
+def rgb_blend(rgb1,rgb2,blend):
+    return rgb1[0] + (rgb2[0]-rgb1[0])*blend, rgb1[1] + (rgb2[1]-rgb1[1])*blend, rgb1[2] + (rgb2[2]-rgb1[2])*blend
+
+def rgb_to_hex(rgb):
+    return "#{:02x}{:02x}{:02x}".format(int(rgb[0]*255),int(rgb[1]*255),int(rgb[2]*255))
 
 def beta(a, b):
     n = a.nelement()
