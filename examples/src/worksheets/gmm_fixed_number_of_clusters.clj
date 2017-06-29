@@ -10,7 +10,8 @@
 (ns gmm-fixed-number-of-clusters
   (:require anglican.infcomp.csis
             anglican.smc
-            [anglican.infcomp.network :refer :all]
+            [anglican.infcomp.zmq :as zmq]
+            [anglican.infcomp.prior :as prior]
             [anglican.inference :refer [infer]]
             [anglican.stat :refer [collect-results]]
             [clojure.core.matrix :as m]
@@ -24,9 +25,11 @@
   (:import [robots.OxCaptcha OxCaptcha]
            [javax.imageio ImageIO]
            [java.io File]))
+
+(anglican.infcomp.core/reset-infcomp-addressing-scheme!)
 ;; @@
 ;; =>
-;;; {"type":"html","content":"<span class='clj-nil'>nil</span>","value":"nil"}
+;;; {"type":"html","content":"<span class='clj-unkown'>#function[anglican.infcomp.core/reset-infcomp-addressing-scheme!$fn--27296$fn--27297]</span>","value":"#function[anglican.infcomp.core/reset-infcomp-addressing-scheme!$fn--27296$fn--27297]"}
 ;; <=
 
 ;; **
@@ -49,7 +52,7 @@
     (let [num-clusters 3
           cluster-probs (normalize [1 1 1])
           means (repeatedly num-clusters
-                            #(sample "mean" (mvn (:mu-0 hyperparameters) (:Sigma-0 hyperparameters))))
+                            #(sample (mvn (:mu-0 hyperparameters) (:Sigma-0 hyperparameters))))
           means (sort-by mlin/norm means)
           vars [0.005 0.005 0.005]
           clusters (map #(let [cluster (sample-discrete cluster-probs)
@@ -106,18 +109,10 @@
 ;; <=
 
 ;; @@
-;; Start the Torch connection
-(def torch-connection (start-torch-connection gmm [(repeatedly num-data-points rand) hyperparameters] combine-observes-fn :combine-samples-fn combine-samples-fn))
+(def replier (zmq/start-replier gmm [(repeatedly num-data-points rand) hyperparameters] combine-observes-fn :combine-samples-fn combine-samples-fn))
 ;; @@
 ;; =>
-;;; {"type":"html","content":"<span class='clj-var'>#&#x27;gmm-fixed-number-of-clusters/torch-connection</span>","value":"#'gmm-fixed-number-of-clusters/torch-connection"}
-;; <=
-
-;; @@
-torch-connection
-;; @@
-;; =>
-;;; {"type":"list-like","open":"<span class='clj-map'>{</span>","close":"<span class='clj-map'>}</span>","separator":", ","items":[{"type":"list-like","open":"","close":"","separator":" ","items":[{"type":"html","content":"<span class='clj-keyword'>:socket</span>","value":":socket"},{"type":"html","content":"<span class='clj-unkown'>#object[org.zeromq.ZMQ$Socket 0x4510764a &quot;org.zeromq.ZMQ$Socket@4510764a&quot;]</span>","value":"#object[org.zeromq.ZMQ$Socket 0x4510764a \"org.zeromq.ZMQ$Socket@4510764a\"]"}],"value":"[:socket #object[org.zeromq.ZMQ$Socket 0x4510764a \"org.zeromq.ZMQ$Socket@4510764a\"]]"},{"type":"list-like","open":"","close":"","separator":" ","items":[{"type":"html","content":"<span class='clj-keyword'>:server</span>","value":":server"},{"type":"html","content":"<span class='clj-unkown'>#object[clojure.core$future_call$reify__6962 0x47e089bc {:status :ready, :val &quot;Unknown exception: java.lang.IllegalArgumentException: No matching clause: class anglican.runtime.mvn-distribution&quot;}]</span>","value":"#object[clojure.core$future_call$reify__6962 0x47e089bc {:status :ready, :val \"Unknown exception: java.lang.IllegalArgumentException: No matching clause: class anglican.runtime.mvn-distribution\"}]"}],"value":"[:server #object[clojure.core$future_call$reify__6962 0x47e089bc {:status :ready, :val \"Unknown exception: java.lang.IllegalArgumentException: No matching clause: class anglican.runtime.mvn-distribution\"}]]"},{"type":"list-like","open":"","close":"","separator":" ","items":[{"type":"html","content":"<span class='clj-keyword'>:context</span>","value":":context"},{"type":"html","content":"<span class='clj-unkown'>#object[org.zeromq.ZMQ$Context 0x6672ba81 &quot;org.zeromq.ZMQ$Context@6672ba81&quot;]</span>","value":"#object[org.zeromq.ZMQ$Context 0x6672ba81 \"org.zeromq.ZMQ$Context@6672ba81\"]"}],"value":"[:context #object[org.zeromq.ZMQ$Context 0x6672ba81 \"org.zeromq.ZMQ$Context@6672ba81\"]]"}],"value":"{:socket #object[org.zeromq.ZMQ$Socket 0x4510764a \"org.zeromq.ZMQ$Socket@4510764a\"], :server #object[clojure.core$future_call$reify__6962 0x47e089bc {:status :ready, :val \"Unknown exception: java.lang.IllegalArgumentException: No matching clause: class anglican.runtime.mvn-distribution\"}], :context #object[org.zeromq.ZMQ$Context 0x6672ba81 \"org.zeromq.ZMQ$Context@6672ba81\"]}"}
+;;; {"type":"html","content":"<span class='clj-var'>#&#x27;gmm-fixed-number-of-clusters/replier</span>","value":"#'gmm-fixed-number-of-clusters/replier"}
 ;; <=
 
 ;; **
@@ -129,8 +124,7 @@ torch-connection
 ;; **
 
 ;; @@
-;; Stop the Torch connection
-(stop-torch-connection torch-connection)
+(zmq/stop-replier replier)
 ;; @@
 ;; =>
 ;;; {"type":"html","content":"<span class='clj-string'>&quot;Unknown exception: java.lang.IllegalArgumentException: No matching clause: class anglican.runtime.mvn-distribution&quot;</span>","value":"\"Unknown exception: java.lang.IllegalArgumentException: No matching clause: class anglican.runtime.mvn-distribution\""}
@@ -168,7 +162,7 @@ torch-connection
 (image/image-view (ImageIO/read (File. "tmp.png")))
 ;; @@
 ;; =>
-;;; {"type":"html","content":"<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAABS0lEQVR42u3c3WoCMRCA0bx5Hl3JhbCE4A+67szkCB8t9kY8nY3itK21dlOoPAlABASIgAARECACAkRABASIgAARECACAkRABASIgAARECACAkRAFB6k9778HkgAkHfuB3LyRLyakA1gYj/AGcmEXDw54+u4zT8/3lcMLOYDG7fjdGw0KTEP8Y1faeU7P4ojeTMGRLlBvOwVECV5YwhEQExS4QkpAOQyAcSEmBAgPtwCUuTyVfdJT/rhlukAcsFulwm5+CB/AMwLEglgal+mZiAT4qUvkOM+V8L9Le+OgfzxUAciIM/WUYEICBABASIgAgJEQIAICBABASIgsvgGBOZuu73Jp8l1G8iXu1bFzxRnBZAfr4fOEAk33utOSHKMfGfIavdqNS1Jd7LqTMg8GSZE9UE++S0v9C/K/VEOEAEBIiBABASIgABRmO4YuYAsLp9vaAAAAABJRU5ErkJggg==\" width=\"100\" height=\"100\" alt=\"\" />","value":"#object[java.awt.image.BufferedImage 0x67b50846 \"BufferedImage@67b50846: type = 5 ColorModel: #pixelBits = 24 numComponents = 3 color space = java.awt.color.ICC_ColorSpace@7989c7eb transparency = 1 has alpha = false isAlphaPre = false ByteInterleavedRaster: width = 100 height = 100 #numDataElements 3 dataOff[0] = 2\"]"}
+;;; {"type":"html","content":"<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAABRUlEQVR42u3cwY6CQBBF0f5zPl3DwoQYBTdq1atjchez5aRoGttZa62bSuUiABEQIAICRECACAgQAREQIAICRECACAgQAREQIAICRECACAiQMm3bdvo3EJkQIMU7IoWDWT+AfIjyjLF/gBQBGoJR95b1bkoG4NR6gho0CbUn5AzKxrDooj4Ex34DiB18v1vW4NcnXugBERAgAgKkWU2e3Fx4IPYz80AaT0nOhQ/Z3WdOxBVOYbysCQmYktw14/HtYzOk3IW86bR4ugLyIwQTYjMIxMYQDBCv3wVEQIAICBABASIgQAREQIAICBABAeJbQiDtj4jOAQn7CXXvU+7759XRH6dOih0fbfxfhXJOKYb8VqT/hDQ95d4f5Oo25PS7w9VAjutF0LqRsYac7Uks6n8EsTEUECDe8gIRECACAkRAgOg73QHR3IApeEFcewAAAABJRU5ErkJggg==\" width=\"100\" height=\"100\" alt=\"\" />","value":"#object[java.awt.image.BufferedImage 0x22e90b51 \"BufferedImage@22e90b51: type = 5 ColorModel: #pixelBits = 24 numComponents = 3 color space = java.awt.color.ICC_ColorSpace@71e604be transparency = 1 has alpha = false isAlphaPre = false ByteInterleavedRaster: width = 100 height = 100 #numDataElements 3 dataOff[0] = 2\"]"}
 ;; <=
 
 ;; **
