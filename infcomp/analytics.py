@@ -47,7 +47,7 @@ def main():
         parser.add_argument('--seed', help='random seed', default=4, type=int)
         parser.add_argument('--structure', help='show extra information about artifact structure', action='store_true')
         parser.add_argument('--saveReport', help='save a full analytics report (tex and pdf)', type=str)
-        parser.add_argument('--maxUniqueTraces', help='maximum number of unique traces to plot in the full analytics report', default=20, type=int)
+        parser.add_argument('--maxmaxTraces', help='maximum number of unique traces to plot in the full analytics report', default=20, type=int)
         parser.add_argument('--saveLoss', help='save training and validation loss history (csv)', type=str)
         parser.add_argument('--saveAddresses', help='save histogram of addresses (csv)', type=str)
         parser.add_argument('--saveTraceLengths', help='save histogram of trace lengths (csv)', type=str)
@@ -319,7 +319,7 @@ def main():
                 with doc.create(Subsection('Unique traces encountered')):
                     with doc.create(Tabularx('ll')) as table:
                         table.add_row(('Saved unique traces', '{:,}'.format(len(artifact.trace_examples_histogram))))
-                        table.add_row(('Unique traces used in this report', '{:,}'.format(min(len(artifact.trace_examples_histogram), opt.maxUniqueTraces))))
+                        table.add_row(('Unique traces used in this report', '{:,}'.format(min(len(artifact.trace_examples_histogram), opt.maxmaxTraces))))
                         table.add_row(('Unique trace memory limit', '{:,}'.format(artifact.trace_examples_limit)))
                     doc.append('\n')
                     with doc.create(LongTable('lllp{16cm}')) as table:
@@ -331,7 +331,7 @@ def main():
                         abbrev_to_trace = {}
                         abbrev_to_addresses = {}
                         abbrev_i = 0
-                        sorted_traces = sorted(artifact.trace_examples_histogram.items(), key=lambda x:x[1], reverse=True)[:opt.maxUniqueTraces]
+                        sorted_traces = sorted(artifact.trace_examples_histogram.items(), key=lambda x:x[1], reverse=True)[:opt.maxmaxTraces]
                         plt_traces = []
                         plt_counts = []
                         trace_to_count = {}
