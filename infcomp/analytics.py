@@ -47,7 +47,7 @@ def main():
         parser.add_argument('--seed', help='random seed', default=4, type=int)
         parser.add_argument('--structure', help='show extra information about artifact structure', action='store_true')
         parser.add_argument('--saveReport', help='save a full analytics report (tex and pdf)', type=str)
-        parser.add_argument('--reportMaxTraces', help='maximum number of unique traces to plot in the full analytics report', default=20)
+        parser.add_argument('--reportMaxTraces', help='maximum number of unique traces to plot in the full analytics report', default=20, type=int)
         parser.add_argument('--saveLoss', help='save training and validation loss history (csv)', type=str)
         parser.add_argument('--saveAddresses', help='save histogram of addresses (csv)', type=str)
         parser.add_argument('--saveTraceLengths', help='save histogram of trace lengths (csv)', type=str)
