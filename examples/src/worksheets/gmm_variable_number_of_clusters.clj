@@ -2,7 +2,7 @@
 
 ;; **
 ;;; # Gaussian Mixture Model - variable number of clusters
-;;;
+;;; 
 ;;; In this worksheet, we demonstrate inference compilation on a Gaussian mixture model with variable number of clusters which was used to reproduce Figure 2 in [the paper](https://arxiv.org/abs/1610.09900).
 ;; **
 
@@ -10,7 +10,8 @@
 (ns gmm-variable-number-of-clusters
   (:require anglican.infcomp.csis
             anglican.smc
-            [anglican.infcomp.network :refer :all]
+            [anglican.infcomp.zmq :as zmq]
+            [anglican.infcomp.prior :as prior]
             [anglican.inference :refer [infer]]
             [anglican.stat :refer [collect-results]]
             [clojure.core.matrix :as m]
@@ -24,9 +25,11 @@
   (:import [robots.OxCaptcha OxCaptcha]
            [javax.imageio ImageIO]
            [java.io File]))
+
+(anglican.infcomp.core/reset-infcomp-addressing-scheme!)
 ;; @@
 ;; =>
-;;; {"type":"html","content":"<span class='clj-nil'>nil</span>","value":"nil"}
+;;; {"type":"html","content":"<span class='clj-unkown'>#function[anglican.infcomp.core/reset-infcomp-addressing-scheme!$fn--27296$fn--27297]</span>","value":"#function[anglican.infcomp.core/reset-infcomp-addressing-scheme!$fn--27296$fn--27297]"}
 ;; <=
 
 ;; **
@@ -121,27 +124,25 @@
 ;; <=
 
 ;; @@
-;; Start the Torch connection
-(def torch-connection (start-torch-connection gmm [(repeatedly num-data-points rand) hyperparameters] combine-observes-fn :combine-samples-fn combine-samples-fn))
+(def replier (zmq/start-replier gmm [(repeatedly num-data-points rand) hyperparameters] combine-observes-fn :combine-samples-fn combine-samples-fn))
 ;; @@
 ;; =>
-;;; {"type":"html","content":"<span class='clj-var'>#&#x27;gmm-variable-number-of-clusters/torch-connection</span>","value":"#'gmm-variable-number-of-clusters/torch-connection"}
+;;; {"type":"html","content":"<span class='clj-var'>#&#x27;gmm-variable-number-of-clusters/replier</span>","value":"#'gmm-variable-number-of-clusters/replier"}
 ;; <=
 
 ;; **
 ;;; Now, run `compile.lua` from the [Torch side](https://github.com/tuananhle7/torch-csis) until you're happy, e.g.:
-;;;
+;;; 
 ;;; `th compile.lua --batchSize 16 --validSize 16 --validInterval 128 --obsEmb lenet --obsEmbDim 8 --lstmDim 4 --obsSmooth`
-;;;
+;;; 
 ;;; When you're happy, you can stop the training by running the following (also, end Torch training via Ctrl-C):
 ;; **
 
 ;; @@
-;; Stop the Torch connection
-(stop-torch-connection torch-connection)
+(zmq/stop-replier replier)
 ;; @@
 ;; =>
-;;; {"type":"html","content":"<span class='clj-string'>&quot;Torch connection terminated.&quot;</span>","value":"\"Torch connection terminated.\""}
+;;; {"type":"html","content":"<span class='clj-string'>&quot;ZMQ connection terminated.&quot;</span>","value":"\"ZMQ connection terminated.\""}
 ;; <=
 
 ;; **
@@ -176,7 +177,7 @@
 (image/image-view (ImageIO/read (File. "tmp.png")))
 ;; @@
 ;; =>
-;;; {"type":"html","content":"<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAABRUlEQVR42u3cywrCMBAF0Px5P13JQpDSggubzOMIF3Wb40zSpHWMMV4SKgYBiAABIkCACBAgAgSIABEgQAQIEAECRIAAESACBIgAASJAgGzPcRxADLgKEQMARFsDAuRRhOIweUDm5wZVEm/wzwN/9xnIYpQrACAbQO7a1HyfLyDBqgZIEAAgKgGIzUZ7R0AECBBptLkIRIA0Xk77VQIx1/SskKRI2gSQxYdaySqnbov6fJ+vRO2r9hyS8ISxXoVc3Z1yPgoG8uAhVrHtlZrL2qsq+W5fgVtZn2uQJJXUYzK3yhIgQARIg51fv0ogAgSIAAEiQIAIECACRIAAiXCMC0SAAHH+AeSX23yK3KtVA0OFBFxJFYEykQJZ9DCn65DNrazIn5t5xBnIn1ZXyR9dM6kDcbWuQoAIECACBIgAESBABEjqvAEx5YAjKaDi0AAAAABJRU5ErkJggg==\" width=\"100\" height=\"100\" alt=\"\" />","value":"#object[java.awt.image.BufferedImage 0x63ac98e8 \"BufferedImage@63ac98e8: type = 5 ColorModel: #pixelBits = 24 numComponents = 3 color space = java.awt.color.ICC_ColorSpace@586ada77 transparency = 1 has alpha = false isAlphaPre = false ByteInterleavedRaster: width = 100 height = 100 #numDataElements 3 dataOff[0] = 2\"]"}
+;;; {"type":"html","content":"<img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAABRUlEQVR42u3cQQqDMBAF0Nzco7dkIbhIqBYkmZknfFq6Eh8zidG0tdY+slVcBCACBIgAASJAgAgQIAJEgAARIEAECBABAkSACBAgAgSIAAEiVUGO4wAiQFTK7iBPARKDaRNAtKw4LWsG0X8vgrTvyRWtkr1PsB/FYPasjJ5+zCrFLGsRyq+xBcgiGC1r0wG9AI4ZFpA/703ch6gOIOICABEgQEwMgKgQSy5AHj3cOleLg7WyvGOHCoED5M4FD1YpKgLIiyCzgVzLMs2tBzJqUdfP8/uoaoAYR+pUyJ23HoFYUARicVGAABEgQASIAAEiQIAIECACBIgA8TxEhQARIECMFSrEq6ThqsaGncUJ9nZiPpBRRdj0uXiMSPofKO7Ugby0LyTJlgRVAQRO/lnWdeobHMZdORDtyWovEAECRIAAESCV8wVnXoAmqcyayQAAAABJRU5ErkJggg==\" width=\"100\" height=\"100\" alt=\"\" />","value":"#object[java.awt.image.BufferedImage 0x73326c9b \"BufferedImage@73326c9b: type = 5 ColorModel: #pixelBits = 24 numComponents = 3 color space = java.awt.color.ICC_ColorSpace@71e604be transparency = 1 has alpha = false isAlphaPre = false ByteInterleavedRaster: width = 100 height = 100 #numDataElements 3 dataOff[0] = 2\"]"}
 ;; <=
 
 ;; **
@@ -210,7 +211,7 @@
 ;; @@
 ;; ->
 ;;; &quot;Elapsed time: 4782.38 msecs&quot;
-;;;
+;;; 
 ;; <-
 ;; =>
 ;;; {"type":"html","content":"<span class='clj-nil'>nil</span>","value":"nil"}
@@ -243,7 +244,7 @@
 ;; @@
 ;; ->
 ;;; &quot;Elapsed time: 17217.464 msecs&quot;
-;;;
+;;; 
 ;; <-
 ;; =>
 ;;; {"type":"html","content":"<span class='clj-nil'>nil</span>","value":"nil"}
