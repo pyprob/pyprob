@@ -11,7 +11,7 @@ import infcomp
 import infcomp.zmq
 import infcomp.pool
 from infcomp import util
-from infcomp.probprog import Sample, Trace, UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta
+from infcomp.probprog import Sample, Trace, UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta, MultivariateNormal
 import infcomp.protocol.Message
 import infcomp.protocol.MessageBody
 import infcomp.protocol.TracesFromPriorRequest
@@ -32,6 +32,7 @@ import infcomp.protocol.UniformContinuous
 import infcomp.protocol.Laplace
 import infcomp.protocol.Gamma
 import infcomp.protocol.Beta
+import infcomp.protocol.MultivariateNormal
 
 import flatbuffers
 import sys
@@ -57,10 +58,9 @@ def NDArray_to_Tensor(ndarray):
     data = data_np.reshape(shape_np)
     return util.Tensor(data)
 
-
 def Tensor_to_NDArray(builder, tensor):
     tensor_numpy = tensor.cpu().numpy()
-    data = tensor_numpy.tolist()
+    data = tensor_numpy.flatten().tolist()
     shape = list(tensor_numpy.shape)
 
     infcomp.protocol.NDArray.NDArrayStartDataVector(builder, len(data))
@@ -105,6 +105,10 @@ def get_sample(s):
             p = infcomp.protocol.UniformDiscrete.UniformDiscrete()
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
             sample.distribution = UniformDiscrete(p.PriorMin(), p.PriorSize())
+        elif distribution_type == infcomp.protocol.Distribution.Distribution().MultivariateNormal:
+            p = infcomp.protocol.MultivariateNormal.MultivariateNormal()
+            p.Init(s.Distribution().Bytes, s.Distribution().Pos)
+            sample.distribution = MultivariateNormal(NDArray_to_Tensor(p.PriorMean()), NDArray_to_Tensor(p.PriorCov()))
         elif distribution_type == infcomp.protocol.Distribution.Distribution().Normal:
             p = infcomp.protocol.Normal.Normal()
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
@@ -218,7 +222,6 @@ class BatchRequester(object):
 
         message = builder.Output()
         self.requester.send_request(message)
-
 
 class ProposalReplier(object):
     def __init__(self, server_address):
@@ -354,6 +357,20 @@ class ProposalReplier(object):
                 infcomp.protocol.Beta.BetaAddProposalCertainty(builder, p.proposal_certainty)
                 distribution = infcomp.protocol.Beta.BetaEnd(builder)
                 distribution_type = infcomp.protocol.Distribution.Distribution().Beta
+            elif isinstance(p, MultivariateNormal):
+                # construct prior_mean, prior_cov, proposal_mean, proposal_vars
+                prior_mean = Tensor_to_NDArray(builder, p.prior_mean)
+                prior_cov = Tensor_to_NDArray(builder, p.prior_cov)
+                proposal_mean = Tensor_to_NDArray(builder, p.proposal_mean)
+                proposal_vars = Tensor_to_NDArray(builder, p.proposal_vars)
+                # construct MultivariateNormal
+                infcomp.protocol.MultivariateNormal.MultivariateNormalStart(builder)
+                infcomp.protocol.MultivariateNormal.MultivariateNormalAddPriorMean(builder, prior_mean)
+                infcomp.protocol.MultivariateNormal.MultivariateNormalAddPriorCov(builder, prior_cov)
+                infcomp.protocol.MultivariateNormal.MultivariateNormalAddProposalMean(builder, proposal_mean)
+                infcomp.protocol.MultivariateNormal.MultivariateNormalAddProposalVars(builder, proposal_vars)
+                distribution = infcomp.protocol.MultivariateNormal.MultivariateNormalEnd(builder)
+                distribution_type = infcomp.protocol.Distribution.Distribution().MultivariateNormal
             else:
                 util.log_error('reply_proposal: Unsupported proposal distribution: {0}'.format(p))
 

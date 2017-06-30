@@ -9,7 +9,7 @@
 
 import infcomp
 from infcomp import util
-from infcomp.probprog import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta
+from infcomp.probprog import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta, MultivariateNormal
 import torch
 import torch.nn as nn
 import torch.nn.init as init
@@ -359,6 +359,54 @@ class ProposalBeta(nn.Module):
             beta_fun = beta_funs[b]
             l -= (alpha - 1) * np.log(value + util.epsilon) + (beta - 1) * np.log(1 - value + util.epsilon) - torch.log(beta_fun + util.epsilon)
         return l
+
+class ProposalMultivariateNormal(nn.Module):
+    def __init__(self, input_dim, output_dim, dropout=0, softplus_boost=1.0):
+        super(ProposalMultivariateNormal, self).__init__()
+        self.mean_lin1 = nn.Linear(input_dim, input_dim)
+        self.mean_drop = nn.Dropout(dropout)
+        self.mean_lin2 = nn.Linear(input_dim, output_dim)
+
+        self.vars_lin1 = nn.Linear(input_dim, input_dim)
+        self.vars_drop = nn.Dropout(dropout)
+        self.vars_lin2 = nn.Linear(input_dim, output_dim)
+
+        self.softplus_boost = softplus_boost
+
+        init.xavier_uniform(self.mean_lin1.weight, gain=init.calculate_gain('relu'))
+        init.xavier_uniform(self.mean_lin2.weight)
+        init.xavier_uniform(self.vars_lin1.weight, gain=init.calculate_gain('relu'))
+        init.xavier_uniform(self.vars_lin2.weight)
+    def forward(self, x, samples):
+        mean = self.mean_drop(x)
+        mean = self.mean_lin1(mean)
+        mean = F.relu(mean)
+        mean = self.mean_drop(mean)
+        mean = self.mean_lin2(mean)
+
+        variances = self.vars_drop(x)
+        variances = self.vars_lin1(variances)
+        variances = F.relu(variances)
+        variances = self.vars_drop(variances)
+        variances = self.vars_lin2(variances)
+        variances = F.softplus(variances) * self.softplus_boost
+
+        return True, torch.cat([mean, variances], dim=1) # TODO: Transform mean and variances in the same fashion as in ProposalNormal
+    def loss(self, x, samples):
+        _, proposal_output = self.forward(x, samples)
+        batch_size = len(samples)
+        num_dimensions = int(proposal_output.size(1) / 2)
+        mean = proposal_output[:, :num_dimensions]
+        variances = proposal_output[:, num_dimensions:]
+        value = Variable(torch.cat([s.value.unsqueeze(0) for s in samples], dim=0), requires_grad=False)
+
+        logpdf = -0.5 * (
+            torch.sum(((value - mean)**2) / variances, dim=1).squeeze(1) +
+            num_dimensions * np.log(2 * np.pi) +
+            torch.sum(torch.log(variances), dim=1).squeeze(1)
+        )
+
+        return -torch.sum(logpdf)
 
 class SampleEmbeddingFC(nn.Module):
     def __init__(self, input_dim, output_dim, dropout=0):
@@ -716,6 +764,8 @@ class Artifact(nn.Module):
                         proposal_layer = ProposalUniformContinuous(self.lstm_dim, self.dropout, self.softmax_boost)
                     elif isinstance(distribution, Laplace):
                         proposal_layer = ProposalLaplace(self.lstm_dim, self.dropout)
+                    elif isinstance(distribution, MultivariateNormal):
+                        proposal_layer = ProposalMultivariateNormal(self.lstm_dim, distribution.prior_dim, self.dropout)
                     else:
                         util.log_error('polymorph: Unsupported distribution: ' + sample.distribution.name)
                     self.sample_layers[address] = sample_layer

@@ -227,3 +227,39 @@ class Beta(object):
         return
     def cpu(self):
         return
+
+class MultivariateNormal(object):
+    def __init__(self, prior_mean, prior_cov):
+        self.prior_mean = prior_mean
+        self.prior_cov = prior_cov
+        self.prior_dim = prior_mean.size(0)
+        self.proposal_mean = None
+        self.proposal_vars = None
+
+        self.name = 'MultivariateNormal'
+        self.address_suffix = '_MultivariateNormal(prior_dim:{0})'.format(self.prior_dim)
+    def __repr__(self):
+        return 'MultivariateNormal(prior_mean:{0}, prior_cov:{1}, proposal_mean:{2}, proposal_vars:{3})'.format(self.prior_mean.numpy().tolist(), self.prior_cov.numpy().tolist(), self.proposal_mean.numpy().tolist(), self.proposal_vars.numpy().tolist())
+    __str__ = __repr__
+    def set_proposalparams(self, tensor_of_proposal_mean_vars):
+        num_dimensions = int(tensor_of_proposal_mean_vars.size(0) / 2)
+        self.proposal_mean = tensor_of_proposal_mean_vars[:num_dimensions]
+        self.proposal_vars = tensor_of_proposal_mean_vars[num_dimensions:]
+    def cuda(self, device_id=None):
+        if self.prior_mean is not None:
+            self.prior_mean = self.prior_mean.cuda(device_id)
+        if self.prior_cov is not None:
+            self.prior_cov = self.prior_cov.cuda(device_id)
+        if self.proposal_mean is not None:
+            self.proposal_mean = self.proposal_mean.cuda(device_id)
+        if self.proposal_vars is not None:
+            self.proposal_vars = self.proposal_vars.cuda(device_id)
+    def cpu(self):
+        if self.prior_mean is not None:
+            self.prior_mean = self.prior_mean.cpu()
+        if self.prior_cov is not None:
+            self.prior_cov = self.prior_cov.cpu()
+        if self.proposal_mean is not None:
+            self.proposal_mean = self.proposal_mean.cpu()
+        if self.proposal_vars is not None:
+            self.proposal_vars = self.proposal_vars.cpu()

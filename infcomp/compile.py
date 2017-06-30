@@ -117,7 +117,7 @@ def main():
                 else:
                     artifact.cuda_device_id = opt.device
                 artifact.standardize = opt.standardize
-                artifact.set_one_hot_dims(opt.oneHotDim, 9)
+                artifact.set_one_hot_dims(opt.oneHotDim, 10)
                 artifact.valid_size = opt.validSize
                 traces, _ = requester.get_traces(artifact.valid_size, discard_source=True)
                 artifact.valid_batch = Batch(traces)

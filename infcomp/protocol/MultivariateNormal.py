@@ -30,7 +30,7 @@ class MultivariateNormal(object):
         return None
 
     # MultivariateNormal
-    def PriorSigma(self):
+    def PriorCov(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
@@ -52,7 +52,7 @@ class MultivariateNormal(object):
         return None
 
     # MultivariateNormal
-    def ProposalSigma(self):
+    def ProposalVars(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
@@ -64,7 +64,7 @@ class MultivariateNormal(object):
 
 def MultivariateNormalStart(builder): builder.StartObject(4)
 def MultivariateNormalAddPriorMean(builder, priorMean): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(priorMean), 0)
-def MultivariateNormalAddPriorSigma(builder, priorSigma): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(priorSigma), 0)
+def MultivariateNormalAddPriorCov(builder, priorCov): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(priorCov), 0)
 def MultivariateNormalAddProposalMean(builder, proposalMean): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(proposalMean), 0)
-def MultivariateNormalAddProposalSigma(builder, proposalSigma): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(proposalSigma), 0)
+def MultivariateNormalAddProposalVars(builder, proposalVars): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(proposalVars), 0)
 def MultivariateNormalEnd(builder): return builder.EndObject()
