@@ -336,7 +336,7 @@ def main():
                         abbrev_to_trace = {}
                         abbrev_to_addresses = {}
                         abbrev_i = 0
-                        sorted_traces = sorted(artifact.trace_examples_histogram.items(), key=lambda x:x[1], reverse=True)[:opt.maxTraces]
+                        sorted_traces = sorted(artifact.trace_examples_histogram.items(), key=lambda x:x[1], reverse=True)
                         plt_traces = []
                         plt_counts = []
                         trace_to_count = {}
@@ -426,7 +426,7 @@ def main():
                         plot.add_plot()
                         plot.add_caption('Succession of unique address IDs (accumulated over all traces).')
 
-                    for trace, _ in sorted_traces:
+                    for trace, _ in sorted_traces[:opt.maxTraces]:
                         trace = trace_to_abbrev[trace]
                         doc.append(NoEscape(r'\newpage'))
                         with doc.create(Subsubsection('Unique trace ' + trace)):
