@@ -423,7 +423,7 @@ def main():
                         img = np.asarray(mpimg.imread(bio))
                         plt.imshow(util.crop_image(img), interpolation='bilinear')
                         plt.axis('off')
-                        plot.add_plot()
+                        plot.add_plot(width=NoEscape(r'\textwidth'))
                         plot.add_caption('Succession of unique address IDs (accumulated over all traces).')
 
                     for trace, _ in sorted_traces[:opt.maxTraces]:
@@ -506,7 +506,7 @@ def main():
                                 img = np.asarray(mpimg.imread(bio))
                                 plt.imshow(util.crop_image(img), interpolation='bilinear')
                                 plt.axis('off')
-                                plot.add_plot()
+                                plot.add_plot(width=NoEscape(r'\textwidth'))
                                 plot.add_caption('Succession of unique address IDs (for one trace of type ' + trace + ').')
 
 
