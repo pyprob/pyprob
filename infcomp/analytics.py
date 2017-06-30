@@ -35,6 +35,7 @@ from pylatex.utils import italic, NoEscape
 import pydotplus
 from io import BytesIO
 import matplotlib.image as mpimg
+from PIL import Image
 
 def main():
     try:
@@ -132,6 +133,9 @@ def main():
             valid_loss_change_per_sec = valid_loss_change / artifact.total_training_seconds
             valid_loss_change_per_iter = valid_loss_change / artifact.total_iterations
             valid_loss_change_per_trace = valid_loss_change / artifact.total_traces
+
+            sys.stdout.write('Generating report...                                           \r')
+            sys.stdout.flush()
 
             geometry_options = {'tmargin':'1.5cm', 'lmargin':'1cm', 'rmargin':'1cm', 'bmargin':'1.5cm'}
             doc = Document('basic', geometry_options=geometry_options)
@@ -308,9 +312,10 @@ def main():
                         plt_counts = [artifact.trace_length_histogram[i] if i in artifact.trace_length_histogram else 0 for i in range(0, artifact.trace_length_max + 1)]
                         fig = plt.figure(figsize=(10,5))
                         ax = plt.subplot(111)
-                        ax.bar(plt_lengths, plt_counts,linewidth=0.2)
+                        ax.bar(plt_lengths, plt_counts)
                         plt.xlabel('Length')
                         plt.ylabel('Count')
+                        # plt.yscale('log')
                         plt.grid()
                         fig.tight_layout()
                         plot.add_plot(width=NoEscape(r'\textwidth'))
@@ -319,8 +324,8 @@ def main():
                 with doc.create(Subsection('Unique traces encountered')):
                     with doc.create(Tabularx('ll')) as table:
                         table.add_row(('Saved unique traces', '{:,}'.format(len(artifact.trace_examples_histogram))))
-                        table.add_row(('Unique traces used in this report', '{:,}'.format(min(len(artifact.trace_examples_histogram), opt.maxTraces))))
                         table.add_row(('Unique trace memory limit', '{:,}'.format(artifact.trace_examples_limit)))
+                        table.add_row(('Unique traces used in this report', '{:,}'.format(min(len(artifact.trace_examples_histogram), opt.maxTraces))))
                     doc.append('\n')
                     with doc.create(LongTable('lllp{16cm}')) as table:
                         # table.add_empty_row()
@@ -364,6 +369,7 @@ def main():
 
                     with doc.create(Figure(position='H')) as plot:
                         master_trace_pairs = {}
+                        transition_count_total = 0
                         for trace, count in sorted_traces:
                             ta = abbrev_to_addresses[trace_to_abbrev[trace]]
                             for left, right in zip(ta, ta[1:]):
@@ -371,9 +377,10 @@ def main():
                                     master_trace_pairs[(left, right)] += count
                                 else:
                                     master_trace_pairs[(left, right)] = count
+                                transition_count_total += count
                         fig = plt.figure(figsize=(10,5))
                         ax = plt.subplot(111)
-                        master_graph = pydotplus.graphviz.Dot(graph_type='digraph')
+                        master_graph = pydotplus.graphviz.Dot(graph_type='digraph', rankdir='LR')
                         for p, w in master_trace_pairs.items():
                             nodes = master_graph.get_node(p[0])
                             if len(nodes) > 0:
@@ -406,15 +413,15 @@ def main():
                             (left, right) = edge.obj_dict['points']
                             count = master_trace_pairs[(left, right)]
                             edge.set_label(count)
-                            color = util.rgb_to_hex((count / trace_count_total,0,0))
+                            color = util.rgb_to_hex((1.5*(count/transition_count_total),0,0))
                             edge.set_color(color)
 
-                        png_str = master_graph_annotated.create_png(prog=['dot','-Gsize=15,5', '-Gdpi=600'])
+                        png_str = master_graph_annotated.create_png(prog=['dot','-Gsize=15', '-Gdpi=600'])
                         bio = BytesIO()
                         bio.write(png_str)
                         bio.seek(0)
-                        img = mpimg.imread(bio)
-                        plt.imshow(img)
+                        img = np.asarray(mpimg.imread(bio))
+                        plt.imshow(util.crop_image(img), interpolation='bilinear')
                         plt.axis('off')
                         plot.add_plot()
                         plot.add_caption('Succession of unique address IDs (accumulated over all traces).')
@@ -423,7 +430,7 @@ def main():
                         trace = trace_to_abbrev[trace]
                         doc.append(NoEscape(r'\newpage'))
                         with doc.create(Subsubsection('Unique trace ' + trace)):
-                            sys.stdout.write('Unique trace {0}...                                       \r'.format(trace))
+                            sys.stdout.write('Rendering unique trace {0}...                                       \r'.format(trace))
                             sys.stdout.flush()
 
                             addresses = len(address_to_abbrev)
@@ -448,7 +455,7 @@ def main():
                                     sns.heatmap(im[:,col_start:col_end], cbar=False, linecolor='lightgray', linewidths=.5, cmap='Greys',yticklabels=plt_addresses,xticklabels=np.arange(col_start,col_end))
                                     plt.yticks(rotation=0)
                                     fig.tight_layout()
-                                    plot.add_plot(width=NoEscape(r'{0}\textwidth'.format((col_end + 4 - col_start) / truncate)))
+                                    plot.add_plot(width=NoEscape(r'{0}\textwidth'.format((col_end + 4 - col_start) / truncate)), placement=NoEscape(r'\raggedright'))
 
                             with doc.create(Figure(position='H')) as plot:
                                 pairs = {}
@@ -489,15 +496,15 @@ def main():
 
                                     (left, right) = edge.obj_dict['points']
                                     edge.set_label(w)
-                                    color = util.rgb_to_hex((w / len(trace_addresses),0,0))
+                                    color = util.rgb_to_hex((1.5*(w/len(trace_addresses)),0,0))
                                     edge.set_color(color)
 
-                                png_str = graph.create_png(prog=['dot','-Gsize=15,5', '-Gdpi=600'])
+                                png_str = graph.create_png(prog=['dot','-Gsize=30', '-Gdpi=600'])
                                 bio = BytesIO()
                                 bio.write(png_str)
                                 bio.seek(0)
-                                img = mpimg.imread(bio)
-                                plt.imshow(img)
+                                img = np.asarray(mpimg.imread(bio))
+                                plt.imshow(util.crop_image(img), interpolation='bilinear')
                                 plt.axis('off')
                                 plot.add_plot()
                                 plot.add_caption('Succession of unique address IDs (for one trace of type ' + trace + ').')
@@ -509,6 +516,8 @@ def main():
                                 table.add_row(FootnoteText('Compact'), FootnoteText('-'.join([a + 'x' + str(i) for a, i in trace_addresses_repetitions])))
 
             doc.generate_pdf(opt.saveReport, clean_tex=False)
+            sys.stdout.write('                                                               \r')
+            sys.stdout.flush()
 
     except KeyboardInterrupt:
         util.log_print('Shutdown requested')

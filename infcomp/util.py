@@ -23,6 +23,8 @@ from termcolor import colored
 from pprint import pformat
 import cpuinfo
 import locale
+from PIL import Image
+import numpy as np
 
 epsilon = 1e-8
 beta_res = 1000
@@ -243,7 +245,14 @@ def rgb_blend(rgb1,rgb2,blend):
 
 def rgb_to_hex(rgb):
     # rgb is a triple of (r, g, b) where r, g, b are between 0 and 1.
-    return "#{:02x}{:02x}{:02x}".format(int(rgb[0]*255),int(rgb[1]*255),int(rgb[2]*255))
+    return "#{:02x}{:02x}{:02x}".format(int(max(0,min(rgb[0],1))*255),int(max(0,min(rgb[1],1))*255),int(max(0,min(rgb[2],1))*255))
+
+def crop_image(image_np):
+    image_data_bw = image_np.max(axis=2)
+    non_empty_columns = np.where(image_data_bw.max(axis=0)>0)[0]
+    non_empty_rows = np.where(image_data_bw.max(axis=1)>0)[0]
+    cropBox = (min(non_empty_rows), max(non_empty_rows), min(non_empty_columns), max(non_empty_columns))
+    return image_np[cropBox[0]:cropBox[1]+1, cropBox[2]:cropBox[3]+1 , :]
 
 def beta(a, b):
     n = a.nelement()
