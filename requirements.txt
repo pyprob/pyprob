@@ -7,3 +7,4 @@ visdom==0.1.04
 matplotlib==2.0.0
 py-cpuinfo==3.2.0
 pylatex==1.2.1
+pydotplus==2.0.2
