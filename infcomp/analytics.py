@@ -90,14 +90,18 @@ def main():
         if opt.saveAddresses:
             util.log_print('Saving address histogram to file: ' + opt.saveAddresses)
             with open(opt.saveAddresses, 'w') as f:
-                data_address = []
                 data_count = []
-                for address in artifact.address_histogram:
+                data_address = []
+                data_abbrev = []
+                abbrev_i = 0
+                for address, count in sorted(artifact.address_histogram.items(), key=lambda x:x[1], reverse=True):
+                    abbrev_i += 1
+                    data_abbrev.append('A' + str(abbrev_i))
                     data_address.append(address)
-                    data_count.append(artifact.address_histogram[address])
-                data = [data_address, data_count]
+                    data_count.append(count)
+                data = [data_count, data_abbrev, data_address]
                 writer = csv.writer(f)
-                writer.writerow(['address', 'count'])
+                writer.writerow(['count', 'unique_address_id','full_address'])
                 for values in zip_longest(*data):
                     writer.writerow(values)
 
