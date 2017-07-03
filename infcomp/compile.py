@@ -189,7 +189,7 @@ def main():
                 vis_time = util.vis.line(X=torch.zeros(2),Y=torch.zeros(2), opts=dict(xlabel='Minibatch', ylabel='ms', title='Waiting time for minibatch'))
                 vis_address = util.vis.text(', '.join(list(artifact.one_hot_address.keys())), opts=dict(title='Addresses'))
                 vis_distribution = util.vis.text(', '.join(list(artifact.one_hot_distribution.keys())), opts=dict(title='Distributions'))
-                vis_params = util.vis.line(X=torch.Tensor([0, 1]),Y=torch.Tensor([artifact.num_parameters / 1e6, artifact.num_parameters / 1e6]), opts=dict(xlabel='Minibatch', ylabel='M', title='Number of parameters'))
+                vis_params = util.vis.line(X=torch.Tensor([0, 1]),Y=torch.Tensor([artifact.num_params_history_num_params[-1] / 1e6, artifact.num_params_history_num_params[-1] / 1e6]), opts=dict(xlabel='Minibatch', ylabel='M', title='Number of parameters'))
 
 
             time_str = util.days_hours_mins_secs(prev_artifact_total_training_seconds + (time.time() - time_start))
@@ -208,7 +208,7 @@ def main():
                     if opt.visdom:
                         util.vis.text(', '.join(list(artifact.one_hot_address.keys())), win=vis_address)
                         util.vis.text(', '.join(list(artifact.one_hot_distribution.keys())), win=vis_distribution)
-                        util.vis.line(X=torch.Tensor([iteration_batch]).unsqueeze(0),Y=torch.Tensor([artifact.num_parameters / 1e6]).unsqueeze(0), win=vis_params, update='append')
+                        util.vis.line(X=torch.Tensor([iteration_batch]).unsqueeze(0),Y=torch.Tensor([artifact.num_params_history_num_params[-1] / 1e6]).unsqueeze(0), win=vis_params, update='append')
 
                 # Time statistics
                 time_spent_last_batch = max(util.epsilon, time.time() - time_last_batch)
