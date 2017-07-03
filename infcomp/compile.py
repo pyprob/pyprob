@@ -163,9 +163,6 @@ def main():
             valid_loss_str = '{:+.6e}  '.format(artifact.valid_history_loss[-1])
             last_validation_trace = 0
 
-
-            print(artifact.lstm.modules())
-
             util.log_print()
             util.log_print(colored('[] Training from ' + opt.server, 'blue', attrs=['bold']))
             util.log_print()
