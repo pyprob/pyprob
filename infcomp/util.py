@@ -101,13 +101,19 @@ def init(opt, mode=''):
     log_print()
 
     if opt.visdom:
+        disable_visdom = False
         try:
             import visdom
             global vis
             vis = visdom.Visdom()
+            if vis.close() == False:
+                disable_visdom = True
         except:
-            log_warning('Visdom server not available, disabling')
+            disable_visdom = True
+        if disable_visdom:
             opt.visdom = False
+            log_warning('Visdom server not available, disabling')
+
 
 def init_logger(file_name):
     global logger

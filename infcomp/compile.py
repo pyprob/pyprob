@@ -25,6 +25,7 @@ import time
 import os
 import traceback
 from threading import Thread
+import numpy as np
 
 def main():
     try:
@@ -71,9 +72,6 @@ def main():
         artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
         util.init_logger('{0}/{1}'.format(opt.dir, 'infcomp-compile-log' + time_stamp))
         util.init(opt, 'Compilation Mode')
-
-        if opt.visdom:
-            util.vis.close()
 
         if opt.batchPool == '':
             data_source = opt.server
@@ -165,6 +163,9 @@ def main():
             valid_loss_str = '{:+.6e}  '.format(artifact.valid_history_loss[-1])
             last_validation_trace = 0
 
+
+            print(artifact.lstm.modules())
+
             util.log_print()
             util.log_print(colored('[] Training from ' + opt.server, 'blue', attrs=['bold']))
             util.log_print()
@@ -190,6 +191,7 @@ def main():
                 vis_address = util.vis.text(', '.join(list(artifact.one_hot_address.keys())), opts=dict(title='Addresses'))
                 vis_distribution = util.vis.text(', '.join(list(artifact.one_hot_distribution.keys())), opts=dict(title='Distributions'))
                 vis_params = util.vis.line(X=torch.Tensor([0, 1]),Y=torch.Tensor([artifact.num_params_history_num_params[-1] / 1e6, artifact.num_params_history_num_params[-1] / 1e6]), opts=dict(xlabel='Minibatch', ylabel='M', title='Number of parameters'))
+                # vis_lstm_weights = util.vis.image(np)
 
 
             time_str = util.days_hours_mins_secs(prev_artifact_total_training_seconds + (time.time() - time_start))
