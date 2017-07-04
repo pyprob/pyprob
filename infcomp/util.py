@@ -263,10 +263,13 @@ def crop_image(image_np):
     cropBox = (min(non_empty_rows), max(non_empty_rows), min(non_empty_columns), max(non_empty_columns))
     return image_np[cropBox[0]:cropBox[1]+1, cropBox[2]:cropBox[3]+1 , :]
 
-def weights_to_image(w):
+def weights_to_visdom_image(w):
     w = w.data.cpu().numpy()
     if w.ndim == 1:
         w = np.expand_dims(w, 1)
+    if w.ndim > 2:
+        c = w.shape[0]
+        w = np.reshape(w, (c,-1))
     w_min = w.min()
     w_max = w.max()
     w -= w_min

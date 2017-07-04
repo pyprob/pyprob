@@ -215,7 +215,7 @@ def main():
                     for p_name, p in m.named_parameters():
                         name = m_name + '_' + p_name
                         if name[0] == '_' and not 'bias' in name:
-                            visdom_panes[name] =  util.vis.image(util.weights_to_image(p), opts=dict(caption=name))
+                            visdom_panes[name] =  util.vis.image(util.weights_to_visdom_image(p), opts=dict(caption=name))
 
             time_str = util.days_hours_mins_secs(prev_artifact_total_training_seconds + (time.time() - time_start))
             time_improvement_str = util.days_hours_mins_secs(time.time() - time_improvement)
@@ -249,7 +249,7 @@ def main():
                             for p_name, p in m.named_parameters():
                                 name = m_name + '_' + p_name
                                 if name[0] == '_' and not 'bias' in name:
-                                    util.vis.image(util.weights_to_image(p), win=visdom_panes[name], opts=dict(caption=name))
+                                    util.vis.image(util.weights_to_visdom_image(p), win=visdom_panes[name], opts=dict(caption=name))
                     tl = util.get_trace_lengths(batch)
                     if len(tl) < 2:
                         tl.append(tl[-1]) # Temporary, due to a bug in Visdom
