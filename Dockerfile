@@ -22,7 +22,7 @@ COPY . /code/pytorch-infcomp
 
 RUN chmod a+x /code/pytorch-infcomp/compile
 RUN chmod a+x /code/pytorch-infcomp/infer
-RUN chmod a+x /code/pytorch-infcomp/info
+RUN chmod a+x /code/pytorch-infcomp/analytics
 
 RUN pip install -r /code/pytorch-infcomp/requirements.txt
 RUN pip install /code/pytorch-infcomp
