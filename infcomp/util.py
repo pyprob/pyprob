@@ -25,6 +25,7 @@ import cpuinfo
 import locale
 from PIL import Image
 import numpy as np
+import matplotlib.pyplot as plt
 
 epsilon = 1e-8
 beta_res = 1000
@@ -80,7 +81,7 @@ def init(opt, mode=''):
     else:
         log_print('CPU           : unknown')
     if 'count' in cpu_info:
-        log_print('CPU count     : {0}'.format(cpu_info['count']))
+        log_print('CPU count     : {0} (logical)'.format(cpu_info['count']))
     else:
         log_print('CPU count     : unknown')
     if torch.cuda.is_available():
@@ -259,6 +260,20 @@ def crop_image(image_np):
     non_empty_rows = np.where(image_data_bw.max(axis=1)>0)[0]
     cropBox = (min(non_empty_rows), max(non_empty_rows), min(non_empty_columns), max(non_empty_columns))
     return image_np[cropBox[0]:cropBox[1]+1, cropBox[2]:cropBox[3]+1 , :]
+
+def weights_to_image(w):
+    w = w.data.cpu().numpy()
+    if w.ndim == 1:
+        w = np.expand_dims(w, 1)
+    w_min = w.min()
+    w_max = w.max()
+    w -= w_min
+    w *= (1/(w_max - w_min + epsilon))
+    cmap = plt.get_cmap('jet')
+    rgba_img = cmap(w)
+    rgb_img = np.delete(rgba_img, 3,2)
+    rgb_img = np.transpose(rgb_img,(2,0,1))
+    return rgb_img
 
 def beta(a, b):
     n = a.nelement()
