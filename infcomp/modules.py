@@ -587,6 +587,7 @@ class Artifact(nn.Module):
         self.created = util.get_time_str()
         self.modified = util.get_time_str()
         self.on_cuda = None
+        self.trained_on = ''
         self.cuda_device_id = None
         self.code_version = infcomp.__version__
         self.pytorch_version = torch.__version__
@@ -637,7 +638,7 @@ class Artifact(nn.Module):
     def get_parameter_str(self):
         ret = ''
         for p in self.parameters():
-            ret = ret + '{0} {1}\n'.format(type(p.data), p.size())
+            ret = ret + '{0} {1}\n'.format(type(p.data), list(p.size()))
         return ret
 
     def get_info(self):
@@ -666,7 +667,7 @@ class Artifact(nn.Module):
                           'Created               : {0}'.format(self.created),
                           'Modified              : {0}'.format(self.modified),
                           'Code version          : {0}'.format(self.code_version),
-                          'Trained on            : CUDA' if self.on_cuda else 'Trained on            : CPU',
+                          'Trained on            : {0}'.format(self.trained_on),
                           colored('Trainable params      : {:,}'.format(self.num_params_history_num_params[-1]), 'cyan', attrs=['bold']),
                           colored('Total training time   : {0}'.format(util.days_hours_mins_secs(self.total_training_seconds)), 'yellow', attrs=['bold']),
                           colored('Updates to file       : {:,}'.format(self.updates), 'yellow'),

@@ -33,6 +33,7 @@ def save_artifact(artifact, artifact_file, opt):
     artifact.modified = util.get_time_str()
     artifact.updates += 1
     artifact.optimizer = opt.optimizer
+    artifact.trained_on = 'CUDA' if opt.cuda else 'CPU'
     if opt.keepArtifacts:
         time_stamp = util.get_time_stamp()
         artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
@@ -213,7 +214,7 @@ def main():
                 visdom_panes['parameters'] = util.vis.line(X=torch.Tensor([0, 1]),Y=torch.Tensor([artifact.num_params_history_num_params[-1] / 1e6, artifact.num_params_history_num_params[-1] / 1e6]), opts=dict(xlabel='Minibatch', ylabel='M', title='Number of parameters'))
                 for m_name, m in artifact.named_modules():
                     for p_name, p in m.named_parameters():
-                        name = m_name + '_' + p_name
+                        name = m_name + '_' + p_name + '_' + str(list(p.size()))
                         if name[0] == '_' and not 'bias' in name:
                             visdom_panes[name] =  util.vis.image(util.weights_to_visdom_image(p), opts=dict(caption=name))
 
@@ -247,7 +248,7 @@ def main():
                     if iteration_batch % 25 == 0:
                         for m_name, m in artifact.named_modules():
                             for p_name, p in m.named_parameters():
-                                name = m_name + '_' + p_name
+                                name = m_name + '_' + p_name + '_' + str(list(p.size()))
                                 if name[0] == '_' and not 'bias' in name:
                                     util.vis.image(util.weights_to_visdom_image(p), win=visdom_panes[name], opts=dict(caption=name))
                     tl = util.get_trace_lengths(batch)

@@ -171,7 +171,7 @@ def main():
                     with doc.create(Tabularx('ll')) as table:
                         table.add_row(('InfComp version', artifact.code_version))
                         table.add_row(('PyTorch version', artifact.pytorch_version))
-                        table.add_row(('Trained on', 'CUDA' if artifact.on_cuda else 'CPU'))
+                        table.add_row(('Trained on', artifact.trained_on))
                 with doc.create(Subsection('Neural network')):
                     with doc.create(Tabularx('ll')) as table:
                         table.add_row(('Trainable parameters', '{:,}'.format(artifact.num_params_history_num_params[-1])))
