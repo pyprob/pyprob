@@ -25,6 +25,8 @@ import cpuinfo
 import locale
 from PIL import Image
 import numpy as np
+import matplotlib
+matplotlib.use('Agg') # Do not use X server
 import matplotlib.pyplot as plt
 
 epsilon = 1e-8

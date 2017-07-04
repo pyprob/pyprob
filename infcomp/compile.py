@@ -27,6 +27,21 @@ import traceback
 from threading import Thread
 import numpy as np
 
+def save_artifact(artifact, artifact_file, opt):
+    sys.stdout.write('Updating artifact on disk...                             \r')
+    sys.stdout.flush()
+    artifact.modified = util.get_time_str()
+    artifact.updates += 1
+    artifact.optimizer = opt.optimizer
+    if opt.keepArtifacts:
+        time_stamp = util.get_time_stamp()
+        artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
+    def thread_save():
+        torch.save(artifact, artifact_file)
+    a = Thread(target=thread_save)
+    a.start()
+    a.join()
+
 def main():
     try:
         parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Compilation Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -211,6 +226,7 @@ def main():
 
             stop = False
             while not stop:
+                save_new_artifact = False
                 iteration_batch += 1
                 traces, time_wait = requester.get_traces(opt.batchSize)
                 batch = Batch(traces)
@@ -268,6 +284,8 @@ def main():
                     time_validation_start = time.time()
                     util.log_print('─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼───────────────┼─────────────────┼─' + '─'*len(time_improvement_str) + '─┼─' + '─'*len(traces_per_sec_str))
 
+                    save_new_artifact = True
+
                     sys.stdout.write('Computing validation loss...                             \r')
                     sys.stdout.flush()
 
@@ -309,19 +327,8 @@ def main():
                     train_loss_str = colored('{:+.6e} ▼'.format(train_loss), 'green', attrs=['bold'])
                     train_loss_best_str = colored('{:+.6e}'.format(artifact.train_loss_best), 'green', attrs=['bold'])
 
-                    sys.stdout.write('Updating best artifact on disk...                        \r')
-                    sys.stdout.flush()
-                    artifact.modified = util.get_time_str()
-                    artifact.updates += 1
-                    artifact.optimizer = opt.optimizer
-                    if opt.keepArtifacts:
-                        time_stamp = util.get_time_stamp()
-                        artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
-                    def save_artifact():
-                        torch.save(artifact, artifact_file)
-                    a = Thread(target=save_artifact)
-                    a.start()
-                    a.join()
+                    save_new_artifact = True
+
                     time_improvement = time.time()
                 elif train_loss > artifact.train_loss_worst:
                     artifact.train_loss_worst = train_loss
@@ -339,6 +346,9 @@ def main():
 
                 time_improvement_str = util.days_hours_mins_secs(time.time() - time_improvement)
                 util.log_print('{0} │ {1} │ {2} │ {3} │ {4} │ {5} │ {6}'.format(time_str, trace_str, train_loss_str, train_loss_best_str, valid_loss_str, time_improvement_str, traces_per_sec_str))
+
+                if save_new_artifact:
+                    save_artifact(artifact, artifact_file, opt)
 
             util.log_print('Stopped after {0} traces'.format(trace))
     except KeyboardInterrupt:
