@@ -22,6 +22,7 @@ import os
 from itertools import zip_longest
 import csv
 import traceback
+import numpy as np
 
 def main():
     try:
@@ -86,6 +87,16 @@ def main():
             sys.stdout.write('─────────┼──────────┼─────────────\n')
             sys.stdout.flush()
 
+            if opt.visdom:
+                visdom_panes = {}
+                visdom_hidden_images = {}
+                for i in range(artifact.lstm_depth):
+                    name = 'lstm_hidden_' + str(i)
+                    img = np.random.rand(artifact.lstm_dim,1)
+                    visdom_hidden_images[name] = img
+                    visdom_panes[name] = util.vis.image(img, opts=dict(caption=name))
+
+
             while True:
                 # spinner.spin()
                 sys.stdout.write('{0} │ {1} │ {2}      \r'.format(traces_per_sec_str, max_traces_per_sec_str, total_traces))
@@ -124,6 +135,13 @@ def main():
                         util.log_print('Time: reset')
                         util.log_print('observes: {0}'.format(str(obs.size())))
                         util.log_print()
+
+                    if opt.visdom:
+                        for i in range(artifact.lstm_depth):
+                            name = 'lstm_hidden_' + str(i)
+                            img = np.random.rand(artifact.lstm_dim,1)
+                            visdom_hidden_images[name] = img
+                            util.vis.image(img, win=visdom_panes[name], opts=dict(caption=name))
 
                 else:
                     current_sample = replier.current_sample
@@ -213,6 +231,17 @@ def main():
                         util.log_print('Previous  address          : {0}, distribution: {1}, value: {2}'.format(prev_address, prev_distribution, prev_sample.value.size()))
                         util.log_print('Current (requested) address: {0}, distribution: {1}'.format(current_address, current_distribution))
                         util.log_print()
+
+                    if opt.visdom:
+                        for i in range(artifact.lstm_depth):
+                            name = 'lstm_hidden_' + str(i)
+                            if time_step == 0:
+                                img = np.expand_dims(lstm_hidden_state[0][i][0].data.cpu().numpy(), 1)
+                            else:
+                                new_col = np.expand_dims(lstm_hidden_state[0][i][0].data.cpu().numpy(), 1)
+                                img = np.concatenate((visdom_hidden_images[name], new_col), axis=1)
+                            visdom_hidden_images[name] = img
+                            util.vis.image(util.weights_to_visdom_image(img), win=visdom_panes[name], opts=dict(caption=name))
 
                     time_step += 1
 

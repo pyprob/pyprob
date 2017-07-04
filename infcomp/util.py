@@ -264,7 +264,8 @@ def crop_image(image_np):
     return image_np[cropBox[0]:cropBox[1]+1, cropBox[2]:cropBox[3]+1 , :]
 
 def weights_to_visdom_image(w):
-    w = w.data.cpu().numpy()
+    if not isinstance(w, np.ndarray):
+        w = w.data.cpu().numpy()
     if w.ndim == 1:
         w = np.expand_dims(w, 1)
     if w.ndim > 2:
