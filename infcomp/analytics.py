@@ -175,9 +175,6 @@ def main():
                 with doc.create(Subsection('Neural network')):
                     with doc.create(Tabularx('ll')) as table:
                         table.add_row(('Trainable parameters', '{:,}'.format(artifact.num_params_history_num_params[-1])))
-                        table.add_row(('LSTM input size', artifact.lstm_input_dim))
-                        table.add_row(('LSTM hidden units', artifact.lstm_dim))
-                        table.add_row(('LSTM depth', artifact.lstm_depth))
                         table.add_row(('Softmax boost', artifact.softmax_boost))
                         table.add_row(('Dropout', artifact.dropout))
                         table.add_row(('Standardize inputs', artifact.standardize))
@@ -191,18 +188,22 @@ def main():
                         fig.tight_layout()
                         plot.add_plot(width=NoEscape(r'\textwidth'))
                         plot.add_caption('Number of parameters.')
-                    with doc.create(Subsubsection('Observation embedding')):
-                        with doc.create(Tabularx('ll')) as table:
-                            table.add_row(('Embedding', artifact.obs_emb))
-                            table.add_row(('Size', artifact.obs_emb_dim))
-                    with doc.create(Subsubsection('Sample embeddings')):
-                        with doc.create(Tabularx('ll')) as table:
-                            table.add_row(('Embedding', artifact.smp_emb))
-                            table.add_row(('Size', artifact.smp_emb_dim))
-                    with doc.create(Subsubsection('PyTorch module structure')):
-                        doc.append(artifact.get_structure_str())
-                    with doc.create(Subsubsection('PyTorch parameter tensors')):
-                        doc.append(artifact.get_parameter_str())
+
+                    for m_name, m in artifact.named_modules():
+                        if not ('.' in m_name or m_name == ''):
+                            doc.append(NoEscape(r'\newpage'))
+                            with doc.create(Subsubsection(m_name)):
+                                doc.append(str(m))
+                                for p_name, p in m.named_parameters():
+                                    if not 'bias' in p_name:
+                                        with doc.create(Figure(position='H')) as plot:
+                                            fig = plt.figure(figsize=(10,10))
+                                            ax = plt.subplot(111)
+                                            plt.imshow(np.transpose(util.weights_to_visdom_image(p),(1,2,0)), interpolation='none')
+                                            plt.axis('off')
+                                            plot.add_plot(width=NoEscape(r'\textwidth'))
+                                            plot.add_caption(m_name + '_' + p_name)
+
 
             doc.append(NoEscape(r'\newpage'))
             with doc.create(Section('Training')):
