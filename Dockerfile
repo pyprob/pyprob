@@ -1,12 +1,18 @@
-FROM gbaydin/pytorch-cudnnv6
+FROM gbaydin/pytorch
 
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV PYTHONIOENCODING=UTF-8
 ENV PATH="/code/pytorch-infcomp:${PATH}"
 
+RUN rm -fR /var/lib/apt/lists/*
 RUN apt update
-RUN apt install -y libx11-dev locales nano tmux
+RUN apt install -y apt-utils locales
+RUN apt install -y software-properties-common python3-software-properties python-software-properties
+RUN apt-add-repository ppa:jonathonf/texlive-2016
+RUN apt update
+RUN apt install -y --fix-missing texlive-full
+RUN apt install -y libx11-dev nano tmux graphviz
 
 ARG INFCOMP_VERSION="unknown"
 ARG GIT_COMMIT="unknown"
