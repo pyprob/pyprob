@@ -1,4 +1,4 @@
-# pyprob: PyTorch-Based Inference Compilation and Probabilistic Programming
+# pyprob
 
 pyprob is a [PyTorch](http://pytorch.org/)-based library for [probabilistic programming](http://probabilistic-programming.org) and inference compilation.
 
