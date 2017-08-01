@@ -1,15 +1,12 @@
 #
-# Oxford Inference Compilation
-# https://arxiv.org/abs/1610.09900
-#
-# Atilim Gunes Baydin, Tuan Anh Le, Mario Lezcano Casado, Frank Wood
-# University of Oxford
-# May 2016 -- June 2017
+# pyprob
+# PyTorch-based library for probabilistic programming and inference compilation
+# https://github.com/probprog/pyprob
 #
 
-import infcomp
-from infcomp import util
-from infcomp.comm import ProposalReplier
+import pyprob
+from pyprob import util
+from pyprob.comm import ProposalReplier
 import torch
 from torch.autograd import Variable
 import argparse
@@ -26,7 +23,7 @@ import numpy as np
 
 def main():
     try:
-        parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Inference Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        parser = argparse.ArgumentParser(description='pyprob ' + pyprob.__version__ + ' (Inference Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         parser.add_argument('-v', '--version', help='show version information', action='store_true')
         parser.add_argument('--dir', help='directory for loading artifacts and saving logs', default='.')
         parser.add_argument('--nth', help='show the nth artifact (-1: last)', type=int, default=-1)
@@ -41,7 +38,7 @@ def main():
         opt = parser.parse_args()
 
         if opt.version:
-            print(infcomp.__version__)
+            print(pyprob.__version__)
             quit()
 
         if not opt.saveHistAddress is None:
@@ -51,7 +48,7 @@ def main():
             trace_length_histogram = {}
 
         time_stamp = util.get_time_stamp()
-        util.init_logger('{0}/{1}'.format(opt.dir, 'infcomp-infer-log' + time_stamp))
+        util.init_logger('{0}/{1}'.format(opt.dir, 'pyprob-infer-log' + time_stamp))
         util.init(opt, 'Inference Engine')
 
         with ProposalReplier(opt.server) as replier:
@@ -59,7 +56,7 @@ def main():
             util.log_print(colored('[] Loaded artifact', 'blue', attrs=['bold']))
             util.log_print()
 
-            file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'infcomp-artifact'), opt.nth)
+            file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'pyprob-artifact'), opt.nth)
             artifact = util.load_artifact(file_name, opt.cuda, opt.device)
 
             prev_artifact_total_traces = artifact.total_traces

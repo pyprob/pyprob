@@ -1,15 +1,12 @@
 #
-# Oxford Inference Compilation
-# https://arxiv.org/abs/1610.09900
-#
-# Atilim Gunes Baydin, Tuan Anh Le, Mario Lezcano Casado, Frank Wood
-# University of Oxford
-# May 2016 -- June 2017
+# pyprob
+# PyTorch-based library for probabilistic programming and inference compilation
+# https://github.com/probprog/pyprob
 #
 
-import infcomp
-from infcomp import util
-from infcomp.probprog import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta, MultivariateNormal
+import pyprob
+from pyprob import util
+from pyprob.probprog import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta, MultivariateNormal
 import torch
 import torch.nn as nn
 import torch.nn.init as init
@@ -589,7 +586,7 @@ class Artifact(nn.Module):
         self.on_cuda = None
         self.trained_on = ''
         self.cuda_device_id = None
-        self.code_version = infcomp.__version__
+        self.code_version = pyprob.__version__
         self.pytorch_version = torch.__version__
         self.standardize = False
         self.one_hot_address = {}

@@ -1,26 +1,22 @@
-# PyTorch library for Inference Compilation and Universal Probabilistic Programming
+# pyprob: PyTorch-Based Inference Compilation and Probabilistic Programming
 
-This repository contains the [PyTorch](http://pytorch.org/)-based neural network component of `infcomp`, an inference compilation library. 
+pyprob is a [PyTorch](http://pytorch.org/)-based library for [probabilistic programming](http://probabilistic-programming.org) and inference compilation.
 
-Inference compilation is a technique for performing fast inference in generative models implemented as [probabilistic programs](http://probabilistic-programming.org), using deep neural networks to parameterize proposal distributions of a sequential importance sampling inference engine.
-
-The [Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/)-based probabilistic programming component is available as a [Clojure library](https://github.com/probprog/anglican-inference-compilation). The PyTorch and Anglican components communicate over [ZeroMQ](http://zeromq.org/) using a [FlatBuffers](https://google.github.io/flatbuffers/)-based protocol.
-
-For a walkthrough on how to set up a system to compile inference for a probabilistic program written in Anglican, check out the [tutorial](TUTORIAL.md). Also check out the [examples](https://github.com/probprog/torch-inference-compilation/tree/master/examples) folder.
+Inference compilation is a technique for performing fast inference in generative models implemented as probabilistic programs, using deep neural networks to parameterize proposal distributions of a sequential importance sampling inference engine.
 
 ## Installation
 
-### Python `infcomp` package
+### Python `pyprob` package
 Prerequisites:
 
 * Python 3.5 or higher. We recommend [Anaconda](https://www.continuum.io/).
-* Install latest PyTorch by following instructions on their [web site](http://pytorch.org/).
+* Latest PyTorch, installed by following instructions on the [PyTorch web site](http://pytorch.org/).
 
-Clone this repository and install the Python `infcomp` package using:
+Clone this repository and install the Python `pyprob` package using:
 
 ```
-git clone git@github.com:probprog/pytorch-infcomp.git
-cd pytorch-infcomp
+git clone git@github.com:probprog/pyprob.git
+cd pyprob
 pip install .
 ```
 
@@ -31,7 +27,7 @@ pip install .
 After setting up the probabilistic program and initiating compilation mode (see [tutorial](TUTORIAL.md)), you can start the compilation module with the default set of parameters using:
 
 ```
-python -m infcomp.compile
+python -m pyprob.compile
 ```
 
 This starts a training session with infinite training data supplied from the probabilistic model. You can stop training at any point by hitting Ctrl + C. Alternatively, you can use the `--maxTraces` option to stop after a set number of traces (e.g., `--maxTraces 1000`).
@@ -47,19 +43,19 @@ There are a number of parameters for configuring the compilation session, such a
 After setting up the probabilistic program and initiating inference mode (see [tutorial(TUTORIAL.md)]), you can start the inference module with the default set of parameters using:
 
 ```
-python -m infcomp.infer
+python -m pyprob.infer
 ```
 
 This starts an inference session using the latest saved artifact in the current directory. The directory for loading the artifact from can be changed using the `--dir` option (e.g., `--dir ~/artifacts`). Inference can be run on GPU using the `--cuda` flag.
 
 Use the `--help` flag to see all available options and functionality.
 
-### Artifact information
+### Analytics
 
 You can use
 
 ```
-python -m infcomp.info
+python -m pyprob.analytics
 ```
 
 for showing various statistics about the latest saved artifact in the current directory. You can use the `--help` flag to see available options for other functionality including the production of loss plots.
@@ -85,15 +81,15 @@ If you use this technique or the code, please use the following citation:
 
 ## License
 
-infcomp is free software: you can redistribute it and/or modify
+pyprob is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    infcomp is distributed in the hope that it will be useful,
+    pyprob is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with infcomp.  If not, see <http://www.gnu.org/licenses/>.    
+    along with pyprob.  If not, see <http://www.gnu.org/licenses/>.    

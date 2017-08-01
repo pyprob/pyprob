@@ -1,14 +1,11 @@
 #
-# Oxford Inference Compilation
-# https://arxiv.org/abs/1610.09900
-#
-# Atilim Gunes Baydin, Tuan Anh Le, Mario Lezcano Casado, Frank Wood
-# University of Oxford
-# May 2016 -- June 2017
+# pyprob
+# PyTorch-based library for probabilistic programming and inference compilation
+# https://github.com/probprog/pyprob
 #
 
-import infcomp
-from infcomp import util
+import pyprob
+from pyprob import util
 import sys
 import io
 import os

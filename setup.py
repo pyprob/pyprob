@@ -1,7 +1,7 @@
 import os
 import sys
 from setuptools import setup
-PACKAGE_NAME = 'infcomp'
+PACKAGE_NAME = 'pyprob'
 MINIMUM_PYTHON_VERSION = 3, 5
 
 def check_python_version():
@@ -21,12 +21,12 @@ def read_package_variable(key):
 
 check_python_version()
 setup(
-    name='infcomp',
+    name='pyprob',
     version=read_package_variable('__version__'),
     description='PyTorch library for Inference Compilation and Universal Probabilistic Programming',
     author='Tuan-Anh Le and Atilim Gunes Baydin',
-    packages=['infcomp', 'infcomp.protocol'],
+    packages=['pyprob', 'infcomp.protocol'],
     install_requires=['torch', 'torchvision==0.1.8', 'termcolor==1.1.0', 'pyzmq==16.0.2', 'flatbuffers==2015.12.22.1', 'visdom==0.1.04', 'matplotlib==2.0.0', 'py-cpuinfo==3.2.0', 'pylatex==1.2.1', 'pydotplus==2.0.2', 'seaborn==0.7.1'],
-    url='https://github.com/probprog/pytorch-inference-compilation',
+    url='https://github.com/probprog/pyprob',
     license='GPLv3'
 )

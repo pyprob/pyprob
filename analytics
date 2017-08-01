@@ -1,2 +1,2 @@
 #!/bin/bash
-python -m infcomp.analytics $@
+python -m pyprob.analytics $@

@@ -1,16 +1,13 @@
 #
-# Oxford Inference Compilation
-# https://arxiv.org/abs/1610.09900
-#
-# Atilim Gunes Baydin, Tuan Anh Le, Mario Lezcano Casado, Frank Wood
-# University of Oxford
-# May 2016 -- June 2017
+# pyprob
+# PyTorch-based library for probabilistic programming and inference compilation
+# https://github.com/probprog/pyprob
 #
 
-import infcomp
-from infcomp import util
-from infcomp.comm import BatchRequester
-from infcomp.modules import Artifact, Batch
+import pyprob
+from pyprob import util
+from pyprob.comm import BatchRequester
+from pyprob.modules import Artifact, Batch
 
 import argparse
 import torch
@@ -36,7 +33,7 @@ def save_artifact(artifact, artifact_file, opt):
     artifact.trained_on = 'CUDA' if opt.cuda else 'CPU'
     if opt.keepArtifacts:
         time_stamp = util.get_time_stamp()
-        artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
+        artifact_file = '{0}/{1}'.format(opt.dir, 'pyprob-artifact' + time_stamp)
     def thread_save():
         torch.save(artifact, artifact_file)
     a = Thread(target=thread_save)
@@ -45,7 +42,7 @@ def save_artifact(artifact, artifact_file, opt):
 
 def main():
     try:
-        parser = argparse.ArgumentParser(description='Oxford Inference Compilation ' + infcomp.__version__ + ' (Compilation Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        parser = argparse.ArgumentParser(description='pyprob ' + pyprob.__version__ + ' (Compilation Mode)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         parser.add_argument('-v', '--version', help='show version information', action='store_true')
         parser.add_argument('--dir', help='directory for saving artifacts and logs', default='.')
         parser.add_argument('--cuda', help='use CUDA', action='store_true')
@@ -82,12 +79,12 @@ def main():
         opt = parser.parse_args()
 
         if opt.version:
-            print(infcomp.__version__)
+            print(pyprob.__version__)
             quit()
 
         time_stamp = util.get_time_stamp()
-        artifact_file = '{0}/{1}'.format(opt.dir, 'infcomp-artifact' + time_stamp)
-        util.init_logger('{0}/{1}'.format(opt.dir, 'infcomp-compile-log' + time_stamp))
+        artifact_file = '{0}/{1}'.format(opt.dir, 'pyprob-artifact' + time_stamp)
+        util.init_logger('{0}/{1}'.format(opt.dir, 'pyprob-compile-log' + time_stamp))
         util.init(opt, 'Compilation Mode')
 
         if opt.batchPool == '':
@@ -103,7 +100,7 @@ def main():
                 util.log_print(colored('[] Resuming artifact', 'blue', attrs=['bold']))
                 util.log_print()
 
-                resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.dir, 'infcomp-artifact'), -1)
+                resume_artifact_file = util.file_starting_with('{0}/{1}'.format(opt.dir, 'pyprob-artifact'), -1)
                 artifact = util.load_artifact(resume_artifact_file, opt.cuda, opt.device)
                 requester.standardize = artifact.standardize
 

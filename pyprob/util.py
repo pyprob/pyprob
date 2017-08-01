@@ -1,13 +1,10 @@
 #
-# Oxford Inference Compilation
-# https://arxiv.org/abs/1610.09900
-#
-# Atilim Gunes Baydin, Tuan Anh Le, Mario Lezcano Casado, Frank Wood
-# University of Oxford
-# May 2016 -- June 2017
+# pyprob
+# PyTorch-based library for probabilistic programming and inference compilation
+# https://github.com/probprog/pyprob
 #
 
-import infcomp
+import pyprob
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -58,7 +55,7 @@ def init(opt, mode=''):
         opt.cuda = False
 
     log_print()
-    log_print(colored('[] Oxford Inference Compilation ' + infcomp.__version__, 'blue', attrs=['bold']))
+    log_print(colored('[] pyprob ' + pyprob.__version__, 'blue', attrs=['bold']))
     log_print()
     log_print(mode)
     log_print()
@@ -151,9 +148,9 @@ def load_artifact(file_name, cuda=False, device_id=-1, print_info=True):
             artifact = torch.load(file_name, map_location=lambda storage, loc: storage)
     except:
         log_error('load_artifact: Cannot load file')
-    if artifact.code_version != infcomp.__version__:
+    if artifact.code_version != pyprob.__version__:
         log_print()
-        log_warning('Different code versions (artifact: {0}, current: {1})'.format(artifact.code_version, infcomp.__version__))
+        log_warning('Different pyprob versions (artifact: {0}, current: {1})'.format(artifact.code_version, pyprob.__version__))
         log_print()
     if artifact.pytorch_version != torch.__version__:
         log_print()

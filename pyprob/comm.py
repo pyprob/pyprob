@@ -1,17 +1,14 @@
 #
-# Oxford Inference Compilation
-# https://arxiv.org/abs/1610.09900
-#
-# Atilim Gunes Baydin, Tuan Anh Le, Mario Lezcano Casado, Frank Wood
-# University of Oxford
-# May 2016 -- June 2017
+# pyprob
+# PyTorch-based library for probabilistic programming and inference compilation
+# https://github.com/probprog/pyprob
 #
 
-import infcomp
-import infcomp.zmq
-import infcomp.pool
-from infcomp import util
-from infcomp.probprog import Sample, Trace, UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta, MultivariateNormal
+import pyprob
+import pyprob.zmq
+import pyprob.pool
+from pyprob import util
+from pyprob.probprog import Sample, Trace, UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta, MultivariateNormal
 import infcomp.protocol.Message
 import infcomp.protocol.MessageBody
 import infcomp.protocol.TracesFromPriorRequest
@@ -145,9 +142,9 @@ def get_sample(s):
 class BatchRequester(object):
     def __init__(self, data_source, standardize=False, batch_pool=False, request_ahead=256):
         if batch_pool:
-            self.requester = infcomp.pool.Requester(data_source)
+            self.requester = pyprob.pool.Requester(data_source)
         else:
-            self.requester = infcomp.zmq.Requester(data_source)
+            self.requester = pyprob.zmq.Requester(data_source)
         self.standardize = standardize
         self.request_ahead = request_ahead
         self.queue = deque([])
@@ -225,7 +222,7 @@ class BatchRequester(object):
 
 class ProposalReplier(object):
     def __init__(self, server_address):
-        self.replier = infcomp.zmq.Replier(server_address)
+        self.replier = pyprob.zmq.Replier(server_address)
         self.new_trace = False
         self.observes = None
         self.current_sample = None
