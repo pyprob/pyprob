@@ -60,11 +60,11 @@ python -m pyprob.analytics
 
 for showing various statistics about the latest saved artifact in the current directory. You can use the `--help` flag to see available options for other functionality including the production of loss plots.
 
-## Information on the technique, citing
+## Information and citing
 
-Our [paper](https://arxiv.org/abs/1610.09900) provides an in-depth explanation of the inference compilation technique.
+[Our paper](https://arxiv.org/abs/1610.09900) at [AISTATS 2017](http://www.aistats.org/) provides an in-depth description of the inference compilation technique.
 
-If you use this technique or the code, please use the following citation:
+If you use our tools, or if you would like to refer to our paper, please use the following citation:
 ```
 @inproceedings{le-2016-inference,
   author = {Le, Tuan Anh and Baydin, Atılım Güneş and Wood, Frank},
