@@ -81,15 +81,12 @@ If you use our tools, or if you would like to refer to our paper, please use the
 
 ## License
 
-pyprob is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+pyprob is distributed under the MIT License.
 
-    pyprob is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+## Authors
 
-    You should have received a copy of the GNU General Public License
-    along with pyprob.  If not, see <http://www.gnu.org/licenses/>.    
+pyprob has been developed by [Tuan Anh Le](http://www.tuananhle.co.uk/) and [Atılım Güneş Baydin](http://www.robots.ox.ac.uk/~gunes/) within the [Probabilistic Programming Group at the University of Oxford](https://github.com/probprog), led by [Frank Wood](http://www.robots.ox.ac.uk/~fwood/index.html).
+
+For a full list of contributions, see:
+
+https://github.com/probprog/pyprob/graphs/contributors
