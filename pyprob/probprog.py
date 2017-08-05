@@ -4,12 +4,15 @@
 # https://github.com/probprog/pyprob
 #
 
+import pyprob
+from pyprob import util
+
 class Sample(object):
     def __init__(self):
         self.address = None
         self.address_suffixed = None
         self.instance = None
-        self.value = None
+        self.value = util.Tensor()
         self.value_dim = None
         self.distribution = None
         self.lstm_input = None

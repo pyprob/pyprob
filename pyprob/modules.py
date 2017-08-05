@@ -80,9 +80,8 @@ class ProposalUniformDiscrete(nn.Module):
         log_weights = torch.log(proposal_output + util.epsilon)
         l = 0
         for b in range(batch_size):
-            value = samples[b].value[0]
-            min = samples[b].distribution.prior_min
-            l -= log_weights[b, int(value) - min] # Should we average this over dimensions? See http://pytorch.org/docs/nn.html#torch.nn.KLDivLoss
+            value = Variable(samples[b].value, requires_grad=False) # value is one-hot
+            l -= torch.sum(log_weights[b] * value) # Should we average this over dimensions? See http://pytorch.org/docs/nn.html#torch.nn.KLDivLoss
         return l
 
 class ProposalNormal(nn.Module):
@@ -206,8 +205,8 @@ class ProposalDiscrete(nn.Module):
         l = 0
         for b in range(batch_size):
             # print(samples[b].distribution.prior_size)
-            value = samples[b].value[0]
-            l -= log_weights[b, int(value)]
+            value = Variable(samples[b].value, requires_grad=False) # value is one-hot
+            l -= torch.sum(log_weights[b] * value)
         return l
 
 class ProposalCategorical(nn.Module):
@@ -231,8 +230,8 @@ class ProposalCategorical(nn.Module):
         log_weights = torch.log(proposal_output + util.epsilon)
         l = 0
         for b in range(batch_size):
-            value = samples[b].value[0]
-            l -= log_weights[b, int(value)]
+            value = Variable(samples[b].value, requires_grad=False) # value is one-hot
+            l -= torch.sum(log_weights[b] * value)
         return l
 
 class ProposalUniformContinuous(nn.Module):
@@ -602,7 +601,6 @@ class Artifact(nn.Module):
         self.lstm_dim = None
         self.lstm_depth = None
         self.lstm_input_dim = None
-        self.smp_emb = None
         self.smp_emb_dim = None
         self.obs_emb = None
         self.obs_emb_dim = None
@@ -681,7 +679,6 @@ class Artifact(nn.Module):
                           colored('Validation set size   : {:,}'.format(self.valid_size), 'green'),
                           colored('Observe embedding     : {0}'.format(self.obs_emb), 'cyan'),
                           colored('Observe embedding dim.: {:,}'.format(self.obs_emb_dim), 'cyan'),
-                          colored('Sample embedding      : {0}'.format(self.smp_emb), 'cyan'),
                           colored('Sample embedding dim. : {:,}'.format(self.smp_emb_dim), 'cyan'),
                           colored('LSTM dim.             : {:,}'.format(self.lstm_dim), 'cyan'),
                           colored('LSTM depth            : {:,}'.format(self.lstm_depth), 'cyan'),
@@ -734,16 +731,14 @@ class Artifact(nn.Module):
                 else:
                     self.address_histogram[address] = len(sub_batch)
 
-                # update the artifact's one-hot dictionary as needed
+                # update the artifact's one-hot dictionaries as needed
                 self.add_one_hot_address(address)
                 self.add_one_hot_distribution(distribution)
 
-                # update the artifact's sample and proposal layers as needed
+                # create new sample and proposal layers as needed
                 if not address in self.sample_layers:
-                    if self.smp_emb == 'fc':
-                        sample_layer = SampleEmbeddingFC(sample.value.nelement(), self.smp_emb_dim)
-                    else:
-                        util.log_error('polymorph: Unsupported sample embedding: ' + self.smp_emb)
+                    sample_layer = SampleEmbeddingFC(sample.value.nelement(), self.smp_emb_dim)
+
                     if isinstance(distribution, Beta):
                         proposal_layer = ProposalBeta(self.lstm_dim, self.dropout, self.softmax_boost)
                     elif isinstance(distribution, UniformDiscrete):
@@ -784,8 +779,7 @@ class Artifact(nn.Module):
             self.cuda(self.cuda_device_id)
         return layers_changed
 
-    def set_sample_embedding(self, smp_emb, smp_emb_dim):
-        self.smp_emb = smp_emb
+    def set_sample_embedding(self, smp_emb_dim):
         self.smp_emb_dim = smp_emb_dim
 
     def set_observe_embedding(self, example_observes, obs_emb, obs_emb_dim, obs_reshape=None):
@@ -826,8 +820,7 @@ class Artifact(nn.Module):
             util.log_print(colored('Polymorphing, new address         : ' + util.truncate_str(address), 'magenta', attrs=['bold']))
             i = len(self.one_hot_address)
             if i < self.one_hot_address_dim:
-                t = util.Tensor(self.one_hot_address_dim).zero_()
-                t.narrow(0, i, 1).fill_(1)
+                t = util.one_hot(self.one_hot_address_dim, i)
                 self.one_hot_address[address] = Variable(t, requires_grad=False)
             else:
                 util.log_warning('Overflow (collision) in one_hot_address. Allowed: {0}; Encountered: {1}'.format(self.one_hot_address_dim, i + 1))
@@ -839,8 +832,7 @@ class Artifact(nn.Module):
             util.log_print(colored('Polymorphing, new distribution    : ' + distribution_name, 'magenta', attrs=['bold']))
             i = len(self.one_hot_distribution)
             if i < self.one_hot_distribution_dim:
-                t = util.Tensor(self.one_hot_distribution_dim).zero_()
-                t.narrow(0, i, 1).fill_(1)
+                t = util.one_hot(self.one_hot_distribution_dim, i)
                 self.one_hot_distribution[distribution_name] = Variable(t, requires_grad=False)
             else:
                 util.log_warning('Overflow (collision) in one_hot_distribution. Allowed: {0}; Encountered: {1}'.format(self.one_hot_distribution_dim, i + 1))

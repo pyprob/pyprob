@@ -300,3 +300,8 @@ def logsumexp(x, dim=0):
     x_diff = x - x_max.expand_as(x)
 
     return x_max + x_diff.exp().sum(dim).log()
+
+def one_hot(dim, i):
+    t = Tensor(dim).zero_()
+    t.narrow(0, i, 1).fill_(1)
+    return t

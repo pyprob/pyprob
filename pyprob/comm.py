@@ -38,22 +38,26 @@ import time
 from collections import deque
 
 def NDArray_to_Tensor(ndarray):
-    b = ndarray._tab.Bytes
-    o = flatbuffers.number_types.UOffsetTFlags.py_type(ndarray._tab.Offset(4))
-    offset = ndarray._tab.Vector(o) if o != 0 else 0
-    length = ndarray.DataLength()
-    data_np = np.frombuffer(b, offset=offset, dtype=np.dtype('float64'), count=length)
+    if ndarray is None:
+        # util.log_warning('NDArray_to_Tensor: empty NDArray received, returning empty tensor')
+        return util.Tensor()
+    else:
+        b = ndarray._tab.Bytes
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(ndarray._tab.Offset(4))
+        offset = ndarray._tab.Vector(o) if o != 0 else 0
+        length = ndarray.DataLength()
+        data_np = np.frombuffer(b, offset=offset, dtype=np.dtype('float64'), count=length)
 
-    o = flatbuffers.number_types.UOffsetTFlags.py_type(ndarray._tab.Offset(6))
-    offset = ndarray._tab.Vector(o) if o != 0 else 0
-    length = ndarray.ShapeLength()
-    shape_np = np.frombuffer(b, offset=offset, dtype=np.dtype('int32'), count=length)
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(ndarray._tab.Offset(6))
+        offset = ndarray._tab.Vector(o) if o != 0 else 0
+        length = ndarray.ShapeLength()
+        shape_np = np.frombuffer(b, offset=offset, dtype=np.dtype('int32'), count=length)
 
-    # print('data:', data_np)
-    # print('shape', shape_np)
+        # print('data:', data_np)
+        # print('shape', shape_np)
 
-    data = data_np.reshape(shape_np)
-    return util.Tensor(data)
+        data = data_np.reshape(shape_np)
+        return util.Tensor(data)
 
 def Tensor_to_NDArray(builder, tensor):
     tensor_numpy = tensor.cpu().numpy()
@@ -93,50 +97,54 @@ def get_sample(s):
     sample = Sample()
     sample.address = s.Address().decode("utf-8")
     sample.instance = s.Instance()
-    value = s.Value()
-    if not value is None:
-        sample.value = NDArray_to_Tensor(value)
+    value = NDArray_to_Tensor(s.Value())
     distribution_type = s.DistributionType()
     if distribution_type != infcomp.protocol.Distribution.Distribution().NONE:
         if distribution_type == infcomp.protocol.Distribution.Distribution().UniformDiscrete:
             p = infcomp.protocol.UniformDiscrete.UniformDiscrete()
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
-            sample.distribution = UniformDiscrete(p.PriorMin(), p.PriorSize())
+            distribution = UniformDiscrete(p.PriorMin(), p.PriorSize())
+            if value.dim() > 0:
+                value = util.one_hot(distribution.prior_size, int(value[0]) - distribution.prior_min)
         elif distribution_type == infcomp.protocol.Distribution.Distribution().MultivariateNormal:
             p = infcomp.protocol.MultivariateNormal.MultivariateNormal()
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
-            sample.distribution = MultivariateNormal(NDArray_to_Tensor(p.PriorMean()), NDArray_to_Tensor(p.PriorCov()))
+            distribution = MultivariateNormal(NDArray_to_Tensor(p.PriorMean()), NDArray_to_Tensor(p.PriorCov()))
         elif distribution_type == infcomp.protocol.Distribution.Distribution().Normal:
             p = infcomp.protocol.Normal.Normal()
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
-            sample.distribution = Normal(p.PriorMean(), p.PriorStd())
+            distribution = Normal(p.PriorMean(), p.PriorStd())
         elif distribution_type == infcomp.protocol.Distribution.Distribution().Flip:
-            # p = infcomp.protocol.Flip.Flip()
-            # p.Init(s.Distribution().Bytes, s.Distribution().Pos)
-            sample.distribution = Flip()
+            distribution = Flip()
         elif distribution_type == infcomp.protocol.Distribution.Distribution().Discrete:
             p = infcomp.protocol.Discrete.Discrete()
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
-            sample.distribution = Discrete(p.PriorSize())
+            distribution = Discrete(p.PriorSize())
+            if value.dim() > 0:
+                value = util.one_hot(distribution.prior_size, int(value[0]))
         elif distribution_type == infcomp.protocol.Distribution.Distribution().Categorical:
             p = infcomp.protocol.Categorical.Categorical()
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
-            sample.distribution = Categorical(p.PriorSize())
+            distribution = Categorical(p.PriorSize())
+            if value.dim() > 0:
+                value = util.one_hot(distribution.prior_size, int(value[0]))
         elif distribution_type == infcomp.protocol.Distribution.Distribution().UniformContinuous:
             p = infcomp.protocol.UniformContinuous.UniformContinuous()
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
-            sample.distribution = UniformContinuous(p.PriorMin(), p.PriorMax())
+            distribution = UniformContinuous(p.PriorMin(), p.PriorMax())
         elif distribution_type == infcomp.protocol.Distribution.Distribution().Laplace:
             p = infcomp.protocol.Laplace.Laplace()
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
-            sample.distribution = Laplace(p.PriorLocation(), p.PriorScale())
+            distribution = Laplace(p.PriorLocation(), p.PriorScale())
         elif distribution_type == infcomp.protocol.Distribution.Distribution().Gamma:
-            sample.distribution = Gamma()
+            distribution = Gamma()
         elif distribution_type == infcomp.protocol.Distribution.Distribution().Beta:
-            sample.distribution = Beta()
+            distribution = Beta()
         else:
             util.log_error('get_sample: Unknown distribution:Distribution id: {0}.'.format(distribution_type))
-        sample.address_suffixed = sample.address + sample.distribution.address_suffix
+        sample.distribution = distribution
+        sample.address_suffixed = sample.address + distribution.address_suffix
+    sample.value = value
     return sample
 
 class BatchRequester(object):

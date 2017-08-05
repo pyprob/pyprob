@@ -66,8 +66,7 @@ def main():
         parser.add_argument('--obsReshape', help='reshape a 1d observation to a given shape (example: "1x10x10" will reshape 100 -> 1x10x10)', default='', type=str)
         parser.add_argument('--obsEmb', help='observation embedding', choices=['fc', 'cnn1d2c', 'cnn2d6c', 'cnn3d4c', 'lstm'], default='fc', type=str)
         parser.add_argument('--obsEmbDim', help='observation embedding dimension', default=512, type=int)
-        parser.add_argument('--smpEmb', help='sample embedding', choices=['fc'], default='fc', type=str)
-        parser.add_argument('--smpEmbDim', help='sample embedding dimension', default=1, type=int)
+        parser.add_argument('--smpEmbDim', help='sample embedding dimension', default=32, type=int)
         parser.add_argument('--lstmDim', help='lstm hidden unit dimension', default=512, type=int)
         parser.add_argument('--lstmDepth', help='number of stacked lstms', default=2, type=int)
         parser.add_argument('--dropout', help='dropout value', default=0.2, type=float)
@@ -150,7 +149,7 @@ def main():
                     artifact.set_observe_embedding(example_observes, opt.obsEmb, opt.obsEmbDim, obs_reshape)
                 else:
                     artifact.set_observe_embedding(example_observes, opt.obsEmb, opt.obsEmbDim)
-                artifact.set_sample_embedding(opt.smpEmb, opt.smpEmbDim)
+                artifact.set_sample_embedding(opt.smpEmbDim)
                 artifact.set_lstm(opt.lstmDim, opt.lstmDepth)
 
                 artifact.softmax_boost = opt.softmaxBoost
