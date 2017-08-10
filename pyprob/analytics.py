@@ -240,19 +240,6 @@ def main():
                     fig.tight_layout()
                     plot.add_plot(width=NoEscape(r'\textwidth'))
                     plot.add_caption('Loss plot.')
-                with doc.create(Figure(position='H')) as plot:
-                    fig = plt.figure(figsize=(10,6))
-                    ax = plt.subplot(111)
-                    ax.plot(artifact.train_history_trace, artifact.train_history_loss, label='Training')
-                    ax.plot(artifact.valid_history_trace, artifact.valid_history_loss, label='Validation')
-                    ax.legend()
-                    plt.xlabel('Training traces')
-                    plt.ylabel('Log loss')
-                    plt.yscale('log')
-                    plt.grid()
-                    fig.tight_layout()
-                    plot.add_plot(width=NoEscape(r'\textwidth'))
-                    plot.add_caption('Log loss plot.')
 
             doc.append(NoEscape(r'\newpage'))
             with doc.create(Section('Traces')):
