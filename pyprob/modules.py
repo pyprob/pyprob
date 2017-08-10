@@ -976,10 +976,10 @@ class Artifact(nn.Module):
                     for b in range(sub_batch_size):
                         t = torch.cat([sub_batch[b].observes_embedding,
                                        prev_sample_embedding[b],
-                                       prev_one_hot_address,
                                        prev_one_hot_distribution,
-                                       current_one_hot_address,
-                                       current_one_hot_distribution])
+                                       prev_one_hot_address,
+                                       current_one_hot_distribution,
+                                       current_one_hot_address])
                         sub_batch[b].samples[time_step].lstm_input = t
 
 

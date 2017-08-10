@@ -200,10 +200,10 @@ def main():
                     if success:
                         t = [observe_embedding[0],
                              prev_sample_embedding[0],
-                             prev_one_hot_address,
                              prev_one_hot_distribution,
-                             current_one_hot_address,
-                             current_one_hot_distribution]
+                             prev_one_hot_address,
+                             current_one_hot_distribution,
+                             current_one_hot_address]
                         t = torch.cat(t).unsqueeze(0)
                         lstm_input = t.unsqueeze(0)
 
