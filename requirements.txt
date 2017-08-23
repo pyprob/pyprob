@@ -1,5 +1,5 @@
 torch
-torchvision==0.1.8
+torchvision
 termcolor==1.1.0
 pyzmq==16.0.2
 flatbuffers==2015.12.22.1
@@ -9,3 +9,4 @@ py-cpuinfo==3.2.0
 pylatex==1.2.1
 pydotplus==2.0.2
 seaborn==0.7.1
+docker==2.4.2
