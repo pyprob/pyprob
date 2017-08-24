@@ -325,13 +325,13 @@ def main():
 
                 with doc.create(Subsection('Unique traces encountered')):
                     with doc.create(Tabularx('ll')) as table:
-                        table.add_row(('Saved unique traces', '{:,}'.format(len(artifact.trace_examples_histogram))))
-                        table.add_row(('Unique trace memory limit', '{:,}'.format(artifact.trace_examples_limit)))
-                        table.add_row(('Unique traces used in this report', '{:,}'.format(min(len(artifact.trace_examples_histogram), opt.maxTraces))))
+                        table.add_row(('Unique traces encountered', '{:,}'.format(len(artifact.trace_examples_histogram))))
+                        table.add_row(('Unique trace memory capacity', '{:,}'.format(artifact.trace_examples_limit)))
+                        table.add_row(('Unique traces rendered in detail', '{:,}'.format(min(len(artifact.trace_examples_histogram), opt.maxTraces))))
                     doc.append('\n')
                     with doc.create(LongTable('lllp{16cm}')) as table:
                         # table.add_empty_row()
-                        table.add_row('Count', 'ID', 'Length', 'Unique trace')
+                        table.add_row('Count', 'ID', 'Len.', 'Unique trace')
                         table.add_hline()
 
                         trace_to_abbrev = {}
@@ -349,12 +349,14 @@ def main():
                             trace_to_abbrev[trace] = abbrev
                             abbrev_to_trace[abbrev] = trace
                             abbrev_to_addresses[abbrev] = list(map(lambda x:address_to_abbrev[x], artifact.trace_examples_addresses[trace]))
+                            trace_addresses = abbrev_to_addresses[abbrev]
+                            trace_addresses_repetitions = util.pack_repetitions(trace_addresses)
                             plt_traces.append(abbrev)
                             plt_counts.append(count)
                             trace_to_count[trace] = count
                             trace_count_total += count
                             length = len(artifact.trace_examples_addresses[trace])
-                            table.add_row(('{:,}'.format(count), abbrev, '{:,}'.format(length), FootnoteText('-'.join(abbrev_to_addresses[abbrev]))))
+                            table.add_row(('{:,}'.format(count), abbrev, '{:,}'.format(length), FootnoteText('-'.join([a + 'x' + str(i) if i>1 else a for a, i in trace_addresses_repetitions]))))
 
                     with doc.create(Figure(position='H')) as plot:
                         fig = plt.figure(figsize=(10,5))
@@ -428,7 +430,7 @@ def main():
                         plot.add_plot(width=NoEscape(r'\textwidth'))
                         plot.add_caption('Succession of unique address IDs (accumulated over all traces).')
 
-                    for trace, _ in sorted_traces[:opt.maxTraces]:
+                    for trace, count in sorted_traces[:opt.maxTraces]:
                         trace = trace_to_abbrev[trace]
                         doc.append(NoEscape(r'\newpage'))
                         with doc.create(Subsubsection('Unique trace ' + trace)):
@@ -439,7 +441,8 @@ def main():
                             trace_addresses = abbrev_to_addresses[trace]
 
                             with doc.create(Tabularx('ll')) as table:
-                                table.add_row(FootnoteText('Length'), FootnoteText(len(trace_addresses)))
+                                table.add_row(FootnoteText('Count'), FootnoteText('{:,}'.format(count)))
+                                table.add_row(FootnoteText('Length'), FootnoteText('{:,}'.format(len(trace_addresses))))
                             doc.append('\n')
 
                             im = np.zeros((addresses, len(trace_addresses)))
@@ -513,9 +516,8 @@ def main():
 
 
                             with doc.create(Tabularx('lp{16cm}')) as table:
-                                table.add_row(FootnoteText('Full'), FootnoteText('-'.join(trace_addresses)))
                                 trace_addresses_repetitions = util.pack_repetitions(trace_addresses)
-                                table.add_row(FootnoteText('Compact'), FootnoteText('-'.join([a + 'x' + str(i) for a, i in trace_addresses_repetitions])))
+                                table.add_row(FootnoteText('Trace'), FootnoteText('-'.join([a + 'x' + str(i) if i>1 else a for a, i in trace_addresses_repetitions])))
 
             doc.generate_pdf(opt.saveReport, clean_tex=False)
             sys.stdout.write('                                                               \r')
