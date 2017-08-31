@@ -8,7 +8,8 @@ import pyprob
 import pyprob.zmq
 import pyprob.pool
 from pyprob import util
-from pyprob.probprog import Sample, Trace, UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta, MultivariateNormal
+from pyprob.trace import Sample, Trace
+from pyprob.distributions import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta, MultivariateNormal
 import infcomp.protocol.Message
 import infcomp.protocol.MessageBody
 import infcomp.protocol.TracesFromPriorRequest
@@ -150,43 +151,46 @@ def get_sample(s):
 class BatchRequester(object):
     def __init__(self, data_source, standardize=False, batch_pool=False, request_ahead=256):
         if batch_pool:
-            self.requester = pyprob.pool.Requester(data_source)
+            self._requester = pyprob.pool.Requester(data_source)
         else:
-            self.requester = pyprob.zmq.Requester(data_source)
-        self.standardize = standardize
-        self.request_ahead = request_ahead
-        self.queue = deque([])
-        self.request_traces(self.request_ahead)
+            self._requester = pyprob.zmq.Requester(data_source)
+        self._standardize = standardize
+        self._request_ahead = request_ahead
+        self._queue = deque([])
+        self.request_traces(self._request_ahead)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
-        self.requester.close()
+        self._requester.close()
+
+    def __del__(self):
+        self._requester.close()
 
     def get_traces(self, n, discard_source=False):
         t0 = time.time()
-        while len(self.queue) < n:
+        while len(self._queue) < n:
             self.receive_traces_to_queue(discard_source)
             self.request_traces(n)
-        ret = [self.queue.popleft() for i in range(n)]
+        ret = [self._queue.popleft() for i in range(n)]
         return ret, time.time() - t0
 
     def receive_traces_to_queue(self, discard_source=False):
         sys.stdout.write('Waiting for traces from prior...                         \r')
         sys.stdout.flush()
-        data = self.requester.receive_reply(discard_source)
+        data = self._requester.receive_reply(discard_source)
         sys.stdout.write('Processing new traces from prior...                      \r')
         sys.stdout.flush()
         traces = self.read_traces(data)
         sys.stdout.write('                                                         \r')
         sys.stdout.flush()
-        self.queue.extend(traces)
+        self._queue.extend(traces)
 
     def read_traces(self, data):
         message_body = get_message_body(data)
         if not isinstance(message_body, infcomp.protocol.TracesFromPriorReply.TracesFromPriorReply):
-            util.log_error('read_traces: Expecting a TracesFromPriorReply, but received {0}'.format(message_body))
+            util.logger.log_error('read_traces: Expecting a TracesFromPriorReply, but received {0}'.format(message_body))
 
         traces_length = message_body.TracesLength()
         traces = []
@@ -195,7 +199,7 @@ class BatchRequester(object):
 
             t = message_body.Traces(i)
             obs = NDArray_to_Tensor(t.Observes())
-            if self.standardize:
+            if self._standardize:
                 obs = util.standardize(obs)
             trace.set_observes(obs)
 
@@ -226,11 +230,11 @@ class BatchRequester(object):
         builder.Finish(message)
 
         message = builder.Output()
-        self.requester.send_request(message)
+        self._requester.send_request(message)
 
 class ProposalReplier(object):
     def __init__(self, server_address):
-        self.replier = pyprob.zmq.Replier(server_address)
+        self._replier = pyprob.zmq.Replier(server_address)
         self.new_trace = False
         self.observes = None
         self.current_sample = None
@@ -240,10 +244,13 @@ class ProposalReplier(object):
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
-        self.replier.close()
+        self._replier.close()
+
+    def __del__(self):
+        self._replier.close()
 
     def receive_request(self, standardize):
-        data = self.replier.receive_request()
+        data = self._replier.receive_request()
         message_body = get_message_body(data)
         if isinstance(message_body, infcomp.protocol.ObservesInitRequest.ObservesInitRequest):
             self.observes = NDArray_to_Tensor(message_body.Observes())
@@ -257,7 +264,7 @@ class ProposalReplier(object):
             self.previous_sample = get_sample(previous_sample)
             self.new_trace = False
         else:
-            util.log_error('receive_request: Expecting ObservesInitRequest or ProposalRequest, but received {0}'.format(message_body))
+            util.logger.log_error('receive_request: Expecting ObservesInitRequest or ProposalRequest, but received {0}'.format(message_body))
 
     def reply_observes_received(self):
         # allocate buffer
@@ -276,7 +283,7 @@ class ProposalReplier(object):
         builder.Finish(message)
 
         message = builder.Output()
-        self.replier.send_reply(message)
+        self._replier.send_reply(message)
 
     def reply_proposal(self, success, p):
         # allocate buffer
@@ -377,7 +384,7 @@ class ProposalReplier(object):
                 distribution = infcomp.protocol.MultivariateNormal.MultivariateNormalEnd(builder)
                 distribution_type = infcomp.protocol.Distribution.Distribution().MultivariateNormal
             else:
-                util.log_error('reply_proposal: Unsupported proposal distribution: {0}'.format(p))
+                util.logger.log_error('reply_proposal: Unsupported proposal distribution: {0}'.format(p))
 
             # construct message body (ProposalReply)
             infcomp.protocol.ProposalReply.ProposalReplyStart(builder)
@@ -394,4 +401,4 @@ class ProposalReplier(object):
 
         builder.Finish(message)
         message = builder.Output()
-        self.replier.send_reply(message)
+        self._replier.send_reply(message)

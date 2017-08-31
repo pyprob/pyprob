@@ -6,57 +6,8 @@
 
 import pyprob
 from pyprob import util
+import numpy as np
 
-class Sample(object):
-    def __init__(self):
-        self.address = None
-        self.address_suffixed = None
-        self.instance = None
-        self.value = util.Tensor()
-        self.value_dim = None
-        self.distribution = None
-        self.lstm_input = None
-        self.lstm_output = None
-    def __repr__(self):
-        return 'Sample({0}, {1}, {2}, {3}, {4})'.format(self.address, self.address_suffixed, self.instance, self.value.size(), str(self.distribution))
-    __str__ = __repr__
-    def cuda(self, device_id=None):
-        if not self.value is None:
-            self.value = self.value.cuda(device_id)
-        self.distribution.cuda(device_id)
-    def cpu(self):
-        if not self.value is None:
-            self.value = self.value.cpu()
-        self.distribution.cpu()
-
-class Trace(object):
-    def __init__(self):
-        self.observes = None
-        self.observes_embedding = None
-        self.samples = []
-        self.length = None
-    def __repr__(self):
-        return 'Trace(length:{0}, samples:[{1}], observes.dim():{2})'.format(self.length, ', '.join([str(sample) for sample in self.samples]), self.observes.dim())
-    __str__ = __repr__
-    def addresses(self):
-        return '; '.join([sample.address for sample in self.samples])
-    def addresses_suffixed(self):
-        return '; '.join([sample.address_suffixed for sample in self.samples])
-    def set_observes(self, o):
-        self.observes = o
-    def add_sample(self, s):
-        self.samples.append(s)
-        self.length = len(self.samples)
-    def cuda(self, device_id=None):
-        if not self.observes is None:
-            self.observes = self.observes.cuda(device_id)
-        for i in range(len(self.samples)):
-            self.samples[i].cuda(device_id)
-    def cpu(self):
-        if not self.observes is None:
-            self.observes = self.observes.cpu()
-        for i in range(len(self.samples)):
-            self.samples[i].cpu()
 
 class UniformDiscrete(object):
     def __init__(self, prior_min, prior_size):
@@ -110,6 +61,8 @@ class Normal(object):
     def __repr__(self):
         return 'Normal(prior_mean:{0}, prior_std:{1}, proposal_mean:{2}, proposal_std:{3})'.format(self.prior_mean, self.prior_std, self.proposal_mean, self.proposal_std)
     __str__ = __repr__
+    def sample(self):
+        return np.random.normal(self.prior_mean, self.prior_std)
     def set_proposalparams(self, tensor_of_proposal_mean_std):
         self.proposal_mean = tensor_of_proposal_mean_std[0]
         self.proposal_std = tensor_of_proposal_mean_std[1]

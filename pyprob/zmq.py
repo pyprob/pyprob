@@ -15,7 +15,7 @@ class Replier(object):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(server_address)
-        util.log_print(colored('Protocol: zmq.REP socket bound to ' + server_address, 'yellow', attrs=['bold']))
+        util.logger.log(colored('Protocol: zmq.REP socket bound to ' + server_address, 'yellow', attrs=['bold']))
 
     def __enter__(self):
         return self
@@ -23,10 +23,14 @@ class Replier(object):
     def __exit__(self, exception_type, exception_value, traceback):
         self.close()
 
+    def __del__(self):
+        self.close()
+
     def close(self):
-        self.socket.close()
-        self.context.term()
-        util.log_print(colored('Protocol: zmq.REP socket disconnected', 'yellow', attrs=['bold']))
+        if not self.socket.closed:
+            self.socket.close()
+            self.context.term()
+            util.logger.log(colored('Protocol: zmq.REP socket disconnected', 'yellow', attrs=['bold']))
 
     def send_reply(self, reply):
         self.socket.send(reply)
@@ -37,10 +41,10 @@ class Replier(object):
 
 class Requester(object):
     def __init__(self, server_address):
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REQ)
-        self.socket.connect(server_address)
-        util.log_print(colored('Protocol: zmq.REQ socket connected to server ' + server_address, 'yellow', attrs=['bold']))
+        self._context = zmq.Context()
+        self._socket = self._context.socket(zmq.REQ)
+        self._socket.connect(server_address)
+        util.logger.log(colored('Protocol: zmq.REQ socket connected to server ' + server_address, 'yellow', attrs=['bold']))
 
     def __enter__(self):
         return self
@@ -48,13 +52,17 @@ class Requester(object):
     def __exit__(self, exception_type, exception_value, traceback):
         self.close()
 
+    def __del__(self):
+        self.close()
+
     def close(self):
-        self.socket.close()
-        self.context.term()
-        util.log_print(colored('Protocol: zmq.REQ socket disconnected', 'yellow', attrs=['bold']))
+        if not self._socket.closed:
+            self._socket.close()
+            self._context.term()
+            util.logger.log(colored('Protocol: zmq.REQ socket disconnected', 'yellow', attrs=['bold']))
 
     def send_request(self, request):
-        self.socket.send(request)
+        self._socket.send(request)
 
     def receive_reply(self, discard_source=True):
-        return self.socket.recv()
+        return self._socket.recv()

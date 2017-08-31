@@ -6,7 +6,7 @@
 
 import pyprob
 from pyprob import util
-from pyprob.probprog import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta, MultivariateNormal
+from pyprob.distributions import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta, MultivariateNormal
 import torch
 import torch.nn as nn
 import torch.nn.init as init
@@ -33,8 +33,8 @@ class Batch(object):
                 util.log_error('Batch: Received a trace of length zero.')
             if trace.length > self.traces_max_length:
                 self.traces_max_length = trace.length
-            if trace.observes.size(0) > self.observes_max_length:
-                self.observes_max_length = trace.observes.size(0)
+            if trace.observes_tensor.size(0) > self.observes_max_length:
+                self.observes_max_length = trace.observes_tensor.size(0)
             h = hash(trace.addresses_suffixed())
             if not h in sb:
                 sb[h] = []
@@ -57,7 +57,7 @@ class Batch(object):
         for trace in self.batch:
             trace.cpu()
     def sort_by_observes_length(self):
-        return Batch(sorted(self.batch, reverse=True, key=lambda x:x.observes.nelement()), False)
+        return Batch(sorted(self.batch, reverse=True, key=lambda x:x.observes_tensor.nelement()), False)
 
 class ProposalUniformDiscrete(nn.Module):
     def __init__(self, input_dim, output_dim, dropout=0, softmax_boost=1.0):
@@ -571,7 +571,7 @@ class ObserveEmbeddingCNN3D4C(nn.Module):
         return x
 
 class Artifact(nn.Module):
-    def __init__(self):
+    def __init__(self, dropout=0.2, cuda=False, cuda_device_id=0, standardize=False, softmax_boost=20):
         super(Artifact, self).__init__()
 
         self.sample_layers = {}
@@ -582,12 +582,12 @@ class Artifact(nn.Module):
         self.model_name = ''
         self.created = util.get_time_str()
         self.modified = util.get_time_str()
-        self.on_cuda = None
+        self.on_cuda = cuda
         self.trained_on = ''
-        self.cuda_device_id = None
+        self.cuda_device_id = cuda_device_id
         self.code_version = pyprob.__version__
         self.pytorch_version = torch.__version__
-        self.standardize = False
+        self.standardize = standardize
         self.one_hot_address = {}
         self.one_hot_distribution = {}
         self.one_hot_address_dim = None
@@ -611,8 +611,8 @@ class Artifact(nn.Module):
         self.trace_examples_histogram = {}
         self.trace_examples_addresses = {}
         self.trace_examples_limit = 10000
-        self.train_loss_best = math.inf
-        self.train_loss_worst = -math.inf
+        self.train_loss_best = None
+        self.train_loss_worst = None
         self.valid_loss_best = None
         self.valid_loss_worst = None
         self.valid_history_trace = []
@@ -624,7 +624,8 @@ class Artifact(nn.Module):
         self.total_traces = 0
         self.updates = 0
         self.optimizer = None
-        self.dropout = 0.2
+        self.dropout = dropout
+        self.softmax_boost = softmax_boost
 
     def get_structure_str(self):
         ret = str(next(enumerate(self.modules()))[1])
@@ -661,7 +662,8 @@ class Artifact(nn.Module):
         info = '\n'.join(['Model name            : {0}'.format(self.model_name),
                           'Created               : {0}'.format(self.created),
                           'Modified              : {0}'.format(self.modified),
-                          'Code version          : {0}'.format(self.code_version),
+                          'pyprob version        : {0}'.format(self.code_version),
+                          'PyTorch version       : {0}'.format(self.pytorch_version),
                           'Trained on            : {0}'.format(self.trained_on),
                           colored('Trainable params      : {:,}'.format(self.num_params_history_num_params[-1]), 'cyan', attrs=['bold']),
                           colored('Total training time   : {0}'.format(util.days_hours_mins_secs(self.total_training_seconds)), 'yellow', attrs=['bold']),
@@ -760,24 +762,28 @@ class Artifact(nn.Module):
                     elif isinstance(distribution, MultivariateNormal):
                         proposal_layer = ProposalMultivariateNormal(self.lstm_dim, distribution.prior_dim, self.dropout)
                     else:
-                        util.log_error('polymorph: Unsupported distribution: ' + sample.distribution.name)
+                        util.logger.log_error('polymorph: Unsupported distribution: ' + sample.distribution.name)
                     self.sample_layers[address] = sample_layer
                     self.proposal_layers[address] = proposal_layer
                     self.add_module('sample_layer({0})'.format(address), sample_layer)
                     self.add_module('proposal_layer({0})'.format(address), proposal_layer)
-                    util.log_print(colored('Polymorphing, new layers attached : {0}'.format(util.truncate_str(address)), 'magenta', attrs=['bold']))
+                    util.logger.log(colored('Polymorphing, new layers for address : {0}'.format(util.truncate_str(address)), 'magenta', attrs=['bold']))
                     layers_changed = True
 
         if layers_changed:
             num_params = 0
             for p in self.parameters():
                 num_params += p.nelement()
-            util.log_print(colored('Polymorphing, new trainable params: {:,}'.format(num_params), 'magenta', attrs=['bold']))
+            util.logger.log(colored('Polymorphing, new trainable params   : {:,}'.format(num_params), 'magenta', attrs=['bold']))
             self.num_params_history_trace.append(self.total_traces)
             self.num_params_history_num_params.append(num_params)
         if self.on_cuda:
             self.cuda(self.cuda_device_id)
         return layers_changed
+
+    def set_valid_batch(self, valid_batch):
+        self.valid_batch = valid_batch
+        self.valid_size = valid_batch.length
 
     def set_sample_embedding(self, smp_emb_dim):
         self.smp_emb_dim = smp_emb_dim
@@ -799,7 +805,7 @@ class Artifact(nn.Module):
         elif obs_emb == 'lstm':
             observe_layer = ObserveEmbeddingLSTM(Variable(example_observes), obs_emb_dim, dropout=self.dropout)
         else:
-            util.log_error('set_observe_embedding: Unsupported observation embedding: ' + obs_emb)
+            util.logger.log('set_observe_embedding: Unsupported observation embedding: ' + obs_emb)
 
         self.observe_layer = observe_layer
 
@@ -809,33 +815,33 @@ class Artifact(nn.Module):
         self.lstm_input_dim = self.obs_emb_dim + self.smp_emb_dim + 2 * (self.one_hot_address_dim + self.one_hot_distribution_dim)
         self.lstm = nn.LSTM(self.lstm_input_dim, lstm_dim, lstm_depth, dropout=self.dropout)
 
-    def set_one_hot_dims(self, one_hot_address_dim, one_hot_distribution_dim):
-        self.one_hot_address_dim =one_hot_address_dim
+    def set_one_hot_dims(self, one_hot_address_dim, one_hot_distribution_dim=10):
+        self.one_hot_address_dim = one_hot_address_dim
         self.one_hot_distribution_dim = one_hot_distribution_dim
         self.one_hot_address_empty = Variable(util.Tensor(self.one_hot_address_dim).zero_(), requires_grad=False)
         self.one_hot_distribution_empty = Variable(util.Tensor(self.one_hot_distribution_dim).zero_(), requires_grad=False)
 
     def add_one_hot_address(self, address):
         if not address in self.one_hot_address:
-            util.log_print(colored('Polymorphing, new address         : ' + util.truncate_str(address), 'magenta', attrs=['bold']))
+            # util.log_print(colored('Polymorphing, new address            : ' + util.truncate_str(address), 'magenta', attrs=['bold']))
             i = len(self.one_hot_address)
             if i < self.one_hot_address_dim:
                 t = util.one_hot(self.one_hot_address_dim, i)
                 self.one_hot_address[address] = Variable(t, requires_grad=False)
             else:
-                util.log_warning('Overflow (collision) in one_hot_address. Allowed: {0}; Encountered: {1}'.format(self.one_hot_address_dim, i + 1))
+                util.logger.log_warning('Overflow (collision) in one_hot_address. Allowed: {0}; Encountered: {1}'.format(self.one_hot_address_dim, i + 1))
                 self.one_hot_address[address] = random.choice(list(self.one_hot_address.values()))
 
     def add_one_hot_distribution(self, distribution):
         distribution_name = distribution.name
         if not distribution_name in self.one_hot_distribution:
-            util.log_print(colored('Polymorphing, new distribution    : ' + distribution_name, 'magenta', attrs=['bold']))
+            util.logger.log(colored('Polymorphing, new distribution       : ' + distribution_name, 'magenta', attrs=['bold']))
             i = len(self.one_hot_distribution)
             if i < self.one_hot_distribution_dim:
                 t = util.one_hot(self.one_hot_distribution_dim, i)
                 self.one_hot_distribution[distribution_name] = Variable(t, requires_grad=False)
             else:
-                util.log_warning('Overflow (collision) in one_hot_distribution. Allowed: {0}; Encountered: {1}'.format(self.one_hot_distribution_dim, i + 1))
+                util.logger.log_warning('Overflow (collision) in one_hot_distribution. Allowed: {0}; Encountered: {1}'.format(self.one_hot_distribution_dim, i + 1))
                 self.one_hot_distribution[distribution_name] = random.choice(list(self.one_hot_distribution.values()))
 
     def move_to_cuda(self, device_id=None):
@@ -867,18 +873,18 @@ class Artifact(nn.Module):
     def loss(self, batch, optimizer=None, truncate=-1, grad_clip=-1, data_parallel=False, volatile=False):
         gc.collect()
 
-        example_observes = batch[0].observes
+        example_observes = batch[0].observes_tensor
         if isinstance(self.observe_layer, ObserveEmbeddingLSTM):
             if example_observes.dim() != 2:
-                util.log_error('loss: RNN observation embedding requires an observation shape of (T x F), where T is sequence length and F is feature length. Received observation with shape: {0}'.format(example_observes.size()))
+                util.logger.log_error('loss: RNN observation embedding requires an observation shape of (T x F), where T is sequence length and F is feature length. Received observation with shape: {0}'.format(example_observes.size()))
 
             # We need to sort observes in the batch in decreasing length. This is a requirement for batching variable length sequences through RNNs.
             batch_sorted_by_observes = batch.sort_by_observes_length()
-            observes_lengths = [t.observes.size(0) for t in batch_sorted_by_observes]
-            observes_feature_length = batch[0].observes.size(1)
+            observes_lengths = [t.observes_tensor.size(0) for t in batch_sorted_by_observes]
+            observes_feature_length = batch[0].observes_tensor.size(1)
             obs = util.Tensor(batch.length, batch.observes_max_length, observes_feature_length).zero_()
             for b in range(batch.length):
-                o = batch_sorted_by_observes[b].observes
+                o = batch_sorted_by_observes[b].observes_tensor
                 for t in range(o.size(0)):
                     obs[b, t] = o[t]
             obs_var = Variable(obs, requires_grad=False, volatile=volatile)
@@ -913,10 +919,10 @@ class Artifact(nn.Module):
                 obs_emb, _ = torch.nn.utils.rnn.pad_packed_sequence(obs_emb, batch_first=True)
 
                 for b in range(batch.length):
-                    seq_len = batch_sorted_by_observes[b].observes.size(0)
+                    seq_len = batch_sorted_by_observes[b].observes_tensor.size(0)
                     batch_sorted_by_observes[b].observes_embedding = obs_emb[b, seq_len - 1]
             else:
-                obs = torch.cat([batch[b].observes for b in range(batch_length_in_view)]);
+                obs = torch.cat([batch[b].observes_tensor for b in range(batch_length_in_view)]);
                 if example_observes.dim() == 1:
                     obs = obs.view(batch_length_in_view, example_observes.size()[0])
                 elif example_observes.dim() == 2:
@@ -924,7 +930,7 @@ class Artifact(nn.Module):
                 elif example_observes.dim() == 3:
                     obs = obs.view(batch_length_in_view, example_observes.size()[0], example_observes.size()[1], example_observes.size()[2])
                 else:
-                    util.log_error('loss: Unsupported observation dimensions: {0}'.format(example_observes.size()))
+                    util.logger.log_error('loss: Unsupported observation dimensions: {0}'.format(example_observes.size()))
                 obs_var = Variable(obs, requires_grad=False, volatile=volatile)
 
                 if data_parallel and self.on_cuda:
