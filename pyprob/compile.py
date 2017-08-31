@@ -293,6 +293,7 @@ def main():
                     artifact.valid_history_loss.append(valid_loss)
 
                     if valid_loss < artifact.valid_loss_best:
+                        time_improvement = time.time()                        
                         artifact.valid_loss_best = valid_loss
                         valid_loss_str = colored('{:+.6e} ▼'.format(valid_loss), 'green', attrs=['bold'])
                     elif valid_loss > artifact.valid_loss_worst:
