@@ -9,6 +9,8 @@ RUN rm -fR /var/lib/apt/lists/*
 RUN apt update
 RUN apt install -y apt-utils locales
 
+RUN apt install -y software-properties-common python3-software-properties python-software-properties
+
 ARG PYPROB_VERSION="unknown"
 ARG GIT_COMMIT="unknown"
 
