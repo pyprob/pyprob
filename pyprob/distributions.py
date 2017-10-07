@@ -62,7 +62,7 @@ class Normal(object):
         return 'Normal(prior_mean:{0}, prior_std:{1}, proposal_mean:{2}, proposal_std:{3})'.format(self.prior_mean, self.prior_std, self.proposal_mean, self.proposal_std)
     __str__ = __repr__
     def sample(self):
-        return np.random.normal(self.prior_mean, self.prior_std)
+        return util.Tensor(1).normal_(self.prior_mean, self.prior_std)
     def set_proposalparams(self, tensor_of_proposal_mean_std):
         self.proposal_mean = tensor_of_proposal_mean_std[0]
         self.proposal_std = tensor_of_proposal_mean_std[1]

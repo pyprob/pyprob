@@ -9,17 +9,17 @@ from pyprob import util
 
 
 class Sample(object):
-    def __init__(self):
-        self.address = None
-        self.address_suffixed = None
-        self.instance = None
-        self.value = util.Tensor()
+    def __init__(self, address, distribution, value):
+        self.address = address
+        self.distribution = distribution
+        self.address_suffixed = address + distribution.address_suffix
+        # self.instance = None
+        self.value = value
         self.value_dim = None
-        self.distribution = None
         self.lstm_input = None
         self.lstm_output = None
     def __repr__(self):
-        return 'Sample({0}, {1}, {2}, {3}, {4})'.format(self.address, self.address_suffixed, self.instance, self.value.size(), str(self.distribution))
+        return 'Sample({0}, {1}, {2}, {3})'.format(self.address, self.address_suffixed, self.value.size(), str(self.distribution))
     __str__ = __repr__
     def cuda(self, device_id=None):
         if not self.value is None:
@@ -46,8 +46,7 @@ class Trace(object):
         return '; '.join([sample.address_suffixed for sample in self.samples])
     def add_observe(self, o):
         self.observes.append(o)
-        
-    def set_observes(self, o):
+    def set_observes_tensor(self, o):
         self.observes_tensor = o
     def add_sample(self, s):
         self.samples.append(s)

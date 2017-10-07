@@ -95,9 +95,8 @@ def get_message_body(message_buffer):
     return message_body
 
 def get_sample(s):
-    sample = Sample()
-    sample.address = s.Address().decode("utf-8")
-    sample.instance = s.Instance()
+    address = s.Address().decode("utf-8")
+    # sample.instance = s.Instance()
     value = NDArray_to_Tensor(s.Value())
     distribution_type = s.DistributionType()
     if distribution_type != infcomp.protocol.Distribution.Distribution().NONE:
@@ -143,9 +142,7 @@ def get_sample(s):
             distribution = Beta()
         else:
             util.log_error('get_sample: Unknown distribution:Distribution id: {0}.'.format(distribution_type))
-        sample.distribution = distribution
-        sample.address_suffixed = sample.address + distribution.address_suffix
-    sample.value = value
+    sample = Sample(address, distribution, value)
     return sample
 
 class BatchRequester(object):
@@ -201,7 +198,7 @@ class BatchRequester(object):
             obs = NDArray_to_Tensor(t.Observes())
             if self._standardize:
                 obs = util.standardize(obs)
-            trace.set_observes(obs)
+            trace.set_observes_tensor(obs)
 
             samples_length = t.SamplesLength()
             for timeStep in range(samples_length):

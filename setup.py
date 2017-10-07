@@ -28,5 +28,8 @@ setup(
     packages=['pyprob', 'infcomp.protocol'],
     install_requires=['torch', 'torchvision', 'termcolor==1.1.0', 'pyzmq==16.0.2', 'flatbuffers==2015.12.22.1', 'visdom==0.1.04', 'matplotlib==2.0.0', 'py-cpuinfo==3.2.0', 'pylatex==1.2.1', 'pydotplus==2.0.2', 'seaborn==0.7.1', 'docker==2.4.2'],
     url='https://github.com/probprog/pyprob',
-    license='GPLv3'
+    classifiers=['Development Status :: 4 - Beta', 'License :: OSI Approved :: MIT License', 'Programming Language :: Python :: 3.5'],
+    license='MIT',
+    keywords='probabilistic programming deep learning inference compilation',
+    scripts=['bin/pyprob-compile']
 )

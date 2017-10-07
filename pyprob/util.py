@@ -4,10 +4,13 @@ import logging
 import sys
 from termcolor import colored
 from threading import Thread
+import cpuinfo
+from glob import glob
 
 import torch
 from torch.autograd import Variable
 import pyprob
+from pyprob.logger import Logger
 
 Tensor = torch.FloatTensor
 random_seed = 123
@@ -17,6 +20,47 @@ epsilon = 1e-8
 beta_res = 1000
 beta_step = 1/beta_res
 beta_integration_domain = Variable(torch.linspace(beta_step/2,1-(beta_step/2),beta_res), requires_grad=False)
+
+def in_jupyter():
+    try:
+        get_ipython
+        return True
+    except:
+        return False
+
+def get_time_stamp():
+    return datetime.datetime.fromtimestamp(time.time()).strftime('-%Y%m%d-%H%M%S')
+
+def get_config():
+    ret = []
+    ret.append(colored('pyprob  {}'.format(pyprob.__version__), 'blue', attrs=['bold']))
+    ret.append('PyTorch {}'.format(torch.__version__))
+    cpu_info = cpuinfo.get_cpu_info()
+    if 'brand' in cpu_info:
+        ret.append('CPU           : {}'.format(cpu_info['brand']))
+    else:
+        ret.append('CPU           : unknown')
+    if 'count' in cpu_info:
+        ret.append('CPU count     : {0} (logical)'.format(cpu_info['count']))
+    else:
+        ret.append('CPU count     : unknown')
+    if torch.cuda.is_available():
+        ret.append('CUDA          : available')
+        ret.append('CUDA devices  : {0}'.format(torch.cuda.device_count()))
+        if cuda_enabled:
+            if cuda_device == -1:
+                ret.append('CUDA selected : all')
+            else:
+                ret.append('CUDA selected : {0}'.format(cuda_device))
+    else:
+        ret.append('CUDA          : not available')
+    if cuda_enabled:
+        ret.append('Running on    : CUDA')
+    else:
+        ret.append('Running on    : CPU')
+    return '\n'.join(ret)
+
+logger = Logger('{0}/{1}'.format('.', 'pyprob-log' + get_time_stamp()))
 
 def set_cuda(cuda, device=0):
     global cuda_enabled
@@ -37,18 +81,10 @@ def set_cuda(cuda, device=0):
         Tensor = torch.FloatTensor
         beta_integration_domain = beta_integration_domain.cpu()
 
-def get_time_stamp():
-    return datetime.datetime.fromtimestamp(time.time()).strftime('-%Y%m%d-%H%M%S')
 
 def get_time_str():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-def in_jupyter():
-    try:
-        get_ipython
-        return True
-    except:
-        return False
 
 
 def load_artifact(file_name, cuda=False, device_id=-1):
@@ -58,15 +94,15 @@ def load_artifact(file_name, cuda=False, device_id=-1):
         else:
             artifact = torch.load(file_name, map_location=lambda storage, loc: storage)
     except:
-        log_error('load_artifact: Cannot load file')
+        logger.log_error('load_artifact: Cannot load file')
     if artifact.code_version != pyprob.__version__:
-        log_print()
-        log_warning('Different pyprob versions (artifact: {0}, current: {1})'.format(artifact.code_version, pyprob.__version__))
-        log_print()
+        logger.log()
+        logger.log_warning('Different pyprob versions (artifact: {0}, current: {1})'.format(artifact.code_version, pyprob.__version__))
+        logger.log()
     if artifact.pytorch_version != torch.__version__:
-        log_print()
-        log_warning('Different PyTorch versions (artifact: {0}, current: {1})'.format(artifact.pytorch_version, torch.__version__))
-        log_print()
+        logger.log()
+        logger.log_warning('Different PyTorch versions (artifact: {0}, current: {1})'.format(artifact.pytorch_version, torch.__version__))
+        logger.log()
 
     # if print_info:
     #     file_size = '{:,}'.format(os.path.getsize(file_name))
@@ -81,17 +117,17 @@ def load_artifact(file_name, cuda=False, device_id=-1):
 
         if artifact.on_cuda:
             if device_id != artifact.cuda_device_id:
-                log_warning('Loading CUDA (device {0}) artifact to CUDA (device {1})'.format(artifact.cuda_device_id, device_id))
-                log_print()
+                logger.log_warning('Loading CUDA (device {0}) artifact to CUDA (device {1})'.format(artifact.cuda_device_id, device_id))
+                logger.log()
                 artifact.move_to_cuda(device_id)
         else:
-            log_warning('Loading CPU artifact to CUDA (device {0})'.format(device_id))
-            log_print()
+            logger.log_warning('Loading CPU artifact to CUDA (device {0})'.format(device_id))
+            logger.log()
             artifact.move_to_cuda(device_id)
     else:
         if artifact.on_cuda:
-            log_warning('Loading CUDA artifact to CPU')
-            log_print()
+            logger.log_warning('Loading CUDA artifact to CPU')
+            logger.log()
             artifact.move_to_cpu()
 
     return artifact
@@ -107,6 +143,14 @@ def save_artifact(artifact, file_name):
     a = Thread(target=thread_save)
     a.start()
     a.join()
+
+def file_starting_with(pattern, n):
+    try:
+        ret = sorted(glob(pattern + '*'))[n]
+    except:
+        logger.log_error('Cannot find file')
+        sys.exit(1)
+    return ret
 
 def truncate_str(s, length=80):
     return (s[:length] + '...') if len(s) > length else s

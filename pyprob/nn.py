@@ -619,8 +619,8 @@ class Artifact(nn.Module):
         self.valid_history_loss = []
         self.train_history_trace = []
         self.train_history_loss = []
-        self.total_training_seconds = None
-        self.total_iterations = None
+        self.total_training_seconds = 0
+        self.total_iterations = 0
         self.total_traces = 0
         self.updates = 0
         self.optimizer = None

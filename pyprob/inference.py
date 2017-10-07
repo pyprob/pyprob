@@ -10,31 +10,24 @@ import time
 import sys
 import traceback
 
+
 class InferenceRemote(object):
-    def __init__(self, server='tcp://127.0.0.1:5555', batch_pool=False, resume_artifact_file=None, standardize_observes=False):
+    def __init__(self, server='tcp://127.0.0.1:5555', batch_pool=False, standardize_observes=False, directory='.', resume=False, lstm_dim=512, lstm_depth=2, obs_emb='fc', obs_reshape=None, obs_emb_dim=512, smp_emb_dim=32, one_hot_dim=64, softmax_boost=20, dropout=0.2, valid_size=256):
         self._server = server
         self._batch_pool = batch_pool
         self._standardize_observes = standardize_observes
-        self._resume_artifact_file = resume_artifact_file
-        if resume_artifact_file is None:
-            self._artifact = None
-        else:
+        self._file_name = '{0}/{1}'.format(directory, 'pyprob-artifact' + util.get_time_stamp())
+
+        util.logger.reset()
+        util.logger.log_config()
+
+        if resume:
+            resume_artifact_file = util.file_starting_with('{0}/{1}'.format(directory, 'pyprob-artifact'), -1)
+            util.logger.log(colored('Resuming previous artifact: {}'.format(resume_artifact_file), 'blue', attrs=['bold']))
             self._artifact = util.load_artifact(resume_artifact_file, util.cuda_enabled, util.cuda_device)
-
-
-    def compile(self, lstm_dim=512, lstm_depth=2, obs_emb='fc', obs_reshape=None, obs_emb_dim=512, smp_emb_dim=32, one_hot_dim=64, softmax_boost=20, dropout=0.2, batch_size=64, valid_size=256, valid_interval=1000, optimizer_method='adam', learning_rate=0.0001, momentum=0.9, weight_decay=0.0005, parallelize=False, truncate_backprop=-1, grad_clip=-1, max_traces=-1, directory='.', keep_all_artifacts=False):
-        time_stamp = util.get_time_stamp()
-        util.logger = Logger('{0}/{1}'.format('.', 'pyprob-compile-log' + time_stamp))
-        file_name = '{0}/{1}'.format(directory, 'pyprob-artifact' + time_stamp)
-        with BatchRequester(self._server, self._standardize_observes, self._batch_pool) as requester:
-            if self._artifact is not None:
-                prev_artifact_total_traces = self._artifact.total_traces
-                prev_artifact_total_iterations = self._artifact.total_iterations
-                prev_artifact_total_training_seconds = self._artifact.total_training_seconds
-            else:
-                prev_artifact_total_traces = 0
-                prev_artifact_total_iterations = 0
-                prev_artifact_total_training_seconds = 0
+        else:
+            with BatchRequester(self._server, self._standardize_observes, self._batch_pool) as requester:
+                util.logger.log(colored('Creating new artifact...', 'blue', attrs=['bold']))
                 self._artifact = Artifact(dropout, util.cuda_enabled, util.cuda_device, self._standardize_observes, softmax_boost)
                 self._artifact.set_one_hot_dims(one_hot_dim)
                 traces, _ = requester.get_traces(valid_size, discard_source=True)
@@ -51,9 +44,9 @@ class InferenceRemote(object):
                 self._artifact.set_lstm(lstm_dim, lstm_depth)
                 self._artifact.polymorph()
 
-                traces, _ = requester.get_traces(batch_size)
+                traces, _ = requester.get_traces(valid_size)
                 batch = Batch(traces)
-                loss = self._artifact.loss(batch, optimizer=None, truncate=truncate_backprop, grad_clip=grad_clip, data_parallel=parallelize)
+                loss = self._artifact.loss(batch, optimizer=None)
                 train_loss = loss.data[0]
                 self._artifact.train_history_trace.append(0)
                 self._artifact.train_history_loss.append(train_loss)
@@ -63,12 +56,26 @@ class InferenceRemote(object):
                 sys.stdout.write('Computing validation loss...                             \r')
                 sys.stdout.flush()
                 self._artifact.eval()
-                valid_loss = self._artifact.valid_loss(parallelize)
+                valid_loss = self._artifact.valid_loss()
+                sys.stdout.write('                                                         \r')
+                sys.stdout.flush()
                 self._artifact.valid_history_trace.append(0)
                 self._artifact.valid_history_loss.append(valid_loss)
                 self._artifact.valid_loss_best = valid_loss
                 self._artifact.valid_loss_worst = valid_loss
+        util.logger.log(colored('New artifact will be saved to: {}'.format(self._file_name), 'blue', attrs=['bold']))
 
+    def compile(self, batch_size=64, valid_interval=1000, optimizer_method='adam', learning_rate=0.0001, momentum=0.9, weight_decay=0.0005, parallelize=False, truncate_backprop=-1, grad_clip=-1, max_traces=-1, keep_all_artifacts=False, replace_valid_batch=False, valid_size=256):
+        with BatchRequester(self._server, self._standardize_observes, self._batch_pool) as requester:
+            if replace_valid_batch:
+                util.logger.log(colored('Replacing the validation batch of the artifact', 'magenta', attrs=['bold']))
+                self._artifact.valid_size = valid_size
+                traces, _ = requester.get_traces(valid_size, discard_source=True)
+                self._artifact.set_valid_batch(Batch(traces))
+
+            prev_artifact_total_traces = self._artifact.total_traces
+            prev_artifact_total_iterations = self._artifact.total_iterations
+            prev_artifact_total_training_seconds = self._artifact.total_training_seconds
 
             train_loss_best_str = '{:+.6e}'.format(self._artifact.train_loss_best)
             train_loss_start_str = '{:+.6e}'.format(self._artifact.train_history_loss[0])
@@ -92,8 +99,8 @@ class InferenceRemote(object):
             time_spent_validation = -1
 
             # train_loss_str = '               '
-            # valid_loss_str = '{:+.6e}  '.format(self._artifact.valid_history_loss[-1])
-            valid_loss_str = '               '
+            # valid_loss_str = '               '
+            valid_loss_str = '{:+.6e}  '.format(self._artifact.valid_history_loss[-1])
 
             last_validation_trace = 0
 
@@ -107,6 +114,7 @@ class InferenceRemote(object):
             traces_per_sec_str = '   '
 
             try:
+                util.logger.log_compile_begin(self._server, time_str, time_improvement_str, trace_str, traces_per_sec_str)
                 stop = False
                 while not stop:
                     save_new_artifact = False
@@ -150,6 +158,7 @@ class InferenceRemote(object):
                     time_spent_validation = -1
                     if (trace - last_validation_trace > valid_interval) or stop:
                         time_validation_start = time.time()
+                        util.logger.log_compile_valid(time_str, time_improvement_str, trace_str, traces_per_sec_str)
 
                         save_new_artifact = True
                         time_best_str = time_str
@@ -204,29 +213,21 @@ class InferenceRemote(object):
 
 
                     traces_per_sec_str = '{:3}'.format('{:,}'.format(int(traces_per_sec)))
-
                     time_improvement_str = util.days_hours_mins_secs(time.time() - time_improvement)
-                    util.logger.reset()
-                    util.logger.log('────────┬─' + '─'*len(time_str) + '─┬─' + '─'*len(trace_str) + '─┬─────────────────┬─────────────────')
-                    util.logger.log('        │ {0:>{1}} │ {2:>{3}} │ Training loss   │ Valid. loss     '.format('Train. time', len(time_str), 'Trace', len(trace_str)))
-                    util.logger.log('────────┼─' + '─'*len(time_str) + '─┼─' + '─'*len(trace_str) + '─┼─────────────────┼─────────────────')
-                    util.logger.log('Start   │ {0:>{1}} │ {2:>{3}} │ {4}   │ {5}'.format(time_session_start_str, len(time_str), trace_session_start_str, len(trace_str), train_loss_session_start_str, valid_loss_session_start_str))
-                    util.logger.log('Best    │ {0:>{1}} │ {2:>{3}} │ {4}   │ {5}'.format(time_best_str, len(time_str), trace_best_str, len(trace_str), train_loss_best_str, valid_loss_best_str))
-                    util.logger.log('Current │ {0} │ {1} │ {2} │ {3}'.format(time_str, trace_str, train_loss_str, valid_loss_str))
-                    util.logger.log('────────┴─' + '─'*len(time_str) + '─┴─' + '─'*len(trace_str) + '─┴─────────────────┴─────────────────')
-                    util.logger.log('Training on {0}, {1} traces/s'.format('CUDA' if util.cuda_enabled else 'CPU', traces_per_sec_str))
-                    util.logger.update()
+
+                    util.logger.log_compile(time_str, time_session_start_str, time_best_str, time_improvement_str, trace_str, trace_session_start_str, trace_best_str, train_loss_str, train_loss_session_start_str, train_loss_best_str, valid_loss_str, valid_loss_session_start_str, valid_loss_best_str, traces_per_sec_str)
 
                     if save_new_artifact:
                         self._artifact.optimizer = optimizer_method
                         if keep_all_artifacts:
-                            time_stamp = util.get_time_stamp()
-                            file_name = '{0}/{1}'.format(directory, 'pyprob-artifact' + time_stamp)
-                        util.save_artifact(self._artifact, file_name)
-
+                            self._file_name = '{0}/{1}'.format(directory, 'pyprob-artifact' + util.get_time_stamp())
+                        util.save_artifact(self._artifact, self._file_name)
 
             except KeyboardInterrupt:
                 util.logger.log('Stopped')
-                util.logger.update()
+                util.logger._jupyter_update()
             except Exception:
                 traceback.print_exc(file=sys.stdout)
+
+    def infer(self):
+        util.logger.log_config()
