@@ -45,7 +45,7 @@ class Logger(object):
         line = colored('Error: ' + line, 'red', attrs=['bold'])
         if self._in_jupyter:
             self._jupyter_rows.append(line)
-            self.jupyter_update()
+            self._jupyter_update()
         else:
             print(line)
         self._logger.error(self.remove_non_ascii(line))

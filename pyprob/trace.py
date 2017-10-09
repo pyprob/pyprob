@@ -12,7 +12,10 @@ class Sample(object):
     def __init__(self, address, distribution, value):
         self.address = address
         self.distribution = distribution
-        self.address_suffixed = address + distribution.address_suffix
+        if distribution is None:
+            self.address_suffixed = address
+        else:
+            self.address_suffixed = address + distribution.address_suffix
         # self.instance = None
         self.value = value
         self.value_dim = None

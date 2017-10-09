@@ -19,6 +19,7 @@ import datetime
 import gc
 import sys
 import random
+import copy
 
 class Batch(object):
     def __init__(self, traces, sort=True):
@@ -571,7 +572,7 @@ class ObserveEmbeddingCNN3D4C(nn.Module):
         return x
 
 class Artifact(nn.Module):
-    def __init__(self, dropout=0.2, cuda=False, cuda_device_id=0, standardize=False, softmax_boost=20):
+    def __init__(self, dropout=0.2, cuda=False, cuda_device_id=0, standardize_observes=False, softmax_boost=20):
         super(Artifact, self).__init__()
 
         self.sample_layers = {}
@@ -587,7 +588,7 @@ class Artifact(nn.Module):
         self.cuda_device_id = cuda_device_id
         self.code_version = pyprob.__version__
         self.pytorch_version = torch.__version__
-        self.standardize = standardize
+        self.standardize_observes = standardize_observes
         self.one_hot_address = {}
         self.one_hot_distribution = {}
         self.one_hot_address_dim = None
@@ -626,6 +627,10 @@ class Artifact(nn.Module):
         self.optimizer = None
         self.dropout = dropout
         self.softmax_boost = softmax_boost
+
+        self._state_observes = None
+        self._state_observes_embedding = None
+        self._state_prev_sample = None
 
     def get_structure_str(self):
         ret = str(next(enumerate(self.modules()))[1])
@@ -679,6 +684,7 @@ class Artifact(nn.Module):
                           colored('Loss change / iter.   : {:+.6e}'.format(loss_change_per_iter), 'green'),
                           colored('Loss change / trace   : {:+.6e}'.format(loss_change_per_trace), 'green'),
                           colored('Validation set size   : {:,}'.format(self.valid_size), 'green'),
+                          colored('Standardize observes  : {0}'.format(self.standardize_observes), 'cyan'),
                           colored('Observe embedding     : {0}'.format(self.obs_emb), 'cyan'),
                           colored('Observe embedding dim.: {:,}'.format(self.obs_emb_dim), 'cyan'),
                           colored('Sample embedding dim. : {:,}'.format(self.smp_emb_dim), 'cyan'),
@@ -869,6 +875,85 @@ class Artifact(nn.Module):
 
     def valid_loss(self, data_parallel=False):
         return self.loss(self.valid_batch, data_parallel=data_parallel, volatile=True).data[0]
+
+    def forward(self, observes=None, current_sample=None, volatile=False):
+        self._state_observes = observes
+        if self._state_observes is None:
+            util.logger.log_error('forward: Running the artifact requires an observation.')
+        if current_sample is None:
+            util.logger.log_error('forward: Expecting current_sample.')
+
+        success = True
+
+        if observes is not None: # indicates new trace
+            self._state_observes_embedding = self.observe_layer.forward(observes)
+            self._state_prev_sample = None
+            prev_sample_embedding = Variable(util.Tensor(1, self.smp_emb_dim).zero_(), volatile=volatile)
+            prev_one_hot_address = self.one_hot_address_empty
+            prev_one_hot_distribution = self.one_hot_distribution_empty
+            h0 = Variable(util.Tensor(self.lstm_depth, 1, self.lstm_dim).zero_(), volatile=volatile)
+            self._state_lstm_hidden_state = (h0, h0)
+        else:
+            prev_address = self._state_prev_sample.address
+            prev_distribution = self._state_prev_sample.distribution
+            prev_value = self._state_prev_sample.value
+            if prev_address in self.sample_layers:
+                prev_sample_embedding = self.sample_layers[prev_address](Variable(prev_value.unsqueeze(0), volatile=volatile))
+            else:
+                util.logger.log_warning('forward: No sample embedding layer for: {}'.format(prev_address))
+                success = False
+
+            if prev_address in self.one_hot_address:
+                prev_one_hot_address = self.one_hot_address[prev_address]
+            else:
+                util.logger.log_warning('forward: Unknown address (previous): {}'.format(prev_address))
+                success = False
+            if prev_distribution.name in self.one_hot_distribution:
+                prev_one_hot_distribution = self.one_hot_distribution[prev_distribution.name]
+            else:
+                util.logger.log_warning('forward: Unknown distribution (previous): {}'.format(prev_distribution.name))
+                success = False
+
+        current_address = current_sample.address_suffixed
+        current_distribution = current_sample.distribution
+        if not current_address in self.proposal_layers:
+            util.logger.log_warning('forward: No proposal layer for: {}'.format(current_address))
+            success = False
+        if current_address in self.one_hot_address:
+            current_one_hot_address = self.one_hot_address[current_address]
+        else:
+            util.logger.log_warning('forward: Unknown address (current): {}'.format(current_address))
+            success = False
+        if current_distribution.name in self.one_hot_distribution:
+            current_one_hot_distribution = self.one_hot_distribution[current_distribution.name]
+        else:
+            util.logger.log_warning('forward: Unkown distribution (current): {}'.format(current_distribution.name))
+            success = False
+
+        self._state_prev_sample = current_sample
+
+        if success:
+            t = [self._state_observes_embedding[0],
+                 prev_sample_embedding[0],
+                 prev_one_hot_distribution,
+                 prev_one_hot_address,
+                 current_one_hot_distribution,
+                 current_one_hot_address]
+            t = torch.cat(t).unsqueeze(0)
+            lstm_input = t.unsqueeze(0)
+            lstm_output, self._state_lstm_hidden_state = self.lstm(lstm_input, self._state_lstm_hidden_state)
+            proposal_input = lstm_output[0]
+            success, proposal_output = self.proposal_layers[current_address].forward(proposal_input, [current_sample])
+            if success:
+                proposal_distribution = copy.deepcopy(current_sample.distribution)
+                proposal_distribution.set_proposalparams(proposal_output[0].data)
+                return proposal_distribution
+            else:
+                util.logger.log_warning('forward: Problem in executing proposal layer for: {}'.format(current_address))
+                return None
+        else:
+            util.logger.log_warning('forward: Proposal will be made from the prior.')
+            return None
 
     def loss(self, batch, optimizer=None, truncate=-1, grad_clip=-1, data_parallel=False, volatile=False):
         gc.collect()

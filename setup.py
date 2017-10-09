@@ -31,5 +31,5 @@ setup(
     classifiers=['Development Status :: 4 - Beta', 'License :: OSI Approved :: MIT License', 'Programming Language :: Python :: 3.5'],
     license='MIT',
     keywords='probabilistic programming deep learning inference compilation',
-    scripts=['bin/pyprob-compile']
+    scripts=['bin/pyprob-compile', 'bin/pyprob-infer']
 )

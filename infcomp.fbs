@@ -71,7 +71,7 @@ table MultivariateNormal {
     prior_mean:NDArray;
     prior_cov:NDArray;
     proposal_mean:NDArray;
-    proposal_vars:NDArray;
+    proposal_vars:NDArray; // TODO: check why this is proposal_vars. We should prefer proposal_stds.
 }
 
 table Normal {
@@ -91,6 +91,14 @@ table UniformContinuous {
     prior_max:double;
     proposal_mode:double;      // [prior_min, prior_max]
     proposal_certainty:double; // [0, infinity)
+}
+
+table UniformContinuousAlt {
+    prior_min:double;
+    prior_max:double;
+    proposal_means:NDArray;  // (-infinity, infinity)
+    proposal_stds:NDArray;   // (0, infinity)
+    proposal_coeffs:NDArray; // [0, 1]
 }
 
 table UniformDiscrete {

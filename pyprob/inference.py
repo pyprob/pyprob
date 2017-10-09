@@ -1,9 +1,10 @@
 import pyprob
 from pyprob import util
 from pyprob.logger import Logger
-from pyprob.comm import BatchRequester
+from pyprob.comm import BatchRequester, ProposalReplier
 from pyprob.nn import Artifact, Batch
 import torch.optim as optim
+from torch.autograd import Variable
 from termcolor import colored
 import datetime
 import time
@@ -12,8 +13,9 @@ import traceback
 
 
 class InferenceRemote(object):
-    def __init__(self, server='tcp://127.0.0.1:5555', batch_pool=False, standardize_observes=False, directory='.', resume=False, lstm_dim=512, lstm_depth=2, obs_emb='fc', obs_reshape=None, obs_emb_dim=512, smp_emb_dim=32, one_hot_dim=64, softmax_boost=20, dropout=0.2, valid_size=256):
-        self._server = server
+    def __init__(self, local_server='tcp://0.0.0.0:6666', remote_server='tcp://127.0.0.1:5555', batch_pool=False, standardize_observes=False, directory='.', resume=False, lstm_dim=512, lstm_depth=2, obs_emb='fc', obs_reshape=None, obs_emb_dim=512, smp_emb_dim=32, one_hot_dim=64, softmax_boost=20, dropout=0.2, valid_size=256):
+        self._local_server = local_server
+        self._remote_server = remote_server
         self._batch_pool = batch_pool
         self._standardize_observes = standardize_observes
         self._file_name = '{0}/{1}'.format(directory, 'pyprob-artifact' + util.get_time_stamp())
@@ -26,7 +28,7 @@ class InferenceRemote(object):
             util.logger.log(colored('Resuming previous artifact: {}'.format(resume_artifact_file), 'blue', attrs=['bold']))
             self._artifact = util.load_artifact(resume_artifact_file, util.cuda_enabled, util.cuda_device)
         else:
-            with BatchRequester(self._server, self._standardize_observes, self._batch_pool) as requester:
+            with BatchRequester(self._remote_server, self._standardize_observes, self._batch_pool) as requester:
                 util.logger.log(colored('Creating new artifact...', 'blue', attrs=['bold']))
                 self._artifact = Artifact(dropout, util.cuda_enabled, util.cuda_device, self._standardize_observes, softmax_boost)
                 self._artifact.set_one_hot_dims(one_hot_dim)
@@ -66,7 +68,7 @@ class InferenceRemote(object):
         util.logger.log(colored('New artifact will be saved to: {}'.format(self._file_name), 'blue', attrs=['bold']))
 
     def compile(self, batch_size=64, valid_interval=1000, optimizer_method='adam', learning_rate=0.0001, momentum=0.9, weight_decay=0.0005, parallelize=False, truncate_backprop=-1, grad_clip=-1, max_traces=-1, keep_all_artifacts=False, replace_valid_batch=False, valid_size=256):
-        with BatchRequester(self._server, self._standardize_observes, self._batch_pool) as requester:
+        with BatchRequester(self._remote_server, self._standardize_observes, self._batch_pool) as requester:
             if replace_valid_batch:
                 util.logger.log(colored('Replacing the validation batch of the artifact', 'magenta', attrs=['bold']))
                 self._artifact.valid_size = valid_size
@@ -114,7 +116,7 @@ class InferenceRemote(object):
             traces_per_sec_str = '   '
 
             try:
-                util.logger.log_compile_begin(self._server, time_str, time_improvement_str, trace_str, traces_per_sec_str)
+                util.logger.log_compile_begin(self._remote_server, time_str, time_improvement_str, trace_str, traces_per_sec_str)
                 stop = False
                 while not stop:
                     save_new_artifact = False
@@ -230,4 +232,35 @@ class InferenceRemote(object):
                 traceback.print_exc(file=sys.stdout)
 
     def infer(self):
-        util.logger.log_config()
+        with ProposalReplier(self._local_server) as replier:
+            util.logger.reset()
+            util.logger.log(self._artifact.get_info())
+            util.logger.log()
+            util.logger.log(colored('Inference engine running at ' + self._local_server, 'blue', attrs=['bold']))
+            self._artifact.eval()
+
+            try:
+                total_traces = 0
+                time_step = 0
+                observes = None
+                while True:
+                    replier.receive_request(self._artifact.standardize_observes)
+                    if replier.new_trace:
+                        time_step = 0
+                        total_traces += 1
+                        observes = Variable(replier.observes.unsqueeze(0), volatile=True)
+                        replier.reply_observes_received()
+                    else:
+                        if time_step == 0:
+                            proposal_distribution = self._artifact.forward(observes, replier.current_sample, volatile=True)
+                        else:
+                            proposal_distribution = self._artifact.forward(None, replier.current_sample, volatile=True)
+                        replier.reply_proposal(proposal_distribution)
+                        time_step += 1
+                    print(total_traces, time_step)
+
+            except KeyboardInterrupt:
+                util.logger.log('Stopped')
+                util.logger._jupyter_update()
+            except Exception:
+                traceback.print_exc(file=sys.stdout)
