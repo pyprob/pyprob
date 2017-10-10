@@ -25,6 +25,7 @@ setup(
     version=read_package_variable('__version__'),
     description='PyTorch-based library for probabilistic programming and inference compilation',
     author='Tuan-Anh Le and Atilim Gunes Baydin',
+    author_email='gunes@robots.ox.ac.uk',
     packages=['pyprob', 'pyprob.console', 'infcomp.protocol'],
     install_requires=['torch', 'torchvision', 'termcolor==1.1.0', 'pyzmq==16.0.2', 'flatbuffers==2015.12.22.1', 'visdom==0.1.04', 'matplotlib==2.0.0', 'py-cpuinfo==3.2.0', 'pylatex==1.2.1', 'pydotplus==2.0.2', 'seaborn==0.7.1'],
     url='https://github.com/probprog/pyprob',
