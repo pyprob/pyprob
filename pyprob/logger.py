@@ -11,13 +11,15 @@ import logging
 import re
 import cpuinfo
 from termcolor import colored
-from IPython.display import clear_output
 import sys
 
 class Logger(object):
     def __init__(self, file_name):
         self._file_name = file_name
         self._in_jupyter = util.in_jupyter()
+        if self._in_jupyter:
+            from IPython.display import clear_output
+            self._clear_output = clear_output
         self._jupyter_rows = []
         self._ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
 
@@ -33,7 +35,7 @@ class Logger(object):
 
     def _jupyter_update(self):
         if self._in_jupyter:
-            clear_output(wait=True)
+            self._clear_output(wait=True)
             for row in self._jupyter_rows:
                 print(row)
 
