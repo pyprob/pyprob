@@ -47,7 +47,7 @@ After setting up the probabilistic program and initiating compilation mode in th
 pyprob-compile
 ```
 
-This starts a training session with infinite training data supplied from the probabilistic model. You can stop training at any point by hitting Ctrl + C. Alternatively, you can use the `--maxTraces` option to stop after a set number of traces (e.g., `--maxTraces 1000`).
+This starts a training session with infinite training data supplied by the probabilistic model. You can stop training at any point by hitting Ctrl + C. Alternatively, you can use the `--maxTraces` option to stop after a set number of traces (e.g., `--maxTraces 1000`).
 
 If you want to use GPU, you should install PyTorch with CUDA support and use the `--cuda` flag.
 
