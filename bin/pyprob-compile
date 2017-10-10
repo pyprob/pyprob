@@ -14,7 +14,7 @@ def main():
         parser.add_argument('--cuda', help='use CUDA', action='store_true')
         parser.add_argument('--device', help='selected CUDA device (-1: all, 0: 1st device, 1: 2nd device, etc.)', default=-1, type=int)
         parser.add_argument('--parallel', help='parallelize on CUDA using DataParallel', action='store_true')
-        parser.add_argument('--seed', help='random seed', default=4, type=int)
+        parser.add_argument('--seed', help='random seed', default=123, type=int)
         parser.add_argument('--server', help='address of the probprog model server', default='tcp://127.0.0.1:5555')
         parser.add_argument('--optimizer', help='optimizer for training the artifact', choices=['adam', 'sgd'], default='adam', type=str)
         parser.add_argument('--learningRate', help='learning rate', default=0.0001, type=float)
@@ -54,6 +54,7 @@ def main():
             server = opt.batchPool
             batch_pool = True
 
+        util.set_random_seed(opt.seed)
         util.set_cuda(opt.cuda, opt.device)
 
         inference = pyprob.InferenceRemote(remote_server=server, batch_pool=batch_pool, standardize_observes=opt.standardize, directory=opt.dir, resume=opt.resume, lstm_dim=opt.lstmDim, lstm_depth=opt.lstmDepth, obs_emb=opt.obsEmb, obs_reshape=opt.obsReshape, obs_emb_dim=opt.obsEmbDim, smp_emb_dim=opt.smpEmbDim, one_hot_dim=opt.oneHotDim, softmax_boost=opt.softmaxBoost, dropout=opt.dropout, valid_size=opt.validSize)
