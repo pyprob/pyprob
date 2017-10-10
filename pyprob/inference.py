@@ -275,7 +275,7 @@ class InferenceRemote(object):
                         replier.reply_observes_received()
                         new_trace = True
                     else:
-                        proposal_distribution = self._artifact.forward(new_trace, observes, replier.current_sample, volatile=True)
+                        proposal_distribution = self._artifact.forward(new_trace, observes, replier.previous_sample, replier.current_sample, volatile=True)
                         replier.reply_proposal(proposal_distribution)
                         new_trace = False
 

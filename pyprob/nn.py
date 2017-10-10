@@ -630,7 +630,6 @@ class Artifact(nn.Module):
 
         self._state_observes = None
         self._state_observes_embedding = None
-        self._state_prev_sample = None
 
     def get_structure_str(self):
         ret = str(next(enumerate(self.modules()))[1])
@@ -876,7 +875,7 @@ class Artifact(nn.Module):
     def valid_loss(self, data_parallel=False):
         return self.loss(self.valid_batch, data_parallel=data_parallel, volatile=True).data[0]
 
-    def forward(self, new_trace=True, observes=None, current_sample=None, volatile=False):
+    def forward(self, new_trace=True, observes=None, previous_sample=None, current_sample=None, volatile=False):
         self._state_observes = observes
         if self._state_observes is None:
             util.logger.log_error('forward: Running the artifact requires an observation.')
@@ -884,19 +883,17 @@ class Artifact(nn.Module):
             util.logger.log_error('forward: Expecting current_sample.')
 
         success = True
-
         if new_trace:
             self._state_observes_embedding = self.observe_layer.forward(observes)
-            self._state_prev_sample = None
             prev_sample_embedding = Variable(util.Tensor(1, self.smp_emb_dim).zero_(), volatile=volatile)
             prev_one_hot_address = self.one_hot_address_empty
             prev_one_hot_distribution = self.one_hot_distribution_empty
             h0 = Variable(util.Tensor(self.lstm_depth, 1, self.lstm_dim).zero_(), volatile=volatile)
             self._state_lstm_hidden_state = (h0, h0)
         else:
-            prev_address = self._state_prev_sample.address
-            prev_distribution = self._state_prev_sample.distribution
-            prev_value = self._state_prev_sample.value
+            prev_address = previous_sample.address_suffixed
+            prev_distribution = previous_sample.distribution
+            prev_value = previous_sample.value
             if prev_address in self.sample_layers:
                 prev_sample_embedding = self.sample_layers[prev_address](Variable(prev_value.unsqueeze(0), volatile=volatile))
             else:
@@ -929,8 +926,6 @@ class Artifact(nn.Module):
         else:
             util.logger.log_warning('forward: Unkown distribution (current): {}'.format(current_distribution.name))
             success = False
-
-        self._state_prev_sample = current_sample
 
         if success:
             t = [self._state_observes_embedding[0],
