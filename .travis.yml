@@ -7,7 +7,8 @@ python:
   - "3.5"
   - "3.6"
 before_install:
-  - pip install http://download.pytorch.org/whl/cu80/torch-0.2.0.post3-cp36-cp36m-manylinux1_x86_64.whl
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.5 ]]; then pip install --quiet http://download.pytorch.org/whl/cu80/torch-0.2.0.post3-cp35-cp35m-manylinux1_x86_64.whl; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then pip install --quiet http://download.pytorch.org/whl/cu80/torch-0.2.0.post3-cp36-cp36m-manylinux1_x86_64.whl; fi
 install:
   - pip install -r requirements.txt
   - pip install .
