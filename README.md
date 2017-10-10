@@ -27,7 +27,7 @@ pip install .
 After setting up the probabilistic program and initiating compilation mode (see [tutorial](TUTORIAL.md)), you can start the compilation module with the default set of parameters using:
 
 ```
-python -m pyprob.compile
+pyprob-compile
 ```
 
 This starts a training session with infinite training data supplied from the probabilistic model. You can stop training at any point by hitting Ctrl + C. Alternatively, you can use the `--maxTraces` option to stop after a set number of traces (e.g., `--maxTraces 1000`).
@@ -43,7 +43,7 @@ There are a number of parameters for configuring the compilation session, such a
 After setting up the probabilistic program and initiating inference mode (see [tutorial(TUTORIAL.md)]), you can start the inference module with the default set of parameters using:
 
 ```
-python -m pyprob.infer
+pyprob-infer
 ```
 
 This starts an inference session using the latest saved artifact in the current directory. The directory for loading the artifact from can be changed using the `--dir` option (e.g., `--dir ~/artifacts`). Inference can be run on GPU using the `--cuda` flag.
@@ -55,7 +55,7 @@ Use the `--help` flag to see all available options and functionality.
 You can use
 
 ```
-python -m pyprob.analytics
+pyprob-analytics
 ```
 
 for showing various statistics about the latest saved artifact in the current directory. You can use the `--help` flag to see available options for other functionality including the production of loss plots.

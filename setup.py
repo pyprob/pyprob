@@ -34,7 +34,8 @@ setup(
     entry_points={
         'console_scripts': [
             'pyprob-compile = pyprob.console.compile:main',
-            'pyprob-infer = pyprob.console.infer:main'
+            'pyprob-infer = pyprob.console.infer:main',
+            'pyprob-analytics = pyprob.console.analytics:main'
         ]
     }
 )
