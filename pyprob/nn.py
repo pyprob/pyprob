@@ -480,7 +480,7 @@ class ObserveEmbeddingCNN2D6C(nn.Module):
     def __init__(self, input_example_non_batch, output_dim, reshape=None, dropout=0):
         super(ObserveEmbeddingCNN2D6C, self).__init__()
         self.reshape = reshape
-        if not self.reshape is None:
+        if self.reshape is not None:
             input_example_non_batch = input_example_non_batch.view(self.reshape)
             self.reshape.insert(0, -1) # For correct handling of the batch dimension in self.forward
         if input_example_non_batch.dim() == 2:
@@ -514,7 +514,7 @@ class ObserveEmbeddingCNN2D6C(nn.Module):
         x = nn.MaxPool2d(2)(x)
         return x
     def forward(self, x):
-        if not self.reshape is None:
+        if self.reshape is not None:
             x = x.view(self.reshape)
         if x.dim() == 3: # This indicates that there are no channel dimensions and we have BxHxW
             x = x.unsqueeze(1) # Add a channel dimension of 1 after the batch dimension so that we have BxCxHxW
@@ -530,7 +530,7 @@ class ObserveEmbeddingCNN3D4C(nn.Module):
     def __init__(self, input_example_non_batch, output_dim, reshape=None, dropout=0):
         super(ObserveEmbeddingCNN3D4C, self).__init__()
         self.reshape = reshape
-        if not self.reshape is None:
+        if self.reshape is not None:
             input_example_non_batch = input_example_non_batch.view(self.reshape)
             self.reshape.insert(0, -1) # For correct handling of the batch dimension in self.forward
         if input_example_non_batch.dim() == 3:
@@ -559,7 +559,7 @@ class ObserveEmbeddingCNN3D4C(nn.Module):
         x = nn.MaxPool3d(2)(x)
         return x
     def forward(self, x):
-        if not self.reshape is None:
+        if self.reshape is not None:
             x = x.view(self.reshape)
         if x.dim() == 4: # This indicates that there are no channel dimensions and we have BxDxHxW
             x = x.unsqueeze(1) # Add a channel dimension of 1 after the batch dimension so that we have BxCxDxHxW
@@ -1120,7 +1120,7 @@ class Artifact(nn.Module):
 
             loss = loss / batch.length
 
-            if not optimizer is None:
+            if optimizer is not None:
                 optimizer.zero_grad()
                 loss.backward()
                 if grad_clip > 0:
