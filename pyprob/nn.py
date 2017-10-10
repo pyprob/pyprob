@@ -876,7 +876,7 @@ class Artifact(nn.Module):
     def valid_loss(self, data_parallel=False):
         return self.loss(self.valid_batch, data_parallel=data_parallel, volatile=True).data[0]
 
-    def forward(self, observes=None, current_sample=None, volatile=False):
+    def forward(self, new_trace=True, observes=None, current_sample=None, volatile=False):
         self._state_observes = observes
         if self._state_observes is None:
             util.logger.log_error('forward: Running the artifact requires an observation.')
@@ -885,7 +885,7 @@ class Artifact(nn.Module):
 
         success = True
 
-        if observes is not None: # indicates new trace
+        if new_trace:
             self._state_observes_embedding = self.observe_layer.forward(observes)
             self._state_prev_sample = None
             prev_sample_embedding = Variable(util.Tensor(1, self.smp_emb_dim).zero_(), volatile=volatile)

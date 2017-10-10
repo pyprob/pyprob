@@ -6,6 +6,7 @@ import re
 import cpuinfo
 from termcolor import colored
 from IPython.display import clear_output
+import sys
 
 class Logger(object):
     def __init__(self, file_name):
@@ -69,6 +70,30 @@ class Logger(object):
         self._logger.info(self.remove_non_ascii(line0))
         self._logger.info('')
 
+    def log_infer_begin(self):
+        line1 = 'TPS      │ Max. TPS │ Total traces'
+        line2 = '─────────┼──────────┼─────────────'
+        if not self._in_jupyter:
+            print()
+            print(line1)
+            print(line2)
+        self._logger.info('')
+        self._logger.info(self.remove_non_ascii(line1))
+        self._logger.info(self.remove_non_ascii(line2))
+
+    def log_infer(self, traces_per_sec_str, max_traces_per_sec_str, total_traces):
+        line = '{0} │ {1} │ {2}      \r'.format(traces_per_sec_str, max_traces_per_sec_str, total_traces)
+        if self._in_jupyter:
+            self.reset()
+            self._jupyter_rows.append('TPS      │ Max. TPS │ Total traces')
+            self._jupyter_rows.append('─────────┼──────────┼─────────────')
+            self._jupyter_rows.append(line)
+            self._jupyter_update()
+        else:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+        self._logger.info(self.remove_non_ascii(line))
+
     def log_compile_begin(self, server, time_str, time_improvement_str, trace_str, traces_per_sec_str):
         line1 = colored('Training from ' + server, 'blue', attrs=['bold'])
         line2 = '{{:{0}}}'.format(len(time_str)).format('Train. time') + ' │ ' + '{{:{0}}}'.format(len(trace_str)).format('Trace') + ' │ Training loss   │ Min.train.loss│ Valid. loss     |' + '{{:{0}}}'.format(len(time_improvement_str)).format('T.since best') + ' │ TPS'
@@ -90,7 +115,6 @@ class Logger(object):
         if not self._in_jupyter:
             print(line)
         self._logger.info(self.remove_non_ascii(line))
-
 
     def log_compile(self, time_str, time_session_start_str, time_best_str, time_improvement_str, trace_str, trace_session_start_str, trace_best_str, train_loss_str, train_loss_session_start_str, train_loss_best_str, valid_loss_str, valid_loss_session_start_str, valid_loss_best_str, traces_per_sec_str):
         line = '{0} │ {1} │ {2} │ {3} │ {4} │ {5} │ {6}'.format(time_str, trace_str, train_loss_str, train_loss_best_str, valid_loss_str, time_improvement_str, traces_per_sec_str)

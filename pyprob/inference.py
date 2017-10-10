@@ -65,9 +65,9 @@ class InferenceRemote(object):
                 self._artifact.valid_history_loss.append(valid_loss)
                 self._artifact.valid_loss_best = valid_loss
                 self._artifact.valid_loss_worst = valid_loss
-        util.logger.log(colored('New artifact will be saved to: {}'.format(self._file_name), 'blue', attrs=['bold']))
 
     def compile(self, batch_size=64, valid_interval=1000, optimizer_method='adam', learning_rate=0.0001, momentum=0.9, weight_decay=0.0005, parallelize=False, truncate_backprop=-1, grad_clip=-1, max_traces=-1, keep_all_artifacts=False, replace_valid_batch=False, valid_size=256):
+        util.logger.log(colored('New artifact will be saved to: {}'.format(self._file_name), 'blue', attrs=['bold']))
         with BatchRequester(self._remote_server, self._standardize_observes, self._batch_pool) as requester:
             if replace_valid_batch:
                 util.logger.log(colored('Replacing the validation batch of the artifact', 'magenta', attrs=['bold']))
@@ -233,31 +233,45 @@ class InferenceRemote(object):
 
     def infer(self):
         with ProposalReplier(self._local_server) as replier:
-            util.logger.reset()
             util.logger.log(self._artifact.get_info())
             util.logger.log()
             util.logger.log(colored('Inference engine running at ' + self._local_server, 'blue', attrs=['bold']))
             self._artifact.eval()
 
+            time_last_new_trace = time.time()
+            duration_last_trace = 0
+            traces_per_sec = 0
+            max_traces_per_sec = 0
+            traces_per_sec_str = '-       '
+            max_traces_per_sec_str = '-       '
+
             try:
                 total_traces = 0
-                time_step = 0
+                new_trace = False
                 observes = None
+                util.logger.log_infer_begin()
                 while True:
+                    util.logger.log_infer(traces_per_sec_str, max_traces_per_sec_str, total_traces)
                     replier.receive_request(self._artifact.standardize_observes)
                     if replier.new_trace:
-                        time_step = 0
                         total_traces += 1
+                        duration_last_trace = max(util.epsilon, time.time() - time_last_new_trace)
+                        time_last_new_trace = time.time()
+                        traces_per_sec = 1 / duration_last_trace
+                        if traces_per_sec > max_traces_per_sec:
+                            max_traces_per_sec = traces_per_sec
+                            max_traces_per_sec_str = '{:8}'.format('{:,}'.format(int(max_traces_per_sec)))
+                        if traces_per_sec < 1:
+                            traces_per_sec_str = '-       '
+                        else:
+                            traces_per_sec_str = '{:8}'.format('{:,}'.format(int(traces_per_sec)))
                         observes = Variable(replier.observes.unsqueeze(0), volatile=True)
                         replier.reply_observes_received()
+                        new_trace = True
                     else:
-                        if time_step == 0:
-                            proposal_distribution = self._artifact.forward(observes, replier.current_sample, volatile=True)
-                        else:
-                            proposal_distribution = self._artifact.forward(None, replier.current_sample, volatile=True)
+                        proposal_distribution = self._artifact.forward(new_trace, observes, replier.current_sample, volatile=True)
                         replier.reply_proposal(proposal_distribution)
-                        time_step += 1
-                    print(total_traces, time_step)
+                        new_trace = False
 
             except KeyboardInterrupt:
                 util.logger.log('Stopped')
