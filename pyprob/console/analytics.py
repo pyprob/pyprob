@@ -38,7 +38,6 @@ def main():
         parser = argparse.ArgumentParser(description='pyprob ' + pyprob.__version__ + ' (Analytics)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         parser.add_argument('-v', '--version', help='show version information', action='store_true')
         parser.add_argument('--dir', help='directory for loading artifacts and saving logs', default='.')
-        parser.add_argument('--nth', help='show the nth artifact (-1: last, -2: second-to-last, etc.)', type=int, default=-1)
         parser.add_argument('--cuda', help='use CUDA', action='store_true')
         parser.add_argument('--device', help='selected CUDA device (-1: all, 0: 1st device, 1: 2nd device, etc.)', default=-1, type=int)
         parser.add_argument('--seed', help='random seed', default=123, type=int)
@@ -60,16 +59,16 @@ def main():
         util.logger.reset()
         util.logger.log_config()
 
-        util.logger.log()
-        util.logger.log(colored('[] Artifact', 'blue', attrs=['bold']))
-        util.logger.log()
+        file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'pyprob-artifact'), -1)
+        util.logger.log(colored('Resuming previous artifact: {}'.format(file_name), 'blue', attrs=['bold']))
+        artifact = util.load_artifact(file_name, util.cuda_enabled, util.cuda_device)
 
-        file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'pyprob-artifact'), opt.nth)
-        artifact = util.load_artifact(file_name, opt.cuda, opt.device)
+        util.logger.log(artifact.get_info())
+        util.logger.log()
 
         if opt.structure:
             util.logger.log()
-            util.logger.log(colored('[] Artifact structure', 'blue', attrs=['bold']))
+            util.logger.log(colored('Artifact structure', 'blue', attrs=['bold']))
             util.logger.log()
 
             util.logger.log(artifact.get_structure_str())
