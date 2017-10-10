@@ -12,7 +12,6 @@ from termcolor import colored
 import datetime
 import sys
 import os
-from pprint import pformat
 import matplotlib
 matplotlib.use('Agg') # Do not use X server
 matplotlib.rcParams.update({'font.size': 10})
@@ -49,34 +48,35 @@ def main():
         parser.add_argument('--saveLoss', help='save training and validation loss history (csv)', type=str)
         parser.add_argument('--saveAddresses', help='save histogram of addresses (csv)', type=str)
         parser.add_argument('--saveTraceLengths', help='save histogram of trace lengths (csv)', type=str)
-        parser.add_argument('--visdom', help='use Visdom for visualizations', action='store_true')
         opt = parser.parse_args()
 
         if opt.version:
             print(pyprob.__version__)
             quit()
 
-        time_stamp = util.get_time_stamp()
-        util.init_logger('{0}/{1}'.format(opt.dir, 'pyprob-analytics-log' + time_stamp))
-        util.init(opt, 'Analytics')
+        util.set_random_seed(opt.seed)
+        util.set_cuda(opt.cuda, opt.device)
 
-        util.log_print()
-        util.log_print(colored('[] Artifact', 'blue', attrs=['bold']))
-        util.log_print()
+        util.logger.reset()
+        util.logger.log_config()
+
+        util.logger.log()
+        util.logger.log(colored('[] Artifact', 'blue', attrs=['bold']))
+        util.logger.log()
 
         file_name = util.file_starting_with('{0}/{1}'.format(opt.dir, 'pyprob-artifact'), opt.nth)
         artifact = util.load_artifact(file_name, opt.cuda, opt.device)
 
         if opt.structure:
-            util.log_print()
-            util.log_print(colored('[] Artifact structure', 'blue', attrs=['bold']))
-            util.log_print()
+            util.logger.log()
+            util.logger.log(colored('[] Artifact structure', 'blue', attrs=['bold']))
+            util.logger.log()
 
-            util.log_print(artifact.get_structure_str())
-            util.log_print(artifact.get_parameter_str())
+            util.logger.log(artifact.get_structure_str())
+            util.logger.log(artifact.get_parameter_str())
 
         if opt.saveLoss:
-            util.log_print('Saving training and validation loss history to file: ' + opt.saveLoss)
+            util.logger.log('Saving training and validation loss history to file: ' + opt.saveLoss)
             with open(opt.saveLoss, 'w') as f:
                 data = [artifact.train_history_trace, artifact.train_history_loss, artifact.valid_history_trace, artifact.valid_history_loss]
                 writer = csv.writer(f)
@@ -85,7 +85,7 @@ def main():
                     writer.writerow(values)
 
         if opt.saveAddresses:
-            util.log_print('Saving address histogram to file: ' + opt.saveAddresses)
+            util.logger.log('Saving address histogram to file: ' + opt.saveAddresses)
             with open(opt.saveAddresses, 'w') as f:
                 data_count = []
                 data_address = []
@@ -103,7 +103,7 @@ def main():
                     writer.writerow(values)
 
         if opt.saveTraceLengths:
-            util.log_print('Saving trace length histogram to file: ' + opt.saveTraceLengths)
+            util.logger.log('Saving trace length histogram to file: ' + opt.saveTraceLengths)
             with open(opt.saveTraceLengths, 'w') as f:
                 data_trace_length = []
                 data_count = []
@@ -117,7 +117,7 @@ def main():
                     writer.writerow(values)
 
         if opt.saveReport:
-            util.log_print('Saving analytics report to files: ' + opt.saveReport + '.tex and ' + opt.saveReport + '.pdf')
+            util.logger.log('Saving analytics report to files: ' + opt.saveReport + '.tex and ' + opt.saveReport + '.pdf')
 
             iter_per_sec = artifact.total_iterations / artifact.total_training_seconds
             traces_per_sec = artifact.total_traces / artifact.total_training_seconds
@@ -174,7 +174,7 @@ def main():
                         table.add_row(('Trainable parameters', '{:,}'.format(artifact.num_params_history_num_params[-1])))
                         table.add_row(('Softmax boost', artifact.softmax_boost))
                         table.add_row(('Dropout', artifact.dropout))
-                        table.add_row(('Standardize inputs', artifact.standardize))
+                        table.add_row(('Standardize inputs', artifact.standardize_observes))
                     with doc.create(Figure(position='H')) as plot:
                         fig = plt.figure(figsize=(10,4))
                         ax = plt.subplot(111)
@@ -196,7 +196,7 @@ def main():
                                         with doc.create(Figure(position='H')) as plot:
                                             fig = plt.figure(figsize=(10,10))
                                             ax = plt.subplot(111)
-                                            plt.imshow(np.transpose(util.weights_to_visdom_image(p),(1,2,0)), interpolation='none')
+                                            plt.imshow(np.transpose(util.weights_to_image(p),(1,2,0)), interpolation='none')
                                             plt.axis('off')
                                             plot.add_plot(width=NoEscape(r'\textwidth'))
                                             plot.add_caption(m_name + '_' + p_name)
@@ -524,7 +524,7 @@ def main():
             sys.stdout.flush()
 
     except KeyboardInterrupt:
-        util.log_print('Stopped')
+        util.logger.log('Stopped')
     except Exception:
         traceback.print_exc(file=sys.stdout)
     sys.exit(0)

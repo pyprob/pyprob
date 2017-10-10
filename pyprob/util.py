@@ -12,6 +12,11 @@ from termcolor import colored
 from threading import Thread
 import cpuinfo
 from glob import glob
+from PIL import Image
+import numpy as np
+import matplotlib
+matplotlib.use('Agg') # Do not use X server
+import matplotlib.pyplot as plt
 
 import torch
 from torch.autograd import Variable
@@ -174,6 +179,48 @@ def days_hours_mins_secs(total_seconds):
     h, r = divmod(r, 3600)
     m, s = divmod(r, 60)
     return '{0}d:{1:02}:{2:02}:{3:02}'.format(int(d), int(h), int(m), int(s))
+
+def pack_repetitions(l):
+    if len(l) == 1:
+        return [(l[0], 1)]
+    else:
+        ret = []
+        prev = l[0]
+        prev_count = 1
+        for i in range(1,len(l)):
+            if l[i] == prev:
+                prev_count += 1
+            else:
+                ret.append((prev, prev_count))
+                prev = l[i]
+                prev_count = 1
+        ret.append((prev, prev_count))
+        return ret
+
+def crop_image(image_np):
+    image_data_bw = image_np.max(axis=2)
+    non_empty_columns = np.where(image_data_bw.max(axis=0)>0)[0]
+    non_empty_rows = np.where(image_data_bw.max(axis=1)>0)[0]
+    cropBox = (min(non_empty_rows), max(non_empty_rows), min(non_empty_columns), max(non_empty_columns))
+    return image_np[cropBox[0]:cropBox[1]+1, cropBox[2]:cropBox[3]+1 , :]
+
+def weights_to_image(w):
+    if not isinstance(w, np.ndarray):
+        w = w.data.cpu().numpy()
+    if w.ndim == 1:
+        w = np.expand_dims(w, 1)
+    if w.ndim > 2:
+        c = w.shape[0]
+        w = np.reshape(w, (c,-1))
+    w_min = w.min()
+    w_max = w.max()
+    w -= w_min
+    w *= (1/(w_max - w_min + epsilon))
+    cmap = plt.get_cmap('jet')
+    rgba_img = cmap(w)
+    rgb_img = np.delete(rgba_img, 3,2)
+    rgb_img = np.transpose(rgb_img,(2,0,1))
+    return rgb_img
 
 def beta(a, b):
     n = a.nelement()
