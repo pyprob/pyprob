@@ -12,8 +12,16 @@ from torch.autograd import Variable
 import pyprob
 from pyprob.logger import Logger
 
+random_seed = 0
+def set_random_seed(seed):
+    global random_seed
+    random_seed = seed
+    torch.manual_seed(random_seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(random_seed)
+set_random_seed(123)
+
 Tensor = torch.FloatTensor
-random_seed = 123
 cuda_enabled = False
 cuda_device = -1
 epsilon = 1e-8
@@ -67,12 +75,10 @@ def set_cuda(cuda, device=0):
     global cuda_device
     global Tensor
     global beta_integration_domain
-
     if torch.cuda.is_available() and cuda:
         cuda_enabled = True
         cuda_device = device
         torch.cuda.set_device(device)
-        torch.cuda.manual_seed(random_seed)
         torch.backends.cudnn.enabled = True
         Tensor = torch.cuda.FloatTensor
         beta_integration_domain = beta_integration_domain.cuda()
@@ -81,11 +87,8 @@ def set_cuda(cuda, device=0):
         Tensor = torch.FloatTensor
         beta_integration_domain = beta_integration_domain.cpu()
 
-
 def get_time_str():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-
 
 def load_artifact(file_name, cuda=False, device_id=-1):
     try:
