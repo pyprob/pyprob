@@ -23,9 +23,9 @@ check_python_version()
 setup(
     name='pyprob',
     version=read_package_variable('__version__'),
-    description='PyTorch library for Inference Compilation and Universal Probabilistic Programming',
+    description='PyTorch-based library for probabilistic programming and inference compilation',
     author='Tuan-Anh Le and Atilim Gunes Baydin',
-    packages=['pyprob', 'infcomp.protocol'],
+    packages=['pyprob', 'pyprob.console', 'infcomp.protocol'],
     install_requires=['torch', 'torchvision', 'termcolor==1.1.0', 'pyzmq==16.0.2', 'flatbuffers==2015.12.22.1', 'visdom==0.1.04', 'matplotlib==2.0.0', 'py-cpuinfo==3.2.0', 'pylatex==1.2.1', 'pydotplus==2.0.2', 'seaborn==0.7.1'],
     url='https://github.com/probprog/pyprob',
     classifiers=['Development Status :: 4 - Beta', 'License :: OSI Approved :: MIT License', 'Programming Language :: Python :: 3.5'],
