@@ -1,4 +1,8 @@
-#!/usr/bin/env python
+#
+# pyprob
+# PyTorch-based library for probabilistic programming and inference compilation
+# https://github.com/probprog/pyprob
+#
 
 import pyprob
 from pyprob import util
@@ -32,6 +36,3 @@ def main():
     except Exception:
         traceback.print_exc(file=sys.stdout)
     sys.exit(0)
-
-if __name__ == "__main__":
-    main()

@@ -1,3 +1,9 @@
+#
+# pyprob
+# PyTorch-based library for probabilistic programming and inference compilation
+# https://github.com/probprog/pyprob
+#
+
 import pyprob
 from pyprob import util
 from pyprob.logger import Logger
