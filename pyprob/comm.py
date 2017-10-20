@@ -9,7 +9,7 @@ import pyprob.zmq
 import pyprob.pool
 from pyprob import util
 from pyprob.trace import Sample, Trace
-from pyprob.distributions import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta, MultivariateNormal
+from pyprob.distributions import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, UniformContinuousAlt, Laplace, Gamma, Beta, MultivariateNormal
 import infcomp.protocol.Message
 import infcomp.protocol.MessageBody
 import infcomp.protocol.TracesFromPriorRequest
@@ -27,6 +27,7 @@ import infcomp.protocol.Flip
 import infcomp.protocol.Discrete
 import infcomp.protocol.Categorical
 import infcomp.protocol.UniformContinuous
+import infcomp.protocol.UniformContinuousAlt
 import infcomp.protocol.Laplace
 import infcomp.protocol.Gamma
 import infcomp.protocol.Beta
@@ -133,6 +134,10 @@ def get_sample(s):
             p = infcomp.protocol.UniformContinuous.UniformContinuous()
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
             distribution = UniformContinuous(p.PriorMin(), p.PriorMax())
+        elif distribution_type == infcomp.protocol.Distribution.Distribution().UniformContinuousAlt:
+            p = infcomp.protocol.UniformContinuousAlt.UniformContinuousAlt()
+            p.Init(s.Distribution().Bytes, s.Distribution().Pos)
+            distribution = UniformContinuousAlt(p.PriorMin(), p.PriorMax())
         elif distribution_type == infcomp.protocol.Distribution.Distribution().Laplace:
             p = infcomp.protocol.Laplace.Laplace()
             p.Init(s.Distribution().Bytes, s.Distribution().Pos)
@@ -344,6 +349,20 @@ class ProposalReplier(object):
                 infcomp.protocol.UniformContinuous.UniformContinuousAddProposalCertainty(builder, proposal.proposal_certainty)
                 distribution = infcomp.protocol.UniformContinuous.UniformContinuousEnd(builder)
                 distribution_type = infcomp.protocol.Distribution.Distribution().UniformContinuous
+            elif isinstance(proposal, UniformContinuousAlt):
+                # construct proposal parameters
+                proposal_means = Tensor_to_NDArray(builder, proposal.proposal_means)
+                proposal_stds = Tensor_to_NDArray(builder, proposal.proposal_stds)
+                proposal_coeffs = Tensor_to_NDArray(builder, proposal.proposal_coeffs)
+                # construct UniformContinuousAlt
+                infcomp.protocol.UniformContinuousAlt.UniformContinuousAltStart(builder)
+                infcomp.protocol.UniformContinuousAlt.UniformContinuousAltAddPriorMin(builder, proposal.prior_min)
+                infcomp.protocol.UniformContinuousAlt.UniformContinuousAltAddPriorMax(builder, proposal.prior_max)
+                infcomp.protocol.UniformContinuousAlt.UniformContinuousAltAddProposalMeans(builder, proposal_means)
+                infcomp.protocol.UniformContinuousAlt.UniformContinuousAltAddProposalStds(builder, proposal_stds)
+                infcomp.protocol.UniformContinuousAlt.UniformContinuousAltAddProposalCoeffs(builder, proposal_coeffs)
+                distribution = infcomp.protocol.UniformContinuousAlt.UniformContinuousAltEnd(builder)
+                distribution_type = infcomp.protocol.Distribution.Distribution().UniformContinuousAlt
             elif isinstance(proposal, Laplace):
                 # construct Laplace
                 infcomp.protocol.Laplace.LaplaceStart(builder)

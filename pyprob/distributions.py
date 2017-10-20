@@ -29,10 +29,10 @@ class UniformDiscrete(object):
     def set_proposal_params(self, proposal_probabilities):
         self.proposal_probabilities = proposal_probabilities
     def cuda(self, device_id=None):
-        if not self.proposal_probabilities is None:
+        if self.proposal_probabilities is not None:
             self.proposal_probabilities = self.proposal_probabilities.cuda(device_id)
     def cpu(self):
-        if not self.proposal_probabilities is None:
+        if self.proposal_probabilities is not None:
             self.proposal_probabilities = self.proposal_probabilities.cpu()
 
 class UniformContinuous(object):
@@ -54,6 +54,38 @@ class UniformContinuous(object):
         return
     def cpu(self):
         return
+
+class UniformContinuousAlt(object):
+    def __init__(self, prior_min, prior_max):
+        self.prior_min = prior_min
+        self.prior_max = prior_max
+        self.proposal_means = None
+        self.proposal_stds = None
+        self.proposal_coeffs = None
+
+        self.name = 'UniformContinuousAlt'
+        self.address_suffix = '_UniformContinuousAlt'
+    def __repr__(self):
+        return 'UniformContinuousAlt(prior_min:{0}, prior_max:{1}, proposal_means:{2}, proposal_stds:{3}, proposal_coeffs:{4})'.format(self.prior_min, self.prior_max, self.proposal_means, self.proposal_stds, self.proposal_coeffs)
+    def __str__ = __repr__
+    def set_proposal_params(self, tensor_of_proposal_means_stds_coeffs):
+        n_components = int(tensor_of_proposal_means_stds_coeffs.size(0) / 3)
+        self.proposal_means, self.proposal_stds, self.proposal_coeffs = torch.split(tensor_of_proposal_means_stds_coeffs, n_components)
+    def cuda(self, device_id=None):
+        if self.proposal_means is not None:
+            self.proposal_means = self.proposal_means.cuda(device_id)
+        if self.proposal_stds is not None:
+            self.proposal_stds = self.proposal_stds.cuda(device_id)
+        if self.proposal_coeffs is not None:
+            self.proposal_coeffs = self.proposal_coeffs.cuda(device_id)
+    def cpu(self):
+        if self.proposal_means is not None:
+            self.proposal_means = self.proposal_means.cpu()
+        if self.proposal_stds is not None:
+            self.proposal_stds = self.proposal_stds.cpu()
+        if self.proposal_coeffs is not None:
+            self.proposal_coeffs = self.proposal_coeffs.cpu()
+
 
 class Normal(object):
     def __init__(self, prior_mean, prior_std):
@@ -108,10 +140,10 @@ class Discrete(object):
     def set_proposal_params(self, proposal_probabilities):
         self.proposal_probabilities = proposal_probabilities
     def cuda(self, device_id=None):
-        if not self.proposal_probabilities is None:
+        if self.proposal_probabilities is not None:
             self.proposal_probabilities = self.proposal_probabilities.cuda(device_id)
     def cpu(self):
-        if not self.proposal_probabilities is None:
+        if self.proposal_probabilities is not None:
             self.proposal_probabilities = self.proposal_probabilities.cpu()
 
 class Categorical(object):
@@ -127,10 +159,10 @@ class Categorical(object):
     def set_proposal_params(self, proposal_probabilities):
         self.proposal_probabilities = proposal_probabilities
     def cuda(self, device_id=None):
-        if not self.proposal_probabilities is None:
+        if self.proposal_probabilities is not None:
             self.proposal_probabilities = self.proposal_probabilities.cuda(device_id)
     def cpu(self):
-        if not self.proposal_probabilities is None:
+        if self.proposal_probabilities is not None:
             self.proposal_probabilities = self.proposal_probabilities.cpu()
 
 class Laplace(object):

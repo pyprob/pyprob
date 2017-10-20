@@ -6,7 +6,7 @@
 
 import pyprob
 from pyprob import util
-from pyprob.distributions import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, Laplace, Gamma, Beta, MultivariateNormal
+from pyprob.distributions import UniformDiscrete, Normal, Flip, Discrete, Categorical, UniformContinuous, UniformContinuousAlt, Laplace, Gamma, Beta, MultivariateNormal
 import torch
 import torch.nn as nn
 import torch.nn.init as init
