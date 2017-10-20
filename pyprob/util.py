@@ -47,6 +47,8 @@ def in_jupyter():
     except:
         return False
 
+logger = Logger()
+
 def get_time_stamp():
     return datetime.datetime.fromtimestamp(time.time()).strftime('-%Y%m%d-%H%M%S')
 
@@ -78,8 +80,6 @@ def get_config():
     else:
         ret.append('Running on    : CPU')
     return '\n'.join(ret)
-
-logger = Logger('{0}/{1}'.format('.', 'pyprob-log' + get_time_stamp()))
 
 def set_cuda(cuda, device=0):
     global cuda_enabled
@@ -173,6 +173,16 @@ def one_hot(dim, i):
     t = Tensor(dim).zero_()
     t.narrow(0, i, 1).fill_(1)
     return t
+
+def to_tensor(value):
+    if torch.is_tensor(value):
+        return value
+    elif type(value) is float:
+        return Tensor([value])
+    elif type(value) is int:
+        return Tensor([value])
+    else:
+        util.logger.log_error('Unexpected type.')
 
 def days_hours_mins_secs(total_seconds):
     d, r = divmod(total_seconds, 86400)

@@ -17,6 +17,26 @@ import time
 import sys
 import traceback
 
+class Inference(object):
+    def __init__(self, query):
+        self._query = query
+    def prior_result(self, *args, **kwargs):
+        while True:
+            yield self._query(*args, **kwargs)
+    def prior_results(self, samples=1, *args, **kwargs):
+        generator = self.prior_result(*args, **kwargs)
+        return [next(generator) for i in range(samples)]
+    def prior_trace(self, *args, **kwargs):
+        while True:
+            pyprob.state.begin_trace()
+            res = self._query(*args, **kwargs)
+            trace = pyprob.state.end_trace()
+            trace.set_result(res)
+            yield trace
+    def prior_traces(self, samples=1, *args, **kwargs):
+        generator = self.prior_trace(*args, **kwargs)
+        return [next(generator) for i in range(samples)]
+
 
 class InferenceRemote(object):
     def __init__(self, local_server='tcp://0.0.0.0:6666', remote_server='tcp://127.0.0.1:5555', batch_pool=False, standardize_observes=False, directory='.', resume=False, lstm_dim=512, lstm_depth=2, obs_emb='fc', obs_reshape=None, obs_emb_dim=512, smp_emb_dim=32, one_hot_dim=64, softmax_boost=20, dropout=0.2, valid_size=256):

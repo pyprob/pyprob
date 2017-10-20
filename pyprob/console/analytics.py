@@ -5,7 +5,7 @@
 #
 
 import pyprob
-from pyprob import util
+from pyprob import util, logger
 import torch
 import argparse
 from termcolor import colored
@@ -32,6 +32,8 @@ import pydotplus
 from io import BytesIO
 import matplotlib.image as mpimg
 from PIL import Image
+
+util.logger = logger.Logger('{0}/{1}'.format('.', 'pyprob-log' + util.get_time_stamp()))
 
 def main():
     try:

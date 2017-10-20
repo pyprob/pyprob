@@ -941,7 +941,7 @@ class Artifact(nn.Module):
             success, proposal_output = self.proposal_layers[current_address].forward(proposal_input, [current_sample])
             if success:
                 proposal_distribution = copy.deepcopy(current_sample.distribution)
-                proposal_distribution.set_proposalparams(proposal_output[0].data)
+                proposal_distribution.set_proposal_params(proposal_output[0].data)
                 return proposal_distribution
             else:
                 util.logger.log_warning('forward: Problem in executing proposal layer for: {}'.format(current_address))

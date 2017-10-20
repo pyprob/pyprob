@@ -11,20 +11,23 @@ import logging
 import re
 import cpuinfo
 from termcolor import colored
-from IPython.display import clear_output
 import sys
 
 class Logger(object):
-    def __init__(self, file_name):
+    def __init__(self, file_name=None):
         self._file_name = file_name
         self._in_jupyter = util.in_jupyter()
+        if self._in_jupyter:
+            from IPython.display import clear_output
+            self._clear_output = clear_output
         self._jupyter_rows = []
         self._ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
 
         self._logger = logging.getLogger()
-        logger_file_handler = logging.FileHandler(file_name)
-        logger_file_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
-        self._logger.addHandler(logger_file_handler)
+        if file_name is not None:
+            logger_file_handler = logging.FileHandler(file_name)
+            logger_file_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+            self._logger.addHandler(logger_file_handler)
         self._logger.setLevel(logging.INFO)
 
     def remove_non_ascii(self, s):
@@ -33,7 +36,7 @@ class Logger(object):
 
     def _jupyter_update(self):
         if self._in_jupyter:
-            clear_output(wait=True)
+            self._clear_output(wait=True)
             for row in self._jupyter_rows:
                 print(row)
 

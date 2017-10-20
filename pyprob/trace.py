@@ -6,7 +6,7 @@
 
 import pyprob
 from pyprob import util
-
+import torch
 
 class Sample(object):
     def __init__(self, address, distribution, value):
@@ -17,12 +17,12 @@ class Sample(object):
         else:
             self.address_suffixed = address + distribution.address_suffix
         # self.instance = None
-        self.value = value
+        self.value = util.to_tensor(value)
         self.value_dim = None
         self.lstm_input = None
         self.lstm_output = None
     def __repr__(self):
-        return 'Sample({0}, {1}, {2}, {3})'.format(self.address, self.address_suffixed, self.value.size(), str(self.distribution))
+        return 'Sample(address_suffixed:{0}, distribution:{1}, value:{2})'.format(self.address_suffixed, str(self.distribution), self.value.numpy().tolist())
     __str__ = __repr__
     def cuda(self, device_id=None):
         if not self.value is None:
@@ -40,17 +40,31 @@ class Trace(object):
         self.observes_embedding = None
         self.samples = []
         self.length = None
+        self.result = None
+        self.log_p = 0
     def __repr__(self):
-        return 'Trace(length:{0}, samples:[{1}], observes_tensor.dim():{2})'.format(self.length, ', '.join([str(sample) for sample in self.samples]), self.observes_tensor.dim())
+        return 'Trace(length:{0}, samples:[{1}], observes_tensor:{2}, result:{3}, log_p:{4})'.format(self.length, ', '.join([str(sample) for sample in self.samples]), self.observes_tensor.numpy().tolist(), str(self.result), self.log_p)
     __str__ = __repr__
     def addresses(self):
         return '; '.join([sample.address for sample in self.samples])
     def addresses_suffixed(self):
         return '; '.join([sample.address_suffixed for sample in self.samples])
+    def add_log_p(self, p):
+        self.log_p += p
+    def set_result(self, r):
+        self.result = r
     def add_observe(self, o):
         self.observes.append(o)
     def set_observes_tensor(self, o):
         self.observes_tensor = o
+    def pack_observes_to_tensor(self):
+        try:
+            self.observes_tensor = torch.stack([util.to_tensor(o) for o in self.observes])
+        except:
+            try:
+                self.observes_tensor = torch.cat([o.view(-1) for o in obs])
+            except:
+                self.observes_tensor = util.Tensor()
     def add_sample(self, s):
         self.samples.append(s)
         self.length = len(self.samples)

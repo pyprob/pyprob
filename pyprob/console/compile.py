@@ -5,10 +5,12 @@
 #
 
 import pyprob
-from pyprob import util
+from pyprob import util, logger
 import traceback
 import argparse
 import sys
+
+util.logger = logger.Logger('{0}/{1}'.format('.', 'pyprob-log' + util.get_time_stamp()))
 
 def main():
     try:
