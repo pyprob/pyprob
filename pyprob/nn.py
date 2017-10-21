@@ -279,6 +279,46 @@ class ProposalUniformContinuous(nn.Module):
             l -= (alpha - 1) * np.log(normalized_value + util.epsilon) + (beta - 1) * np.log(1 - normalized_value + util.epsilon) - torch.log(beta_fun + util.epsilon) - np.log(prior_max - prior_min + util.epsilon)
         return l
 
+class ProposalUniformContinuousAlt(nn.Module):
+    def __init__(self, input_dim, mixture_components=10, dropout=0):
+        super(ProposalUniformContinuousAlt, self).__init__()
+        self.mixture_components = mixture_components
+        self.output_dim = 3 * mixture_components
+        self.lin1 = nn.Linear(input_dim, input_dim)
+        self.lin2 = nn.Linear(input_dim, output_dim)
+        self.drop = nn.Dropout(dropout)
+        init.xavier_uniform(self.lin1.weight, gain=init.calculate_gain('relu'))
+        init.xavier_uniform(self.lin2.weight)
+    def forward(self, x, samples):
+        x = self.drop(x)
+        x = F.relu(self.lin1(x))
+        x = self.lin2(x)
+        means = x[:,0:self.mixture_components]
+        stds = torch.exp(x[:,self.mixture_components:2*self.mixture_components])
+        coeffs = nn.Softmax()(x[:,2*self.mixture_components:3*self.mixture_components])
+        return True, torch.cat([means, stds, coeffs], 1)
+    def loss(self, x, samples):
+        _, proposal_output = self.forward(x, samples)
+        batch_size = len(samples)
+        means = proposal_output[:,0:self.mixture_components]
+        stds = proposal_output[:,self.mixture_components:2*self.mixture_components]
+        coeffs = proposal_output[:,2*self.mixture_components:3*self.mixture_components]
+        two_std_squares = 2 * stds * stds + util.epsilon
+        sqrt_two_pi_std_squares = torch.sqrt(math.pi * two_std_squares) + util.epsilon
+        l = 0
+        for b in range(batch_size):
+            value = samples[b].value[0]
+            ll = 0
+            for c in range(self.mixture_components):
+                mean = means[b,c]
+                std = stds[b,c]
+                coeff = coeffs[b,c]
+                two_std_square = two_std_squares[b,c]
+                sqrt_two_pi_std_square = sqrt_two_pi_std_squares[b,c]
+                l += (coeff / sqrt_two_pi_std_square) * torch.exp(-((value - mean)**2) / two_std_square)
+            l -= torch.log(ll)
+        return l
+
 class ProposalGamma(nn.Module):
     def __init__(self, input_dim, dropout=0, softplus_boost=1.0):
         super(ProposalGamma, self).__init__()
@@ -572,7 +612,7 @@ class ObserveEmbeddingCNN3D4C(nn.Module):
         return x
 
 class Artifact(nn.Module):
-    def __init__(self, dropout=0.2, cuda=False, cuda_device_id=0, standardize_observes=False, softmax_boost=20):
+    def __init__(self, dropout=0.2, cuda=False, cuda_device_id=0, standardize_observes=False, softmax_boost=20, mixture_components=10):
         super(Artifact, self).__init__()
 
         self.sample_layers = {}
@@ -627,6 +667,7 @@ class Artifact(nn.Module):
         self.optimizer = None
         self.dropout = dropout
         self.softmax_boost = softmax_boost
+        self.mixture_components = mixture_components
 
         self._state_observes = None
         self._state_observes_embedding = None
@@ -762,6 +803,8 @@ class Artifact(nn.Module):
                         proposal_layer = ProposalCategorical(self.lstm_dim, distribution.prior_size, self.dropout, self.softmax_boost)
                     elif isinstance(distribution, UniformContinuous):
                         proposal_layer = ProposalUniformContinuous(self.lstm_dim, self.dropout, self.softmax_boost)
+                    elif isinstance(distribution, UniformContinuousAlt):
+                        proposal_layer = ProposalUniformContinuousAlt(self.lstm_dim, self.mixture_components, elf.dropout)
                     elif isinstance(distribution, Laplace):
                         proposal_layer = ProposalLaplace(self.lstm_dim, self.dropout)
                     elif isinstance(distribution, MultivariateNormal):
