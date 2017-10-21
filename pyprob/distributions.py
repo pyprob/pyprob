@@ -67,7 +67,7 @@ class UniformContinuousAlt(object):
         self.address_suffix = '_UniformContinuousAlt'
     def __repr__(self):
         return 'UniformContinuousAlt(prior_min:{0}, prior_max:{1}, proposal_means:{2}, proposal_stds:{3}, proposal_coeffs:{4})'.format(self.prior_min, self.prior_max, self.proposal_means, self.proposal_stds, self.proposal_coeffs)
-    def __str__ = __repr__
+    __str__ = __repr__
     def set_proposal_params(self, tensor_of_proposal_means_stds_coeffs):
         n_components = int(tensor_of_proposal_means_stds_coeffs.size(0) / 3)
         self.proposal_means, self.proposal_stds, self.proposal_coeffs = torch.split(tensor_of_proposal_means_stds_coeffs, n_components)
