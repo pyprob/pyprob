@@ -39,7 +39,7 @@ class Inference(object):
 
 
 class InferenceRemote(object):
-    def __init__(self, local_server='tcp://0.0.0.0:6666', remote_server='tcp://127.0.0.1:5555', batch_pool=False, standardize_observes=False, directory='.', resume=False, lstm_dim=512, lstm_depth=2, obs_emb='fc', obs_reshape=None, obs_emb_dim=512, smp_emb_dim=32, one_hot_dim=64, softmax_boost=20, dropout=0.2, valid_size=256):
+    def __init__(self, local_server='tcp://0.0.0.0:6666', remote_server='tcp://127.0.0.1:5555', batch_pool=False, standardize_observes=False, directory='.', resume=False, lstm_dim=512, lstm_depth=2, obs_emb='fc', obs_reshape=None, obs_emb_dim=512, smp_emb_dim=32, one_hot_dim=64, softmax_boost=20, mixture_components=10, dropout=0.2, valid_size=256):
         self._local_server = local_server
         self._remote_server = remote_server
         self._batch_pool = batch_pool
@@ -56,7 +56,7 @@ class InferenceRemote(object):
         else:
             with BatchRequester(self._remote_server, self._standardize_observes, self._batch_pool) as requester:
                 util.logger.log(colored('Creating new artifact...', 'blue', attrs=['bold']))
-                self._artifact = Artifact(dropout, util.cuda_enabled, util.cuda_device, self._standardize_observes, softmax_boost)
+                self._artifact = Artifact(dropout, util.cuda_enabled, util.cuda_device, self._standardize_observes, softmax_boost, mixture_components)
                 self._artifact.set_one_hot_dims(one_hot_dim)
                 traces, _ = requester.get_traces(valid_size, discard_source=True)
                 self._artifact.set_valid_batch(Batch(traces))

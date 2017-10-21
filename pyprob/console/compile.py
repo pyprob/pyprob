@@ -43,6 +43,7 @@ def main():
         parser.add_argument('--lstmDepth', help='number of stacked lstms', default=2, type=int)
         parser.add_argument('--dropout', help='dropout value', default=0.2, type=float)
         parser.add_argument('--softmaxBoost', help='multiplier before softmax', default=20.0, type=float)
+        parser.add_argument('--mixtureComponents', help='number of Gaussian mixture components in proposal distributions', default=10, type=int)
         parser.add_argument('--keepArtifacts', help='keep all previously best artifacts during training, do not overwrite', action='store_true')
         parser.add_argument('--visdom', help='use Visdom for visualizations', action='store_true')
         parser.add_argument('--batchPool', help='use batches stored in files under the given path (instead of online training with ZMQ)', default='', type=str)
@@ -63,7 +64,7 @@ def main():
         util.set_random_seed(opt.seed)
         util.set_cuda(opt.cuda, opt.device)
 
-        inference = pyprob.InferenceRemote(remote_server=server, batch_pool=batch_pool, standardize_observes=opt.standardize, directory=opt.dir, resume=opt.resume, lstm_dim=opt.lstmDim, lstm_depth=opt.lstmDepth, obs_emb=opt.obsEmb, obs_reshape=opt.obsReshape, obs_emb_dim=opt.obsEmbDim, smp_emb_dim=opt.smpEmbDim, one_hot_dim=opt.oneHotDim, softmax_boost=opt.softmaxBoost, dropout=opt.dropout, valid_size=opt.validSize)
+        inference = pyprob.InferenceRemote(remote_server=server, batch_pool=batch_pool, standardize_observes=opt.standardize, directory=opt.dir, resume=opt.resume, lstm_dim=opt.lstmDim, lstm_depth=opt.lstmDepth, obs_emb=opt.obsEmb, obs_reshape=opt.obsReshape, obs_emb_dim=opt.obsEmbDim, smp_emb_dim=opt.smpEmbDim, one_hot_dim=opt.oneHotDim, softmax_boost=opt.softmaxBoost, mixture_components=opt.mixtureComponents, dropout=opt.dropout, valid_size=opt.validSize)
 
         inference.compile(batch_size=opt.batchSize, valid_interval=opt.validInterval, optimizer_method=opt.optimizer, learning_rate=opt.learningRate, momentum=opt.momentum, weight_decay=opt.weightDecay, parallelize=opt.parallel, truncate_backprop=opt.truncateBackprop, grad_clip=opt.clip, max_traces=opt.maxTraces, keep_all_artifacts=opt.keepArtifacts, replace_valid_batch=opt.replaceValidBatch, valid_size=opt.validSize)
 
