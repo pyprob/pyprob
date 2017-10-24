@@ -8,6 +8,7 @@ import time
 import datetime
 import logging
 import sys
+import math
 from termcolor import colored
 from threading import Thread
 import cpuinfo
@@ -36,6 +37,8 @@ Tensor = torch.FloatTensor
 cuda_enabled = False
 cuda_device = -1
 epsilon = 1e-8
+one_over_sqrt_two = 1 / math.sqrt(2)
+one_over_sqrt_two_pi = 1 / math.sqrt(2*math.pi)
 beta_res = 1000
 beta_step = 1/beta_res
 beta_integration_domain = Variable(torch.linspace(beta_step/2,1-(beta_step/2),beta_res), requires_grad=False)

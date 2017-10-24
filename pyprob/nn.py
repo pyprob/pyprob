@@ -303,19 +303,20 @@ class ProposalUniformContinuousAlt(nn.Module):
         means = proposal_output[:,0:self.mixture_components]
         stds = proposal_output[:,self.mixture_components:2*self.mixture_components]
         coeffs = proposal_output[:,2*self.mixture_components:3*self.mixture_components]
-        two_std_squares = 2 * stds * stds + util.epsilon
-        sqrt_two_pi_std_squares = torch.sqrt(math.pi * two_std_squares) + util.epsilon
         l = 0
         for b in range(batch_size):
             value = samples[b].value[0]
+            prior_min = samples[b].distribution.prior_min
+            prior_max = samples[b].distribution.prior_max
             ll = 0
             for c in range(self.mixture_components):
                 mean = means[b,c]
                 std = stds[b,c]
                 coeff = coeffs[b,c]
-                two_std_square = two_std_squares[b,c]
-                sqrt_two_pi_std_square = sqrt_two_pi_std_squares[b,c]
-                ll += (coeff / sqrt_two_pi_std_square) * torch.exp(-((value - mean)**2) / two_std_square)
+                xi = (value - mean) / std
+                phi_min = 0.5 * (1 + torch.erf(((prior_min - mean) / std) * util.one_over_sqrt_two))
+                phi_max = 0.5 * (1 + torch.erf(((prior_max - mean) / std) * util.one_over_sqrt_two))
+                ll += coeff * util.one_over_sqrt_two_pi * torch.exp(-0.5 * xi * xi) / (std * (phi_max - phi_min))
             l -= torch.log(ll)
         return l
 
