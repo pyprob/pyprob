@@ -8,6 +8,7 @@ import pyprob
 from pyprob import util
 import numpy as np
 import scipy.stats
+import torch
 
 
 class Empirical(object):

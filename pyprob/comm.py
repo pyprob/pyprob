@@ -213,7 +213,6 @@ class BatchRequester(object):
                 trace.add_sample(sample)
 
             traces.append(trace)
-
         return traces
 
     def request_traces(self, n):

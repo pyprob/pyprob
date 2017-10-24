@@ -285,7 +285,7 @@ class ProposalUniformContinuousAlt(nn.Module):
         self.mixture_components = mixture_components
         self.output_dim = 3 * mixture_components
         self.lin1 = nn.Linear(input_dim, input_dim)
-        self.lin2 = nn.Linear(input_dim, output_dim)
+        self.lin2 = nn.Linear(input_dim, self.output_dim)
         self.drop = nn.Dropout(dropout)
         init.xavier_uniform(self.lin1.weight, gain=init.calculate_gain('relu'))
         init.xavier_uniform(self.lin2.weight)
@@ -315,7 +315,7 @@ class ProposalUniformContinuousAlt(nn.Module):
                 coeff = coeffs[b,c]
                 two_std_square = two_std_squares[b,c]
                 sqrt_two_pi_std_square = sqrt_two_pi_std_squares[b,c]
-                l += (coeff / sqrt_two_pi_std_square) * torch.exp(-((value - mean)**2) / two_std_square)
+                ll += (coeff / sqrt_two_pi_std_square) * torch.exp(-((value - mean)**2) / two_std_square)
             l -= torch.log(ll)
         return l
 
@@ -804,7 +804,7 @@ class Artifact(nn.Module):
                     elif isinstance(distribution, UniformContinuous):
                         proposal_layer = ProposalUniformContinuous(self.lstm_dim, self.dropout, self.softmax_boost)
                     elif isinstance(distribution, UniformContinuousAlt):
-                        proposal_layer = ProposalUniformContinuousAlt(self.lstm_dim, self.mixture_components, elf.dropout)
+                        proposal_layer = ProposalUniformContinuousAlt(self.lstm_dim, self.mixture_components, self.dropout)
                     elif isinstance(distribution, Laplace):
                         proposal_layer = ProposalLaplace(self.lstm_dim, self.dropout)
                     elif isinstance(distribution, MultivariateNormal):
