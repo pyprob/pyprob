@@ -14,6 +14,7 @@ class Distribution(object):
     Normal = 8
     Poisson = 9
     UniformContinuous = 10
-    UniformDiscrete = 11
-    VMF = 12
+    UniformContinuousAlt = 11
+    UniformDiscrete = 12
+    VMF = 13
 
