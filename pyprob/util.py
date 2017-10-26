@@ -18,6 +18,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg') # Do not use X server
 import matplotlib.pyplot as plt
+from torch.autograd.function import Function
 
 import torch
 from torch.autograd import Variable
@@ -263,3 +264,16 @@ def beta(a, b):
     x = beta_integration_domain.repeat(n,1)
     fx = (x**a_min_one) * ((1-x)**b_min_one)
     return torch.sum(fx,1).squeeze() * beta_step
+
+class ErfFunction(Function):
+    @staticmethod
+    def forward(ctx, i):
+        ctx.save_for_backward(i)
+        return i.erf()
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        i, = ctx.saved_variables
+        return 2. / math.sqrt(math.pi) * torch.exp(-(i ** 2)) * grad_output
+
+erf = ErfFunction.apply

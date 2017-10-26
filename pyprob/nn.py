@@ -314,8 +314,8 @@ class ProposalUniformContinuousAlt(nn.Module):
                 std = stds[b,c]
                 coeff = coeffs[b,c]
                 xi = (value - mean) / std
-                phi_min = 0.5 * (1 + torch.erf(((prior_min - mean) / std) * util.one_over_sqrt_two))
-                phi_max = 0.5 * (1 + torch.erf(((prior_max - mean) / std) * util.one_over_sqrt_two))
+                phi_min = 0.5 * (1 + util.erf(((prior_min - mean) / std) * util.one_over_sqrt_two))
+                phi_max = 0.5 * (1 + util.erf(((prior_max - mean) / std) * util.one_over_sqrt_two))
                 ll += coeff * util.one_over_sqrt_two_pi * torch.exp(-0.5 * xi * xi) / (std * (phi_max - phi_min))
             l -= torch.log(ll)
         return l
