@@ -147,7 +147,7 @@ def get_sample(s):
         elif distribution_type == infcomp.protocol.Distribution.Distribution().Beta:
             distribution = Beta()
         else:
-            util.log_error('get_sample: Unknown distribution:Distribution id: {0}.'.format(distribution_type))
+            util.logger.log('get_sample: Unknown distribution:Distribution id: {0}.'.format(distribution_type))
     sample = Sample(address, distribution, value)
     return sample
 
