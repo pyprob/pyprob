@@ -15,6 +15,7 @@ import cpuinfo
 from glob import glob
 from PIL import Image
 import numpy as np
+import scipy.special
 import matplotlib
 matplotlib.use('Agg') # Do not use X server
 import matplotlib.pyplot as plt
@@ -265,11 +266,13 @@ def beta(a, b):
     fx = (x**a_min_one) * ((1-x)**b_min_one)
     return torch.sum(fx,1).squeeze() * beta_step
 
+
 class ErfFunction(Function):
     @staticmethod
     def forward(ctx, i):
         ctx.save_for_backward(i)
-        return i.erf()
+        return Tensor([scipy.special.erf(i[0])])
+
 
     @staticmethod
     def backward(ctx, grad_output):

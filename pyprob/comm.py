@@ -350,6 +350,10 @@ class ProposalReplier(object):
                 distribution_type = infcomp.protocol.Distribution.Distribution().UniformContinuous
             elif isinstance(proposal, UniformContinuousAlt):
                 # construct proposal parameters
+                # print('means, stds, coeffs')
+                # print(proposal.proposal_means)
+                # print(proposal.proposal_stds)
+                # print(proposal.proposal_coeffs)
                 proposal_means = Tensor_to_NDArray(builder, proposal.proposal_means)
                 proposal_stds = Tensor_to_NDArray(builder, proposal.proposal_stds)
                 proposal_coeffs = Tensor_to_NDArray(builder, proposal.proposal_coeffs)
