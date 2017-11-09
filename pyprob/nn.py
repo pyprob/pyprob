@@ -308,7 +308,7 @@ class ProposalUniformContinuousAlt(nn.Module):
             value = samples[b].value[0]
             prior_min = samples[b].distribution.prior_min
             prior_max = samples[b].distribution.prior_max
-            ll = 0
+            ll = util.epsilon
             for c in range(self.mixture_components):
                 mean = means[b,c]
                 std = stds[b,c]
