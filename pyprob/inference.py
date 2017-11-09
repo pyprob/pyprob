@@ -74,6 +74,7 @@ class InferenceRemote(object):
 
                 traces, _ = requester.get_traces(valid_size)
                 batch = Batch(traces)
+                self._artifact.polymorph(batch)
                 loss = self._artifact.loss(batch, optimizer=None)
                 train_loss = loss.data[0]
                 self._artifact.train_history_trace.append(0)
