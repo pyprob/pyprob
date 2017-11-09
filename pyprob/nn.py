@@ -31,7 +31,7 @@ class Batch(object):
         sb = {}
         for trace in traces:
             if trace.length is None:
-                util.log_error('Batch: Received a trace of length zero.')
+                util.logger.log('Batch: Received a trace of length zero.')
             if trace.length > self.traces_max_length:
                 self.traces_max_length = trace.length
             if trace.observes_tensor.size(0) > self.observes_max_length:
@@ -529,7 +529,7 @@ class ObserveEmbeddingCNN2D6C(nn.Module):
         elif input_example_non_batch.dim() == 3:
             self.input_sample = input_example_non_batch.cpu()
         else:
-            util.log_error('ObserveEmbeddingCNN2D6C: Expecting a 3d input_example_non_batch (num_channels x height x width) or a 2d input_example_non_batch (height x width). Received: {0}'.format(input_example_non_batch.size()))
+            util.logger.log('ObserveEmbeddingCNN2D6C: Expecting a 3d input_example_non_batch (num_channels x height x width) or a 2d input_example_non_batch (height x width). Received: {0}'.format(input_example_non_batch.size()))
         self.input_channels = self.input_sample.size(0)
         self.output_dim = output_dim
         self.conv1 = nn.Conv2d(self.input_channels, 64, 3)
@@ -579,7 +579,7 @@ class ObserveEmbeddingCNN3D4C(nn.Module):
         elif input_example_non_batch.dim() == 4:
             self.input_sample = input_example_non_batch.cpu()
         else:
-            util.log_error('ObserveEmbeddingCNN3D4C: Expecting a 4d input_example_non_batch (num_channels x depth x height x width) or a 3d input_example_non_batch (depth x height x width). Received: {0}'.format(input_example_non_batch.size()))
+            util.logger.log('ObserveEmbeddingCNN3D4C: Expecting a 4d input_example_non_batch (num_channels x depth x height x width) or a 3d input_example_non_batch (depth x height x width). Received: {0}'.format(input_example_non_batch.size()))
         self.input_channels = self.input_sample.size(0)
         self.output_dim = output_dim
         self.conv1 = nn.Conv3d(self.input_channels, 64, 3)
