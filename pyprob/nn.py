@@ -308,7 +308,7 @@ class ProposalUniformContinuousAlt(nn.Module):
             value = samples[b].value[0]
             prior_min = samples[b].distribution.prior_min
             prior_max = samples[b].distribution.prior_max
-            ll = util.epsilon
+            ll = 0
             for c in range(self.mixture_components):
                 mean = means[b,c]
                 std = stds[b,c]
@@ -317,7 +317,7 @@ class ProposalUniformContinuousAlt(nn.Module):
                 phi_min = 0.5 * (1 + util.erf(((prior_min - mean) / std) * util.one_over_sqrt_two))
                 phi_max = 0.5 * (1 + util.erf(((prior_max - mean) / std) * util.one_over_sqrt_two))
                 ll += coeff * util.one_over_sqrt_two_pi * torch.exp(-0.5 * xi * xi) / (std * (phi_max - phi_min))
-            l -= torch.log(ll)
+            l -= torch.log(ll + util.epsilon)
         return l
 
 class ProposalGamma(nn.Module):
