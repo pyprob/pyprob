@@ -39,7 +39,7 @@ def sample(distribution):
         address = extract_address()
         sample = Sample(address, distribution, value)
         current_trace.add_sample(sample)
-        current_trace.add_log_p(distribution.log_pdf(value))
+        # current_trace.add_log_p(distribution.log_pdf(value))
         # print('Added sample {}'.format(sample))
 
     return value

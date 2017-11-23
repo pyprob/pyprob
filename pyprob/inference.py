@@ -12,6 +12,8 @@ from pyprob.nn import Artifact, Batch
 import torch.optim as optim
 from torch.autograd import Variable
 from termcolor import colored
+import numpy as np
+from scipy.misc import logsumexp
 import datetime
 import time
 import sys
@@ -20,11 +22,11 @@ import traceback
 class Inference(object):
     def __init__(self, query):
         self._query = query
-    def prior_result(self, *args, **kwargs):
+    def prior_sample(self, *args, **kwargs):
         while True:
             yield self._query(*args, **kwargs)
-    def prior_results(self, samples=1, *args, **kwargs):
-        generator = self.prior_result(*args, **kwargs)
+    def prior_samples(self, samples=1, *args, **kwargs):
+        generator = self.prior_sample(*args, **kwargs)
         return [next(generator) for i in range(samples)]
     def prior_trace(self, *args, **kwargs):
         while True:
@@ -36,6 +38,20 @@ class Inference(object):
     def prior_traces(self, samples=1, *args, **kwargs):
         generator = self.prior_trace(*args, **kwargs)
         return [next(generator) for i in range(samples)]
+    def posterior_samples(self, samples=10, *args, **kwargs):
+        traces = self.prior_traces(samples, *args, **kwargs)
+        results = [trace.result for trace in traces]
+        weights = np.array([trace.log_p for trace in traces])
+        normalized_weights = np.exp(weights - logsumexp(weights))
+        ret = {}
+        for i in range(samples):
+            result = results[i]
+            if result in ret:
+                ret[result] += normalized_weights[i]
+            else:
+                ret[result] = normalized_weights[i]
+        return ret
+
 
 
 class InferenceRemote(object):
