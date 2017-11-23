@@ -672,6 +672,7 @@ class Artifact(nn.Module):
 
         self._state_observes = None
         self._state_observes_embedding = None
+        self._state_new_trace = True
 
     def get_structure_str(self):
         ret = str(next(enumerate(self.modules()))[1])
@@ -919,21 +920,25 @@ class Artifact(nn.Module):
     def valid_loss(self, data_parallel=False):
         return self.loss(self.valid_batch, data_parallel=data_parallel, volatile=True).data[0]
 
-    def forward(self, new_trace=True, observes=None, previous_sample=None, current_sample=None, volatile=False):
+    def new_trace(self, observes=None):
+        self._state_new_trace = True
         self._state_observes = observes
+        self._state_observes_embedding = self.observe_layer.forward(observes)
+
+    def forward(self, previous_sample=None, current_sample=None, volatile=False):
         if self._state_observes is None:
-            util.logger.log_error('forward: Running the artifact requires an observation.')
+            util.logger.log_error('forward: Running the artifact requires an observation. Call new_trace and supply an observation.')
         if current_sample is None:
             util.logger.log_error('forward: Expecting current_sample.')
 
         success = True
-        if new_trace:
-            self._state_observes_embedding = self.observe_layer.forward(observes)
+        if self._state_new_trace:
             prev_sample_embedding = Variable(util.Tensor(1, self.smp_emb_dim).zero_(), volatile=volatile)
             prev_one_hot_address = self.one_hot_address_empty
             prev_one_hot_distribution = self.one_hot_distribution_empty
             h0 = Variable(util.Tensor(self.lstm_depth, 1, self.lstm_dim).zero_(), volatile=volatile)
             self._state_lstm_hidden_state = (h0, h0)
+            self._state_new_trace = False
         else:
             prev_address = previous_sample.address_suffixed
             prev_distribution = previous_sample.distribution

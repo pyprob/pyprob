@@ -39,7 +39,7 @@ class Trace(object):
         self.observes_tensor = None
         self.observes_embedding = None
         self.samples = []
-        self.length = None
+        self.length = 0
         self.result = None
         self.log_p = 0
     def __repr__(self):
@@ -58,13 +58,7 @@ class Trace(object):
     def set_observes_tensor(self, o):
         self.observes_tensor = o
     def pack_observes_to_tensor(self):
-        try:
-            self.observes_tensor = torch.stack([util.to_tensor(o) for o in self.observes])
-        except:
-            try:
-                self.observes_tensor = torch.cat([o.view(-1) for o in obs])
-            except:
-                self.observes_tensor = util.Tensor()
+        self.observes_tensor = util.pack_observes_to_tensor(self.observes)
     def add_sample(self, s):
         self.samples.append(s)
         self.length = len(self.samples)

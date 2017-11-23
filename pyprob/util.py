@@ -245,6 +245,15 @@ def weights_to_image(w):
     rgb_img = np.transpose(rgb_img,(2,0,1))
     return rgb_img
 
+def pack_observes_to_tensor(observes):
+    try:
+        return torch.stack([to_tensor(o) for o in observes])
+    except:
+        try:
+            return torch.cat([o.view(-1) for o in observes])
+        except:
+            return Tensor()
+
 def logsumexp(x, dim=0):
     '''
     https://en.wikipedia.org/wiki/LogSumExp

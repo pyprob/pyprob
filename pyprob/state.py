@@ -11,6 +11,23 @@ import traceback
 import torch
 
 current_trace = None
+trace_mode = 'inference'
+artifact = None
+
+def set_mode(mode):
+    global trace_mode
+    if mode == 'inference':
+        trace_mode = 'inference'
+    elif mode == 'compilation':
+        trace_mode = 'compilation'
+    elif mode == 'compiled_inference':
+        trace_mode = 'compiled_inference'
+    else:
+        raise Exception('Unknown mode: {}. Use one of (inference, compilation, compiled_inference).'.format(mode))
+
+def set_artifact(art):
+    global artifact
+    artifact = art
 
 def begin_trace():
     global current_trace
@@ -37,16 +54,27 @@ def sample(distribution):
     value = distribution.sample()
     if current_trace is not None:
         address = extract_address()
-        sample = Sample(address, distribution, value)
-        current_trace.add_sample(sample)
+        current_sample = Sample(address, distribution, value)
+        if trace_mode == 'compiled_inference':
+            previous_sample = None
+            if current_trace.length > 0:
+                previous_sample = current_trace.samples[-1]
+            proposal_distribution = artifact.forward(previous_sample, current_sample, volatile=True)
+            value = proposal_distribution.sample()
+            current_sample = Sample(address, distribution, value)
+            current_trace.add_log_p(distribution.log_pdf(value) - proposal_distribution.log_pdf(value))
+        current_trace.add_sample(current_sample)
         # current_trace.add_log_p(distribution.log_pdf(value))
         # print('Added sample {}'.format(sample))
-
     return value
 
 def observe(distribution, value):
+    global current_trace
     if current_trace is not None:
-        current_trace.add_observe(value)
+        if trace_mode == 'compilation':
+            current_trace.add_observe(distribution.sample())
+        else:
+            current_trace.add_observe(value)
         current_trace.add_log_p(distribution.log_pdf(value))
         # print('Added observe {}'.format(value))
     return

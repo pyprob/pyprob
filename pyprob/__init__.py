@@ -1,4 +1,4 @@
-__version__ = '0.10.0.dev5'
+__version__ = '0.10.0.dev6'
 
 from pyprob.util import set_random_seed
 from pyprob.util import set_cuda
