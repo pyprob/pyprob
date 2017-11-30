@@ -10,23 +10,27 @@ import numpy as np
 import scipy.stats
 from scipy.misc import logsumexp
 import torch
+import collections
 
 class Empirical(object):
     def __init__(self, values, log_weights=None):
         self.length = len(values)
-        self.values = np.array(values)
         if log_weights is None:
-            self.log_weights = np.full(len(values), -math.log(len(values))) # assume uniform
+            log_weights = np.full(len(values), -math.log(len(values))) # assume uniform
         else:
-            self.log_weights = np.array(log_weights)
-        self.weights = np.exp(self.log_weights - logsumexp(self.log_weights))
-        self._distribution = {}
+            log_weights = np.array(log_weights)
+        weights = np.exp(log_weights - logsumexp(log_weights))
+        self.distribution = {}
         for i in range(self.length):
             value = values[i]
-            if value in self._distribution:
-                self._distribution[value] += self.weights[i]
+            if value in self.distribution:
+                self.distribution[value] += weights[i]
             else:
-                self._distribution[value] = self.weights[i]
+                self.distribution[value] = weights[i]
+        self.distribution = collections.OrderedDict(sorted(self.distribution.items()))
+        self.values = np.array(list(self.distribution.keys()))
+        self.weights = np.array(list(self.distribution.values()))
+
     def __len__(self):
         return self._length
 
