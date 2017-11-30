@@ -20,20 +20,16 @@ class Empirical(object):
         else:
             log_weights = np.array(log_weights)
         weights = np.exp(log_weights - logsumexp(log_weights))
-        self.distribution = {}
+        self.distribution = collections.defaultdict(float)
         for i in range(self.length):
-            value = values[i]
-            if value in self.distribution:
-                self.distribution[value] += weights[i]
-            else:
-                self.distribution[value] = weights[i]
+            self.distribution[values[i]] += weights[i]
         self.distribution = collections.OrderedDict(sorted(self.distribution.items()))
         self.values = np.array(list(self.distribution.keys()))
         self.weights = np.array(list(self.distribution.values()))
-
     def __len__(self):
-        return self._length
-
+        return self.length
+    def sample(self):
+        return np.random.choice(self.values, p=self.weights)
 
 
 class UniformDiscrete(object):
