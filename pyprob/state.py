@@ -42,25 +42,30 @@ def end_trace():
     return ret
 
 def extract_address():
-   tb = traceback.extract_stack()
+    #tb = traceback.extract_stack()
     # print()
     # for t in tb:
     #     print(t[0], t[1], t[2], t[3])
-   frame = tb[-3]
+    #frame = tb[-3]
     # return '{0}/{1}/{2}'.format(frame[1], frame[2], frame[3])
-   return '{0}/{1}'.format(frame[1], frame[2])
+    #return '{0}/{1}'.format(frame[1], frame[2])
     # Retun an address in the format:
     # 'instruction pointer' / 'qualified function name'
-    # frame = sys._getframe(3)
-    # ip = frame.f_lasti
-    # names = []
-    # while frame is not None:
-    #     names.append(frame.f_code.co_name)
-    #     frame = frame.f_back
-    # return "{}/{}".format(ip, '.'.join(reversed(names)))
+    frame = sys._getframe(2)
+    ip = frame.f_lasti
+    names = []
+    var_name = _extract_target_of_assignment()
+    if var_name is not None:
+        names.append(var_name)
+    while frame is not None:
+        n = frame.f_code.co_name
+        if n.startswith('<'): break
+        names.append(n)
+        frame = frame.f_back
+    return "{}/{}".format(ip, '.'.join(reversed(names)))
 
 
-def extract_target_of_assignment():
+def _extract_target_of_assignment():
     import opcode
     frame = sys._getframe(3)
     code = frame.f_code
