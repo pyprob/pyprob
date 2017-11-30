@@ -30,10 +30,10 @@ class Empirical(object):
         self.distribution = collections.OrderedDict(sorted(self.distribution.items()))
         self.values = np.array(list(self.distribution.keys()))
         self.weights = np.array(list(self.distribution.values()))
-
     def __len__(self):
         return self.length
-
+    def sample(self):
+        return np.random.choice(self.values, p=self.weights)
 
 
 class UniformDiscrete(object):
