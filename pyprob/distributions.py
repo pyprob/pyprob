@@ -32,7 +32,7 @@ class Empirical(object):
         self.weights = np.array(list(self.distribution.values()))
 
     def __len__(self):
-        return self._length
+        return self.length
 
 
 
