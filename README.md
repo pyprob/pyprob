@@ -36,7 +36,7 @@ pip install pyprob
 
 ## Probabilistic programming in Python
 
-This is currently work in progress. A website with documentation and examples will be provided.
+**NOTE**: This is currently a work in progress, and the code in this public repository does not represent a fully-usable system. A website with documentation and examples will be provided in due course.
 
 ## Interfacing with 3rd party libraries
 ### Compilation
