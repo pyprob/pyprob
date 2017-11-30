@@ -9,6 +9,7 @@ from pyprob import util
 from pyprob.logger import Logger
 from pyprob.comm import BatchRequester, ProposalReplier
 from pyprob.nn import Artifact, Batch
+from pyprob.state import TraceMode
 import torch.optim as optim
 from torch.autograd import Variable
 from termcolor import colored
@@ -43,9 +44,11 @@ class Model(object):
             self._artifact = Artifact(dropout, util.cuda_enabled, util.cuda_device, self._standardize_observes, softmax_boost, mixture_components)
             self._artifact.set_one_hot_dims(one_hot_dim)
 
-            pyprob.state.set_mode('compilation')
+            #pyprob.state.set_mode('compilation')
+            pyprob.state.set_mode(TraceMode.COMPILATION)
             traces = self.prior_traces(valid_size, self._default_observes)
-            pyprob.state.set_mode('inference')
+            #pyprob.state.set_mode('inference')
+            pyprob.state.set_mode(TraceMode.INFERENCE)
 
             self._artifact.set_valid_batch(Batch(traces))
             example_observes = self._artifact.valid_batch[0].observes_tensor
@@ -60,9 +63,11 @@ class Model(object):
             self._artifact.set_lstm(lstm_dim, lstm_depth)
             self._artifact.polymorph()
 
-            pyprob.state.set_mode('compilation')
+            #pyprob.state.set_mode('compilation')
+            pyprob.state.set_mode(TraceMode.COMPILATION)
             traces = self.prior_traces(valid_size, self._default_observes)
-            pyprob.state.set_mode('inference')
+            #pyprob.state.set_mode('inference')
+            pyprob.state.set_mode(TraceMode.INFERENCE)
 
             batch = Batch(traces)
             self._artifact.polymorph(batch)
@@ -89,9 +94,11 @@ class Model(object):
         if replace_valid_batch:
             util.logger.log(colored('Replacing the validation batch of the artifact', 'magenta', attrs=['bold']))
             self._artifact.valid_size = valid_size
-            pyprob.state.set_mode('compilation')
+            #pyprob.state.set_mode('compilation')
+            pyprob.state.set_mode(TraceMode.COMPILATION)
             traces = self.prior_traces(valid_size, self._default_observes)
-            pyprob.state.set_mode('inference')
+            #pyprob.state.set_mode('inference')
+            pyprob.state.set_mode(TraceMode.INFERENCE)
             self._artifact.set_valid_batch(Batch(traces))
 
         prev_artifact_total_traces = self._artifact.total_traces
@@ -140,9 +147,11 @@ class Model(object):
             while not stop:
                 save_new_artifact = False
                 iteration_batch += 1
-                pyprob.state.set_mode('compilation')
+                #pyprob.state.set_mode('compilation')
+                pyprob.state.set_mode(TraceMode.COMPILATION)
                 traces = self.prior_traces(valid_size, self._default_observes)
-                pyprob.state.set_mode('inference')
+                #pyprob.state.set_mode('inference')
+                pyprob.state.set_mode(TraceMode.INFERENCE)
                 batch = Batch(traces)
                 self._artifact.polymorph(batch)
 
@@ -262,11 +271,13 @@ class Model(object):
         pyprob.state.set_artifact(self._artifact)
         while True:
             self._artifact.new_trace(Variable(util.pack_observes_to_tensor(args[0]).unsqueeze(0), volatile=True))
-            pyprob.state.set_mode('compiled_inference')
-            pyprob.state.begin_trace()
+            #pyprob.state.set_mode('compiled_inference')
+            pyprob.state.set_mode(TraceMode.COMPILED_INFERENCE)
+            pyprob.state.begin_trace(self._model_func)
             res = self._model_func(*args, **kwargs)
             trace = pyprob.state.end_trace()
-            pyprob.state.set_mode('inference')
+            #pyprob.state.set_mode('inference')
+            pyprob.state.set_mode(TraceMode.INFERENCE)
             trace.set_result(res)
             yield trace
     def prior_traces_guided(self, samples=1, *args, **kwargs):
@@ -274,7 +285,7 @@ class Model(object):
         return [next(generator) for i in range(samples)]
     def prior_trace(self, *args, **kwargs):
         while True:
-            pyprob.state.begin_trace()
+            pyprob.state.begin_trace(self._model_func)
             res = self._model_func(*args, **kwargs)
             trace = pyprob.state.end_trace()
             trace.set_result(res)

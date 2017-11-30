@@ -10,35 +10,45 @@ from pyprob.trace import Sample, Trace
 import traceback
 import sys
 import torch
+import enum
 
 current_trace = None
 trace_mode = 'inference'
 artifact = None
+_current_function_name = None
+
+class TraceMode(enum.Enum):
+    INFERENCE = 1
+    COMPILATION = 2
+    COMPILED_INFERENCE = 3
 
 def set_mode(mode):
     global trace_mode
-    if mode == 'inference':
-        trace_mode = 'inference'
-    elif mode == 'compilation':
-        trace_mode = 'compilation'
-    elif mode == 'compiled_inference':
-        trace_mode = 'compiled_inference'
+    if isinstance(mode, TraceMode):
+        trace_mode = mode
+    #if mode in ['inference', 'compilation', 'compiled_inference']:
+    #    trace_mode = mode
     else:
-        raise Exception('Unknown mode: {}. Use one of (inference, compilation, compiled_inference).'.format(mode))
+        #raise Exception('Unknown mode: {}. Use one of (inference, compilation, compiled_inference).'.format(mode))
+        raise Exception('Unknown mode: {}. Use a value of TraceMode.'.format(mode))
 
 def set_artifact(art):
     global artifact
     artifact = art
 
-def begin_trace():
+def begin_trace(f):
     global current_trace
+    global _current_function_name
     current_trace = Trace()
+    _current_function_name = f.__code__.co_name
 
 def end_trace():
     global current_trace
+    global _current_function_name
     current_trace.pack_observes_to_tensor()
     ret = current_trace
     current_trace = None
+    _current_function_name = None
     return ret
 
 def extract_address():
@@ -61,6 +71,7 @@ def extract_address():
         n = frame.f_code.co_name
         if n.startswith('<'): break
         names.append(n)
+        if n == _current_function_name: break
         frame = frame.f_back
     return "{}/{}".format(ip, '.'.join(reversed(names)))
 
