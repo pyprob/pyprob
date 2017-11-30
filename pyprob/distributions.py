@@ -8,13 +8,29 @@ import pyprob
 from pyprob import util
 import numpy as np
 import scipy.stats
+from scipy.misc import logsumexp
 import torch
-
 
 class Empirical(object):
     def __init__(self, values, log_weights=None):
-        self.values = values
-        self.log_weights = log_weights
+        self.length = len(values)
+        self.values = np.array(values)
+        if log_weights is None:
+            self.log_weights = np.full(len(values), -math.log(len(values))) # assume uniform
+        else:
+            self.log_weights = np.array(log_weights)
+        self.weights = np.exp(self.log_weights - logsumexp(self.log_weights))
+        self._distribution = {}
+        for i in range(self.length):
+            value = values[i]
+            if value in self._distribution:
+                self._distribution[value] += self.weights[i]
+            else:
+                self._distribution[value] = self.weights[i]
+    def __len__(self):
+        return self._length
+
+
 
 class UniformDiscrete(object):
     def __init__(self, prior_min, prior_size):

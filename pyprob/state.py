@@ -60,6 +60,7 @@ def sample(distribution):
             if current_trace.length > 0:
                 previous_sample = current_trace.samples[-1]
             proposal_distribution = artifact.forward(previous_sample, current_sample, volatile=True)
+            proposal_distribution = pyprob.distributions.Normal(proposal_distribution.proposal_mean, proposal_distribution.proposal_std)
             value = proposal_distribution.sample()
             current_sample = Sample(address, distribution, value)
             current_trace.add_log_p(distribution.log_pdf(value) - proposal_distribution.log_pdf(value))

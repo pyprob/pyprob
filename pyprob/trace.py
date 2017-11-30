@@ -22,7 +22,7 @@ class Sample(object):
         self.lstm_input = None
         self.lstm_output = None
     def __repr__(self):
-        return 'Sample(address_suffixed:{0}, distribution:{1}, value:{2})'.format(self.address_suffixed, str(self.distribution), self.value.numpy().tolist())
+        return 'Sample(address_suffixed:{0}, distribution:{1}, value:{2})'.format(self.address_suffixed, str(self.distribution), self.value.cpu().numpy().tolist())
     __str__ = __repr__
     def cuda(self, device_id=None):
         if not self.value is None:
@@ -43,7 +43,7 @@ class Trace(object):
         self.result = None
         self.log_p = 0
     def __repr__(self):
-        return 'Trace(length:{0}, samples:[{1}], observes_tensor:{2}, result:{3}, log_p:{4})'.format(self.length, ', '.join([str(sample) for sample in self.samples]), self.observes_tensor.numpy().tolist(), str(self.result), self.log_p)
+        return 'Trace(length:{0}, samples:[{1}], observes_tensor:{2}, result:{3}, log_p:{4})'.format(self.length, ', '.join([str(sample) for sample in self.samples]), self.observes_tensor.cpu().numpy().tolist(), str(self.result), self.log_p)
     __str__ = __repr__
     def addresses(self):
         return '; '.join([sample.address for sample in self.samples])
