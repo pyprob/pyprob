@@ -21,7 +21,7 @@ import sys
 import traceback
 
 class Model(object):
-    def __init__(self, model_func, default_observes=[], standardize_observes=False, directory='.', resume=False):
+    def __init__(self, model_func=None, default_observes=[], standardize_observes=False, directory='.', resume=False):
         self._model_func = model_func
         self._default_observes = default_observes
         self._standardize_observes = standardize_observes
@@ -37,7 +37,7 @@ class Model(object):
         else:
             self._artifact = None
 
-    def learn_proposal(self, lstm_dim=512, lstm_depth=2, obs_emb='fc', obs_reshape=None, obs_emb_dim=512, smp_emb_dim=32, one_hot_dim=64, softmax_boost=20, mixture_components=10, dropout=0.2,batch_size=64, valid_interval=1000, optimizer_method='adam', learning_rate=0.0001, momentum=0.9, weight_decay=0.0005, parallelize=False, truncate_backprop=-1, grad_clip=-1, max_traces=-1, keep_all_artifacts=False, replace_valid_batch=False, valid_size=256):
+    def learn_proposal(self, lstm_dim=512, lstm_depth=2, obs_emb='fc', obs_reshape=None, obs_emb_dim=512, smp_emb_dim=32, one_hot_dim=64, softmax_boost=20, mixture_components=10, dropout=0.2, batch_size=64, valid_interval=1000, optimizer_method='adam', learning_rate=0.0001, momentum=0.9, weight_decay=0.0005, parallelize=False, truncate_backprop=-1, grad_clip=-1, max_traces=-1, keep_all_artifacts=False, replace_valid_batch=False, valid_size=256):
 
         if self._artifact is None:
             util.logger.log(colored('Creating new artifact...', 'blue', attrs=['bold']))
@@ -306,10 +306,11 @@ class Model(object):
 
 
 class RemoteModel(Model):
-    def __init__(self, local_server='tcp://0.0.0.0:6666', remote_server='tcp://127.0.0.1:5555', batch_pool=False):
+    def __init__(self, local_server='tcp://0.0.0.0:6666', remote_server='tcp://127.0.0.1:5555', batch_pool=False, *args, **kwargs):
         self._local_server = local_server
         self._remote_server = remote_server
         self._batch_pool = batch_pool
+        super().__init__(*args, **kwargs)
 
     def prior_traces(self, samples=1, *args, **kwargs):
         with BatchRequester(self._remote_server, self._standardize_observes, self._batch_pool) as requester:

@@ -30,7 +30,7 @@ def main():
         util.set_random_seed(opt.seed)
         util.set_cuda(opt.cuda, opt.device)
 
-        inference = pyprob.InferenceRemote(local_server=opt.server, directory=opt.dir, resume=True)
+        inference = pyprob.RemoteModel(local_server=opt.server, directory=opt.dir, resume=True)
         inference.infer()
 
     except KeyboardInterrupt:
