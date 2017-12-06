@@ -30,6 +30,7 @@ random_seed = 0
 def set_random_seed(seed):
     global random_seed
     random_seed = seed
+    np.random.seed(seed)
     torch.manual_seed(random_seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(random_seed)
