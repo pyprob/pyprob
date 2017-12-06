@@ -111,14 +111,13 @@ def _extract_target_of_assignment():
     else:
         return None
 
-
 def sample(distribution):
     global current_trace
     value = distribution.sample()
     if current_trace is not None:
         address = extract_address()
         current_sample = Sample(address, distribution, value)
-        if trace_mode == 'compiled_inference':
+        if trace_mode == TraceMode.COMPILED_INFERENCE:
             previous_sample = None
             if current_trace.length > 0:
                 previous_sample = current_trace.samples[-1]
@@ -135,7 +134,7 @@ def sample(distribution):
 def observe(distribution, value):
     global current_trace
     if current_trace is not None:
-        if trace_mode == 'compilation':
+        if trace_mode == TraceMode.COMPILATION:
             current_trace.add_observe(distribution.sample())
         else:
             current_trace.add_observe(value)

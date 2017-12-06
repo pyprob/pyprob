@@ -21,6 +21,7 @@ import sys
 import traceback
 
 class Model(object):
+
     def __init__(self, model_func=None, default_observes=[], standardize_observes=False, directory='.', resume=False):
         self._model_func = model_func
         self._default_observes = default_observes
@@ -264,9 +265,11 @@ class Model(object):
     def prior_sample(self, *args, **kwargs):
         while True:
             yield self._model_func(*args, **kwargs)
+
     def prior_samples(self, samples=1, *args, **kwargs):
         generator = self.prior_sample(*args, **kwargs)
         return [next(generator) for i in range(samples)]
+
     def prior_trace_guided(self, *args, **kwargs):
         pyprob.state.set_artifact(self._artifact)
         while True:
@@ -280,9 +283,11 @@ class Model(object):
             pyprob.state.set_mode(TraceMode.INFERENCE)
             trace.set_result(res)
             yield trace
+
     def prior_traces_guided(self, samples=1, *args, **kwargs):
         generator = self.prior_trace_guided(*args, **kwargs)
         return [next(generator) for i in range(samples)]
+
     def prior_trace(self, *args, **kwargs):
         while True:
             pyprob.state.begin_trace(self._model_func)
@@ -290,9 +295,11 @@ class Model(object):
             trace = pyprob.state.end_trace()
             trace.set_result(res)
             yield trace
+
     def prior_traces(self, samples=1, *args, **kwargs):
         generator = self.prior_trace(*args, **kwargs)
         return [next(generator) for i in range(samples)]
+
     def posterior_samples(self, samples=10, *args, **kwargs):
         if self._artifact is None:
             traces = self.prior_traces(samples, *args, **kwargs)
@@ -306,6 +313,7 @@ class Model(object):
 
 
 class RemoteModel(Model):
+
     def __init__(self, local_server='tcp://0.0.0.0:6666', remote_server='tcp://127.0.0.1:5555', batch_pool=False, *args, **kwargs):
         self._local_server = local_server
         self._remote_server = remote_server
