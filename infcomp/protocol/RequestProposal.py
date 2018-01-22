@@ -4,21 +4,21 @@
 
 import flatbuffers
 
-class ProposalRequest(object):
+class RequestProposal(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsProposalRequest(cls, buf, offset):
+    def GetRootAsRequestProposal(cls, buf, offset):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
-        x = ProposalRequest()
+        x = RequestProposal()
         x.Init(buf, n + offset)
         return x
 
-    # ProposalRequest
+    # RequestProposal
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # ProposalRequest
+    # RequestProposal
     def CurrentSample(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
@@ -29,7 +29,7 @@ class ProposalRequest(object):
             return obj
         return None
 
-    # ProposalRequest
+    # RequestProposal
     def PreviousSample(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
@@ -40,7 +40,7 @@ class ProposalRequest(object):
             return obj
         return None
 
-def ProposalRequestStart(builder): builder.StartObject(2)
-def ProposalRequestAddCurrentSample(builder, currentSample): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(currentSample), 0)
-def ProposalRequestAddPreviousSample(builder, previousSample): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(previousSample), 0)
-def ProposalRequestEnd(builder): return builder.EndObject()
+def RequestProposalStart(builder): builder.StartObject(2)
+def RequestProposalAddCurrentSample(builder, currentSample): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(currentSample), 0)
+def RequestProposalAddPreviousSample(builder, previousSample): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(previousSample), 0)
+def RequestProposalEnd(builder): return builder.EndObject()

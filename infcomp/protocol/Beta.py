@@ -19,20 +19,20 @@ class Beta(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # Beta
-    def ProposalMode(self):
+    def ShapeA(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # Beta
-    def ProposalCertainty(self):
+    def ShapeB(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
 def BetaStart(builder): builder.StartObject(2)
-def BetaAddProposalMode(builder, proposalMode): builder.PrependFloat64Slot(0, proposalMode, 0.0)
-def BetaAddProposalCertainty(builder, proposalCertainty): builder.PrependFloat64Slot(1, proposalCertainty, 0.0)
+def BetaAddShapeA(builder, shapeA): builder.PrependFloat64Slot(0, shapeA, 0.0)
+def BetaAddShapeB(builder, shapeB): builder.PrependFloat64Slot(1, shapeB, 0.0)
 def BetaEnd(builder): return builder.EndObject()

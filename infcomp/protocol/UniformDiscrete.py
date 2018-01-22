@@ -19,32 +19,20 @@ class UniformDiscrete(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # UniformDiscrete
-    def PriorMin(self):
+    def Min(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
     # UniformDiscrete
-    def PriorSize(self):
+    def Max(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
-    # UniformDiscrete
-    def ProposalProbabilities(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            x = self._tab.Indirect(o + self._tab.Pos)
-            from .NDArray import NDArray
-            obj = NDArray()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
-def UniformDiscreteStart(builder): builder.StartObject(3)
-def UniformDiscreteAddPriorMin(builder, priorMin): builder.PrependInt32Slot(0, priorMin, 0)
-def UniformDiscreteAddPriorSize(builder, priorSize): builder.PrependInt32Slot(1, priorSize, 0)
-def UniformDiscreteAddProposalProbabilities(builder, proposalProbabilities): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(proposalProbabilities), 0)
+def UniformDiscreteStart(builder): builder.StartObject(2)
+def UniformDiscreteAddMin(builder, min): builder.PrependInt32Slot(0, min, 0)
+def UniformDiscreteAddMax(builder, max): builder.PrependInt32Slot(1, max, 0)
 def UniformDiscreteEnd(builder): return builder.EndObject()

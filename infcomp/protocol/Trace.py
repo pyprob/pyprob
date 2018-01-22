@@ -19,12 +19,12 @@ class Trace(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # Trace
-    def Observes(self):
+    def Observations(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from .NDArray import NDArray
-            obj = NDArray()
+            from .Tensor import Tensor
+            obj = Tensor()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
@@ -50,7 +50,7 @@ class Trace(object):
         return 0
 
 def TraceStart(builder): builder.StartObject(2)
-def TraceAddObserves(builder, observes): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(observes), 0)
+def TraceAddObservations(builder, observations): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(observations), 0)
 def TraceAddSamples(builder, samples): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(samples), 0)
 def TraceStartSamplesVector(builder, numElems): return builder.StartVector(4, numElems, 4)
 def TraceEnd(builder): return builder.EndObject()

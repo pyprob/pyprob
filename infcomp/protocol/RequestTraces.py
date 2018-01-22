@@ -4,27 +4,27 @@
 
 import flatbuffers
 
-class TracesFromPriorRequest(object):
+class RequestTraces(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsTracesFromPriorRequest(cls, buf, offset):
+    def GetRootAsRequestTraces(cls, buf, offset):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
-        x = TracesFromPriorRequest()
+        x = RequestTraces()
         x.Init(buf, n + offset)
         return x
 
-    # TracesFromPriorRequest
+    # RequestTraces
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # TracesFromPriorRequest
+    # RequestTraces
     def NumTraces(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
-def TracesFromPriorRequestStart(builder): builder.StartObject(1)
-def TracesFromPriorRequestAddNumTraces(builder, numTraces): builder.PrependInt32Slot(0, numTraces, 0)
-def TracesFromPriorRequestEnd(builder): return builder.EndObject()
+def RequestTracesStart(builder): builder.StartObject(1)
+def RequestTracesAddNumTraces(builder, numTraces): builder.PrependInt32Slot(0, numTraces, 0)
+def RequestTracesEnd(builder): return builder.EndObject()

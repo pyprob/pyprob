@@ -19,36 +19,20 @@ class Laplace(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # Laplace
-    def PriorLocation(self):
+    def Location(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # Laplace
-    def PriorScale(self):
+    def Scale(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Laplace
-    def ProposalLocation(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # Laplace
-    def ProposalScale(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-def LaplaceStart(builder): builder.StartObject(4)
-def LaplaceAddPriorLocation(builder, priorLocation): builder.PrependFloat64Slot(0, priorLocation, 0.0)
-def LaplaceAddPriorScale(builder, priorScale): builder.PrependFloat64Slot(1, priorScale, 0.0)
-def LaplaceAddProposalLocation(builder, proposalLocation): builder.PrependFloat64Slot(2, proposalLocation, 0.0)
-def LaplaceAddProposalScale(builder, proposalScale): builder.PrependFloat64Slot(3, proposalScale, 0.0)
+def LaplaceStart(builder): builder.StartObject(2)
+def LaplaceAddLocation(builder, location): builder.PrependFloat64Slot(0, location, 0.0)
+def LaplaceAddScale(builder, scale): builder.PrependFloat64Slot(1, scale, 0.0)
 def LaplaceEnd(builder): return builder.EndObject()

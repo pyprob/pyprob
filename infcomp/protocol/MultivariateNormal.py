@@ -19,52 +19,28 @@ class MultivariateNormal(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # MultivariateNormal
-    def PriorMean(self):
+    def Mean(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from .NDArray import NDArray
-            obj = NDArray()
+            from .Tensor import Tensor
+            obj = Tensor()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
     # MultivariateNormal
-    def PriorStd(self):
+    def Covariance(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from .NDArray import NDArray
-            obj = NDArray()
+            from .Tensor import Tensor
+            obj = Tensor()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
-    # MultivariateNormal
-    def ProposalMean(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            x = self._tab.Indirect(o + self._tab.Pos)
-            from .NDArray import NDArray
-            obj = NDArray()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
-    # MultivariateNormal
-    def ProposalStd(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
-        if o != 0:
-            x = self._tab.Indirect(o + self._tab.Pos)
-            from .NDArray import NDArray
-            obj = NDArray()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
-def MultivariateNormalStart(builder): builder.StartObject(4)
-def MultivariateNormalAddPriorMean(builder, priorMean): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(priorMean), 0)
-def MultivariateNormalAddPriorStd(builder, priorStd): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(priorStd), 0)
-def MultivariateNormalAddProposalMean(builder, proposalMean): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(proposalMean), 0)
-def MultivariateNormalAddProposalStd(builder, proposalStd): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(proposalStd), 0)
+def MultivariateNormalStart(builder): builder.StartObject(2)
+def MultivariateNormalAddMean(builder, mean): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(mean), 0)
+def MultivariateNormalAddCovariance(builder, covariance): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(covariance), 0)
 def MultivariateNormalEnd(builder): return builder.EndObject()

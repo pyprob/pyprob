@@ -19,24 +19,32 @@ class Discrete(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # Discrete
-    def PriorSize(self):
+    def Min(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
         return 0
 
     # Discrete
-    def ProposalProbabilities(self):
+    def Max(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Int32Flags, o + self._tab.Pos)
+        return 0
+
+    # Discrete
+    def Probabilities(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from .NDArray import NDArray
-            obj = NDArray()
+            from .Tensor import Tensor
+            obj = Tensor()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
-def DiscreteStart(builder): builder.StartObject(2)
-def DiscreteAddPriorSize(builder, priorSize): builder.PrependInt32Slot(0, priorSize, 0)
-def DiscreteAddProposalProbabilities(builder, proposalProbabilities): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(proposalProbabilities), 0)
+def DiscreteStart(builder): builder.StartObject(3)
+def DiscreteAddMin(builder, min): builder.PrependInt32Slot(0, min, 0)
+def DiscreteAddMax(builder, max): builder.PrependInt32Slot(1, max, 0)
+def DiscreteAddProbabilities(builder, probabilities): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(probabilities), 0)
 def DiscreteEnd(builder): return builder.EndObject()

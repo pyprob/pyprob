@@ -19,20 +19,20 @@ class Gamma(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # Gamma
-    def ProposalLocation(self):
+    def Shape(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # Gamma
-    def ProposalScale(self):
+    def Rate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
 def GammaStart(builder): builder.StartObject(2)
-def GammaAddProposalLocation(builder, proposalLocation): builder.PrependFloat64Slot(0, proposalLocation, 0.0)
-def GammaAddProposalScale(builder, proposalScale): builder.PrependFloat64Slot(1, proposalScale, 0.0)
+def GammaAddShape(builder, shape): builder.PrependFloat64Slot(0, shape, 0.0)
+def GammaAddRate(builder, rate): builder.PrependFloat64Slot(1, rate, 0.0)
 def GammaEnd(builder): return builder.EndObject()

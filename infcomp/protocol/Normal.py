@@ -19,36 +19,20 @@ class Normal(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # Normal
-    def PriorMean(self):
+    def Mean(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
     # Normal
-    def PriorStd(self):
+    def Std(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Normal
-    def ProposalMean(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-    # Normal
-    def ProposalStd(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-def NormalStart(builder): builder.StartObject(4)
-def NormalAddPriorMean(builder, priorMean): builder.PrependFloat64Slot(0, priorMean, 0.0)
-def NormalAddPriorStd(builder, priorStd): builder.PrependFloat64Slot(1, priorStd, 0.0)
-def NormalAddProposalMean(builder, proposalMean): builder.PrependFloat64Slot(2, proposalMean, 0.0)
-def NormalAddProposalStd(builder, proposalStd): builder.PrependFloat64Slot(3, proposalStd, 0.0)
+def NormalStart(builder): builder.StartObject(2)
+def NormalAddMean(builder, mean): builder.PrependFloat64Slot(0, mean, 0.0)
+def NormalAddStd(builder, std): builder.PrependFloat64Slot(1, std, 0.0)
 def NormalEnd(builder): return builder.EndObject()

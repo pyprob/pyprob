@@ -19,20 +19,12 @@ class Poisson(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # Poisson
-    def PriorLambda(self):
+    def Rate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Poisson
-    def ProposalLambda(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
-
-def PoissonStart(builder): builder.StartObject(2)
-def PoissonAddPriorLambda(builder, priorLambda): builder.PrependFloat64Slot(0, priorLambda, 0.0)
-def PoissonAddProposalLambda(builder, proposalLambda): builder.PrependFloat64Slot(1, proposalLambda, 0.0)
+def PoissonStart(builder): builder.StartObject(1)
+def PoissonAddRate(builder, rate): builder.PrependFloat64Slot(0, rate, 0.0)
 def PoissonEnd(builder): return builder.EndObject()

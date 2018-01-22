@@ -19,12 +19,12 @@ class Flip(object):
         self._tab = flatbuffers.table.Table(buf, pos)
 
     # Flip
-    def ProposalProbability(self):
+    def Probability(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
 def FlipStart(builder): builder.StartObject(1)
-def FlipAddProposalProbability(builder, proposalProbability): builder.PrependFloat64Slot(0, proposalProbability, 0.0)
+def FlipAddProbability(builder, probability): builder.PrependFloat64Slot(0, probability, 0.0)
 def FlipEnd(builder): return builder.EndObject()

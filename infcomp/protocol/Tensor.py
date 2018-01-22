@@ -4,21 +4,21 @@
 
 import flatbuffers
 
-class NDArray(object):
+class Tensor(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsNDArray(cls, buf, offset):
+    def GetRootAsTensor(cls, buf, offset):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
-        x = NDArray()
+        x = Tensor()
         x.Init(buf, n + offset)
         return x
 
-    # NDArray
+    # Tensor
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # NDArray
+    # Tensor
     def Data(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
@@ -26,14 +26,21 @@ class NDArray(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 8))
         return 0
 
-    # NDArray
+    # Tensor
+    def DataAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Float64Flags, o)
+        return 0
+
+    # Tensor
     def DataLength(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
-    # NDArray
+    # Tensor
     def Shape(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
@@ -41,16 +48,23 @@ class NDArray(object):
             return self._tab.Get(flatbuffers.number_types.Int32Flags, a + flatbuffers.number_types.UOffsetTFlags.py_type(j * 4))
         return 0
 
-    # NDArray
+    # Tensor
+    def ShapeAsNumpy(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.GetVectorAsNumpy(flatbuffers.number_types.Int32Flags, o)
+        return 0
+
+    # Tensor
     def ShapeLength(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
-def NDArrayStart(builder): builder.StartObject(2)
-def NDArrayAddData(builder, data): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(data), 0)
-def NDArrayStartDataVector(builder, numElems): return builder.StartVector(8, numElems, 8)
-def NDArrayAddShape(builder, shape): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(shape), 0)
-def NDArrayStartShapeVector(builder, numElems): return builder.StartVector(4, numElems, 4)
-def NDArrayEnd(builder): return builder.EndObject()
+def TensorStart(builder): builder.StartObject(2)
+def TensorAddData(builder, data): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(data), 0)
+def TensorStartDataVector(builder, numElems): return builder.StartVector(8, numElems, 8)
+def TensorAddShape(builder, shape): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(shape), 0)
+def TensorStartShapeVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+def TensorEnd(builder): return builder.EndObject()

@@ -4,21 +4,21 @@
 
 import flatbuffers
 
-class TracesFromPriorReply(object):
+class ReplyTraces(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsTracesFromPriorReply(cls, buf, offset):
+    def GetRootAsReplyTraces(cls, buf, offset):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
-        x = TracesFromPriorReply()
+        x = ReplyTraces()
         x.Init(buf, n + offset)
         return x
 
-    # TracesFromPriorReply
+    # ReplyTraces
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # TracesFromPriorReply
+    # ReplyTraces
     def Traces(self, j):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
@@ -31,14 +31,14 @@ class TracesFromPriorReply(object):
             return obj
         return None
 
-    # TracesFromPriorReply
+    # ReplyTraces
     def TracesLength(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.VectorLen(o)
         return 0
 
-def TracesFromPriorReplyStart(builder): builder.StartObject(1)
-def TracesFromPriorReplyAddTraces(builder, traces): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(traces), 0)
-def TracesFromPriorReplyStartTracesVector(builder, numElems): return builder.StartVector(4, numElems, 4)
-def TracesFromPriorReplyEnd(builder): return builder.EndObject()
+def ReplyTracesStart(builder): builder.StartObject(1)
+def ReplyTracesAddTraces(builder, traces): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(traces), 0)
+def ReplyTracesStartTracesVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+def ReplyTracesEnd(builder): return builder.EndObject()
