@@ -35,4 +35,8 @@ after_success:
           docker build -t probprog/pyprob --build-arg PYPROB_VERSION=$PYPROB_VERSION --build-arg GIT_COMMIT=$GIT_COMMIT . ;
           docker tag probprog/pyprob probprog/pyprob:latest ;
           docker push probprog/pyprob:latest ;
+          if [[ -n "$TRAVIS_TAG" ]]; then
+            docker tag probprog/pyprob probprog/pyprob:$TRAVIS_TAG ;
+            docker push probprog/pyprob:$TRAVIS_TAG ;
+          fi
       fi

@@ -1,6 +1,6 @@
 import os
 import sys
-from setuptools import setup
+from setuptools import setup, find_packages
 PACKAGE_NAME = 'pyprob'
 MINIMUM_PYTHON_VERSION = 3, 5
 
@@ -26,7 +26,7 @@ setup(
     description='PyTorch-based library for probabilistic programming and inference compilation',
     author='Tuan-Anh Le and Atilim Gunes Baydin',
     author_email='gunes@robots.ox.ac.uk',
-    packages=['pyprob'],
+    packages=find_packages(),
     install_requires=['torch', 'torchvision', 'numpy', 'scipy', 'termcolor==1.1.0', 'pyzmq==16.0.2', 'flatbuffers==2015.12.22.1', 'visdom==0.1.04', 'matplotlib==2.0.0', 'py-cpuinfo==3.2.0', 'pylatex==1.2.1', 'pydotplus==2.0.2', 'seaborn==0.7.1'],
     url='https://github.com/probprog/pyprob',
     classifiers=['Development Status :: 4 - Beta', 'License :: OSI Approved :: MIT License', 'Programming Language :: Python :: 3.5'],
