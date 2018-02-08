@@ -1,14 +1,28 @@
-sudo: false
-notifications:
-  email: false
+sudo: required
 language: python
 cache: pip
+
+services:
+    - docker
+
+notifications:
+    email: false
+
 python:
-  - "3.5"
-  - "3.6"
+    - "3.5"
+    - "3.6"
+
 before_install:
-  - if [[ $TRAVIS_PYTHON_VERSION == 3.5 ]]; then pip install --quiet http://download.pytorch.org/whl/cpu/torch-0.3.0.post4-cp35-cp35m-linux_x86_64.whl; fi
-  - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then pip install --quiet http://download.pytorch.org/whl/cpu/torch-0.3.0.post4-cp36-cp36m-linux_x86_64.whl; fi
+    - if [[ $TRAVIS_PYTHON_VERSION == 3.5 ]]; then pip install --quiet http://download.pytorch.org/whl/cpu/torch-0.3.0.post4-cp35-cp35m-linux_x86_64.whl; fi
+    - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then pip install --quiet http://download.pytorch.org/whl/cpu/torch-0.3.0.post4-cp36-cp36m-linux_x86_64.whl; fi
+
 install:
-  - pip install .
+    - pip install .
+
 script: nosetests -v
+
+after_success:
+    - PYPROB_VERSION="$(python setup.py --version)"
+    - GIT_COMMIT="$(git rev-parse HEAD)"
+    - echo $PYPROB_VERSION
+    - echo $GIT_COMMIT
