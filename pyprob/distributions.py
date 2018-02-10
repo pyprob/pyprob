@@ -33,18 +33,27 @@ class Distribution(object):
 
     @property
     def variance(self):
-        raise NotImplementedError()
+        if self.torch_dist is not None:
+            return self.torch_dist.variance
+        else:
+            raise NotImplementedError()
 
     @property
     def stddev(self):
-        return self.variance.sqrt()
+        if self.torch_dist is not None:
+            try:
+                return self.torch_dist.stddev
+            except AttributeError: # This is because of the changing nature of PyTorch distributions. Should be removed when PyTorch stabilizes.
+                return self.torch_dist.std
+        else:
+            return self.variance.sqrt()
 
 
 class Empirical(Distribution):
     def __init__(self, values, log_weights=None, combine_duplicates=False):
         length = len(values)
         if log_weights is None:
-            log_weights = Variable(torch.zeros(length)).fill_(-math.log(length)) # assume uniform distribution if no weights are given
+            log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length)) # assume uniform distribution if no weights are given
         else:
             log_weights = util.to_variable(log_weights)
         weights = torch.exp(log_weights - util.logsumexp(log_weights))
@@ -102,7 +111,7 @@ class Empirical(Distribution):
 
 
 class Normal(Distribution):
-    def __init__(self, prior_mean, prior_std):
+    def __init__(self, prior_mean, prior_stddev):
         self.prior_mean = util.to_variable(prior_mean)
-        self.prior_std = util.to_variable(prior_std)
-        super(Normal, self).__init__('Normal', '_Normal', torch.distributions.Normal(self.prior_mean, self.prior_std))
+        self.prior_stddev = util.to_variable(prior_stddev)
+        super(Normal, self).__init__('Normal', '_Normal', torch.distributions.Normal(self.prior_mean, self.prior_stddev))

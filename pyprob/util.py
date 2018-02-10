@@ -5,26 +5,57 @@ import torch.nn.functional as F
 import numpy as np
 import random
 
+_random_seed = 0
+def set_random_seed(seed=123):
+    global _random_seed
+    _random_seed = seed
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+set_random_seed()
+
 Tensor = torch.FloatTensor
+_cuda_enabled = False
+_cuda_device = -1
+def set_cuda(cuda, device=0):
+    global Tensor
+    global _cuda_enabled
+    global _cuda_device
+    if torch.cuda.is_available() and cuda:
+        _cuda_enabled = True
+        _cuda_device = device
+        torch.cuda.set_device(device)
+        torch.backends.cudnn.enabled = True
+        Tensor = torch.cuda.FloatTensor
+    else:
+        _cuda_enabled = False
+        Tensor = torch.FloatTensor
 
 def to_variable(value, requires_grad=False):
+    ret = None
     if isinstance(value, Variable):
-        return value
+        ret = value
     elif torch.is_tensor(value):
-        return Variable(value.float(), requires_grad=requires_grad)
+        ret = Variable(value.float(), requires_grad=requires_grad)
     elif isinstance(value, np.ndarray):
-        return Variable(torch.from_numpy(value.astype(float)).float(), requires_grad=requires_grad)
+        ret = Variable(torch.from_numpy(value.astype(float)).float(), requires_grad=requires_grad)
     elif value is None:
-        return
+        ret = None
     elif isinstance(value, (list, tuple)):
         if isinstance(value[0], Variable):
-            return torch.stack(value)
+            ret = torch.stack(value)
         elif torch.is_tensor(value[0]):
-            return torch.stack(list(map(Variable, value)))
+            ret = torch.stack(list(map(Variable, value)))
         else:
-            return torch.stack(list(map(lambda x:Variable(Tensor(x)), value)))
+            ret = torch.stack(list(map(lambda x:Variable(Tensor(x)), value)))
     else:
-        return Variable(torch.Tensor([float(value)]), requires_grad=requires_grad)
+        ret = Variable(torch.Tensor([float(value)]), requires_grad=requires_grad)
+    if _cuda_enabled:
+        return ret.cuda()
+    else:
+        return ret
 
 def logsumexp(x, dim=0):
     '''
@@ -45,4 +76,4 @@ def fast_np_random_choice(values, probs):
 
 def debug(expression1, expression2):
     frame = sys._getframe(1)
-    print('\n  {} = {}; {} = {}'.format(expression1, repr(eval(expression1, frame.f_globals, frame.f_locals)), expression2, repr(eval(expression2, frame.f_globals, frame.f_locals))))
+    print('  {} = {}; {} = {}'.format(expression1, repr(eval(expression1, frame.f_globals, frame.f_locals)), expression2, repr(eval(expression2, frame.f_globals, frame.f_locals))))

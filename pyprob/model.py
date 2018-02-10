@@ -22,12 +22,12 @@ class Model(nn.Module):
         while True:
             yield self.forward(*args, **kwargs)
 
-    def prior_sample(self):
-        generator = self._prior_sample_generator()
+    def prior_sample(self, *args, **kwargs):
+        generator = self._prior_sample_generator(*args, **kwargs)
         next(generator)
 
-    def prior_distribution(self, samples=1000):
-        generator = self._prior_sample_generator()
+    def prior_distribution(self, samples=1000, *args, **kwargs):
+        generator = self._prior_sample_generator(*args, **kwargs)
         return Empirical([next(generator) for i in range(samples)])
 
     def posterior_distribution(self, samples=1000, *args, **kwargs):
