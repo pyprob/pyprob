@@ -50,4 +50,5 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_stddev, correct_posterior_stddev, places=0)
 
     def test_model_gum_posterior_inference_compilation(self):
+        self._model.learn_proposal(obs=[1,1])
         self.assertTrue(True)

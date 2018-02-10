@@ -1,21 +1,26 @@
 import sys
+import opcode
 import enum
+
 from .trace import Sample, Trace
 
-class State(enum.Enum):
-    DEFAULT = 0
-    RECORD_TRACE = 1
 
-_state = State.DEFAULT
+class TraceState(enum.Enum):
+    NONE = 0 # No trace recording, forward sample
+    RECORD = 1 # Record traces, importance sampling with prior
+    RECORD_LEARN_PROPOSAL = 2 # Record traces, training data generation for proposal network, interpret 'observe' as 'sample' (inference compilation training)
+    RECORD_USE_PROPOSAL = 3 # Record traces, importance sampling with proposal (inference compilation inference)
+
+_trace_state = TraceState.NONE
 _current_trace = None
-_current_trace_function_name = None
+_current_trace_root_function_name = None
 
-def extract_address():
-    #tb = traceback.extract_stack()
+def extract_address(root_function_name):
+    # tb = traceback.extract_stack()
     # print()
     # for t in tb:
     #     print(t[0], t[1], t[2], t[3])
-    #frame = tb[-3]
+    # frame = tb[-3]
     # return '{0}/{1}/{2}'.format(frame[1], frame[2], frame[3])
     # return '{0}/{1}'.format(frame[1], frame[2])
     # Retun an address in the format:
@@ -30,13 +35,12 @@ def extract_address():
         n = frame.f_code.co_name
         if n.startswith('<'): break
         names.append(n)
-        if n == _current_trace_function_name: break
+        if n == root_function_name: break
         frame = frame.f_back
     return "{}/{}".format(ip, '.'.join(reversed(names)))
 
 
 def _extract_target_of_assignment():
-    import opcode
     frame = sys._getframe(3)
     code = frame.f_code
     next_instruction = code.co_code[frame.f_lasti+2]
@@ -44,10 +48,8 @@ def _extract_target_of_assignment():
     instruction_name = opcode.opname[next_instruction]
     if instruction_name == 'STORE_FAST':
         return code.co_varnames[instruction_arg]
-
     elif instruction_name in ['STORE_NAME', 'STORE_GLOBAL']:
         return code.co_names[instruction_arg]
-
     elif instruction_name in ['LOAD_FAST', 'LOAD_NAME', 'LOAD_GLOBAL'] and \
             opcode.opname[code.co_code[frame.f_lasti+4]] in ['LOAD_CONST', 'LOAD_FAST'] and \
             opcode.opname[code.co_code[frame.f_lasti+6]] == 'STORE_SUBSCR':
@@ -66,41 +68,45 @@ def _extract_target_of_assignment():
             return base_name + '[' + index_name + ']'
         else:
             return None
-
     else:
         return None
 
 def sample(distribution):
     value = distribution.sample()
-    if _state == State.RECORD_TRACE:
+    if _trace_state != TraceState.NONE:
         global _current_trace
-        address = extract_address()
+        address = extract_address(_current_trace_root_function_name)
         current_sample = Sample(address, distribution, value)
         _current_trace.add_sample(current_sample)
+        # The following is not needed for default importance sampling (no learned proposal) as it cancels out
         # _current_trace.add_log_prob()
     return value
 
 def observe(distribution, value):
-    if _state == State.RECORD_TRACE:
+    if _trace_state != TraceState.NONE:
         global _current_trace
+        if _trace_state == TraceState.RECORD_LEARN_PROPOSAL:
+            value = distribution.sample()
         _current_trace.add_observe(value)
         _current_trace.add_log_prob(distribution.log_prob(value))
     return
 
-def begin_trace(func):
-    global _state
+def begin_trace(func, trace_state=TraceState.RECORD):
+    global _trace_state
     global _current_trace
-    global _current_trace_function_name
-    _state = State.RECORD_TRACE
+    global _current_trace_root_function_name
+    _trace_state = trace_state
     _current_trace = Trace()
-    _current_trace_function_name = func.__code__.co_name
+    _current_trace_root_function_name = func.__code__.co_name
 
 def end_trace():
-    global _state
+    global _trace_state
     global _current_trace
-    global _current_trace_function_name
-    _state = State.DEFAULT
+    global _current_trace_root_function_name
+    if _trace_state == TraceState.RECORD_LEARN_PROPOSAL:
+        _current_trace.pack_observes_to_variable()
+    _trace_state = TraceState.NONE
     ret = _current_trace
     _current_trace = None
-    _current_trace_function_name = None
+    _current_trace_root_function_name = None
     return ret

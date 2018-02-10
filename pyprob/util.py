@@ -47,11 +47,15 @@ def to_variable(value, requires_grad=False):
         if isinstance(value[0], Variable):
             ret = torch.stack(value)
         elif torch.is_tensor(value[0]):
-            ret = torch.stack(list(map(Variable, value)))
+            ret = torch.stack(list(map(lambda x:Variable(x, requires_grad=requires_grad), value)))
         else:
-            ret = torch.stack(list(map(lambda x:Variable(Tensor(x)), value)))
+            ret = torch.stack(list(map(lambda x:Variable(Tensor(x), requires_grad=requires_grad), value)))
+    elif type(value) is float:
+        ret = Variable(Tensor([value]), requires_grad=requires_grad)
+    elif type(value) is int:
+        ret = Variable(Tensor([value]), requires_grad=requires_grad)
     else:
-        ret = Variable(torch.Tensor([float(value)]), requires_grad=requires_grad)
+        ret = Variable(Tensor([float(value)]), requires_grad=requires_grad)
     if _cuda_enabled:
         return ret.cuda()
     else:
@@ -77,3 +81,17 @@ def fast_np_random_choice(values, probs):
 def debug(expression1, expression2):
     frame = sys._getframe(1)
     print('  {} = {}; {} = {}'.format(expression1, repr(eval(expression1, frame.f_globals, frame.f_locals)), expression2, repr(eval(expression2, frame.f_globals, frame.f_locals))))
+
+def pack_observes_to_variable(observes):
+    try:
+        return torch.stack([to_variable(o) for o in observes])
+    except:
+        try:
+            return torch.cat([to_variable(o).view(-1) for o in observes])
+        except:
+            return to_variable(Tensor())
+
+def one_hot(dim, i):
+    t = Tensor(dim).zero_()
+    t.narrow(0, i, 1).fill_(1)
+    return to_variable(t)

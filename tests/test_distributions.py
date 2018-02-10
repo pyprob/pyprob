@@ -13,6 +13,7 @@ class TestCase(unittest.TestCase):
         log_weights = Variable(util.Tensor([1,2,3]))
         dist = Empirical(values, log_weights)
         s = dist.sample()
+        print(dist)
         dist_mean = float(dist.mean)
         correct_dist_mean = 2.5752103328704834
         util.debug('dist_mean', 'correct_dist_mean')

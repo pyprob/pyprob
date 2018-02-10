@@ -87,6 +87,9 @@ class Empirical(Distribution):
     def __len__(self):
         return self.length
 
+    def __repr__(self):
+        return 'Empirical(length:{}, mean:{}, stddev:{})'.format(self.length, float(self.mean), float(self.stddev))
+
     def sample(self):
         return util.fast_np_random_choice(self.values, self.weights_np)
 
@@ -114,4 +117,7 @@ class Normal(Distribution):
     def __init__(self, prior_mean, prior_stddev):
         self.prior_mean = util.to_variable(prior_mean)
         self.prior_stddev = util.to_variable(prior_stddev)
-        super(Normal, self).__init__('Normal', '_Normal', torch.distributions.Normal(self.prior_mean, self.prior_stddev))
+        super().__init__('Normal', '_Normal', torch.distributions.Normal(self.prior_mean, self.prior_stddev))
+
+    def __repr__(self):
+        return 'Normal(prior_mean:{}, prior_stddev:{})'.format(float(self.prior_mean), float(self.prior_stddev))
