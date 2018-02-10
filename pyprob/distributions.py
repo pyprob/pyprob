@@ -24,11 +24,20 @@ class Distribution(object):
     def expectation(self, func):
         raise NotImplementedError()
 
+    @property
     def mean(self):
         if self.torch_dist is not None:
-            return self.torch_dist.mean()
+            return self.torch_dist.mean
         else:
             raise NotImplementedError()
+
+    @property
+    def variance(self):
+        raise NotImplementedError()
+
+    @property
+    def stddev(self):
+        return self.variance.sqrt()
 
 
 class Empirical(Distribution):
@@ -62,6 +71,8 @@ class Empirical(Distribution):
         self.values = [values[int(i)] for i in indices]
         self.weights_np = self.weights.data.cpu().numpy()
         # self.values_np = torch.stack(self.values).data.cpu().numpy()
+        self._mean = None
+        self._variance = None
         super().__init__('Emprical')
 
     def __len__(self):
@@ -76,8 +87,18 @@ class Empirical(Distribution):
             ret += func(self.values[i]) * self.weights[i]
         return ret
 
+    @property
     def mean(self):
-        return self.expectation(lambda x: x)
+        if self._mean is None:
+            self._mean = self.expectation(lambda x: x)
+        return self._mean
+
+    @property
+    def variance(self):
+        if self._variance is None:
+            mean = self.mean
+            self._variance = self.expectation(lambda x: (x - mean)**2)
+        return self._variance
 
 
 class Normal(Distribution):

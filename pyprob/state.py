@@ -3,12 +3,12 @@ import enum
 from .trace import Sample, Trace
 
 class State(enum.Enum):
-    NONE = 0
-    BUILD_TRACE = 1
+    DEFAULT = 0
+    RECORD_TRACE = 1
 
-state = State.NONE
-current_trace = None
-current_function_name = None
+_state = State.DEFAULT
+_current_trace = None
+_current_trace_function_name = None
 
 def extract_address():
     #tb = traceback.extract_stack()
@@ -17,7 +17,7 @@ def extract_address():
     #     print(t[0], t[1], t[2], t[3])
     #frame = tb[-3]
     # return '{0}/{1}/{2}'.format(frame[1], frame[2], frame[3])
-    #return '{0}/{1}'.format(frame[1], frame[2])
+    # return '{0}/{1}'.format(frame[1], frame[2])
     # Retun an address in the format:
     # 'instruction pointer' / 'qualified function name'
     frame = sys._getframe(2)
@@ -30,7 +30,7 @@ def extract_address():
         n = frame.f_code.co_name
         if n.startswith('<'): break
         names.append(n)
-        if n == current_function_name: break
+        if n == _current_trace_function_name: break
         frame = frame.f_back
     return "{}/{}".format(ip, '.'.join(reversed(names)))
 
@@ -72,35 +72,35 @@ def _extract_target_of_assignment():
 
 def sample(distribution):
     value = distribution.sample()
-    if state == State.BUILD_TRACE:
-        global current_trace
+    if _state == State.RECORD_TRACE:
+        global _current_trace
         address = extract_address()
         current_sample = Sample(address, distribution, value)
-        current_trace.add_sample(current_sample)
-        # current_trace.add_log_prob()
+        _current_trace.add_sample(current_sample)
+        # _current_trace.add_log_prob()
     return value
 
 def observe(distribution, value):
-    if state == State.BUILD_TRACE:
-        global current_trace
-        current_trace.add_observe(value)
-        current_trace.add_log_prob(distribution.log_prob(value))
+    if _state == State.RECORD_TRACE:
+        global _current_trace
+        _current_trace.add_observe(value)
+        _current_trace.add_log_prob(distribution.log_prob(value))
     return
 
 def begin_trace(func):
-    global state
-    global current_trace
-    global current_function_name
-    state = State.BUILD_TRACE
-    current_trace = Trace()
-    current_function_name = func.__code__.co_name
+    global _state
+    global _current_trace
+    global _current_trace_function_name
+    _state = State.RECORD_TRACE
+    _current_trace = Trace()
+    _current_trace_function_name = func.__code__.co_name
 
 def end_trace():
-    global state
-    global current_trace
-    global current_function_name
-    state = State.NONE
-    ret = current_trace
-    current_trace = None
-    current_function_name = None
+    global _state
+    global _current_trace
+    global _current_trace_function_name
+    _state = State.DEFAULT
+    ret = _current_trace
+    _current_trace = None
+    _current_trace_function_name = None
     return ret

@@ -12,7 +12,8 @@ class TestCase(unittest.TestCase):
         log_weights = Variable(torch.Tensor([2,2,2]))
         dist = Empirical(values, log_weights)
         s = dist.sample()
-        self.assertTrue(True)
+        dist_mean = float(dist.mean)
+        self.assertAlmostEqual(dist_mean, 2, places=0)
 
     def test_dist_normal(self):
         dist = Normal(2, 3)

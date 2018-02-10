@@ -1,3 +1,4 @@
+import sys
 import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
@@ -41,3 +42,7 @@ def fast_np_random_choice(values, probs):
     # See https://mobile.twitter.com/RadimRehurek/status/928671225861296128
     probs /= probs.sum()
     return values[np.searchsorted(probs.cumsum(), random.random())]
+
+def debug(expression1, expression2):
+    frame = sys._getframe(1)
+    print('\n  {} = {}; {} = {}'.format(expression1, repr(eval(expression1, frame.f_globals, frame.f_locals)), expression2, repr(eval(expression2, frame.f_globals, frame.f_locals))))
