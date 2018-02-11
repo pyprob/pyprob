@@ -1,6 +1,7 @@
 import enum
 import math
 import random
+import gc
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -21,6 +22,7 @@ class Batch(object):
     def __init__(self, traces, sort=True):
         self.batch = traces
         self.length = len(traces)
+        self.traces_lengths = []
         self.traces_max_length = 0
         self.observes_max_length = 0
         sb = {}
@@ -41,40 +43,63 @@ class Batch(object):
         if sort:
             # Sort the batch in descreasing trace length
             self.batch = sorted(self.batch, reverse=True, key=lambda t: t.length)
+        self.traces_lengths = [t.length for t in self.batch]
+
+    def __getitem__(self, key):
+        return self.batch[key]
+
+    def __setitem__(self, key, value):
+        self.batch[key] = value
 
     def sort_by_observes_length(self):
         return Batch(sorted(self.batch, reverse=True, key=lambda x:x.observes_variable.nelement()), False)
 
 
+class ObserveEmbeddingFC(nn.Module):
+    def __init__(self, input_example_non_batch, output_dim):
+        super().__init__()
+        self._input_dim = input_example_non_batch.nelement()
+        self._lin1 = nn.Linear(self._input_dim, output_dim)
+        self._lin2 = nn.Linear(output_dim, output_dim)
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
+
+    def forward(self, x):
+        x = F.relu(self._lin1(x.view(-1, self._input_dim)))
+        x = F.relu(self._lin2(x))
+        return x
+
+
 class SampleEmbeddingFC(nn.Module):
     def __init__(self, input_dim, output_dim):
         super().__init__()
-        self.lin1 = nn.Linear(input_dim, output_dim)
-        self.lin2 = nn.Linear(output_dim, output_dim)
-        nn.init.xavier_uniform(self.lin1.weight, gain=nn.init.calculate_gain('relu'))
+        self._lin1 = nn.Linear(input_dim, output_dim)
+        self._lin2 = nn.Linear(output_dim, output_dim)
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
 
     def forward(self, x):
-        x = F.relu(self.lin1(x))
-        x = F.relu(self.lin2(x))
+        x = F.relu(self._lin1(x))
+        x = F.relu(self._lin2(x))
         return x
 
 
 class ProposalNormal(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
-        self.lin1 = nn.Linear(input_dim, input_dim)
-        self.lin2 = nn.Linear(input_dim, 2)
-        nn.init.xavier_uniform(self.lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform(self.lin2.weight)
+        self._lin1 = nn.Linear(input_dim, input_dim)
+        self._lin2 = nn.Linear(input_dim, 2)
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight)
 
     def forward(self, x, samples):
-        x = F.relu(self.lin1(x))
-        x = self.lin2(x)
+        x = F.relu(self._lin1(x))
+        x = self._lin2(x)
         means = x[:,0].unsqueeze(1)
         stddevs = x[:,1].unsqueeze(1)
         stddevs = nn.Softplus()(stddevs)
-        prior_means = util.to_variable(util.Tensor([s.distribution.prior_mean for s in samples]))
-        prior_stddevs = util.to_variable(util.Tensor([s.distribution.prior_stddev for s in samples]))
+        prior_means = torch.cat([s.distribution.prior_mean for s in samples])
+        prior_stddevs = torch.cat([s.distribution.prior_stddev for s in samples])
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
         return Normal(means, stddevs)
@@ -94,6 +119,11 @@ class ProposalNetwork(nn.Module):
         self._distribution_type_embedding_dim = 1 # Needs to match the number of distribution types in pyprob (except Emprical)
         self._valid_batch = valid_batch
 
+        self._state_new_trace = True
+        self._state_observes = None
+        self._state_observes_embedding = None
+        self._state_lstm_hidden_state = None
+
         self._address_embeddings = {}
         self._distribution_type_embeddings = {}
 
@@ -102,6 +132,11 @@ class ProposalNetwork(nn.Module):
 
         self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
         self._lstm = nn.LSTM(self._lstm_input_dim, self._lstm_dim, self._lstm_depth)
+        example_observes = self._valid_batch[0].observes_variable # To do: we need to check that all the observes in the batch, to be more intelligent
+        if self._observe_embedding == ObserveEmbedding.FULLY_CONNECTED:
+            self._observe_embedding_layer = ObserveEmbeddingFC(example_observes, self._observe_embedding_dim)
+        else:
+            raise ValueError('Unknown observation embedding: {}'.format(self._observe_embedding))
         self._sample_embedding_layers = {}
         self._proposal_layers = {}
 
@@ -161,6 +196,166 @@ class ProposalNetwork(nn.Module):
                     self._proposal_layers[address] = proposal_layer
                     self.add_module('sample_embedding_layer({})'.format(address), sample_embedding_layer)
                     self.add_module('proposal_layer({})'.format(address), proposal_layer)
-                    print('Polymorphing: new layers for address: {}'.format(address))
+                    print('Polymorphing, new layers for address: {}'.format(address))
                     layers_changed = True
         return layers_changed
+
+    def new_trace(self, observes=None):
+        self._state_new_trace = True
+        self._state_observes = observes
+        self._state_observes_embedding = self._observe_embedding_layer.forward(observes)
+
+    def forward(self, previous_sample, current_sample):
+        if self._state_observes is None:
+            raise RuntimeError('Cannot run the proposal network without observations. Call new_trace and supply observations.')
+
+        success = True
+        if self._state_new_trace:
+            prev_sample_embedding = util.to_variable(torch.zeros(1, self._sample_embedding_dim))
+            prev_addres_embedding = self._address_embedding_empty
+            prev_distribution_type_embedding = self._distribution_type_embedding_empty
+            h0 = util.to_variable(torch.zeros(self._lstm_depth, 1, self._lstm_dim))
+            self._state_lstm_hidden_state = (h0, h0)
+            self._state_new_trace = False
+        else:
+            prev_address = previous_sample.address_suffixed
+            prev_distribution = previous_sample.distribution
+            prev_value = previous_sample.value
+            if prev_address in self._sample_embedding_layers:
+                prev_sample_embedding = self._sample_embedding_layers[prev_address](prev_value.unsqueeze(0))
+            else:
+                print('Warning: no sample embedding layer for: {}'.format(prev_address))
+                success = False
+            if prev_address in self._address_embeddings:
+                prev_addres_embedding = self._address_embeddings[prev_address]
+            else:
+                print('Warning: unknown address (previous): {}'.format(prev_address))
+                success = False
+            if prev_distribution.name in self._distribution_type_embeddings:
+                prev_distribution_type_embedding = self._distribution_type_embeddings[prev_distribution.name]
+            else:
+                print('Warning: unkown distribution type (previous): {}'.format(prev_distribution.name))
+                success = False
+
+        current_address = current_sample.address_suffixed
+        current_distribution = current_sample.distribution
+        if not current_address in self._proposal_layers:
+            print('Warning: no proposal layer for: {}'.format(current_address))
+            success = False
+        if current_address in self._address_embeddings:
+            current_addres_embedding = self._address_embeddings[current_address]
+        else:
+            print('Warning: unknown address (current): {}'.format(current_address))
+            success = False
+        if current_distribution.name in self._distribution_type_embeddings:
+            current_distribution_type_embedding = self._distribution_type_embeddings[current_distribution.name]
+        else:
+            print('Warning: unkown distribution type (current): {}'.format(current_distribution.name))
+            success = False
+
+        if success:
+            t = [self._state_observes_embedding[0],
+                 prev_sample_embedding[0],
+                 prev_distribution_type_embedding,
+                 prev_addres_embedding,
+                 current_distribution_type_embedding,
+                 current_addres_embedding]
+            t = torch.cat(t).unsqueeze(0)
+            lstm_input = t.unsqueeze(0)
+            lstm_output, self._state_lstm_hidden_state = self._lstm(lstm_input, self._state_lstm_hidden_state)
+            proposal_input = lstm_output[0]
+            proposal_distribution = self._proposal_layers[current_address](proposal_input, [current_sample])
+            return proposal_distribution
+        else:
+            print('Warning: no proposal could be made, prior will be used')
+            return current_distribution
+
+    def optimize(self, batch, optimizer):
+        gc.collect()
+
+        obs = torch.stack([b.observes_variable for b in batch])
+        obs_emb = self._observe_embedding_layer(obs)
+        for b in range(batch.length):
+            batch[b].observes_embedding = obs_emb[b]
+
+        for sub_batch in batch.sub_batches:
+            sub_batch_length = len(sub_batch)
+            example_trace = sub_batch[0]
+
+            for time_step in range(example_trace.length):
+                current_sample = example_trace.samples[time_step]
+                current_address = current_sample.address_suffixed
+                current_distribution = current_sample.distribution
+                current_addres_embedding = self._address_embeddings[current_address]
+                current_distribution_type_embedding = self._distribution_type_embeddings[current_distribution.name]
+
+            if time_step == 0:
+                prev_sample_embedding = util.to_variable(torch.zeros(sub_batch_length, self._sample_embedding_dim))
+                prev_addres_embedding = self._address_embedding_empty
+                prev_distribution_type_embedding = self._distribution_type_embedding_empty
+            else:
+                prev_sample = example_trace.samples[time_step - 1]
+                prev_address = prev_sample.address_suffixed
+                prev_distribution = prev_sample.distribution
+                smp = util.to_variable(torch.stack([trace.samples[time_step - 1].value for trace in sub_batch]), requires_grad=True)
+                prev_sample_embedding = self._sample_embedding_layers[prev_address](prev_value.unsqueeze(0))
+                prev_addres_embedding = self._address_embeddings[prev_address]
+                prev_distribution_type_embedding = self._distribution_type_embeddings[prev_distribution.name]
+
+            for b in range(sub_batch_length):
+                t = torch.cat([sub_batch[b].observes_embedding,
+                               prev_sample_embedding[b],
+                               prev_distribution_type_embedding,
+                               prev_addres_embedding,
+                               current_distribution_type_embedding,
+                               current_addres_embedding])
+                sub_batch[b].samples[time_step].lstm_input = t
+
+        lstm_input = []
+        for time_step in range(batch.traces_max_length):
+            t = []
+            for b in range(batch.length):
+                trace = batch[b]
+                if time_step < trace.length:
+                    t.append(trace.samples[time_step].lstm_input)
+                else:
+                    t.append(util.to_variable(torch.zeros(self._lstm_input_dim)))
+            t = torch.cat(t).view(batch.length, -1)
+            lstm_input.append(t)
+        lstm_input = torch.cat(lstm_input).view(batch.traces_max_length, batch.length, -1)
+        lstm_input = nn.utils.rnn.pack_padded_sequence(lstm_input, batch.traces_lengths)
+
+        h0 = util.to_variable(torch.zeros(self._lstm_depth, batch.length, self._lstm_dim))
+        lstm_output, _ = self._lstm(lstm_input, (h0, h0))
+        lstm_output, _ = nn.utils.rnn.pad_packed_sequence(lstm_output)
+
+        for b in range(batch.length):
+            trace = batch[b]
+            for time_step in range(trace.length):
+                trace.samples[time_step].lstm_output = lstm_output[time_step, b]
+
+        log_prob = 0
+        for sub_batch in batch.sub_batches:
+            sub_batch_length = len(sub_batch)
+            example_trace = sub_batch[0]
+
+            for time_step in range(example_trace.length):
+                current_sample = example_trace.samples[time_step]
+                current_address = current_sample.address_suffixed
+
+                p = []
+                for b in range(sub_batch_length):
+                    p.append(sub_batch[b].samples[time_step].lstm_output)
+                proposal_input = torch.cat(p).view(sub_batch_length, -1)
+
+                current_samples = [trace.samples[time_step] for trace in sub_batch]
+                current_samples_values = torch.stack([s.value for s in current_samples])
+                proposal_distribution = self._proposal_layers[current_address](proposal_input, current_samples)
+                log_prob += torch.sum(proposal_distribution.log_prob(current_samples_values))
+
+        loss = -log_prob / batch.length
+
+        if optimizer is not None:
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()

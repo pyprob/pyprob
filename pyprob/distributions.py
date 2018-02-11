@@ -56,6 +56,7 @@ class Empirical(Distribution):
             log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length)) # assume uniform distribution if no weights are given
         else:
             log_weights = util.to_variable(log_weights)
+        log_weights = log_weights.view(-1)
         weights = torch.exp(log_weights - util.logsumexp(log_weights))
         distribution = collections.defaultdict(float)
         # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
@@ -81,7 +82,9 @@ class Empirical(Distribution):
         self.weights_np = self.weights.data.cpu().numpy()
         # self.values_np = torch.stack(self.values).data.cpu().numpy()
         self._mean = None
+        self._mean_unweighted = None
         self._variance = None
+        self._variance_unweighted = None
         super().__init__('Emprical')
 
     def __len__(self):
@@ -112,6 +115,28 @@ class Empirical(Distribution):
             self._variance = self.expectation(lambda x: (x - mean)**2)
         return self._variance
 
+    @property
+    def mean_unweighted(self):
+        if self._mean_unweighted is None:
+            total = 0
+            for i in range(self.length):
+                total += self.values[i]
+            self._mean_unweighted = total / self.length
+        return self._mean_unweighted
+
+    @property
+    def variance_unweighted(self):
+        if self._variance_unweighted is None:
+            mean_unweighted = self.mean_unweighted
+            total = 0
+            for i in range(self.length):
+                total += (self.values[i] - mean_unweighted)**2
+            self._variance_unweighted = total / self.length
+        return self._variance_unweighted
+
+    @property
+    def stddev_unweighted(self):
+        return self.variance_unweighted.sqrt()
 
 class Normal(Distribution):
     def __init__(self, prior_mean, prior_stddev):

@@ -78,9 +78,15 @@ def fast_np_random_choice(values, probs):
     probs /= probs.sum()
     return values[np.searchsorted(probs.cumsum(), random.random())]
 
-def debug(expression1, expression2):
+def debug(*expressions):
     frame = sys._getframe(1)
-    print('  {} = {}; {} = {}'.format(expression1, repr(eval(expression1, frame.f_globals, frame.f_locals)), expression2, repr(eval(expression2, frame.f_globals, frame.f_locals))))
+    print()
+    max_str_length = 0
+    for expression in expressions:
+        if len(expression) > max_str_length:
+            max_str_length = len(expression)
+    for expression in expressions:
+        print('  {} = {}'.format(expression.ljust(max_str_length), repr(eval(expression, frame.f_globals, frame.f_locals))))
 
 def pack_observes_to_variable(observes):
     try:

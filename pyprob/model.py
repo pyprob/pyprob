@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch.optim as optim
 
 from .distributions import Empirical
 from . import state, util
@@ -14,9 +15,11 @@ class Model(nn.Module):
     def forward(self):
         raise NotImplementedError()
 
-    def _prior_trace_generator(self, trace_state=TraceState.RECORD, *args, **kwargs):
+    def _prior_trace_generator(self, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs):
         while True:
-            state.begin_trace(self.forward, trace_state)
+            if trace_state == TraceState.RECORD_USE_PROPOSAL:
+                self._proposal_network.new_trace(util.pack_observes_to_variable(kwargs['observation']).unsqueeze(0))
+            state.begin_trace(self.forward, trace_state, proposal_network)
             res = self.forward(*args, **kwargs)
             trace = state.end_trace()
             trace.set_result(res)
@@ -26,8 +29,8 @@ class Model(nn.Module):
         while True:
             yield self.forward(*args, **kwargs)
 
-    def _prior_traces(self, samples=10, trace_state=TraceState.RECORD, *args, **kwargs):
-        generator = self._prior_trace_generator(trace_state, *args, **kwargs)
+    def _prior_traces(self, samples=10, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs):
+        generator = self._prior_trace_generator(trace_state, proposal_network, *args, **kwargs)
         return [next(generator) for i in range(samples)]
 
     def prior_sample(self, *args, **kwargs):
@@ -43,17 +46,34 @@ class Model(nn.Module):
             print('Warning: Cannot run inference with learned proposal because there is no proposal network trained')
             learned_proposal = False
         if learned_proposal:
-            traces = self._prior_traces(samples, trace_state=TraceState.RECORD_USE_PROPOSAL, *args, **kwargs)
+            traces = self._prior_traces(samples, trace_state=TraceState.RECORD_USE_PROPOSAL, proposal_network=self._proposal_network, *args, **kwargs)
         else:
-            traces = self._prior_traces(samples, trace_state=TraceState.RECORD, *args, **kwargs)
+            traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
         log_weights = [trace.log_prob for trace in traces]
         results = [trace.result for trace in traces]
         return Empirical(results, log_weights)
 
-    def learn_proposal(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, valid_size=256, *args, **kwargs):
+    def learn_proposal(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, batch_size=64, valid_size=256, max_traces=-1, *args, **kwargs):
         if self._proposal_network is None:
             print('Creating new proposal network...')
             traces = self._prior_traces(valid_size, trace_state=TraceState.RECORD_LEARN_PROPOSAL, *args, **kwargs)
             valid_batch = Batch(traces)
-            self._proposal_network = ProposalNetwork(self.name, lstm_dim, lstm_depth, observe_embedding, observe_embedding_dim, sample_embedding, sample_embedding_dim, address_embedding_dim, valid_batch)
+            self._proposal_network = ProposalNetwork(model_name=self.name, lstm_dim=lstm_dim, lstm_depth=lstm_depth, observe_embedding=observe_embedding, observe_embedding_dim=observe_embedding_dim, sample_embedding=sample_embedding, sample_embedding_dim=sample_embedding_dim, address_embedding_dim=address_embedding_dim, valid_batch=valid_batch)
             self._proposal_network.polymorph()
+
+            optimizer = optim.Adam(self._proposal_network.parameters(), lr=0.001, weight_decay=1e-5)
+
+            iteration = 0
+            trace = 0
+            stop = False
+            while not stop:
+                iteration += 1
+                traces = self._prior_traces(batch_size, trace_state=TraceState.RECORD_LEARN_PROPOSAL, *args, **kwargs)
+                batch = Batch(traces)
+                self._proposal_network.polymorph(batch)
+                self._proposal_network.train()
+                self._proposal_network.optimize(batch, optimizer)
+                trace += batch.length
+                if max_traces != -1:
+                    if trace >= max_traces:
+                        stop = True

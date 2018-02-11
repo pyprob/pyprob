@@ -10,6 +10,8 @@ class Sample(object):
         else:
             self.address_suffixed = address + distribution.address_suffix
         self.value = util.to_variable(value)
+        self.lstm_input = None
+        self.lstm_output = None
 
     def __repr__(self):
         return 'Sample(address_suffixed:{}, distribution:{}, value:{})'.format(

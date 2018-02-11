@@ -14,6 +14,7 @@ class TraceState(enum.Enum):
 _trace_state = TraceState.NONE
 _current_trace = None
 _current_trace_root_function_name = None
+_current_trace_proposal_network = None
 
 def extract_address(root_function_name):
     # tb = traceback.extract_stack()
@@ -77,6 +78,15 @@ def sample(distribution):
         global _current_trace
         address = extract_address(_current_trace_root_function_name)
         current_sample = Sample(address, distribution, value)
+        if _trace_state == TraceState.RECORD_USE_PROPOSAL:
+            previous_sample = None
+            if _current_trace.length > 0:
+                previous_sample = _current_trace.samples[-1]
+            _current_trace_proposal_network.eval()
+            proposal_distribution = _current_trace_proposal_network.forward(previous_sample, current_sample)
+            value = proposal_distribution.sample()
+            current_sample = Sample(address, distribution, value)
+            _current_trace.add_log_prob(distribution.log_prob(value) - proposal_distribution.log_prob(value))
         _current_trace.add_sample(current_sample)
         # The following is not needed for default importance sampling (no learned proposal) as it cancels out
         # _current_trace.add_log_prob()
@@ -91,22 +101,28 @@ def observe(distribution, value):
         _current_trace.add_log_prob(distribution.log_prob(value))
     return
 
-def begin_trace(func, trace_state=TraceState.RECORD):
+def begin_trace(func, trace_state=TraceState.RECORD, proposal_network=None):
     global _trace_state
     global _current_trace
     global _current_trace_root_function_name
+    global _current_trace_proposal_network
     _trace_state = trace_state
     _current_trace = Trace()
     _current_trace_root_function_name = func.__code__.co_name
+    _current_trace_proposal_network = proposal_network
+    if (trace_state == TraceState.RECORD_USE_PROPOSAL) and (proposal_network is None):
+        raise ValueError('Cannot run trace with proposals without a proposal network')
 
 def end_trace():
     global _trace_state
     global _current_trace
     global _current_trace_root_function_name
+    global _current_trace_proposal_network
     if _trace_state == TraceState.RECORD_LEARN_PROPOSAL:
         _current_trace.pack_observes_to_variable()
     _trace_state = TraceState.NONE
     ret = _current_trace
     _current_trace = None
     _current_trace_root_function_name = None
+    _current_trace_proposal_network = None
     return ret
