@@ -108,7 +108,7 @@ class ProposalNormal(nn.Module):
         return Normal(means, stddevs)
 
 
-class ProposalNetwork(nn.Module):
+class InferenceNetwork(nn.Module):
     def __init__(self, model_name='Unnamed model', lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, valid_batch=None):
         super().__init__()
         self._model_name = model_name
@@ -210,7 +210,7 @@ class ProposalNetwork(nn.Module):
 
     def forward(self, previous_sample, current_sample):
         if self._state_observes is None:
-            raise RuntimeError('Cannot run the proposal network without observations. Call new_trace and supply observations.')
+            raise RuntimeError('Cannot run the inference network without observations. Call new_trace and supply observations.')
 
         success = True
         if self._state_new_trace:

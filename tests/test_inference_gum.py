@@ -40,12 +40,13 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(prior_mean, correct_prior_mean, places=0)
         self.assertAlmostEqual(prior_stddev, correct_prior_stddev, places=0)
 
-    def test_model_gum_posterior_importance_sampling(self):
+    def test_inference_gum_posterior_importance_sampling(self):
         samples = 5000
+        observation = [8,9]
         correct_posterior_mean = 7.25
         correct_posterior_stddev = math.sqrt(1/1.2)
 
-        posterior = self._model.posterior_distribution(samples, observation=[8,9])
+        posterior = self._model.posterior_distribution(samples, observation=observation)
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.mean_unweighted)
         posterior_stddev = float(posterior.stddev)
@@ -56,14 +57,15 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_mean, correct_posterior_mean, places=0)
         self.assertAlmostEqual(posterior_stddev, correct_posterior_stddev, places=0)
 
-    def test_model_gum_posterior_inference_compilation(self):
-        training_traces = 5000
+    def test_inference_gum_posterior_inference_compilation(self):
+        training_traces = 10000
         samples = 500
+        observation = [8,9]
         correct_posterior_mean = 7.25
         correct_posterior_stddev = math.sqrt(1/1.2)
 
         self._model.learn_proposal(observation=[1,1], max_traces=training_traces)
-        posterior = self._model.posterior_distribution(samples, learned_proposal=True, observation=[8,9])
+        posterior = self._model.posterior_distribution(samples, learned_proposal=True, observation=observation)
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.mean_unweighted)
         posterior_stddev = float(posterior.stddev)
