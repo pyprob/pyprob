@@ -1,6 +1,6 @@
 import torch
-import torch.distributions
 from torch.autograd import Variable
+import torch.distributions
 import numpy as np
 from scipy.misc import logsumexp
 import collections
@@ -13,38 +13,45 @@ class Distribution(object):
     def __init__(self, name, address_suffix='', torch_dist=None):
         self.name = name
         self.address_suffix = address_suffix
-        self.torch_dist = torch_dist
+        self._torch_dist = torch_dist
 
     def sample(self):
-        return self.torch_dist.sample()
+        if self._torch_dist is not None:
+            return self._torch_dist.sample()
+        else:
+            raise NotImplementedError()
 
     def log_prob(self, value):
-        return self.torch_dist.log_prob(value)
+        value = util.to_variable(value)
+        if self._torch_dist is not None:
+            return self._torch_dist.log_prob(value)
+        else:
+            raise NotImplementedError()
 
     def expectation(self, func):
         raise NotImplementedError()
 
     @property
     def mean(self):
-        if self.torch_dist is not None:
-            return self.torch_dist.mean
+        if self._torch_dist is not None:
+            return self._torch_dist.mean
         else:
             raise NotImplementedError()
 
     @property
     def variance(self):
-        if self.torch_dist is not None:
-            return self.torch_dist.variance
+        if self._torch_dist is not None:
+            return self._torch_dist.variance
         else:
             raise NotImplementedError()
 
     @property
     def stddev(self):
-        if self.torch_dist is not None:
+        if self._torch_dist is not None:
             try:
-                return self.torch_dist.stddev
+                return self._torch_dist.stddev
             except AttributeError: # This is because of the changing nature of PyTorch distributions. Should be removed when PyTorch stabilizes.
-                return self.torch_dist.std
+                return self._torch_dist.std
         else:
             return self.variance.sqrt()
 
@@ -138,11 +145,44 @@ class Empirical(Distribution):
     def stddev_unweighted(self):
         return self.variance_unweighted.sqrt()
 
+
 class Normal(Distribution):
-    def __init__(self, prior_mean, prior_stddev):
-        self.prior_mean = util.to_variable(prior_mean)
-        self.prior_stddev = util.to_variable(prior_stddev)
-        super().__init__('Normal', '_Normal', torch.distributions.Normal(self.prior_mean, self.prior_stddev))
+    def __init__(self, mean, stddev):
+        self._mean = util.to_variable(mean)
+        self._stddev = util.to_variable(stddev)
+        super().__init__('Normal', '_Normal', torch.distributions.Normal(self._mean, self._stddev))
 
     def __repr__(self):
-        return 'Normal(prior_mean:{}, prior_stddev:{})'.format(float(self.prior_mean), float(self.prior_stddev))
+        return 'Normal(mean:{}, stddev:{})'.format(self._mean, self._stddev)
+
+
+# Temporary: this needs to be replaced by torch.distributions.Uniform when the new PyTorch version is released
+class Uniform(Distribution):
+    def __init__(self, low, high):
+        self._low = util.to_variable(low)
+        self._high = util.to_variable(high)
+        self._mean = (self._high + self._low) / 2
+        self._variance = (self._high - self._low).pow(2) / 12
+        super().__init__('Uniform', '_Uniform')
+
+    def __repr__(self):
+        return 'Uniform(low: {}, high:{})'.format(self._low, self._high)
+
+    def sample(self):
+        shape = self._low.size()
+        rand = util.to_variable(torch.zeros(shape).uniform_())
+        return self._low + rand * (self._high - self._low)
+
+    def log_prob(self, value):
+        value = util.to_variable(value)
+        lb = value.ge(self._low).type_as(self._low)
+        ub = value.lt(self._high).type_as(self._low)
+        return torch.log(lb.mul(ub)) - torch.log(self._high - self._low)
+
+    @property
+    def mean(self):
+        return self._mean
+
+    @property
+    def variance(self):
+        return self._variance

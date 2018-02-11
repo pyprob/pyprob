@@ -101,15 +101,15 @@ class ProposalNormal(nn.Module):
         means = x[:,0].unsqueeze(1)
         stddevs = x[:,1].unsqueeze(1)
         stddevs = nn.Softplus()(stddevs)
-        prior_means = torch.cat([s.distribution.prior_mean for s in samples])
-        prior_stddevs = torch.cat([s.distribution.prior_stddev for s in samples])
+        prior_means = torch.cat([s.distribution.mean for s in samples])
+        prior_stddevs = torch.cat([s.distribution.stddev for s in samples])
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
         return Normal(means, stddevs)
 
 
 class InferenceNetwork(nn.Module):
-    def __init__(self, model_name='Unnamed model', lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, valid_batch=None):
+    def __init__(self, model_name='Unnamed model', lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, valid_batch=None, cuda=False, device=None):
         super().__init__()
         self._model_name = model_name
         self._lstm_dim = lstm_dim
@@ -121,6 +121,8 @@ class InferenceNetwork(nn.Module):
         self._address_embedding_dim = address_embedding_dim
         self._distribution_type_embedding_dim = 1 # Needs to match the number of distribution types in pyprob (except Emprical)
         self._valid_batch = valid_batch
+        self._cuda = cuda
+        self._cuda_device = device
 
         self._state_new_trace = True
         self._state_observes = None
@@ -201,6 +203,10 @@ class InferenceNetwork(nn.Module):
                     self.add_module('proposal_layer({})'.format(address), proposal_layer)
                     print('Polymorphing, new layers for address: {}'.format(address))
                     layers_changed = True
+
+        if self._cuda:
+            self.cuda(self._cuda_device)
+
         return layers_changed
 
     def new_trace(self, observes=None):

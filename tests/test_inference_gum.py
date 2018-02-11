@@ -5,7 +5,7 @@ import numpy as np
 import pyprob
 from pyprob import util
 from pyprob import Model
-from pyprob.distributions import Empirical, Normal
+from pyprob.distributions import Empirical, Normal, Uniform
 
 
 class TestCase(unittest.TestCase):
@@ -51,6 +51,7 @@ class TestCase(unittest.TestCase):
         posterior_mean_unweighted = float(posterior.mean_unweighted)
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.stddev_unweighted)
+        a = Uniform(1,2)
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'correct_posterior_mean', 'posterior_stddev_unweighted', 'posterior_stddev', 'correct_posterior_stddev')
 

@@ -20,6 +20,16 @@ class Sample(object):
             self.value.data.cpu().numpy().tolist()
         )
 
+    def cuda(self, device=None):
+        if self.value is not None:
+            self.value = self.value.cuda(device)
+        # self.distribution.cuda(device)
+
+    def cpu(self):
+        if self.value is not None:
+            self.value = self.value.cpu()
+        # self.distribution.cpu()
+
 
 class Trace(object):
     def __init__(self):
@@ -61,3 +71,19 @@ class Trace(object):
 
     def pack_observes_to_variable(self):
         self.observes_variable = util.pack_observes_to_variable(self.observes)
+
+    def cuda(self, device=None):
+        if self.observes_variable is not None:
+            self.observes_variable = self.observes_variable.cuda(device)
+        if self.observes_embedding is not None:
+            self.observes_embedding = self.observes_embedding.cuda(device)
+        for sample in self.samples:
+            sample.cuda(device)
+
+    def cpu(self):
+        if self.observes_variable is not None:
+            self.observes_variable = self.observes_variable.cpu()
+        if self.observes_embedding is not None:
+            self.observes_embedding = self.observes_embedding.cpu()
+        for sample in self.samples:
+            sample.cpu()
