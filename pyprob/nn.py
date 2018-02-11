@@ -59,14 +59,17 @@ class ObserveEmbeddingFC(nn.Module):
     def __init__(self, input_example_non_batch, output_dim):
         super().__init__()
         self._input_dim = input_example_non_batch.nelement()
-        self._lin1 = nn.Linear(self._input_dim, output_dim)
-        self._lin2 = nn.Linear(output_dim, output_dim)
+        self._lin1 = nn.Linear(self._input_dim, self._input_dim)
+        self._lin2 = nn.Linear(self._input_dim, output_dim)
+        self._lin3 = nn.Linear(output_dim, output_dim)
         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin3.weight, gain=nn.init.calculate_gain('relu'))
 
     def forward(self, x):
         x = F.relu(self._lin1(x.view(-1, self._input_dim)))
         x = F.relu(self._lin2(x))
+        x = F.relu(self._lin3(x))
         return x
 
 

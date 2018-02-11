@@ -28,39 +28,48 @@ class TestCase(unittest.TestCase):
         super().__init__(*args, **kwargs)
 
     def test_model_gum_prior(self):
-        prior = self._model.prior_distribution(5000)
-        prior_mean = float(prior.mean)
+        samples = 5000
         correct_prior_mean = 1
-        util.debug('prior_mean', 'correct_prior_mean')
-        prior_stddev = float(prior.stddev)
         correct_prior_stddev = math.sqrt(5)
-        util.debug('prior_stddev', 'correct_prior_stddev')
+
+        prior = self._model.prior_distribution(samples)
+        prior_mean = float(prior.mean)
+        prior_stddev = float(prior.stddev)
+        util.debug('samples', 'prior_mean', 'correct_prior_mean', 'prior_stddev', 'correct_prior_stddev')
+
         self.assertAlmostEqual(prior_mean, correct_prior_mean, places=0)
         self.assertAlmostEqual(prior_stddev, correct_prior_stddev, places=0)
 
     def test_model_gum_posterior_importance_sampling(self):
-        posterior = self._model.posterior_distribution(5000, observation=[8,9])
+        samples = 5000
+        correct_posterior_mean = 7.25
+        correct_posterior_stddev = math.sqrt(1/1.2)
+
+        posterior = self._model.posterior_distribution(samples, observation=[8,9])
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.mean_unweighted)
-        correct_posterior_mean = 7.25
-        util.debug('posterior_mean_unweighted', 'posterior_mean', 'correct_posterior_mean')
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.stddev_unweighted)
-        correct_posterior_stddev = math.sqrt(1/1.2)
-        util.debug('posterior_stddev_unweighted', 'posterior_stddev', 'correct_posterior_stddev')
+
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'correct_posterior_mean', 'posterior_stddev_unweighted', 'posterior_stddev', 'correct_posterior_stddev')
+
         self.assertAlmostEqual(posterior_mean, correct_posterior_mean, places=0)
         self.assertAlmostEqual(posterior_stddev, correct_posterior_stddev, places=0)
 
     def test_model_gum_posterior_inference_compilation(self):
-        self._model.learn_proposal(observation=[1,1], lstm_dim=128, lstm_depth=1, observe_embedding_dim=2, sample_embedding_dim=2, address_embedding_dim=2, valid_size=16, max_traces=10000)
-        posterior = self._model.posterior_distribution(1000, learned_proposal=True, observation=[8,9])
+        training_traces = 5000
+        samples = 500
+        correct_posterior_mean = 7.25
+        correct_posterior_stddev = math.sqrt(1/1.2)
+
+        self._model.learn_proposal(observation=[1,1], max_traces=training_traces)
+        posterior = self._model.posterior_distribution(samples, learned_proposal=True, observation=[8,9])
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.mean_unweighted)
-        correct_posterior_mean = 7.25
-        util.debug('posterior_mean_unweighted', 'posterior_mean', 'correct_posterior_mean')
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.stddev_unweighted)
-        correct_posterior_stddev = math.sqrt(1/1.2)
-        util.debug('posterior_stddev_unweighted', 'posterior_stddev', 'correct_posterior_stddev')
+
+        util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'correct_posterior_mean', 'posterior_stddev_unweighted', 'posterior_stddev', 'correct_posterior_stddev')
+
         self.assertAlmostEqual(posterior_mean, correct_posterior_mean, places=0)
         self.assertAlmostEqual(posterior_stddev, correct_posterior_stddev, places=0)
