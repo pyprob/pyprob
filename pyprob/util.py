@@ -49,11 +49,7 @@ def to_variable(value, requires_grad=False):
         elif torch.is_tensor(value[0]):
             ret = torch.stack(list(map(lambda x:Variable(x, requires_grad=requires_grad), value)))
         else:
-            ret = torch.stack(list(map(lambda x:Variable(Tensor(x), requires_grad=requires_grad), value)))
-    elif type(value) is float:
-        ret = Variable(Tensor([value]), requires_grad=requires_grad)
-    elif type(value) is int:
-        ret = Variable(Tensor([value]), requires_grad=requires_grad)
+            ret = torch.stack(list(map(lambda x:Variable(Tensor([x]), requires_grad=requires_grad), value))).view(-1)
     else:
         ret = Variable(Tensor([float(value)]), requires_grad=requires_grad)
     if _cuda_enabled:
@@ -101,3 +97,10 @@ def one_hot(dim, i):
     t = Tensor(dim).zero_()
     t.narrow(0, i, 1).fill_(1)
     return to_variable(t)
+
+def kl_divergence_normal(p_mean, p_stddev, q_mean, q_stddev):
+    p_mean = to_variable(p_mean)
+    p_stddev = to_variable(p_stddev)
+    q_mean = to_variable(q_mean)
+    q_stddev = to_variable(q_stddev)
+    return torch.log(q_stddev) - torch.log(p_stddev) + (p_stddev.pow(2) + (p_mean - q_mean).pow(2)) / (2 * q_stddev.pow(2)) - 0.5

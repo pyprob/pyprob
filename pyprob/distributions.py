@@ -186,3 +186,16 @@ class Uniform(Distribution):
     @property
     def variance(self):
         return self._variance
+
+
+class Categorical(Distribution):
+    def __init__(self, probs):
+        self._probs = util.to_variable(probs)
+        super().__init__('Categorical', '_Categorical(size:{})'.format(self._probs.nelement()), torch.distributions.Categorical(probs=self._probs))
+
+    def __repr__(self):
+        return 'Categorical(probs:{})'.format(self._probs)
+
+    def log_prob(self, value):
+        value = util.to_variable(value).long()
+        return self._torch_dist.log_prob(value)

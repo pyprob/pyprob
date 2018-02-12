@@ -16,6 +16,6 @@ class TestCase(unittest.TestCase):
 
     def test_address(self):
         address = self._sample_address()
-        correct_address = '4/test_address.address'
-        util.debug('address', 'correct_address')
-        self.assertEqual(address, '4/test_address.address')
+        address_correct = '4/test_address.address'
+        util.debug('address', 'address_correct')
+        self.assertEqual(address, address_correct)
