@@ -65,8 +65,8 @@ class TestCase(unittest.TestCase):
         posterior_mean_correct = 7.25
         posterior_stddev_correct = math.sqrt(1/1.2)
 
-        self._model.learn_proposal(observation=[1,1], max_traces=training_traces)
-        posterior = self._model.posterior_distribution(samples, learned_proposal=True, observation=observation)
+        self._model.learn_inference_network(observation=[1,1], early_stop_traces=training_traces)
+        posterior = self._model.posterior_distribution(samples, use_inference_network=True, observation=observation)
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.mean_unweighted)
         posterior_stddev = float(posterior.stddev)

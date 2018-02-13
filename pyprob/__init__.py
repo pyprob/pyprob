@@ -11,3 +11,4 @@ del state
 
 # import time
 # set_random_seed(int(time.time()))
+# set_cuda(True)

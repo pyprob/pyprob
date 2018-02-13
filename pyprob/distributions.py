@@ -63,6 +63,11 @@ class Empirical(Distribution):
             log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length)) # assume uniform distribution if no weights are given
         else:
             log_weights = util.to_variable(log_weights)
+        if isinstance(values, Variable) or torch.is_tensor(values):
+            values = util.to_variable(values)
+        elif isinstance(values, (list, tuple)):
+            if isinstance(values[0], Variable) or torch.is_tensor(values[0]):
+                values = util.to_variable(values)
         log_weights = log_weights.view(-1)
         weights = torch.exp(log_weights - util.logsumexp(log_weights))
         distribution = collections.defaultdict(float)
@@ -86,8 +91,11 @@ class Empirical(Distribution):
         weights = torch.cat(weights)
         self.weights, indices = torch.sort(weights, descending=True)
         self.values = [values[int(i)] for i in indices]
-        self.weights_np = self.weights.data.cpu().numpy()
-        # self.values_np = torch.stack(self.values).data.cpu().numpy()
+        self.weights_numpy = self.weights.data.cpu().numpy()
+        try: # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
+            self.values_numpy = torch.stack(self.values).data.cpu().numpy()
+        except:
+            self.values_numpy = None
         self._mean = None
         self._mean_unweighted = None
         self._variance = None
@@ -98,10 +106,13 @@ class Empirical(Distribution):
         return self.length
 
     def __repr__(self):
-        return 'Empirical(length:{}, mean:{}, stddev:{})'.format(self.length, float(self.mean), float(self.stddev))
+        try:
+            return 'Empirical(length:{}, mean:{}, stddev:{})'.format(self.length, self.mean, self.stddev)
+        except RuntimeError:
+            return 'Empirical(length:{})'.format(self.length)
 
     def sample(self):
-        return util.fast_np_random_choice(self.values, self.weights_np)
+        return util.fast_np_random_choice(self.values, self.weights_numpy)
 
     def expectation(self, func):
         ret = 0.
@@ -191,11 +202,15 @@ class Uniform(Distribution):
 class Categorical(Distribution):
     def __init__(self, probs):
         self._probs = util.to_variable(probs)
-        super().__init__('Categorical', '_Categorical(size:{})'.format(self._probs.nelement()), torch.distributions.Categorical(probs=self._probs))
+        self.length = self._probs.nelement()
+        super().__init__('Categorical', '_Categorical(size:{})'.format(self.length), torch.distributions.Categorical(probs=self._probs))
 
     def __repr__(self):
         return 'Categorical(probs:{})'.format(self._probs)
 
+    def __len__(self):
+        return self.length
+
     def log_prob(self, value):
-        value = util.to_variable(value).long()
+        value = util.to_variable(value).view(-1).long()
         return self._torch_dist.log_prob(value)

@@ -45,11 +45,13 @@ def to_variable(value, requires_grad=False):
         ret = None
     elif isinstance(value, (list, tuple)):
         if isinstance(value[0], Variable):
-            ret = torch.stack(value)
+            ret = torch.stack(value).float()
         elif torch.is_tensor(value[0]):
-            ret = torch.stack(list(map(lambda x:Variable(x, requires_grad=requires_grad), value)))
+            ret = torch.stack(list(map(lambda x:Variable(x, requires_grad=requires_grad), value))).float()
+        elif (type(value[0]) is float) or (type(value[0]) is int):
+            ret = torch.stack(list(map(lambda x:Variable(Tensor([x]), requires_grad=requires_grad), value))).float().view(-1)
         else:
-            ret = torch.stack(list(map(lambda x:Variable(Tensor([x]), requires_grad=requires_grad), value))).view(-1)
+            ret = Variable(torch.Tensor(value)).float()
     else:
         ret = Variable(Tensor([float(value)]), requires_grad=requires_grad)
     if _cuda_enabled:
@@ -104,3 +106,19 @@ def kl_divergence_normal(p_mean, p_stddev, q_mean, q_stddev):
     q_mean = to_variable(q_mean)
     q_stddev = to_variable(q_stddev)
     return torch.log(q_stddev) - torch.log(p_stddev) + (p_stddev.pow(2) + (p_mean - q_mean).pow(2)) / (2 * q_stddev.pow(2)) - 0.5
+
+def has_nan_or_inf(value):
+    if isinstance(value, Variable):
+        value = value.data
+    if torch.is_tensor(value):
+        value = np.sum(value.cpu().numpy())
+        return np.isnan(value) or np.isinf(value)
+    else:
+        value = float(value)
+        return (value == float('inf')) or (value == float('-inf')) or (value == float('NaN'))
+
+def days_hours_mins_secs_str(total_seconds):
+    d, r = divmod(total_seconds, 86400)
+    h, r = divmod(r, 3600)
+    m, s = divmod(r, 60)
+    return '{0}d:{1:02}:{2:02}:{3:02}'.format(int(d), int(h), int(m), int(s))

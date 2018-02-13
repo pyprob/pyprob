@@ -4,7 +4,7 @@ from torch.autograd import Variable
 
 import pyprob
 from pyprob import util
-from pyprob.distributions import Empirical, Normal, Uniform, Categorical
+from pyprob.distributions import Categorical, Empirical, Normal, Uniform
 
 
 class TestCase(unittest.TestCase):

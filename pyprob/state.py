@@ -83,7 +83,7 @@ def sample(distribution):
             if _current_trace.length > 0:
                 previous_sample = _current_trace.samples[-1]
             _current_trace_inference_network.eval()
-            proposal_distribution = _current_trace_inference_network.forward(previous_sample, current_sample)
+            proposal_distribution = _current_trace_inference_network.forward_one_time_step(previous_sample, current_sample)
             value = proposal_distribution.sample()
             current_sample = Sample(address, distribution, value)
             _current_trace.add_log_prob(distribution.log_prob(value) - proposal_distribution.log_prob(value))

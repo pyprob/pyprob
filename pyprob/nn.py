@@ -3,11 +3,13 @@ import math
 import random
 import gc
 import torch
+from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
+from termcolor import colored
 
 from . import util
-from .distributions import Normal
+from .distributions import Categorical, Normal
 
 
 class ObserveEmbedding(enum.Enum):
@@ -74,16 +76,27 @@ class ObserveEmbeddingFC(nn.Module):
 
 
 class SampleEmbeddingFC(nn.Module):
-    def __init__(self, input_dim, output_dim):
+    def __init__(self, input_dim, output_dim, input_is_one_hot_index=False, input_one_hot_dim=None):
         super().__init__()
-        self._lin1 = nn.Linear(input_dim, output_dim)
-        self._lin2 = nn.Linear(output_dim, output_dim)
+        self._input_is_one_hot_index = input_is_one_hot_index
+        self._input_one_hot_dim = input_one_hot_dim
+        if input_is_one_hot_index:
+            if input_dim != 1:
+                raise ValueError('If input_is_one_hot_index=True, input_dim should be 1 (the index of one-hot value in a vector of length input_one_hot_dim)')
+            input_dim = input_one_hot_dim
+        self._lin1 = nn.Linear(input_dim, input_dim)
+        self._lin2 = nn.Linear(input_dim, output_dim)
+        self._lin3 = nn.Linear(output_dim, output_dim)
         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin3.weight, gain=nn.init.calculate_gain('relu'))
 
     def forward(self, x):
+        if self._input_is_one_hot_index:
+            x = torch.stack([util.one_hot(self._input_one_hot_dim, int(v)) for v in x])
         x = F.relu(self._lin1(x))
         x = F.relu(self._lin2(x))
+        x = F.relu(self._lin3(x))
         return x
 
 
@@ -93,7 +106,7 @@ class ProposalNormal(nn.Module):
         self._lin1 = nn.Linear(input_dim, input_dim)
         self._lin2 = nn.Linear(input_dim, 2)
         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform(self._lin2.weight)
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
@@ -106,6 +119,20 @@ class ProposalNormal(nn.Module):
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
         return Normal(means, stddevs)
+
+
+class ProposalCategorical(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super().__init__()
+        self._lin1 = nn.Linear(input_dim, input_dim)
+        self._lin2 = nn.Linear(input_dim, output_dim)
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+
+    def forward(self, x, samples):
+        x = F.relu(self._lin1(x))
+        x = F.softmax(self._lin2(x), dim=1)
+        return Categorical(probs=x)
 
 
 class InferenceNetwork(nn.Module):
@@ -188,12 +215,17 @@ class InferenceNetwork(nn.Module):
 
                 if not address in self._sample_embedding_layers:
                     if self._sample_embedding == SampleEmbedding.FULLY_CONNECTED:
-                        sample_embedding_layer = SampleEmbeddingFC(sample.value.nelement(), self._sample_embedding_dim)
+                        if isinstance(distribution, Categorical):
+                            sample_embedding_layer = SampleEmbeddingFC(sample.value.nelement(), self._sample_embedding_dim, input_is_one_hot_index=True, input_one_hot_dim=distribution.length)
+                        else:
+                            sample_embedding_layer = SampleEmbeddingFC(sample.value.nelement(), self._sample_embedding_dim)
                     else:
                         raise ValueError('Unkown sample embedding: {}'.format(self._sample_embedding))
 
                     if isinstance(distribution, Normal):
                         proposal_layer = ProposalNormal(self._lstm_dim)
+                    elif isinstance(distribution, Categorical):
+                        proposal_layer = ProposalCategorical(self._lstm_dim, distribution.length)
                     else:
                         raise ValueError('Unsupported distribution: {}'.format(distribution.name))
 
@@ -214,7 +246,7 @@ class InferenceNetwork(nn.Module):
         self._state_observes = observes
         self._state_observes_embedding = self._observe_embedding_layer.forward(observes)
 
-    def forward(self, previous_sample, current_sample):
+    def forward_one_time_step(self, previous_sample, current_sample):
         if self._state_observes is None:
             raise RuntimeError('Cannot run the inference network without observations. Call new_trace and supply observations.')
 
@@ -231,7 +263,7 @@ class InferenceNetwork(nn.Module):
             prev_distribution = previous_sample.distribution
             prev_value = previous_sample.value
             if prev_address in self._sample_embedding_layers:
-                prev_sample_embedding = self._sample_embedding_layers[prev_address](prev_value.unsqueeze(0))
+                prev_sample_embedding = self._sample_embedding_layers[prev_address](prev_value.unsqueeze(0).float())
             else:
                 print('Warning: no sample embedding layer for: {}'.format(prev_address))
                 success = False
@@ -279,7 +311,7 @@ class InferenceNetwork(nn.Module):
             print('Warning: no proposal could be made, prior will be used')
             return current_distribution
 
-    def optimize(self, batch, optimizer):
+    def loss(self, batch, optimizer):
         gc.collect()
 
         obs = torch.stack([b.observes_variable for b in batch])
@@ -298,27 +330,27 @@ class InferenceNetwork(nn.Module):
                 current_addres_embedding = self._address_embeddings[current_address]
                 current_distribution_type_embedding = self._distribution_type_embeddings[current_distribution.name]
 
-            if time_step == 0:
-                prev_sample_embedding = util.to_variable(torch.zeros(sub_batch_length, self._sample_embedding_dim))
-                prev_addres_embedding = self._address_embedding_empty
-                prev_distribution_type_embedding = self._distribution_type_embedding_empty
-            else:
-                prev_sample = example_trace.samples[time_step - 1]
-                prev_address = prev_sample.address_suffixed
-                prev_distribution = prev_sample.distribution
-                smp = util.to_variable(torch.stack([trace.samples[time_step - 1].value for trace in sub_batch]), requires_grad=True)
-                prev_sample_embedding = self._sample_embedding_layers[prev_address](prev_value.unsqueeze(0))
-                prev_addres_embedding = self._address_embeddings[prev_address]
-                prev_distribution_type_embedding = self._distribution_type_embeddings[prev_distribution.name]
+                if time_step == 0:
+                    prev_sample_embedding = util.to_variable(torch.zeros(sub_batch_length, self._sample_embedding_dim))
+                    prev_addres_embedding = self._address_embedding_empty
+                    prev_distribution_type_embedding = self._distribution_type_embedding_empty
+                else:
+                    prev_sample = example_trace.samples[time_step - 1]
+                    prev_address = prev_sample.address_suffixed
+                    prev_distribution = prev_sample.distribution
+                    smp = torch.stack([trace.samples[time_step - 1].value.float() for trace in sub_batch])
+                    prev_sample_embedding = self._sample_embedding_layers[prev_address](smp)
+                    prev_addres_embedding = self._address_embeddings[prev_address]
+                    prev_distribution_type_embedding = self._distribution_type_embeddings[prev_distribution.name]
 
-            for b in range(sub_batch_length):
-                t = torch.cat([sub_batch[b].observes_embedding,
-                               prev_sample_embedding[b],
-                               prev_distribution_type_embedding,
-                               prev_addres_embedding,
-                               current_distribution_type_embedding,
-                               current_addres_embedding])
-                sub_batch[b].samples[time_step].lstm_input = t
+                for b in range(sub_batch_length):
+                    t = torch.cat([sub_batch[b].observes_embedding,
+                                   prev_sample_embedding[b],
+                                   prev_distribution_type_embedding,
+                                   prev_addres_embedding,
+                                   current_distribution_type_embedding,
+                                   current_addres_embedding])
+                    sub_batch[b].samples[time_step].lstm_input = t
 
         lstm_input = []
         for time_step in range(batch.traces_max_length):
@@ -360,7 +392,10 @@ class InferenceNetwork(nn.Module):
                 current_samples = [trace.samples[time_step] for trace in sub_batch]
                 current_samples_values = torch.stack([s.value for s in current_samples])
                 proposal_distribution = self._proposal_layers[current_address](proposal_input, current_samples)
-                log_prob += torch.sum(proposal_distribution.log_prob(current_samples_values))
+                l = proposal_distribution.log_prob(current_samples_values)
+                if util.has_nan_or_inf(l):
+                    return False, 0
+                log_prob += torch.sum(l)
 
         loss = -log_prob / batch.length
 
@@ -368,3 +403,54 @@ class InferenceNetwork(nn.Module):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
+        return True, float(loss)
+
+    def optimize(self, new_batch_func, optimizer, early_stop_traces=-1):
+        iteration = 0
+        trace = 0
+        loss_initial = None
+        loss_min = float('inf')
+        loss_max = None
+        loss_prev = float('inf')
+        stop = False
+        print('Trace     | Init. loss | Max. loss  | Min. loss  | Curr. loss')
+        while not stop:
+            iteration += 1
+            batch = new_batch_func()
+            self.polymorph(batch)
+            success, loss = self.loss(batch, optimizer)
+            if not success:
+                print('Cannot compute loss, stopping. Loss: {}'.format(loss))
+                stop = True
+            else:
+                if loss_initial is None:
+                    loss_initial = loss
+                    loss_initial_str = '{:+.3e}'.format(loss_initial)
+                    loss_max = loss
+                    loss_max_str = '{:+.3e}'.format(loss_max)
+                if loss < loss_min:
+                    loss_min = loss
+                    loss_str = colored('{:+.3e}'.format(loss), 'green', attrs=['bold'])
+                    loss_min_str = colored('{:+.3e}'.format(loss_min), 'green', attrs=['bold'])
+                elif loss > loss_max:
+                    loss_max = loss
+                    loss_str = colored('{:+.3e}'.format(loss), 'red', attrs=['bold'])
+                    loss_max_str = colored('{:+.3e}'.format(loss_max), 'red', attrs=['bold'])
+                else:
+                    if loss < loss_prev:
+                        loss_str = colored('{:+.3e}'.format(loss), 'green')
+                    elif loss > loss_prev:
+                        loss_str = colored('{:+.3e}'.format(loss), 'red')
+                    else:
+                        loss_str = '{:+.3e}'.format(loss)
+                    loss_min_str = '{:+.3e}'.format(loss_min)
+                    loss_max_str = '{:+.3e}'.format(loss_max)
+                loss_prev = loss
+                trace += batch.length
+                trace_str = '{:9}'.format('{:,}'.format(trace))
+                if early_stop_traces != -1:
+                    if trace >= early_stop_traces:
+                        stop = True
+
+                print('{} | {} | {} | {} | {}\r'.format(trace_str, loss_initial_str, loss_max_str, loss_min_str, loss_str), end='')
