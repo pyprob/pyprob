@@ -4,6 +4,7 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import numpy as np
 import random
+import datetime
 
 _random_seed = 0
 def set_random_seed(seed=123):
@@ -122,3 +123,6 @@ def days_hours_mins_secs_str(total_seconds):
     h, r = divmod(r, 3600)
     m, s = divmod(r, 60)
     return '{0}d:{1:02}:{2:02}:{3:02}'.format(int(d), int(h), int(m), int(s))
+
+def get_time_str():
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")

@@ -95,11 +95,16 @@ class Empirical(Distribution):
         try: # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
             self.values_numpy = torch.stack(self.values).data.cpu().numpy()
         except:
-            self.values_numpy = None
+            try:
+                self.values_numpy = np.array(self.values)
+            except:
+                self.values_numpy = None
         self._mean = None
         self._mean_unweighted = None
         self._variance = None
         self._variance_unweighted = None
+        self._min = None
+        self._max = None
         super().__init__('Emprical')
 
     def __len__(self):

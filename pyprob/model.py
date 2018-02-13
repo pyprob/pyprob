@@ -72,3 +72,31 @@ class Model(nn.Module):
 
         self._inference_network.train()
         self._inference_network.optimize(new_batch_func, optimizer, early_stop_traces)
+
+    def trace_length_mean(self, samples=1000):
+        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None)
+        trace_length_dist = Empirical([trace.length for trace in traces])
+        return trace_length_dist.mean
+
+    def trace_length_stddev(self, samples=1000):
+        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None)
+        trace_length_dist = Empirical([trace.length for trace in traces])
+        return trace_length_dist.stddev
+
+    def trace_length_min(self, samples=1000):
+        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None)
+        trace_length_dist = Empirical([trace.length for trace in traces])
+        return min(trace_length_dist.values_numpy)
+
+    def trace_length_max(self, samples=1000):
+        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None)
+        trace_length_dist = Empirical([trace.length for trace in traces])
+        return max(trace_length_dist.values_numpy)
+
+    def save_inference_network(self, file_name):
+        if self._inference_network is None:
+            raise RuntimeError('The model has no trained inference network.')
+        self._inference_network.save(file_name)
+
+    def load_inference_network(self, file_name):
+        self._inference_network = InferenceNetwork.load(file_name, util._cuda_enabled, util._cuda_device)

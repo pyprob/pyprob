@@ -7,9 +7,10 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 from termcolor import colored
+from threading import Thread
 import time
 
-from . import util
+from . import util, __version__
 from .distributions import Categorical, Normal
 
 
@@ -53,6 +54,14 @@ class Batch(object):
 
     def __setitem__(self, key, value):
         self.batch[key] = value
+
+    def cuda(self, device):
+        for trace in self.batch:
+            trace.cuda(device)
+
+    def cpu(self):
+        for trace in self.batch:
+            trace.cpu()
 
     def sort_by_observes_length(self):
         return Batch(sorted(self.batch, reverse=True, key=lambda x:x.observes_variable.nelement()), False)
@@ -149,10 +158,14 @@ class InferenceNetwork(nn.Module):
         self._address_embedding_dim = address_embedding_dim
         self._distribution_type_embedding_dim = 1 # Needs to match the number of distribution types in pyprob (except Emprical)
         self._valid_batch = valid_batch
-        self._cuda = cuda
+        self._on_cuda = cuda
         self._cuda_device = device
         self._total_training_seconds = 0
         self._total_training_traces = 0
+        self._modified = util.get_time_str()
+        self._updates = 0
+        self._pyprob_version = __version__
+        self._torch_version = torch.__version__
 
         self._state_new_trace = True
         self._state_observes = None
@@ -174,6 +187,29 @@ class InferenceNetwork(nn.Module):
             raise ValueError('Unknown observation embedding: {}'.format(self._observe_embedding))
         self._sample_embedding_layers = {}
         self._proposal_layers = {}
+
+    def _move_to_cuda(self, device=None):
+        self._on_cuda = True
+        self._cuda_device = device
+        self.cuda(device)
+        self._address_embedding_empty = self._address_embedding_empty.cuda(device)
+        self._distribution_type_embedding_empty = self._distribution_type_embedding_empty.cuda(device)
+        for k, t in self._address_embeddings.items():
+            self._address_embeddings[k] = t.cuda(device)
+        for k, t in self._distribution_type_embeddings.items():
+            self._distribution_type_embeddings[k] = t.cuda(device)
+        self._valid_batch.cuda(device)
+
+    def _move_to_cpu(self):
+        self._on_cuda = False
+        self.cpu()
+        self._address_embedding_empty = self._address_embedding_empty.cpu()
+        self._distribution_type_embedding_empty = self._distribution_type_embedding_empty.cpu()
+        for k, t in self._address_embeddings.items():
+            self._address_embeddings[k] = t.cpu()
+        for k, t in self._distribution_type_embeddings.items():
+            self._distribution_type_embeddings[k] = t.cpu()
+        self._valid_batch.cpu()
 
     def _add_address(self, address):
         if not address in self._address_embeddings:
@@ -239,8 +275,8 @@ class InferenceNetwork(nn.Module):
                     print('Polymorphing, new layers for address: {}'.format(address))
                     layers_changed = True
 
-        if self._cuda:
-            self.cuda(self._cuda_device)
+        if self._on_cuda:
+            self._move_to_cuda(self._cuda_device)
 
         return layers_changed
 
@@ -420,7 +456,7 @@ class InferenceNetwork(nn.Module):
         loss_max = None
         loss_prev = float('inf')
         stop = False
-        print('Train. time | Trace     | Init. loss | Max. loss  | Min. loss  | Curr. loss')
+        print('Train. time | Trace     | Init. loss | Max. loss  | Min. loss  | Curr. loss | T.since min')
         while not stop:
             iteration += 1
             self._total_training_seconds = prev_total_training_seconds + (time.time() - time_start)
@@ -466,5 +502,46 @@ class InferenceNetwork(nn.Module):
                     if trace >= early_stop_traces:
                         stop = True
 
-                print('{} | {} | {} | {} | {} | {} | {}\r'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_max_str, loss_min_str, loss_str, time_since_loss_min_str), end='')
+                print('{} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_max_str, loss_min_str, loss_str, time_since_loss_min_str), end='\r')
         print()
+
+    def save(self, file_name):
+        self._modified = util.get_time_str()
+        self._updates += 1
+        self._trained_on = 'CUDA' if util._cuda_enabled else 'CPU'
+        self._pyprob_version = __version__
+        self._torch_version = torch.__version__
+        def thread_save():
+            torch.save(self, file_name)
+        a = Thread(target=thread_save)
+        a.start()
+        a.join()
+
+    @staticmethod
+    def load(file_name, cuda=False, device=None):
+        try:
+            if cuda:
+                ret = torch.load(file_name)
+            else:
+                ret = torch.load(file_name, map_location=lambda storage, loc: storage)
+        except:
+            raise RuntimeError('Cannot load the inference network.')
+
+        if ret._pyprob_version != __version__:
+            print(colored('Warning: different pyprob versions (loaded network:{}, current system:{})'.format(ret._pyprob_version, __version__), 'red', attrs=['bold']))
+        if ret._torch_version != torch.__version__:
+            print(colored('Warning: different PyTorch versions (loaded network:{}, current system:{})'.format(ret._torch_version, torch.__version__), 'red', attrs=['bold']))
+
+        if cuda:
+            if ret._on_cuda:
+                if ret._cuda_device != device:
+                    print(colored('Warning: loading CUDA (device {}) network to CUDA (device {})'.format(ret._cuda_device, device), 'red', attrs=['bold']))
+                    ret._move_to_cuda(device)
+            else:
+                print(colored('Warning: loading CPU network to CUDA (device {})'.format(device), 'red', attrs=['bold']))
+                ret._move_to_cuda(device)
+        else:
+            if ret._on_cuda:
+                print(colored('Warning: loading CUDA (device {}) network to CPU'.format(ret._cuda_device), 'red', attrs=['bold']))
+                ret._move_to_cpu()
+        return ret
