@@ -7,6 +7,7 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 from termcolor import colored
+import time
 
 from . import util
 from .distributions import Categorical, Normal
@@ -150,6 +151,8 @@ class InferenceNetwork(nn.Module):
         self._valid_batch = valid_batch
         self._cuda = cuda
         self._cuda_device = device
+        self._total_training_seconds = 0
+        self._total_training_traces = 0
 
         self._state_new_trace = True
         self._state_observes = None
@@ -407,6 +410,9 @@ class InferenceNetwork(nn.Module):
         return True, float(loss)
 
     def optimize(self, new_batch_func, optimizer, early_stop_traces=-1):
+        prev_total_training_seconds = self._total_training_seconds
+        time_start = time.time()
+        time_loss_min = time.time()
         iteration = 0
         trace = 0
         loss_initial = None
@@ -414,9 +420,11 @@ class InferenceNetwork(nn.Module):
         loss_max = None
         loss_prev = float('inf')
         stop = False
-        print('Trace     | Init. loss | Max. loss  | Min. loss  | Curr. loss')
+        print('Train. time | Trace     | Init. loss | Max. loss  | Min. loss  | Curr. loss')
         while not stop:
             iteration += 1
+            self._total_training_seconds = prev_total_training_seconds + (time.time() - time_start)
+            total_training_seconds_str = util.days_hours_mins_secs_str(self._total_training_seconds)
             batch = new_batch_func()
             self.polymorph(batch)
             success, loss = self.loss(batch, optimizer)
@@ -433,6 +441,8 @@ class InferenceNetwork(nn.Module):
                     loss_min = loss
                     loss_str = colored('{:+.3e}'.format(loss), 'green', attrs=['bold'])
                     loss_min_str = colored('{:+.3e}'.format(loss_min), 'green', attrs=['bold'])
+                    time_loss_min = time.time()
+                    time_since_loss_min_str = colored(util.days_hours_mins_secs_str(0), 'green', attrs=['bold'])
                 elif loss > loss_max:
                     loss_max = loss
                     loss_str = colored('{:+.3e}'.format(loss), 'red', attrs=['bold'])
@@ -446,11 +456,15 @@ class InferenceNetwork(nn.Module):
                         loss_str = '{:+.3e}'.format(loss)
                     loss_min_str = '{:+.3e}'.format(loss_min)
                     loss_max_str = '{:+.3e}'.format(loss_max)
+                    time_since_loss_min_str = util.days_hours_mins_secs_str(time.time() - time_loss_min)
+
                 loss_prev = loss
                 trace += batch.length
-                trace_str = '{:9}'.format('{:,}'.format(trace))
+                self._total_training_traces += batch.length
+                total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_training_traces))
                 if early_stop_traces != -1:
                     if trace >= early_stop_traces:
                         stop = True
 
-                print('{} | {} | {} | {} | {}\r'.format(trace_str, loss_initial_str, loss_max_str, loss_min_str, loss_str), end='')
+                print('{} | {} | {} | {} | {} | {} | {}\r'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_max_str, loss_min_str, loss_str, time_since_loss_min_str), end='')
+        print()

@@ -46,6 +46,7 @@ class Model(nn.Module):
             print('Warning: Cannot run inference with inference network because there is none available. Use learn_inference_network first.')
             use_inference_network = False
         if use_inference_network:
+            self._inference_network.eval()
             traces = self._prior_traces(samples, trace_state=TraceState.RECORD_USE_PROPOSAL, proposal_network=self._inference_network, *args, **kwargs)
         else:
             traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
@@ -60,12 +61,14 @@ class Model(nn.Module):
             valid_batch = Batch(traces)
             self._inference_network = InferenceNetwork(model_name=self.name, lstm_dim=lstm_dim, lstm_depth=lstm_depth, observe_embedding=observe_embedding, observe_embedding_dim=observe_embedding_dim, sample_embedding=sample_embedding, sample_embedding_dim=sample_embedding_dim, address_embedding_dim=address_embedding_dim, valid_batch=valid_batch, cuda=util._cuda_enabled)
             self._inference_network.polymorph()
+        else:
+            print('Continuing to train existing inference network...')
 
-            optimizer = optim.Adam(self._inference_network.parameters(), lr=learning_rate, weight_decay=weight_decay)
+        optimizer = optim.Adam(self._inference_network.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
-            def new_batch_func():
-                traces = self._prior_traces(batch_size, trace_state=TraceState.RECORD_LEARN_PROPOSAL, *args, **kwargs)
-                return Batch(traces)
+        def new_batch_func():
+            traces = self._prior_traces(batch_size, trace_state=TraceState.RECORD_LEARN_PROPOSAL, *args, **kwargs)
+            return Batch(traces)
 
-            self._inference_network.train()
-            self._inference_network.optimize(new_batch_func, optimizer, early_stop_traces)
+        self._inference_network.train()
+        self._inference_network.optimize(new_batch_func, optimizer, early_stop_traces)
