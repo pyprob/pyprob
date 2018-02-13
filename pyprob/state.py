@@ -72,9 +72,9 @@ def _extract_target_of_assignment():
     else:
         return None
 
-def sample(distribution):
+def sample(distribution, controlled=True):
     value = distribution.sample()
-    if _trace_state != TraceState.NONE:
+    if controlled and (_trace_state != TraceState.NONE):
         global _current_trace
         address = extract_address(_current_trace_root_function_name)
         current_sample = Sample(address, distribution, value)
