@@ -60,6 +60,19 @@ def to_variable(value, requires_grad=False):
     else:
         return ret
 
+def to_numpy(value):
+    if isinstance(value, Variable):
+        return value.data.cpu().numpy()
+    elif torch.is_tensor(value):
+        value.cpu().numpy()
+    elif isinstance(value, np.ndarray):
+        return value
+    else:
+        try:
+            return np.array(value)
+        except:
+            raise TypeError('Cannot convert to Numpy array.')
+
 def logsumexp(x, dim=0):
     '''
     https://en.wikipedia.org/wiki/LogSumExp

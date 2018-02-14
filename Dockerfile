@@ -1,4 +1,4 @@
-FROM nvidia/cuda:8.0-cudnn6-devel-ubuntu16.04
+FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
 
 ENV PYTHON_VERSION=3.6
 
@@ -16,7 +16,7 @@ ENV PATH /opt/conda/bin:$PATH
 RUN mkdir -p /code/pyprob
 COPY . /code/pyprob
 
-RUN pip install http://download.pytorch.org/whl/cu80/torch-0.3.0.post4-cp36-cp36m-linux_x86_64.whl
+RUN pip install http://download.pytorch.org/whl/cu90/torch-0.3.1-cp36-cp36m-linux_x86_64.whl
 RUN pip install torchvision
 RUN pip install /code/pyprob
 

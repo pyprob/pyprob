@@ -28,6 +28,10 @@ class Distribution(object):
         else:
             raise NotImplementedError()
 
+    def prob(self, value):
+        value = util.to_variable(value)
+        return torch.exp(self.log_prob(value))
+
     def expectation(self, func):
         raise NotImplementedError()
 
@@ -162,6 +166,24 @@ class Empirical(Distribution):
         return self.variance_unweighted.sqrt()
 
 
+class Categorical(Distribution):
+    def __init__(self, probs):
+        self._probs = util.to_variable(probs)
+        self.length = self._probs.nelement()
+        super().__init__('Categorical', '_Categorical(size:{})'.format(self.length), torch.distributions.Categorical(probs=self._probs))
+
+    def __repr__(self):
+        return 'Categorical(probs:{})'.format(self._probs)
+
+    def __len__(self):
+        return self.length
+
+    def log_prob(self, value):
+        value = util.to_variable(value)
+        value = util.to_variable(value).view(-1).long()
+        return self._torch_dist.log_prob(value)
+
+
 class Normal(Distribution):
     def __init__(self, mean, stddev):
         self._mean = util.to_variable(mean)
@@ -170,6 +192,87 @@ class Normal(Distribution):
 
     def __repr__(self):
         return 'Normal(mean:{}, stddev:{})'.format(self._mean, self._stddev)
+
+    # Won't be needed when the new PyTorch version is released
+    def cdf(self, value):
+        value = util.to_variable(value)
+        return 0.5 * (1 + torch.erf((value - self._mean) * self._stddev.reciprocal() / math.sqrt(2)))
+
+    # Won't be needed when the new PyTorch version is released
+    def icdf(self, value):
+        value = util.to_variable(value)
+        return self._mean + self._stddev * torch.erfinv(2 * value - 1) * math.sqrt(2)
+
+
+class TruncatedNormal(Distribution):
+    def __init__(self, mean_non_truncated, stddev_non_truncated, low, high):
+        self._mean_non_truncated = util.to_variable(mean_non_truncated)
+        self._stddev_non_truncated = util.to_variable(stddev_non_truncated)
+        self._low = util.to_variable(low)
+        self._high = util.to_variable(high)
+        self._standard_normal_dist = Normal(torch.zeros_like(self._mean_non_truncated), torch.ones_like(self._stddev_non_truncated))
+        self._alpha = (self._low - self._mean_non_truncated) / self._stddev_non_truncated
+        self._beta = (self._high - self._mean_non_truncated) / self._stddev_non_truncated
+        self._standard_normal_cdf_alpha = self._standard_normal_dist.cdf(self._alpha)
+        self._standard_normal_cdf_beta = self._standard_normal_dist.cdf(self._beta)
+        self._Z = self._standard_normal_dist.cdf(self._beta) - self._standard_normal_dist.cdf(self._alpha)
+        self._log_stddev_Z = torch.log(self._stddev_non_truncated * self._Z)
+        self._mean = None
+        self._variance = None
+        super().__init__('TruncatedNormal', '_TruncatedNormal')
+
+    def log_prob(self, value):
+        value = util.to_variable(value)
+        lb = value.ge(self._low).type_as(self._low)
+        ub = value.le(self._high).type_as(self._low)
+        return torch.log(lb.mul(ub)) + self._standard_normal_dist.log_prob((value - self._mean_non_truncated) / self._stddev_non_truncated) - self._log_stddev_Z
+
+    @property
+    def low(self):
+        return self._low
+
+    @property
+    def high(self):
+        return self._high
+
+    @property
+    def mean_non_truncated(self):
+        return self._mean_non_truncated
+
+    @property
+    def stddev_non_truncated(self):
+        return self._stddev_non_truncated
+
+    @property
+    def variance_non_truncated(self):
+        return self._stddev_non_truncated.pow(2)
+
+    @property
+    def mean(self):
+        if self._mean is None:
+            self._mean = self._mean_non_truncated + self._stddev_non_truncated * (self._standard_normal_dist.prob(self._alpha) - self._standard_normal_dist.prob(self._beta)) / self._Z
+        return self._mean
+
+    @property
+    def variance(self):
+        if self._variance is None:
+            standard_normal_prob_alpha = self._standard_normal_dist.prob(self._alpha)
+            standard_normal_prob_beta = self._standard_normal_dist.prob(self._beta)
+            self._variance = self._stddev_non_truncated.pow(2) * (1 + ((self._alpha * standard_normal_prob_alpha - self._beta * standard_normal_prob_beta)/self._Z) - ((standard_normal_prob_alpha - standard_normal_prob_beta)/self._Z).pow(2))
+        return self._variance
+
+    def sample(self):
+        shape = self._low.size()
+        rand = util.to_variable(torch.zeros(shape).uniform_())
+
+        attempt_count = 0
+        ret = torch.zeros_like(rand).fill_(float('NaN'))
+        while util.has_nan_or_inf(ret):
+            attempt_count += 1
+            if (attempt_count == 10000):
+                print('Warning: trying to sample from the tail of a truncated normal distribution, which can take a long time. A more efficient implementation is pending.')
+            ret = self._standard_normal_dist.icdf(self._standard_normal_cdf_alpha + rand * (self._standard_normal_cdf_beta - self._standard_normal_cdf_alpha)) * self._stddev_non_truncated + self._mean_non_truncated
+        return ret
 
 
 # Temporary: this needs to be replaced by torch.distributions.Uniform when the new PyTorch version is released
@@ -202,20 +305,3 @@ class Uniform(Distribution):
     @property
     def variance(self):
         return self._variance
-
-
-class Categorical(Distribution):
-    def __init__(self, probs):
-        self._probs = util.to_variable(probs)
-        self.length = self._probs.nelement()
-        super().__init__('Categorical', '_Categorical(size:{})'.format(self.length), torch.distributions.Categorical(probs=self._probs))
-
-    def __repr__(self):
-        return 'Categorical(probs:{})'.format(self._probs)
-
-    def __len__(self):
-        return self.length
-
-    def log_prob(self, value):
-        value = util.to_variable(value).view(-1).long()
-        return self._torch_dist.log_prob(value)
