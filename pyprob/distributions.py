@@ -305,3 +305,11 @@ class Uniform(Distribution):
     @property
     def variance(self):
         return self._variance
+
+    @property
+    def low(self):
+        return self._low
+
+    @property
+    def high(self):
+        return self._high

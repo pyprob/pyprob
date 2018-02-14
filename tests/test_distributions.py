@@ -21,8 +21,8 @@ class TestCase(unittest.TestCase):
 
         util.debug('dist_mean', 'dist_mean_correct', 'dist_stddev', 'dist_stddev_correct')
 
-        self.assertAlmostEqual(dist_mean, dist_mean_correct, places=0)
-        self.assertAlmostEqual(dist_stddev, dist_stddev_correct, places=0)
+        self.assertAlmostEqual(dist_mean, dist_mean_correct, places=1)
+        self.assertAlmostEqual(dist_stddev, dist_stddev_correct, places=1)
 
     def test_dist_normal(self):
         empirical_samples = 10000
@@ -69,15 +69,15 @@ class TestCase(unittest.TestCase):
         dist_log_prob = float(dist.log_prob(0.5))
 
         util.debug('dist_mean_non_truncated', 'dist_mean_non_truncated_correct', 'dist_stddev_non_truncated', 'dist_stddev_non_truncated_correct', 'dist_low', 'dist_low_correct', 'dist_high', 'dist_high_correct', 'dist_mean', 'dist_mean_empirical', 'dist_mean_correct', 'dist_stddev', 'dist_stddev_empirical', 'dist_stddev_correct', 'dist_log_prob', 'dist_log_prob_correct')
-        self.assertAlmostEqual(dist_mean_non_truncated, dist_mean_non_truncated_correct, places=0)
-        self.assertAlmostEqual(dist_stddev_non_truncated, dist_stddev_non_truncated_correct, places=0)
-        self.assertAlmostEqual(dist_low, dist_low_correct, places=0)
-        self.assertAlmostEqual(dist_high, dist_high_correct, places=0)
-        self.assertAlmostEqual(dist_mean, dist_mean_correct, places=0)
-        self.assertAlmostEqual(dist_mean_empirical, dist_mean_correct, places=0)
-        self.assertAlmostEqual(dist_stddev, dist_stddev_correct, places=0)
-        self.assertAlmostEqual(dist_stddev_empirical, dist_stddev_correct, places=0)
-        self.assertAlmostEqual(dist_log_prob, dist_log_prob_correct, places=0)
+        self.assertAlmostEqual(dist_mean_non_truncated, dist_mean_non_truncated_correct, places=1)
+        self.assertAlmostEqual(dist_stddev_non_truncated, dist_stddev_non_truncated_correct, places=1)
+        self.assertAlmostEqual(dist_low, dist_low_correct, places=1)
+        self.assertAlmostEqual(dist_high, dist_high_correct, places=1)
+        self.assertAlmostEqual(dist_mean, dist_mean_correct, places=1)
+        self.assertAlmostEqual(dist_mean_empirical, dist_mean_correct, places=1)
+        self.assertAlmostEqual(dist_stddev, dist_stddev_correct, places=1)
+        self.assertAlmostEqual(dist_stddev_empirical, dist_stddev_correct, places=1)
+        self.assertAlmostEqual(dist_log_prob, dist_log_prob_correct, places=1)
 
     def test_dist_uniform(self):
         empirical_samples = 10000
@@ -95,11 +95,11 @@ class TestCase(unittest.TestCase):
 
         util.debug('dist_mean', 'dist_mean_empirical', 'dist_mean_correct', 'dist_stddev', 'dist_stddev_empirical', 'dist_stddev_correct', 'dist_log_prob', 'dist_log_prob_correct')
 
-        self.assertAlmostEqual(dist_mean, dist_mean_correct, places=0)
-        self.assertAlmostEqual(dist_mean_empirical, dist_mean_correct, places=0)
-        self.assertAlmostEqual(dist_stddev, dist_stddev_correct, places=0)
-        self.assertAlmostEqual(dist_stddev_empirical, dist_stddev_correct, places=0)
-        self.assertAlmostEqual(dist_log_prob, dist_log_prob_correct, places=0)
+        self.assertAlmostEqual(dist_mean, dist_mean_correct, places=1)
+        self.assertAlmostEqual(dist_mean_empirical, dist_mean_correct, places=1)
+        self.assertAlmostEqual(dist_stddev, dist_stddev_correct, places=1)
+        self.assertAlmostEqual(dist_stddev_empirical, dist_stddev_correct, places=1)
+        self.assertAlmostEqual(dist_log_prob, dist_log_prob_correct, places=1)
 
     def test_dist_categorical(self):
         dist_log_prob_correct = -0.6931471824645996
@@ -110,4 +110,4 @@ class TestCase(unittest.TestCase):
 
         util.debug('dist_log_prob', 'dist_log_prob_correct')
 
-        self.assertAlmostEqual(dist_log_prob, dist_log_prob_correct, places=0)
+        self.assertAlmostEqual(dist_log_prob, dist_log_prob_correct, places=1)

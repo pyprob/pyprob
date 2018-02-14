@@ -13,21 +13,31 @@ from pyprob.distributions import Empirical, Normal, Uniform
 
 class TestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        class GaussianWithUnknownMean(Model):
+        # http://www.robots.ox.ac.uk/~fwood/assets/pdf/Wood-AISTATS-2014.pdf
+        class GaussianWithUnknownMeanMarsaglia(Model):
             def __init__(self, prior_mean=1, prior_stddev=math.sqrt(5), likelihood_stddev=math.sqrt(2)):
                 self.prior_mean = prior_mean
                 self.prior_stddev = prior_stddev
                 self.likelihood_stddev = likelihood_stddev
-                super().__init__('GaussianWithUnknownMean')
+                super().__init__('GaussianWithUnknownMeanMarsaglia')
+
+            def marsaglia(self, mean, stddev):
+                uniform = Uniform(-1, 1)
+                s = 1
+                while float(s) >= 1:
+                    x = pyprob.sample(uniform)
+                    y = pyprob.sample(uniform)
+                    s = x*x + y*y
+                return mean + stddev * (x * torch.sqrt(-2 * torch.log(s) / s))
 
             def forward(self, observation=[]):
-                mu = pyprob.sample(Normal(self.prior_mean, self.prior_stddev))
+                mu = self.marsaglia(self.prior_mean, self.prior_stddev)
                 likelihood = Normal(mu, self.likelihood_stddev)
                 for o in observation:
                     pyprob.observe(likelihood, o)
                 return mu
 
-        self._model = GaussianWithUnknownMean()
+        self._model = GaussianWithUnknownMeanMarsaglia()
         super().__init__(*args, **kwargs)
 
     def test_model_prior(self):
@@ -44,10 +54,10 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
 
     def test_model_trace_length_statistics(self):
-        samples = 1000
-        trace_length_mean_correct = 1
-        trace_length_stddev_correct = 0
-        trace_length_min_correct = 1
+        samples = 2000
+        trace_length_mean_correct = 2.5630438327789307
+        trace_length_stddev_correct = 1.2081329822540283
+        trace_length_min_correct = 2
 
         self._model._trace_statistics_samples = samples
         trace_length_mean = float(self._model.trace_length_mean(samples))

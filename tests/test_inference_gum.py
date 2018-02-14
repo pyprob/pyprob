@@ -1,5 +1,6 @@
 import unittest
 import math
+import torch
 
 import pyprob
 from pyprob import util
@@ -9,6 +10,9 @@ from pyprob.distributions import Empirical, Normal, Uniform
 
 class TestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
+        if torch.cuda.is_available():
+            pyprob.set_cuda(True)
+
         class GaussianWithUnknownMean(Model):
             def __init__(self, prior_mean=1, prior_stddev=math.sqrt(5), likelihood_stddev=math.sqrt(2)):
                 self.prior_mean = prior_mean

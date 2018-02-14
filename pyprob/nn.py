@@ -11,7 +11,7 @@ from threading import Thread
 import time
 
 from . import util, __version__
-from .distributions import Categorical, Normal
+from .distributions import Categorical, Normal, TruncatedNormal, Uniform
 
 
 class ObserveEmbedding(enum.Enum):
@@ -110,6 +110,20 @@ class SampleEmbeddingFC(nn.Module):
         return x
 
 
+class ProposalCategorical(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super().__init__()
+        self._lin1 = nn.Linear(input_dim, input_dim)
+        self._lin2 = nn.Linear(input_dim, output_dim)
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+
+    def forward(self, x, samples):
+        x = F.relu(self._lin1(x))
+        x = F.softmax(self._lin2(x), dim=1)
+        return Categorical(probs=x)
+
+
 class ProposalNormal(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
@@ -131,18 +145,27 @@ class ProposalNormal(nn.Module):
         return Normal(means, stddevs)
 
 
-class ProposalCategorical(nn.Module):
-    def __init__(self, input_dim, output_dim):
+class ProposalUniform(nn.Module):
+    def __init__(self, input_dim):
         super().__init__()
         self._lin1 = nn.Linear(input_dim, input_dim)
-        self._lin2 = nn.Linear(input_dim, output_dim)
+        self._lin2 = nn.Linear(input_dim, 2)
         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
-        x = F.softmax(self._lin2(x), dim=1)
-        return Categorical(probs=x)
+        x = self._lin2(x)
+        means = x[:,0].unsqueeze(1)
+        stddevs = x[:,1].unsqueeze(1)
+        stddevs = nn.Softplus()(stddevs)
+        prior_means = torch.cat([s.distribution.mean for s in samples])
+        prior_stddevs = torch.cat([s.distribution.stddev for s in samples])
+        prior_lows = torch.cat([s.distribution.low for s in samples])
+        prior_highs = torch.cat([s.distribution.high for s in samples])
+        means = prior_means + (means * prior_stddevs)
+        stddevs = stddevs * prior_stddevs
+        return TruncatedNormal(means, stddevs, prior_lows, prior_highs)
 
 
 class InferenceNetwork(nn.Module):
@@ -261,10 +284,12 @@ class InferenceNetwork(nn.Module):
                     else:
                         raise ValueError('Unkown sample embedding: {}'.format(self._sample_embedding))
 
-                    if isinstance(distribution, Normal):
-                        proposal_layer = ProposalNormal(self._lstm_dim)
-                    elif isinstance(distribution, Categorical):
+                    if isinstance(distribution, Categorical):
                         proposal_layer = ProposalCategorical(self._lstm_dim, distribution.length)
+                    elif isinstance(distribution, Normal):
+                        proposal_layer = ProposalNormal(self._lstm_dim)
+                    elif isinstance(distribution, Uniform):
+                        proposal_layer = ProposalUniform(self._lstm_dim)
                     else:
                         raise ValueError('Unsupported distribution: {}'.format(distribution.name))
 
