@@ -211,6 +211,9 @@ class Mixture(Distribution):
         self._variance = None
         super().__init__('Mixture', '_Mixture({})'.format(', '.join([d.address_suffix for d in self._distributions])))
 
+    def __repr__(self):
+        return 'Mixture(distributions:({}), probs:{})'.format(', '.join([repr(d) for d in self._distributions]), self._probs)
+
     def __len__(self):
         return self.length
 

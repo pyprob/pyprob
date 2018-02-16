@@ -105,9 +105,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
-        print(dist_log_probs)
 
-        # print(dist.log_prob([2,2]))
         util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_log_probs', 'dist_log_probs_correct')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
