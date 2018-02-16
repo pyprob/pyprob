@@ -5,6 +5,9 @@ import torch.nn.functional as F
 import numpy as np
 import random
 import datetime
+import inspect
+from termcolor import colored
+
 
 _random_seed = 0
 def set_random_seed(seed=123):
@@ -91,8 +94,8 @@ def fast_np_random_choice(values, probs):
     return values[np.searchsorted(probs.cumsum(), random.random())]
 
 def debug(*expressions):
+    print('\n\n' + colored(inspect.stack()[1][3], 'white', attrs=['bold']))
     frame = sys._getframe(1)
-    print()
     max_str_length = 0
     for expression in expressions:
         if len(expression) > max_str_length:

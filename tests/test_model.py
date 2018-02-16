@@ -11,7 +11,7 @@ from pyprob import Model
 from pyprob.distributions import Empirical, Normal, Uniform
 
 
-class TestCase(unittest.TestCase):
+class ModelTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         # http://www.robots.ox.ac.uk/~fwood/assets/pdf/Wood-AISTATS-2014.pdf
         class GaussianWithUnknownMeanMarsaglia(Model):
@@ -72,7 +72,7 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
 
     def test_model_train_save_load(self):
-        training_traces = 500
+        training_traces = 128
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
 
         self._model.learn_inference_network(observation=[1,1], early_stop_traces=training_traces)
@@ -83,3 +83,7 @@ class TestCase(unittest.TestCase):
         util.debug('training_traces', 'file_name')
 
         self.assertTrue(True)
+
+
+if __name__ == '__main__':
+    unittest.main()

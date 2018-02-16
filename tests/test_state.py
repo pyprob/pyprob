@@ -5,7 +5,7 @@ from pyprob import state
 from pyprob import util
 
 
-class TestCase(unittest.TestCase):
+class StateTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self._root_function_name = self.test_address.__code__.co_name
         super().__init__(*args, **kwargs)
@@ -19,3 +19,7 @@ class TestCase(unittest.TestCase):
         address_correct = '4/test_address.address'
         util.debug('address', 'address_correct')
         self.assertEqual(address, address_correct)
+
+
+if __name__ == '__main__':
+    unittest.main()

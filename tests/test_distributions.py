@@ -7,7 +7,7 @@ from pyprob import util
 from pyprob.distributions import Categorical, Empirical, Normal, TruncatedNormal, Uniform
 
 
-class TestCase(unittest.TestCase):
+class DistributionsTestCase(unittest.TestCase):
     def test_dist_empirical(self):
         values = Variable(util.Tensor([1,2,3]))
         log_weights = Variable(util.Tensor([1,2,3]))
@@ -111,3 +111,7 @@ class TestCase(unittest.TestCase):
         util.debug('dist_log_prob', 'dist_log_prob_correct')
 
         self.assertAlmostEqual(dist_log_prob, dist_log_prob_correct, places=1)
+
+
+if __name__ == '__main__':
+    unittest.main()
