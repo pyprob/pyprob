@@ -2,7 +2,6 @@ import torch
 from torch.autograd import Variable
 import torch.distributions
 import numpy as np
-from scipy.misc import logsumexp
 import collections
 import math
 
@@ -45,7 +44,10 @@ class Distribution(object):
     @property
     def variance(self):
         if self._torch_dist is not None:
-            return self._torch_dist.variance
+            try:
+                return self._torch_dist.variance
+            except AttributeError: # This is because of the changing nature of PyTorch distributions. Should be removed when PyTorch stabilizes.
+                return self._torch_dist.std.pow(2)
         else:
             raise NotImplementedError()
 
@@ -73,7 +75,7 @@ class Empirical(Distribution):
             if isinstance(values[0], Variable) or torch.is_tensor(values[0]):
                 values = util.to_variable(values)
         log_weights = log_weights.view(-1)
-        weights = torch.exp(log_weights - util.logsumexp(log_weights))
+        weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
         distribution = collections.defaultdict(float)
         # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
         if combine_duplicates:
@@ -169,7 +171,11 @@ class Empirical(Distribution):
 class Categorical(Distribution):
     def __init__(self, probs):
         self._probs = util.to_variable(probs)
-        self.length = self._probs.nelement()
+        self._probs = self._probs / self._probs.sum(-1, keepdim=True)
+        if self._probs.dim() == 1:
+            self.length = self._probs.size(0)
+        elif self._probs.dim() == 2:
+            self.length = self._probs.size(1)
         super().__init__('Categorical', '_Categorical(size:{})'.format(self.length), torch.distributions.Categorical(probs=self._probs))
 
     def __repr__(self):
@@ -182,6 +188,67 @@ class Categorical(Distribution):
         value = util.to_variable(value)
         value = util.to_variable(value).view(-1).long()
         return self._torch_dist.log_prob(value)
+
+
+class Mixture(Distribution):
+    def __init__(self, distributions, probs=None):
+        self._distributions = distributions
+        self.length = len(distributions)
+        if probs is None:
+            self._probs = util.to_variable(torch.zeros(self.length).fill_(1/self.length))
+        else:
+            self._probs = util.to_variable(probs)
+            self._probs = self._probs / self._probs.sum(-1, keepdim=True)
+
+        if self._probs.dim() == 1:
+            self._batch_length = 1
+        elif self._probs.dim() == 2:
+            self._batch_length = self._probs.size(0)
+        else:
+            raise ValueError('Expecting 1d or 2d (batched) probabilities.')
+        self._mixing_dist = Categorical(self._probs)
+        self._mean = None
+        self._variance = None
+        super().__init__('Mixture', '_Mixture({})'.format(', '.join([d.address_suffix for d in self._distributions])))
+
+    def __len__(self):
+        return self.length
+
+    def log_prob(self, value):
+        value = util.to_variable(value)
+        return util.log_sum_exp(torch.log(self._probs) + util.to_variable([d.log_prob(value) for d in self._distributions]).t()).squeeze(-1)
+
+    def sample(self):
+        if self._batch_length == 1:
+            i = int(self._mixing_dist.sample())
+            return self._distributions[i].sample()
+        else:
+            indices = self._mixing_dist.sample()
+            ret = []
+            for b in range(self._batch_length):
+                i = int(indices[b])
+                ret.append(self._distributions[i].sample()[b])
+            return util.to_variable(ret).squeeze(-1)
+
+    @property
+    def mean(self):
+        if self._mean is None:
+            means = util.to_variable([d.mean for d in self._distributions])
+            if self._batch_length == 1:
+                self._mean = torch.dot(self._probs, means)
+            else:
+                self._mean = torch.diag(torch.mm(self._probs, means))
+        return self._mean
+
+    @property
+    def variance(self):
+        if self._variance is None:
+            variances = util.to_variable([(d.mean - self.mean).pow(2) + d.variance for d in self._distributions])
+            if self._batch_length == 1:
+                self._variance = torch.dot(self._probs, variances)
+            else:
+                self._variance = torch.diag(torch.mm(self._probs, variances))
+        return self._variance
 
 
 class Normal(Distribution):

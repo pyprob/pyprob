@@ -76,17 +76,16 @@ def to_numpy(value):
         except:
             raise TypeError('Cannot convert to Numpy array.')
 
-def logsumexp(x, dim=0):
-    '''
-    https://en.wikipedia.org/wiki/LogSumExp
-    input:
-        x: Tensor/Variable [dim_1 * dim_2 * ... * dim_N]
-        dim: n
-    output: Tensor/Variable [dim_1 * ... * dim_{n - 1} * 1 * dim_{n + 1} * ... * dim_N]
-    '''
-    x_max, _ = x.max(dim)
-    x_diff = x - x_max.expand_as(x)
-    return x_max + x_diff.exp().sum(dim).log()
+def log_sum_exp(tensor, keepdim=True):
+    r"""
+    Numerically stable implementation for the `LogSumExp` operation. The
+    summing is done along the last dimension.
+    Args:
+        tensor (torch.Tensor or torch.autograd.Variable)
+        keepdim (Boolean): Whether to retain the last dimension on summing.
+    """
+    max_val = tensor.max(dim=-1, keepdim=True)[0]
+    return max_val + (tensor - max_val).exp().sum(dim=-1, keepdim=keepdim).log()
 
 def fast_np_random_choice(values, probs):
     # See https://mobile.twitter.com/RadimRehurek/status/928671225861296128
@@ -101,7 +100,10 @@ def debug(*expressions):
         if len(expression) > max_str_length:
             max_str_length = len(expression)
     for expression in expressions:
-        print('  {} = {}'.format(expression.ljust(max_str_length), repr(eval(expression, frame.f_globals, frame.f_locals))))
+        val = eval(expression, frame.f_globals, frame.f_locals)
+        if isinstance(val, np.ndarray):
+            val = val.tolist()
+        print('  {} = {}'.format(expression.ljust(max_str_length), repr(val)))
 
 def pack_observes_to_variable(observes):
     try:
