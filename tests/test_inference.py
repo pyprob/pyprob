@@ -240,8 +240,8 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         pyprob.set_cuda(True)
     tests = []
-    # tests.append('GaussianWithUnknownMeanTestCase')
-    # tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
+    tests.append('GaussianWithUnknownMeanTestCase')
+    tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
     tests.append('HiddenMarkovModelTestCase')
 
     time_start = time.time()
