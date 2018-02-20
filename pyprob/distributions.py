@@ -218,7 +218,7 @@ class Mixture(Distribution):
         return self.length
 
     def log_prob(self, value):
-        value = util.to_variable(value)
+        value = util.to_variable(value).view(self._batch_length)
         return util.log_sum_exp(torch.log(self._probs) + util.to_variable([d.log_prob(value) for d in self._distributions]).t()).squeeze(-1)
 
     def sample(self):
@@ -290,6 +290,9 @@ class TruncatedNormal(Distribution):
         self._mean = None
         self._variance = None
         super().__init__('TruncatedNormal', '_TruncatedNormal')
+
+    def __repr__(self):
+        return 'TruncatedNormal(mean_non_truncated:{}, stddev_non_truncated:{}, low:{}, high:{})'.format(self._mean_non_truncated, self._stddev_non_truncated, self._low, self._high)
 
     def log_prob(self, value):
         value = util.to_variable(value)

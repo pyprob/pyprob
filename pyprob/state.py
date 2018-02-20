@@ -6,15 +6,17 @@ from .trace import Sample, Trace
 
 
 class TraceState(enum.Enum):
-    NONE = 0 # No trace recording, forward sample
-    RECORD = 1 # Record traces, importance sampling with prior
-    RECORD_LEARN_PROPOSAL = 2 # Record traces, training data generation for inference network, interpret 'observe' as 'sample' (inference compilation training)
-    RECORD_USE_PROPOSAL = 3 # Record traces, importance sampling with proposals (inference compilation inference)
+    NONE = 0  # No trace recording, forward sample
+    RECORD = 1  # Record traces, importance sampling with prior
+    RECORD_LEARN_PROPOSAL = 2  # Record traces, training data generation for inference network, interpret 'observe' as 'sample' (inference compilation training)
+    RECORD_USE_PROPOSAL = 3  # Record traces, importance sampling with proposals (inference compilation inference)
+
 
 _trace_state = TraceState.NONE
 _current_trace = None
 _current_trace_root_function_name = None
 _current_trace_inference_network = None
+
 
 def extract_address(root_function_name):
     # tb = traceback.extract_stack()
@@ -72,9 +74,10 @@ def _extract_target_of_assignment():
     else:
         return None
 
-def sample(distribution, controlled=True):
+
+def sample(distribution, control=True, record_last_only=False, address=None):
     value = distribution.sample()
-    if controlled and (_trace_state != TraceState.NONE):
+    if control and (_trace_state != TraceState.NONE):
         global _current_trace
         address = extract_address(_current_trace_root_function_name)
         current_sample = Sample(address, distribution, value)
@@ -92,6 +95,7 @@ def sample(distribution, controlled=True):
         # _current_trace.add_log_prob()
     return value
 
+
 def observe(distribution, value):
     if _trace_state != TraceState.NONE:
         global _current_trace
@@ -100,6 +104,7 @@ def observe(distribution, value):
         _current_trace.add_observe(value)
         _current_trace.add_log_prob(distribution.log_prob(value))
     return
+
 
 def begin_trace(func, trace_state=TraceState.RECORD, inference_network=None):
     global _trace_state
@@ -112,6 +117,7 @@ def begin_trace(func, trace_state=TraceState.RECORD, inference_network=None):
     _current_trace_inference_network = inference_network
     if (trace_state == TraceState.RECORD_USE_PROPOSAL) and (inference_network is None):
         raise ValueError('Cannot run trace with proposals without an inference network')
+
 
 def end_trace():
     global _trace_state

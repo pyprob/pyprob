@@ -1,0 +1,63 @@
+namespace PPLProtocol;
+
+union MessageBody {
+  Run,
+  RunResult,
+  Sample,
+  SampleResult,
+  Observe,
+  ObserveResult
+}
+
+table Message {
+  body: MessageBody;
+}
+
+table ProtocolTensor {
+  data: [double];
+  shape: [int];
+}
+
+union Distribution {
+  Normal,
+  Uniform
+}
+
+table Run {
+  observation: ProtocolTensor;
+}
+
+table RunResult {
+  result: ProtocolTensor;
+}
+
+table Sample {
+  address: string;
+  distribution: Distribution;
+  control: bool = true;
+  record_last_only: bool = false;
+}
+
+table SampleResult {
+  result: ProtocolTensor;
+}
+
+table Observe {
+  distribution: Distribution;
+  value: ProtocolTensor;
+}
+
+table ObserveResult {}
+
+table Normal {
+  mean: double;
+  stddev: double;
+}
+
+table Uniform {
+  low: double;
+  high: double;
+}
+
+root_type Message;
+file_identifier "PPLP";

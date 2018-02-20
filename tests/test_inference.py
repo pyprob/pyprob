@@ -12,8 +12,8 @@ from pyprob import Model
 from pyprob.distributions import Categorical, Empirical, Normal, Uniform
 
 
-samples = 5000
-training_traces = 10000
+samples = 1000
+training_traces = 5000
 perf_score_importance_sampling = 0
 perf_score_inference_compilation = 0
 
@@ -156,9 +156,6 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
 
 class HiddenMarkovModelTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        if torch.cuda.is_available():
-            pyprob.set_cuda(True)
-
         # http://www.robots.ox.ac.uk/~fwood/assets/pdf/Wood-AISTATS-2014.pdf
         class HiddenMarkovModel(Model):
             def __init__(self, init_dist, trans_dists, obs_dists):
@@ -216,7 +213,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
 
-        self.assertLess(l2_distance, 3)
+        self.assertLess(l2_distance, 4)
         add_perf_score_importance_sampling(l2_distance)
 
     def test_inference_hmm_posterior_inference_compilation(self):
@@ -232,13 +229,13 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
 
-        self.assertLess(l2_distance, 2)
+        self.assertLess(l2_distance, 4)
         add_perf_score_inference_compilation(l2_distance)
 
 
 if __name__ == '__main__':
-    if torch.cuda.is_available():
-        pyprob.set_cuda(True)
+    # if torch.cuda.is_available():
+        # pyprob.set_cuda(True)
     tests = []
     tests.append('GaussianWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanMarsagliaTestCase')

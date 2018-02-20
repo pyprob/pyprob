@@ -4,10 +4,12 @@ from setuptools import setup, find_packages
 PACKAGE_NAME = 'pyprob'
 MINIMUM_PYTHON_VERSION = 3, 5
 
+
 def check_python_version():
     """Exit when the Python version is too low."""
     if sys.version_info < MINIMUM_PYTHON_VERSION:
         sys.exit("Python {}.{}+ is required.".format(*MINIMUM_PYTHON_VERSION))
+
 
 def read_package_variable(key):
     """Read the value of a variable from the package without importing."""
@@ -19,6 +21,7 @@ def read_package_variable(key):
                 return parts[-1].strip("'")
     assert 0, "'{0}' not found in '{1}'".format(key, module_path)
 
+
 check_python_version()
 setup(
     name='pyprob',
@@ -27,7 +30,7 @@ setup(
     author='Tuan-Anh Le and Atilim Gunes Baydin',
     author_email='gunes@robots.ox.ac.uk',
     packages=find_packages(),
-    install_requires=['torch', 'torchvision', 'numpy', 'termcolor==1.1.0', 'pyzmq==16.0.2', 'flatbuffers==2015.12.22.1', 'visdom==0.1.04', 'matplotlib==2.0.0', 'py-cpuinfo==3.2.0', 'pylatex==1.2.1', 'pydotplus==2.0.2', 'seaborn==0.7.1'],
+    install_requires=['torch', 'torchvision', 'numpy', 'termcolor==1.1.0', 'pyzmq==17.0.0', 'physiq-flatbuffers==20180219104401'],
     url='https://github.com/probprog/pyprob',
     classifiers=['Development Status :: 4 - Beta', 'License :: OSI Approved :: MIT License', 'Programming Language :: Python :: 3.5'],
     license='MIT',

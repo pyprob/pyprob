@@ -67,7 +67,7 @@ def to_numpy(value):
     if isinstance(value, Variable):
         return value.data.cpu().numpy()
     elif torch.is_tensor(value):
-        value.cpu().numpy()
+        return value.cpu().numpy()
     elif isinstance(value, np.ndarray):
         return value
     else:

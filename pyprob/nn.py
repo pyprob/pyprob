@@ -11,7 +11,7 @@ from threading import Thread
 import time
 
 from . import util, __version__
-from .distributions import Categorical, Normal, TruncatedNormal, Uniform
+from .distributions import Categorical, Mixture, Normal, TruncatedNormal, Uniform
 
 
 class ObserveEmbedding(enum.Enum):
@@ -158,7 +158,7 @@ class ProposalUniform(nn.Module):
         x = self._lin2(x)
         means = x[:,0].unsqueeze(1)
         stddevs = x[:,1].unsqueeze(1)
-        stddevs = nn.Softplus()(stddevs)
+        stddevs = F.softplus(stddevs)
         prior_means = torch.cat([s.distribution.mean for s in samples])
         prior_stddevs = torch.cat([s.distribution.stddev for s in samples])
         prior_lows = torch.cat([s.distribution.low for s in samples])
@@ -166,6 +166,35 @@ class ProposalUniform(nn.Module):
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
         return TruncatedNormal(means, stddevs, prior_lows, prior_highs)
+
+
+class ProposalUniformMixture(nn.Module):
+    def __init__(self, input_dim, mixture_components=5):
+        super().__init__()
+        self._mixture_components = mixture_components
+        self._lin1 = nn.Linear(input_dim, input_dim)
+        self._lin2 = nn.Linear(input_dim, 3 * self._mixture_components)
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+
+    def forward(self, x, samples):
+        x = F.relu(self._lin1(x))
+        x = self._lin2(x)
+        means = x[:,0:self._mixture_components]
+        stddevs = x[:,self._mixture_components:2*self._mixture_components]
+        coeffs = x[:,2*self._mixture_components:3*self._mixture_components]
+        stddevs = F.softplus(stddevs)
+        coeffs = F.softmax(coeffs, dim=1)
+        prior_means = torch.cat([s.distribution.mean for s in samples])
+        prior_stddevs = torch.cat([s.distribution.stddev for s in samples])
+        prior_lows = torch.cat([s.distribution.low for s in samples])
+        prior_highs = torch.cat([s.distribution.high for s in samples])
+        prior_means = prior_means.unsqueeze(1).expand_as(means)
+        prior_stddevs = prior_stddevs.unsqueeze(1).expand_as(means)
+        means = prior_means + (means * prior_stddevs)
+        stddevs = stddevs * prior_stddevs
+        distributions = [TruncatedNormal(means[:,i], stddevs[:,i], prior_lows, prior_highs) for i in range(self._mixture_components)]
+        return Mixture(distributions, coeffs)
 
 
 class InferenceNetwork(nn.Module):
@@ -474,6 +503,7 @@ class InferenceNetwork(nn.Module):
         prev_total_training_seconds = self._total_training_seconds
         time_start = time.time()
         time_loss_min = time.time()
+        time_last_batch = time.time()
         iteration = 0
         trace = 0
         loss_initial = None
@@ -481,11 +511,9 @@ class InferenceNetwork(nn.Module):
         loss_max = None
         loss_prev = float('inf')
         stop = False
-        print('Train. time | Trace     | Init. loss | Max. loss  | Min. loss  | Curr. loss | T.since min')
+        print('Train. time | Trace     | Init. loss | Max. loss  | Min. loss  | Curr. loss | T.since min | Traces/sec')
         while not stop:
             iteration += 1
-            self._total_training_seconds = prev_total_training_seconds + (time.time() - time_start)
-            total_training_seconds_str = util.days_hours_mins_secs_str(self._total_training_seconds)
             batch = new_batch_func()
             self.polymorph(batch)
             success, loss = self.loss(batch, optimizer)
@@ -523,11 +551,15 @@ class InferenceNetwork(nn.Module):
                 trace += batch.length
                 self._total_training_traces += batch.length
                 total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_training_traces))
+                self._total_training_seconds = prev_total_training_seconds + (time.time() - time_start)
+                total_training_seconds_str = util.days_hours_mins_secs_str(self._total_training_seconds)
+                traces_per_second_str = '{:,}'.format(int(batch.length / (time.time() - time_last_batch)))
+                time_last_batch = time.time()
                 if early_stop_traces != -1:
                     if trace >= early_stop_traces:
                         stop = True
 
-                print('{} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_max_str, loss_min_str, loss_str, time_since_loss_min_str), end='\r')
+                print('{} | {} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_max_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str), end='\r')
         print()
 
     def save(self, file_name):
