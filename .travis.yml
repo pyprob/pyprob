@@ -16,19 +16,22 @@ python:
     - '3.6'
 
 before_install:
-    - wget https://github.com/zeromq/libzmq/releases/download/v4.2.3/zeromq-4.2.3.tar.gz
-    - tar -xvf zeromq-4.2.3.tar.gz
-    - cd zeromq-4.2.3
-    - ./autogen.sh
-    - ./configure && make check
-    - sudo make install
-    - sudo ldconfig
-    - cd ..
+    - sudo apt-get install -y libtool pkg-config build-essential autoconf automake uuid-dev
+    - sudo apt-get install -y checkinstall
     - pip install http://download.pytorch.org/whl/cpu/torch-0.3.1-cp36-cp36m-linux_x86_64.whl
     - pip install torchvision
 
 install:
     - pip install .
+
+before_script:
+    - wget https://github.com/zeromq/libzmq/releases/download/v4.2.3/zeromq-4.2.3.tar.gz
+    - tar -xvf zeromq-4.2.3.tar.gz
+    - cd zeromq-4.2.3
+    - ./configure && make
+    - sudo make install
+    - sudo ldconfig
+    - cd ..
 
 script:
     - cd tests
