@@ -1,4 +1,4 @@
-from .util import __version__
+__version__ = '0.10.0.dev11'
 
 from .util import set_random_seed
 from .util import set_cuda

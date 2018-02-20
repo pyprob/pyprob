@@ -3,8 +3,7 @@ import zmq
 import flatbuffers
 from termcolor import colored
 
-from . import util
-from . import state
+from . import util, state, __version__
 from .distributions import Uniform, Normal
 from .PPLProtocol import Message as PPLProtocol_Message
 from .PPLProtocol import MessageBody as PPLProtocol_MessageBody
@@ -55,7 +54,7 @@ class ModelServer(object):
     def __init__(self, server_address):
         self._requester = Requester(server_address)
         self.system_name, self.model_name = self._handshake()
-        print('Protocol (Python): this system        : {}'.format(colored('pyprob {}'.format(util.__version__), 'green')))
+        print('Protocol (Python): this system        : {}'.format(colored('pyprob {}'.format(__version__), 'green')))
         print('Protocol (Python): connected to system: {}'.format(colored(self.system_name, 'green')))
         print('Protocol (Python): model name         : {}'.format(colored(self.model_name, 'green', attrs=['bold'])))
 
@@ -122,7 +121,7 @@ class ModelServer(object):
     def _handshake(self):
         builder = flatbuffers.Builder(64)
         # consturct MessageBody
-        system_name = builder.CreateString('pyprob {}'.format(util.__version__))
+        system_name = builder.CreateString('pyprob {}'.format(__version__))
         PPLProtocol_Handshake.HandshakeStart(builder)
         PPLProtocol_Handshake.HandshakeAddSystemName(builder, system_name)
         message_body = PPLProtocol_Handshake.HandshakeEnd(builder)

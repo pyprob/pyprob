@@ -23,7 +23,8 @@ install:
     - pip install .
 
 script:
-    - travis_wait cd tests && sh run_all.sh
+    - cd tests
+    - travis_wait sh run_all.sh
 
 after_success:
     - if [[ "$TRAVIS_BRANCH" == "master" ]] || [[ "$TRAVIS_BRANCH" == "0.10.0" ]]; then
