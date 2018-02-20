@@ -1,8 +1,8 @@
-__version__ = '0.10.0.dev11'
+from .util import __version__
 
 from .util import set_random_seed
 from .util import set_cuda
-from .model import Model
+from .model import Model, ModelRemote
 from .state import sample, observe
 
 del util

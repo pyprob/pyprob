@@ -8,6 +8,7 @@ import datetime
 import inspect
 from termcolor import colored
 
+__version__ = '0.10.0.dev11'
 
 _random_seed = 0
 def set_random_seed(seed=123):

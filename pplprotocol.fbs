@@ -1,6 +1,8 @@
 namespace PPLProtocol;
 
 union MessageBody {
+  Handshake,
+  HandshakeResult,
   Run,
   RunResult,
   Sample,
@@ -21,6 +23,15 @@ table ProtocolTensor {
 union Distribution {
   Normal,
   Uniform
+}
+
+table Handshake {
+  system_name: string;
+}
+
+table HandshakeResult {
+  system_name: string;
+  model_name: string;
 }
 
 table Run {

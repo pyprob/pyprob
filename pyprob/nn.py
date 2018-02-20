@@ -38,7 +38,7 @@ class Batch(object):
             if trace.observes_variable.size(0) > self.observes_max_length:
                 self.observes_max_length = trace.observes_variable.size(0)
             h = hash(trace.addresses_suffixed())
-            if not h in sb:
+            if h not in sb:
                 sb[h] = []
             sb[h].append(trace)
         self.sub_batches = []
@@ -232,7 +232,7 @@ class InferenceNetwork(nn.Module):
 
         self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
         self._lstm = nn.LSTM(self._lstm_input_dim, self._lstm_dim, self._lstm_depth)
-        example_observes = self._valid_batch[0].observes_variable # To do: we need to check that all the observes in the batch, to be more intelligent
+        example_observes = self._valid_batch[0].observes_variable # To do: we need to check all the observes in the batch, to be more intelligent
         if self._observe_embedding == ObserveEmbedding.FULLY_CONNECTED:
             self._observe_embedding_layer = ObserveEmbeddingFC(example_observes, self._observe_embedding_dim)
         else:

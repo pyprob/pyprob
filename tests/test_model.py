@@ -8,7 +8,7 @@ import os
 import pyprob
 from pyprob import util
 from pyprob import Model
-from pyprob.distributions import Empirical, Normal, Uniform
+from pyprob.distributions import Normal, Uniform
 
 
 class ModelTestCase(unittest.TestCase):
@@ -19,7 +19,7 @@ class ModelTestCase(unittest.TestCase):
                 self.prior_mean = prior_mean
                 self.prior_stddev = prior_stddev
                 self.likelihood_stddev = likelihood_stddev
-                super().__init__('GaussianWithUnknownMeanMarsaglia')
+                super().__init__('Gaussian with unknown mean (Marsaglia)')
 
             def marsaglia(self, mean, stddev):
                 uniform = Uniform(-1, 1)
@@ -75,7 +75,7 @@ class ModelTestCase(unittest.TestCase):
         training_traces = 128
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
 
-        self._model.learn_inference_network(observation=[1,1], early_stop_traces=training_traces)
+        self._model.learn_inference_network(observation=[1, 1], early_stop_traces=training_traces)
         self._model.save_inference_network(file_name)
         self._model.load_inference_network(file_name)
         os.remove(file_name)

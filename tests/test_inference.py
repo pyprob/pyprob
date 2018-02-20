@@ -33,7 +33,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
                 self.prior_mean = prior_mean
                 self.prior_stddev = prior_stddev
                 self.likelihood_stddev = likelihood_stddev
-                super().__init__('GaussianWithUnknownMean')
+                super().__init__('Gaussian with unknown mean')
 
             def forward(self, observation=[]):
                 mu = pyprob.sample(Normal(self.prior_mean, self.prior_stddev))
@@ -93,7 +93,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
                 self.prior_mean = prior_mean
                 self.prior_stddev = prior_stddev
                 self.likelihood_stddev = likelihood_stddev
-                super().__init__('GaussianWithUnknownMeanMarsaglia')
+                super().__init__('Gaussian with unknown mean (Marsaglia)')
 
             def marsaglia(self, mean, stddev):
                 uniform = Uniform(-1, 1)
@@ -162,7 +162,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
                 self.init_dist = init_dist
                 self.trans_dists = trans_dists
                 self.obs_dists = obs_dists
-                super().__init__('HiddenMarkovModel')
+                super().__init__('Hidden Markov model')
 
             def forward(self, observation=[]):
                 states = [pyprob.sample(init_dist)]

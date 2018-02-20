@@ -5,6 +5,8 @@ from .distributions import Empirical
 from . import state, util
 from .state import TraceState
 from .nn import ObserveEmbedding, SampleEmbedding, Batch, InferenceNetwork
+from .remote import ModelServer
+
 
 class Model(nn.Module):
     def __init__(self, name='Unnamed pyprob model'):
@@ -100,3 +102,25 @@ class Model(nn.Module):
         traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return max(trace_length_dist.values_numpy)
+
+
+class ModelRemote(Model):
+    def __init__(self, server_address='tcp://127.0.0.1:5555'):
+        self._server_address = server_address
+        self._model_server = ModelServer(server_address)
+        super().__init__('{} running on {}'.format(self._model_server.model_name, self._model_server.system_name))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.close()
+
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        self._model_server.close()
+
+    def forward(self, observation=None):
+        return self._model_server.forward(observation)

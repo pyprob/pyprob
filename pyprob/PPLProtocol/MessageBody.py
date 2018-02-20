@@ -4,10 +4,12 @@
 
 class MessageBody(object):
     NONE = 0
-    Run = 1
-    RunResult = 2
-    Sample = 3
-    SampleResult = 4
-    Observe = 5
-    ObserveResult = 6
+    Handshake = 1
+    HandshakeResult = 2
+    Run = 3
+    RunResult = 4
+    Sample = 5
+    SampleResult = 6
+    Observe = 7
+    ObserveResult = 8
 

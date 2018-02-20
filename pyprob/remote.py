@@ -1,6 +1,7 @@
 import torch
 import zmq
 import flatbuffers
+from termcolor import colored
 
 from . import util
 from . import state
@@ -11,6 +12,8 @@ from .PPLProtocol import ProtocolTensor as PPLProtocol_ProtocolTensor
 from .PPLProtocol import Distribution as PPLProtocol_Distribution
 from .PPLProtocol import Uniform as PPLProtocol_Uniform
 from .PPLProtocol import Normal as PPLProtocol_Normal
+from .PPLProtocol import Handshake as PPLProtocol_Handshake
+from .PPLProtocol import HandshakeResult as PPLProtocol_HandshakeResult
 from .PPLProtocol import Run as PPLProtocol_Run
 from .PPLProtocol import RunResult as PPLProtocol_RunResult
 from .PPLProtocol import Sample as PPLProtocol_Sample
@@ -24,7 +27,7 @@ class Requester(object):
         self._context = zmq.Context()
         self._socket = self._context.socket(zmq.REQ)
         self._socket.connect(server_address)
-        print('Protocol: zmq.REQ socket connected to server {}'.format(server_address))
+        print('Protocol (Python): zmq.REQ socket connected to server {}'.format(server_address))
 
     def __enter__(self):
         return self
@@ -39,7 +42,7 @@ class Requester(object):
         if not self._socket.closed:
             self._socket.close()
             self._context.term()
-            print('Protocol: zmq.REQ socket disconnected')
+            print('Protocol (Python): zmq.REQ socket disconnected')
 
     def send_request(self, request):
         self._socket.send(request)
@@ -51,14 +54,21 @@ class Requester(object):
 class ModelServer(object):
     def __init__(self, server_address):
         self._requester = Requester(server_address)
+        self.system_name, self.model_name = self._handshake()
+        print('Protocol (Python): this system        : {}'.format(colored('pyprob {}'.format(util.__version__), 'green')))
+        print('Protocol (Python): connected to system: {}'.format(colored(self.system_name, 'green')))
+        print('Protocol (Python): model name         : {}'.format(colored(self.model_name, 'green', attrs=['bold'])))
 
     def __enter__(self):
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
-        self._requester.close()
+        self.close()
 
     def __del__(self):
+        self.close()
+
+    def close(self):
         self._requester.close()
 
     def _protocol_tensor_to_variable(self, protocol_tensor):
@@ -70,6 +80,8 @@ class ModelServer(object):
         return util.to_variable(t)
 
     def _variable_to_protocol_tensor(self, builder, variable):
+        if variable is None:
+            variable = util.to_variable(torch.zeros(0))
         variable_numpy = util.to_numpy(variable)
         data = variable_numpy.flatten().tolist()
         shape = list(variable_numpy.shape)
@@ -94,7 +106,9 @@ class ModelServer(object):
     def _get_message_body(self, message_buffer):
         message = PPLProtocol_Message.Message.GetRootAsMessage(message_buffer, 0)
         body_type = message.BodyType()
-        if body_type == PPLProtocol_MessageBody.MessageBody().RunResult:
+        if body_type == PPLProtocol_MessageBody.MessageBody().HandshakeResult:
+            message_body = PPLProtocol_HandshakeResult.HandshakeResult()
+        elif body_type == PPLProtocol_MessageBody.MessageBody().RunResult:
             message_body = PPLProtocol_RunResult.RunResult()
         elif body_type == PPLProtocol_MessageBody.MessageBody().Sample:
             message_body = PPLProtocol_Sample.Sample()
@@ -104,6 +118,33 @@ class ModelServer(object):
             raise RuntimeError('Received unexpected message body type: {}'.format(body_type))
         message_body.Init(message.Body().Bytes, message.Body().Pos)
         return message_body
+
+    def _handshake(self):
+        builder = flatbuffers.Builder(64)
+        # consturct MessageBody
+        system_name = builder.CreateString('pyprob {}'.format(util.__version__))
+        PPLProtocol_Handshake.HandshakeStart(builder)
+        PPLProtocol_Handshake.HandshakeAddSystemName(builder, system_name)
+        message_body = PPLProtocol_Handshake.HandshakeEnd(builder)
+
+        # construct Message
+        PPLProtocol_Message.MessageStart(builder)
+        PPLProtocol_Message.MessageAddBodyType(builder, PPLProtocol_MessageBody.MessageBody().Handshake)
+        PPLProtocol_Message.MessageAddBody(builder, message_body)
+        message = PPLProtocol_Message.MessageEnd(builder)
+        builder.Finish(message)
+
+        message = builder.Output()
+        self._requester.send_request(message)
+
+        reply = self._requester.receive_reply()
+        message_body = self._get_message_body(reply)
+        if isinstance(message_body, PPLProtocol_HandshakeResult.HandshakeResult):
+            system_name = message_body.SystemName().decode('utf-8')
+            model_name = message_body.ModelName().decode('utf-8')
+            return system_name, model_name
+        else:
+            raise RuntimeError('Unexpected resply to handshake.')
 
     def forward(self, observation):
         builder = flatbuffers.Builder(64)
@@ -134,7 +175,7 @@ class ModelServer(object):
                 result = self._protocol_tensor_to_variable(message_body.Result())
                 return result
             elif isinstance(message_body, PPLProtocol_Sample.Sample):
-                address = message_body.Address().decode("utf-8")
+                address = message_body.Address().decode('utf-8')
                 control = bool(message_body.Control())
                 record_last_only = bool(message_body.RecordLastOnly())
                 distribution_type = message_body.DistributionType()
