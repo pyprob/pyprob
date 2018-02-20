@@ -23,6 +23,7 @@ before_install:
     - ./configure && make check
     - sudo make install
     - sudo ldconfig
+    - cd ..
     - pip install http://download.pytorch.org/whl/cpu/torch-0.3.1-cp36-cp36m-linux_x86_64.whl
     - pip install torchvision
 
@@ -31,7 +32,7 @@ install:
 
 script:
     - cd tests
-    - travis_wait sh run_all.sh
+    - travis_wait sh run_basic.sh
 
 after_success:
     - if [[ "$TRAVIS_BRANCH" == "master" ]] || [[ "$TRAVIS_BRANCH" == "0.10.0" ]]; then
