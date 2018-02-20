@@ -265,7 +265,7 @@ class InferenceNetwork(nn.Module):
 
     def _add_address(self, address):
         if not address in self._address_embeddings:
-            print('Polymorphing, new address: {}'.format(address))
+            # print('Polymorphing, new address: {}'.format(address))
             i = len(self._address_embeddings)
             if i < self._address_embedding_dim:
                 t = util.one_hot(self._address_embedding_dim, i)
@@ -276,7 +276,7 @@ class InferenceNetwork(nn.Module):
 
     def _add_distribution_type(self, distribution_type):
         if not distribution_type in self._distribution_type_embeddings:
-            print('Polymorphing, new distribution type: {}'.format(distribution_type))
+            # print('Polymorphing, new distribution type: {}'.format(distribution_type))
             i = len(self._distribution_type_embeddings)
             if i < self._distribution_type_embedding_dim:
                 t = util.one_hot(self._distribution_type_embedding_dim, i)

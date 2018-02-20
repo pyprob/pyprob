@@ -3,6 +3,7 @@ FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
 ENV PYTHON_VERSION=3.6
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        libzmq3-dev \
         curl \
         ca-certificates &&\
     rm -rf /var/lib/apt/lists/*
