@@ -176,7 +176,7 @@ class ModelServer(object):
             elif isinstance(message_body, PPLProtocol_Sample.Sample):
                 address = message_body.Address().decode('utf-8')
                 control = bool(message_body.Control())
-                record_last_only = bool(message_body.RecordLastOnly())
+                replace = bool(message_body.Replace())
                 distribution_type = message_body.DistributionType()
                 if distribution_type == PPLProtocol_Distribution.Distribution().Uniform:
                     uniform = PPLProtocol_Uniform.Uniform()
@@ -192,7 +192,7 @@ class ModelServer(object):
                     dist = Normal(mean, stddev)
                 else:
                     raise RuntimeError('Sample from an unexpected distribution requested.')
-                result = state.sample(dist, control, record_last_only, address)
+                result = state.sample(dist, control, replace, address)
                 builder = flatbuffers.Builder(64)
                 result = self._variable_to_protocol_tensor(builder, result)
                 PPLProtocol_SampleResult.SampleResultStart(builder)

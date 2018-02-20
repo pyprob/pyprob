@@ -75,13 +75,14 @@ def _extract_target_of_assignment():
         return None
 
 
-def sample(distribution, control=True, record_last_only=False, address=None):
+def sample(distribution, control=True, replace=False, address=None):
     value = distribution.sample()
     if control and (_trace_state != TraceState.NONE):
         global _current_trace
         if address is None:
             address = extract_address(_current_trace_root_function_name)
         current_sample = Sample(address, distribution, value)
+        log_prob = 0
         if _trace_state == TraceState.RECORD_USE_INFERENCE_NETWORK:
             previous_sample = None
             if _current_trace.length > 0:
@@ -90,10 +91,9 @@ def sample(distribution, control=True, record_last_only=False, address=None):
             proposal_distribution = _current_trace_inference_network.forward_one_time_step(previous_sample, current_sample)
             value = proposal_distribution.sample()[0]
             current_sample = Sample(address, distribution, value)
-            _current_trace.add_log_prob(distribution.log_prob(value) - proposal_distribution.log_prob(value))
-        _current_trace.add_sample(current_sample)
-        # The following is not needed for default importance sampling (no learned proposals) as it cancels out
-        # _current_trace.add_log_prob()
+            log_prob = distribution.log_prob(value) - proposal_distribution.log_prob(value)
+        _current_trace.add_sample(current_sample, log_prob, replace)
+        # The log_prob of samples are not needed for default importance sampling (no learned proposals) as it cancels out
     return value
 
 
@@ -102,8 +102,7 @@ def observe(distribution, value):
         global _current_trace
         if _trace_state == TraceState.RECORD_TRAIN_INFERENCE_NETWORK:
             value = distribution.sample()
-        _current_trace.add_observe(value)
-        _current_trace.add_log_prob(distribution.log_prob(value))
+        _current_trace.add_observe(value, distribution.log_prob(value))
     return
 
 
@@ -128,6 +127,7 @@ def end_trace():
     if _trace_state == TraceState.RECORD_TRAIN_INFERENCE_NETWORK:
         _current_trace.pack_observes_to_variable()
     _trace_state = TraceState.NONE
+    _current_trace.compute_log_prob()
     ret = _current_trace
     _current_trace = None
     _current_trace_root_function_name = None

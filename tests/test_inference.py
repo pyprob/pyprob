@@ -237,9 +237,9 @@ if __name__ == '__main__':
     # if torch.cuda.is_available():
         # pyprob.set_cuda(True)
     tests = []
-    tests.append('GaussianWithUnknownMeanTestCase')
+    # tests.append('GaussianWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
-    tests.append('HiddenMarkovModelTestCase')
+    # tests.append('HiddenMarkovModelTestCase')
 
     time_start = time.time()
     success = unittest.main(defaultTest=tests, verbosity=2, exit=False).result.wasSuccessful()

@@ -46,7 +46,7 @@ table Sample {
   address: string;
   distribution: Distribution;
   control: bool = true;
-  record_last_only: bool = false;
+  replace: bool = false;
 }
 
 table SampleResult {

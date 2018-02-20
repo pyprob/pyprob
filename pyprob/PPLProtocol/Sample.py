@@ -50,7 +50,7 @@ class Sample(object):
         return 1
 
     # Sample
-    def RecordLastOnly(self):
+    def Replace(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos)
@@ -61,5 +61,5 @@ def SampleAddAddress(builder, address): builder.PrependUOffsetTRelativeSlot(0, f
 def SampleAddDistributionType(builder, distributionType): builder.PrependUint8Slot(1, distributionType, 0)
 def SampleAddDistribution(builder, distribution): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(distribution), 0)
 def SampleAddControl(builder, control): builder.PrependBoolSlot(3, control, 1)
-def SampleAddRecordLastOnly(builder, recordLastOnly): builder.PrependBoolSlot(4, recordLastOnly, 0)
+def SampleAddReplace(builder, replace): builder.PrependBoolSlot(4, replace, 0)
 def SampleEnd(builder): return builder.EndObject()
