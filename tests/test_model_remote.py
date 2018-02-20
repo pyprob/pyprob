@@ -3,14 +3,13 @@ import math
 import uuid
 import tempfile
 import os
+import signal
 import subprocess
+import traceback
 
 from pyprob import ModelRemote
 from pyprob import util
 
-
-file_path = os.path.dirname(os.path.realpath(__file__))
-subprocess.Popen([os.path.join(file_path, 'cpproblight/test_gum_marsaglia')])
 
 class ModelRemoteTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
@@ -107,4 +106,12 @@ class ModelRemoteTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    try:
+        file_path = os.path.dirname(os.path.realpath(__file__))
+        cpproblight = subprocess.Popen([os.path.join(file_path, 'cpproblight/test_gum_marsaglia')], preexec_fn=os.setsid)
+        unittest.main(verbosity=2)
+    except KeyboardInterrupt:
+        print('Stopped')
+    except Exception:
+        traceback.print_exc(file=sys.stdout)
+    os.killpg(os.getpgid(cpproblight.pid), signal.SIGTERM)

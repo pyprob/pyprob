@@ -8,8 +8,8 @@ from .trace import Sample, Trace
 class TraceState(enum.Enum):
     NONE = 0  # No trace recording, forward sample
     RECORD = 1  # Record traces, importance sampling with prior
-    RECORD_LEARN_PROPOSAL = 2  # Record traces, training data generation for inference network, interpret 'observe' as 'sample' (inference compilation training)
-    RECORD_USE_PROPOSAL = 3  # Record traces, importance sampling with proposals (inference compilation inference)
+    RECORD_TRAIN_INFERENCE_NETWORK = 2  # Record traces, training data generation for inference network, interpret 'observe' as 'sample' (inference compilation training)
+    RECORD_USE_INFERENCE_NETWORK = 3  # Record traces, importance sampling with proposals (inference compilation inference)
 
 
 _trace_state = TraceState.NONE
@@ -79,9 +79,10 @@ def sample(distribution, control=True, record_last_only=False, address=None):
     value = distribution.sample()
     if control and (_trace_state != TraceState.NONE):
         global _current_trace
-        address = extract_address(_current_trace_root_function_name)
+        if address is None:
+            address = extract_address(_current_trace_root_function_name)
         current_sample = Sample(address, distribution, value)
-        if _trace_state == TraceState.RECORD_USE_PROPOSAL:
+        if _trace_state == TraceState.RECORD_USE_INFERENCE_NETWORK:
             previous_sample = None
             if _current_trace.length > 0:
                 previous_sample = _current_trace.samples[-1]
@@ -91,7 +92,7 @@ def sample(distribution, control=True, record_last_only=False, address=None):
             current_sample = Sample(address, distribution, value)
             _current_trace.add_log_prob(distribution.log_prob(value) - proposal_distribution.log_prob(value))
         _current_trace.add_sample(current_sample)
-        # The following is not needed for default importance sampling (no learned proposal) as it cancels out
+        # The following is not needed for default importance sampling (no learned proposals) as it cancels out
         # _current_trace.add_log_prob()
     return value
 
@@ -99,7 +100,7 @@ def sample(distribution, control=True, record_last_only=False, address=None):
 def observe(distribution, value):
     if _trace_state != TraceState.NONE:
         global _current_trace
-        if _trace_state == TraceState.RECORD_LEARN_PROPOSAL:
+        if _trace_state == TraceState.RECORD_TRAIN_INFERENCE_NETWORK:
             value = distribution.sample()
         _current_trace.add_observe(value)
         _current_trace.add_log_prob(distribution.log_prob(value))
@@ -115,7 +116,7 @@ def begin_trace(func, trace_state=TraceState.RECORD, inference_network=None):
     _current_trace = Trace()
     _current_trace_root_function_name = func.__code__.co_name
     _current_trace_inference_network = inference_network
-    if (trace_state == TraceState.RECORD_USE_PROPOSAL) and (inference_network is None):
+    if (trace_state == TraceState.RECORD_USE_INFERENCE_NETWORK) and (inference_network is None):
         raise ValueError('Cannot run trace with proposals without an inference network')
 
 
@@ -124,7 +125,7 @@ def end_trace():
     global _current_trace
     global _current_trace_root_function_name
     global _current_trace_inference_network
-    if _trace_state == TraceState.RECORD_LEARN_PROPOSAL:
+    if _trace_state == TraceState.RECORD_TRAIN_INFERENCE_NETWORK:
         _current_trace.pack_observes_to_variable()
     _trace_state = TraceState.NONE
     ret = _current_trace

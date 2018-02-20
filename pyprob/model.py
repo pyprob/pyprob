@@ -19,7 +19,7 @@ class Model(nn.Module):
 
     def _prior_trace_generator(self, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs):
         while True:
-            if trace_state == TraceState.RECORD_USE_PROPOSAL:
+            if trace_state == TraceState.RECORD_USE_INFERENCE_NETWORK:
                 self._inference_network.new_trace(util.pack_observes_to_variable(kwargs['observation']).unsqueeze(0))
             state.begin_trace(self.forward, trace_state, proposal_network)
             res = self.forward(*args, **kwargs)
@@ -49,7 +49,7 @@ class Model(nn.Module):
             use_inference_network = False
         if use_inference_network:
             self._inference_network.eval()
-            traces = self._prior_traces(samples, trace_state=TraceState.RECORD_USE_PROPOSAL, proposal_network=self._inference_network, *args, **kwargs)
+            traces = self._prior_traces(samples, trace_state=TraceState.RECORD_USE_INFERENCE_NETWORK, proposal_network=self._inference_network, *args, **kwargs)
         else:
             traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
         log_weights = [trace.log_prob for trace in traces]
@@ -59,7 +59,7 @@ class Model(nn.Module):
     def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, batch_size=64, valid_size=256, learning_rate=0.001, weight_decay=1e-4, early_stop_traces=-1, auto_save_file_name='', *args, **kwargs):
         if self._inference_network is None:
             print('Creating new inference network...')
-            traces = self._prior_traces(valid_size, trace_state=TraceState.RECORD_LEARN_PROPOSAL, *args, **kwargs)
+            traces = self._prior_traces(valid_size, trace_state=TraceState.RECORD_TRAIN_INFERENCE_NETWORK, *args, **kwargs)
             valid_batch = Batch(traces)
             self._inference_network = InferenceNetwork(model_name=self.name, lstm_dim=lstm_dim, lstm_depth=lstm_depth, observe_embedding=observe_embedding, observe_embedding_dim=observe_embedding_dim, sample_embedding=sample_embedding, sample_embedding_dim=sample_embedding_dim, address_embedding_dim=address_embedding_dim, valid_batch=valid_batch, cuda=util._cuda_enabled)
             self._inference_network.polymorph()
@@ -69,7 +69,7 @@ class Model(nn.Module):
         optimizer = optim.Adam(self._inference_network.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
         def new_batch_func():
-            traces = self._prior_traces(batch_size, trace_state=TraceState.RECORD_LEARN_PROPOSAL, *args, **kwargs)
+            traces = self._prior_traces(batch_size, trace_state=TraceState.RECORD_TRAIN_INFERENCE_NETWORK, *args, **kwargs)
             return Batch(traces)
 
         self._inference_network.train()
