@@ -17,7 +17,7 @@ python:
 
 before_install:
     - sudo apt-get install -y libtool pkg-config build-essential autoconf automake uuid-dev
-    - sudo apt-get install -y checkinstall
+    - sudo apt-get install -y checkinstall libstdc++6
     - pip install http://download.pytorch.org/whl/cpu/torch-0.3.1-cp36-cp36m-linux_x86_64.whl
     - pip install torchvision
 
@@ -35,7 +35,7 @@ before_script:
 
 script:
     - cd tests
-    - travis_wait sh run_basic.sh
+    - travis_wait sh run_all.sh
 
 after_success:
     - if [[ "$TRAVIS_BRANCH" == "master" ]] || [[ "$TRAVIS_BRANCH" == "0.10.0" ]]; then
