@@ -23,10 +23,11 @@ from .PPLProtocol import ObserveResult as PPLProtocol_ObserveResult
 
 class Requester(object):
     def __init__(self, server_address):
+        self._server_address = server_address
         self._context = zmq.Context()
         self._socket = self._context.socket(zmq.REQ)
-        self._socket.connect(server_address)
-        print('Protocol (Python): zmq.REQ socket connected to server {}'.format(server_address))
+        self._socket.connect(self._server_address)
+        print('Protocol (Python): zmq.REQ socket connected to server {}'.format(self._server_address))
 
     def __enter__(self):
         return self
@@ -39,9 +40,9 @@ class Requester(object):
 
     def close(self):
         if not self._socket.closed:
-            self._socket.close()
             self._context.term()
-            print('Protocol (Python): zmq.REQ socket disconnected')
+            self._socket.close()
+            print('Protocol (Python): zmq.REQ socket disconnected from server {}'.format(self._server_address))
 
     def send_request(self, request):
         self._socket.send(request)

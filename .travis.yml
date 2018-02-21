@@ -25,7 +25,7 @@ install:
     - pip install .
 
 before_script:
-    - sudo apt-get install -y libstdc++6
+    - conda install libgcc
     - wget https://github.com/zeromq/libzmq/releases/download/v4.2.3/zeromq-4.2.3.tar.gz
     - tar -xvf zeromq-4.2.3.tar.gz
     - cd zeromq-4.2.3
