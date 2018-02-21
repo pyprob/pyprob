@@ -26,6 +26,7 @@ install:
 script:
     - cd tests
     - travis_wait sh run_all.sh
+    - cd ..
 
 after_success:
     - if [[ "$TRAVIS_BRANCH" == "master" ]] || [[ "$TRAVIS_BRANCH" == "0.10.0" ]]; then
