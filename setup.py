@@ -30,7 +30,7 @@ setup(
     author='Tuan-Anh Le and Atilim Gunes Baydin',
     author_email='gunes@robots.ox.ac.uk',
     packages=find_packages(),
-    install_requires=['torch', 'torchvision', 'numpy', 'termcolor==1.1.0', 'pyzmq==17.0.0', 'physiq-flatbuffers==1.8.0-8'],
+    install_requires=['torch', 'torchvision', 'numpy', 'termcolor==1.1.0', 'pyzmq==17.0.0', 'physiq-flatbuffers==1.8.0-8', 'docker==2.4.2'],
     url='https://github.com/probprog/pyprob',
     classifiers=['Development Status :: 4 - Beta', 'License :: OSI Approved :: MIT License', 'Programming Language :: Python :: 3.5'],
     license='MIT',

@@ -24,8 +24,9 @@ from .PPLProtocol import ObserveResult as PPLProtocol_ObserveResult
 class Requester(object):
     def __init__(self, server_address):
         self._server_address = server_address
-        self._context = zmq.Context()
+        self._context = zmq.Context.instance()
         self._socket = self._context.socket(zmq.REQ)
+        self._socket.setsockopt(zmq.LINGER, 100)
         self._socket.connect(self._server_address)
         print('Protocol (Python): zmq.REQ socket connected to server {}'.format(self._server_address))
 
@@ -40,8 +41,8 @@ class Requester(object):
 
     def close(self):
         if not self._socket.closed:
-            self._context.term()
             self._socket.close()
+            self._context.destroy()
             print('Protocol (Python): zmq.REQ socket disconnected from server {}'.format(self._server_address))
 
     def send_request(self, request):

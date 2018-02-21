@@ -3,21 +3,29 @@ import math
 import uuid
 import tempfile
 import os
-import signal
-import subprocess
+import sys
 import traceback
+import docker
 
 from pyprob import ModelRemote
 from pyprob import util
 
 
+docker_client = docker.from_env()
+print('Pulling latest Docker image: probprog/cpproblight')
+docker_client.images.pull('probprog/cpproblight')
+print('Docker image pulled.')
+
+docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_gum_marsaglia tcp://*:5555', network='host', detach=True)
+GaussianWithUnknownMeanMarsagliaCPP = ModelRemote('tcp://127.0.0.1:5555')
+
+docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_gum_marsaglia_replacement tcp://*:5556', network='host', detach=True)
+GaussianWithUnknownMeanMarsagliaWithReplacementCPP = ModelRemote('tcp://127.0.0.1:5556')
+
+
 class ModelRemoteTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        class GaussianWithUnknownMeanMarsagliaCPP(ModelRemote):
-            def __init__(self, server_address):
-                super().__init__(server_address)
-
-        self._model = GaussianWithUnknownMeanMarsagliaCPP('tcp://127.0.0.1:5555')
+        self._model = GaussianWithUnknownMeanMarsagliaCPP
         super().__init__(*args, **kwargs)
 
     def test_model_remote_prior(self):
@@ -29,7 +37,7 @@ class ModelRemoteTestCase(unittest.TestCase):
         prior_mean = float(prior.mean)
         prior_stddev = float(prior.stddev)
         util.debug('samples', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
-
+        print('End T1')
         self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
 
@@ -39,7 +47,6 @@ class ModelRemoteTestCase(unittest.TestCase):
         trace_length_stddev_correct = 1.2081329822540283
         trace_length_min_correct = 2
 
-        self._model._trace_statistics_samples = samples
         trace_length_mean = float(self._model.trace_length_mean(samples))
         trace_length_stddev = float(self._model.trace_length_stddev(samples))
         trace_length_min = float(self._model.trace_length_min(samples))
@@ -47,6 +54,7 @@ class ModelRemoteTestCase(unittest.TestCase):
 
         util.debug('samples', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max')
 
+        print('End T2')
         self.assertAlmostEqual(trace_length_mean, trace_length_mean_correct, places=0)
         self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)
         self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
@@ -107,14 +115,10 @@ class ModelRemoteTestCase(unittest.TestCase):
 
 class ModelRemoteWithReplacementTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        class GaussianWithUnknownMeanMarsagliaWithReplacementCPP(ModelRemote):
-            def __init__(self, server_address):
-                super().__init__(server_address)
-
-        self._model = GaussianWithUnknownMeanMarsagliaWithReplacementCPP('tcp://127.0.0.1:5556')
+        self._model = GaussianWithUnknownMeanMarsagliaWithReplacementCPP
         super().__init__(*args, **kwargs)
 
-    def test_model_with_replacement_prior(self):
+    def test_model_remote_with_replacement_prior(self):
         samples = 5000
         prior_mean_correct = 1
         prior_stddev_correct = math.sqrt(5)
@@ -127,14 +131,13 @@ class ModelRemoteWithReplacementTestCase(unittest.TestCase):
         self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
 
-    def test_model_with_replacement_trace_length_statistics(self):
+    def test_model_remote_with_replacement_trace_length_statistics(self):
         samples = 2000
         trace_length_mean_correct = 2
         trace_length_stddev_correct = 0
         trace_length_min_correct = 2
         trace_length_max_correct = 2
 
-        self._model._trace_statistics_samples = samples
         trace_length_mean = float(self._model.trace_length_mean(samples))
         trace_length_stddev = float(self._model.trace_length_stddev(samples))
         trace_length_min = float(self._model.trace_length_min(samples))
@@ -149,14 +152,4 @@ class ModelRemoteWithReplacementTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    try:
-        file_path = os.path.dirname(os.path.realpath(__file__))
-        cpp_model = subprocess.Popen([os.path.join(file_path, 'cpproblight/test_gum_marsaglia'), 'tcp://*:5555'], preexec_fn=os.setsid)
-        cpp_model_with_replacement = subprocess.Popen([os.path.join(file_path, 'cpproblight/test_gum_marsaglia_replacement'), 'tcp://*:5556'], preexec_fn=os.setsid)
-        unittest.main(verbosity=2)
-    except KeyboardInterrupt:
-        print('Stopped')
-    except Exception:
-        traceback.print_exc(file=sys.stdout)
-    os.killpg(os.getpgid(cpp_model.pid), signal.SIGTERM)
-    os.killpg(os.getpgid(cpp_model_with_replacement.pid), signal.SIGTERM)
+    unittest.main(verbosity=2)

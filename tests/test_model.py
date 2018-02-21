@@ -114,19 +114,6 @@ class ModelWithReplacementTestCase(unittest.TestCase):
         self._model = GaussianWithUnknownMeanMarsagliaWithReplacement()
         super().__init__(*args, **kwargs)
 
-    def test_model_with_replacement_prior(self):
-        samples = 5000
-        prior_mean_correct = 1
-        prior_stddev_correct = math.sqrt(5)
-
-        prior = self._model.prior_distribution(samples)
-        prior_mean = float(prior.mean)
-        prior_stddev = float(prior.stddev)
-        util.debug('samples', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
-
-        self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
-        self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
-
     def test_model_with_replacement_trace_length_statistics(self):
         samples = 2000
         trace_length_mean_correct = 2
