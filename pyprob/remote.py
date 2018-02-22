@@ -189,8 +189,8 @@ class ModelServer(object):
                 elif distribution_type == PPLProtocol_Distribution.Distribution().Normal:
                     normal = PPLProtocol_Normal.Normal()
                     normal.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
-                    mean = normal.Mean()
-                    stddev = normal.Stddev()
+                    mean = self._protocol_tensor_to_variable(normal.Mean())
+                    stddev = self._protocol_tensor_to_variable(normal.Stddev())
                     dist = Normal(mean, stddev)
                 else:
                     raise RuntimeError('Sample from an unexpected distribution requested.')
@@ -222,8 +222,8 @@ class ModelServer(object):
                 elif distribution_type == PPLProtocol_Distribution.Distribution().Normal:
                     normal = PPLProtocol_Normal.Normal()
                     normal.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
-                    mean = normal.Mean()
-                    stddev = normal.Stddev()
+                    mean = self._protocol_tensor_to_variable(normal.Mean())
+                    stddev = self._protocol_tensor_to_variable(normal.Stddev())
                     dist = Normal(mean, stddev)
                 else:
                     raise RuntimeError('Sample from an unexpected distribution requested.')

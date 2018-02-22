@@ -22,17 +22,25 @@ class Normal(object):
     def Mean(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from .ProtocolTensor import ProtocolTensor
+            obj = ProtocolTensor()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # Normal
     def Stddev(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from .ProtocolTensor import ProtocolTensor
+            obj = ProtocolTensor()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
 def NormalStart(builder): builder.StartObject(2)
-def NormalAddMean(builder, mean): builder.PrependFloat64Slot(0, mean, 0.0)
-def NormalAddStddev(builder, stddev): builder.PrependFloat64Slot(1, stddev, 0.0)
+def NormalAddMean(builder, mean): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(mean), 0)
+def NormalAddStddev(builder, stddev): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(stddev), 0)
 def NormalEnd(builder): return builder.EndObject()

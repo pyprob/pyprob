@@ -5,6 +5,7 @@ import torch
 import torch.nn.functional as F
 from termcolor import colored
 import time
+import numpy as np
 
 import pyprob
 from pyprob import util
@@ -12,7 +13,7 @@ from pyprob import Model
 from pyprob.distributions import Categorical, Empirical, Normal, Uniform
 
 
-samples = 2000
+samples = 1000
 training_traces = 10000
 perf_score_importance_sampling = 0
 perf_score_inference_compilation = 0
@@ -24,6 +25,65 @@ def add_perf_score_importance_sampling(score):
 def add_perf_score_inference_compilation(score):
     global perf_score_inference_compilation
     perf_score_inference_compilation += score
+
+
+# class MVNWithUnknownMeanTestCase(unittest.TestCase):
+#     def __init__(self, *args, **kwargs):
+#         class MVNWithUnknownMean(Model):
+#             def __init__(self, prior_mean=[[1, 1]], prior_stddev=[[math.sqrt(5), math.sqrt(5)]], likelihood_stddev=[[math.sqrt(2), math.sqrt(2)]]):
+#                 self.prior_mean = prior_mean
+#                 self.prior_stddev = prior_stddev
+#                 self.likelihood_stddev = likelihood_stddev
+#                 super().__init__('Gaussian with unknown mean')
+#
+#             def forward(self, observation=[]):
+#                 mu = pyprob.sample(Normal(self.prior_mean, self.prior_stddev))
+#                 likelihood = Normal(mu, self.likelihood_stddev)
+#                 for o in observation:
+#                     pyprob.observe(likelihood, o)
+#                 return mu
+#
+#         self._model = MVNWithUnknownMean()
+#         super().__init__(*args, **kwargs)
+#
+#     def test_inference_mvnum_posterior_importance_sampling(self):
+#         samples = 2
+#
+#         observation = [[8, 8], [9, 9]]
+#         posterior_mean_correct = [[7.25, 7.25]]
+#         posterior_stddev_correct = [[math.sqrt(1/1.2), math.sqrt(1/1.2)]]
+#
+#         posterior = self._model.posterior_distribution(samples, observation=observation)
+#         posterior_mean = util.to_numpy(posterior.mean)
+#         posterior_mean_unweighted = util.to_numpy(posterior.mean_unweighted)
+#         posterior_stddev = util.to_numpy(posterior.stddev)
+#         posterior_stddev_unweighted = util.to_numpy(posterior.stddev_unweighted)
+#         # kl_divergence = util.to_numpy(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+#         # add_perf_score_importance_sampling(kl_divergence)
+#
+#         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct')
+#         self.assertTrue(np.allclose(posterior_mean, posterior_mean_correct, atol=0.1))
+#         self.assertTrue(np.allclose(posterior_stddev, posterior_stddev_correct, atol=0.1))
+#         # self.assertLess(kl_divergence, 0.15)
+    #
+    # def test_inference_mvnum_posterior_inference_compilation(self):
+    #     observation = [[8, 8], [9, 9]]
+    #     posterior_mean_correct = [[7.25, 7.25]]
+    #     posterior_stddev_correct = [[math.sqrt(1/1.2), math.sqrt(1/1.2)]]
+    #
+    #     self._model.learn_inference_network(observation=[[1,1],[1,1]], early_stop_traces=training_traces)
+    #     posterior = self._model.posterior_distribution(samples, observation=observation)
+    #     posterior_mean = util.to_numpy(posterior.mean)
+    #     posterior_mean_unweighted = util.to_numpy(posterior.mean_unweighted)
+    #     posterior_stddev = util.to_numpy(posterior.stddev)
+    #     posterior_stddev_unweighted = util.to_numpy(posterior.stddev_unweighted)
+    #     # kl_divergence = util.to_numpy(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+    #     # add_perf_score_importance_sampling(kl_divergence)
+    #
+    #     util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct')
+    #     self.assertTrue(np.allclose(posterior_mean, posterior_mean_correct, atol=0.1))
+    #     self.assertTrue(np.allclose(posterior_stddev, posterior_stddev_correct, atol=0.1))
+    #     # self.assertLess(kl_divergence, 0.15)
 
 
 class GaussianWithUnknownMeanTestCase(unittest.TestCase):
@@ -58,11 +118,11 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        add_perf_score_importance_sampling(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.15)
-        add_perf_score_importance_sampling(kl_divergence)
 
     def test_inference_gum_posterior_inference_compilation(self):
         observation = [8,9]
@@ -78,11 +138,11 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
 
         util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        add_perf_score_inference_compilation(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.15)
-        add_perf_score_inference_compilation(kl_divergence)
 
 
 class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
@@ -99,8 +159,8 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
                 uniform = Uniform(-1, 1)
                 s = 1
                 while float(s) >= 1:
-                    x = pyprob.sample(uniform)
-                    y = pyprob.sample(uniform)
+                    x = pyprob.sample(uniform)[0]
+                    y = pyprob.sample(uniform)[0]
                     s = x*x + y*y
                 return mean + stddev * (x * torch.sqrt(-2 * torch.log(s) / s))
 
@@ -127,18 +187,18 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        add_perf_score_importance_sampling(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
-        add_perf_score_importance_sampling(kl_divergence)
 
     def test_inference_gum_marsaglia_posterior_inference_compilation(self):
         observation = [8,9]
         posterior_mean_correct = 7.25
         posterior_stddev_correct = math.sqrt(1/1.2)
 
-        self._model.learn_inference_network(observation=[1,1], early_stop_traces=training_traces, learning_rate=0.0001)
+        self._model.learn_inference_network(observation=[1,1], early_stop_traces=training_traces)
         posterior = self._model.posterior_distribution(samples, use_inference_network=True, observation=observation)
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.mean_unweighted)
@@ -147,11 +207,11 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
 
         util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        add_perf_score_inference_compilation(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
-        add_perf_score_inference_compilation(kl_divergence)
 
 
 class HiddenMarkovModelTestCase(unittest.TestCase):
@@ -212,15 +272,15 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
-
-        self.assertLess(l2_distance, 4)
         add_perf_score_importance_sampling(l2_distance)
+
+        self.assertLess(l2_distance, 6)
 
     def test_inference_hmm_posterior_inference_compilation(self):
         observation = self._observation
         posterior_mean_correct = self._posterior_mean_correct
 
-        self._model.learn_inference_network(observation=torch.zeros(16,3), early_stop_traces=training_traces, learning_rate=0.0001)
+        self._model.learn_inference_network(observation=torch.zeros(16,3), early_stop_traces=training_traces)
         posterior = self._model.posterior_distribution(samples, use_inference_network=True, observation=observation)
         posterior_mean_unweighted = posterior.mean_unweighted
         posterior_mean = posterior.mean
@@ -228,18 +288,19 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
-
-        self.assertLess(l2_distance, 4)
         add_perf_score_inference_compilation(l2_distance)
+
+        self.assertLess(l2_distance, 6)
 
 
 if __name__ == '__main__':
     # if torch.cuda.is_available():
-    #     pyprob.set_cuda(True)
+        # pyprob.set_cuda(True)
     tests = []
+    # tests.append('MVNWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
-    tests.append('HiddenMarkovModelTestCase')
+    # tests.append('HiddenMarkovModelTestCase')
 
     time_start = time.time()
     success = unittest.main(defaultTest=tests, verbosity=2, exit=False).result.wasSuccessful()

@@ -61,8 +61,8 @@ table Observe {
 table ObserveResult {}
 
 table Normal {
-  mean: double;
-  stddev: double;
+  mean: ProtocolTensor;
+  stddev: ProtocolTensor;
 }
 
 table Uniform {

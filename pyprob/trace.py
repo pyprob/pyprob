@@ -1,3 +1,5 @@
+import torch
+
 from . import util
 
 
@@ -66,7 +68,7 @@ class Trace(object):
         return '; '.join([sample.address_suffixed for sample in self.samples])
 
     def compute_log_prob(self):
-        self.log_prob = sum(self.samples_log_prob) + sum(self.observes_log_prob)
+        self.log_prob = util.to_variable(sum(self.samples_log_prob) + sum(self.observes_log_prob)).view(-1)
 
     def set_result(self, r):
         self.result = r

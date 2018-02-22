@@ -88,6 +88,7 @@ class ObserveEmbeddingFC(nn.Module):
 class SampleEmbeddingFC(nn.Module):
     def __init__(self, input_dim, output_dim, input_is_one_hot_index=False, input_one_hot_dim=None):
         super().__init__()
+        self._input_dim = input_dim
         self._input_is_one_hot_index = input_is_one_hot_index
         self._input_one_hot_dim = input_one_hot_dim
         if input_is_one_hot_index:
@@ -104,6 +105,8 @@ class SampleEmbeddingFC(nn.Module):
     def forward(self, x):
         if self._input_is_one_hot_index:
             x = torch.stack([util.one_hot(self._input_one_hot_dim, int(v)) for v in x])
+        else:
+            x = x.view(-1, self._input_dim)
         x = F.relu(self._lin1(x))
         x = F.relu(self._lin2(x))
         x = F.relu(self._lin3(x))
@@ -125,21 +128,22 @@ class ProposalCategorical(nn.Module):
 
 
 class ProposalNormal(nn.Module):
-    def __init__(self, input_dim):
+    def __init__(self, input_dim, output_dim):
         super().__init__()
+        self._output_dim = output_dim
         self._lin1 = nn.Linear(input_dim, input_dim)
-        self._lin2 = nn.Linear(input_dim, 2)
+        self._lin2 = nn.Linear(input_dim, self._output_dim * 2)
         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
         x = self._lin2(x)
-        means = x[:,0].unsqueeze(1)
-        stddevs = x[:,1].unsqueeze(1)
+        means = x[:, 0:self._output_dim]
+        stddevs = x[:, self._output_dim:2*self._output_dim]
         stddevs = nn.Softplus()(stddevs)
-        prior_means = torch.cat([s.distribution.mean for s in samples])
-        prior_stddevs = torch.cat([s.distribution.stddev for s in samples])
+        prior_means = torch.stack([s.distribution.mean for s in samples])
+        prior_stddevs = torch.stack([s.distribution.stddev for s in samples])
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
         return Normal(means, stddevs)
@@ -148,6 +152,7 @@ class ProposalNormal(nn.Module):
 class ProposalUniform(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
+        self._input_dim = input_dim
         self._lin1 = nn.Linear(input_dim, input_dim)
         self._lin2 = nn.Linear(input_dim, 2)
         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
@@ -156,13 +161,13 @@ class ProposalUniform(nn.Module):
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
         x = self._lin2(x)
-        means = x[:,0].unsqueeze(1)
-        stddevs = x[:,1].unsqueeze(1)
+        means = x[:, 0].unsqueeze(1)
+        stddevs = x[:, 1].unsqueeze(1)
         stddevs = F.softplus(stddevs)
-        prior_means = torch.cat([s.distribution.mean for s in samples])
-        prior_stddevs = torch.cat([s.distribution.stddev for s in samples])
-        prior_lows = torch.cat([s.distribution.low for s in samples])
-        prior_highs = torch.cat([s.distribution.high for s in samples])
+        prior_means = torch.stack([s.distribution.mean[0] for s in samples])
+        prior_stddevs = torch.stack([s.distribution.stddev[0] for s in samples])
+        prior_lows = torch.stack([s.distribution.low for s in samples])
+        prior_highs = torch.stack([s.distribution.high for s in samples])
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
         return TruncatedNormal(means, stddevs, prior_lows, prior_highs)
@@ -180,20 +185,21 @@ class ProposalUniformMixture(nn.Module):
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
         x = self._lin2(x)
-        means = x[:,0:self._mixture_components]
-        stddevs = x[:,self._mixture_components:2*self._mixture_components]
-        coeffs = x[:,2*self._mixture_components:3*self._mixture_components]
+        means = x[:, 0:self._mixture_components]
+        stddevs = x[:, self._mixture_components:2*self._mixture_components]
+        coeffs = x[:, 2*self._mixture_components:3*self._mixture_components]
         stddevs = F.softplus(stddevs)
         coeffs = F.softmax(coeffs, dim=1)
-        prior_means = torch.cat([s.distribution.mean for s in samples])
-        prior_stddevs = torch.cat([s.distribution.stddev for s in samples])
-        prior_lows = torch.cat([s.distribution.low for s in samples])
-        prior_highs = torch.cat([s.distribution.high for s in samples])
-        prior_means = prior_means.unsqueeze(1).expand_as(means)
-        prior_stddevs = prior_stddevs.unsqueeze(1).expand_as(means)
+        prior_means = torch.stack([s.distribution.mean[0] for s in samples])
+        prior_stddevs = torch.stack([s.distribution.stddev[0] for s in samples])
+        prior_lows = torch.stack([s.distribution.low[0] for s in samples])
+        prior_highs = torch.stack([s.distribution.high[0] for s in samples])
+        prior_means = prior_means.expand_as(means)
+        prior_stddevs = prior_stddevs.expand_as(means)
+
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
-        distributions = [TruncatedNormal(means[:,i], stddevs[:,i], prior_lows, prior_highs) for i in range(self._mixture_components)]
+        distributions = [TruncatedNormal(means[:,i:i+1], stddevs[:,i:i+1], prior_lows, prior_highs) for i in range(self._mixture_components)]
         return Mixture(distributions, coeffs)
 
 
@@ -208,7 +214,7 @@ class InferenceNetwork(nn.Module):
         self._sample_embedding = sample_embedding
         self._sample_embedding_dim = sample_embedding_dim
         self._address_embedding_dim = address_embedding_dim
-        self._distribution_type_embedding_dim = 1 # Needs to match the number of distribution types in pyprob (except Emprical)
+        self._distribution_type_embedding_dim = 3 # Needs to match the number of distribution types in pyprob (except Emprical)
         self._valid_batch = valid_batch
         self._on_cuda = cuda
         self._cuda_device = device
@@ -307,18 +313,18 @@ class InferenceNetwork(nn.Module):
                 if not address in self._sample_embedding_layers:
                     if self._sample_embedding == SampleEmbedding.FULLY_CONNECTED:
                         if isinstance(distribution, Categorical):
-                            sample_embedding_layer = SampleEmbeddingFC(sample.value.nelement(), self._sample_embedding_dim, input_is_one_hot_index=True, input_one_hot_dim=distribution.length)
+                            sample_embedding_layer = SampleEmbeddingFC(sample.value.nelement(), self._sample_embedding_dim, input_is_one_hot_index=True, input_one_hot_dim=distribution.length_categories)
                         else:
                             sample_embedding_layer = SampleEmbeddingFC(sample.value.nelement(), self._sample_embedding_dim)
                     else:
                         raise ValueError('Unkown sample embedding: {}'.format(self._sample_embedding))
 
                     if isinstance(distribution, Categorical):
-                        proposal_layer = ProposalCategorical(self._lstm_dim, distribution.length)
+                        proposal_layer = ProposalCategorical(self._lstm_dim, distribution.length_categories)
                     elif isinstance(distribution, Normal):
-                        proposal_layer = ProposalNormal(self._lstm_dim)
+                        proposal_layer = ProposalNormal(self._lstm_dim, distribution.length_variates)
                     elif isinstance(distribution, Uniform):
-                        proposal_layer = ProposalUniform(self._lstm_dim)
+                        proposal_layer = ProposalUniformMixture(self._lstm_dim)
                     else:
                         raise ValueError('Unsupported distribution: {}'.format(distribution.name))
 
@@ -356,7 +362,7 @@ class InferenceNetwork(nn.Module):
             prev_distribution = previous_sample.distribution
             prev_value = previous_sample.value
             if prev_address in self._sample_embedding_layers:
-                prev_sample_embedding = self._sample_embedding_layers[prev_address](prev_value.unsqueeze(0).float())
+                prev_sample_embedding = self._sample_embedding_layers[prev_address](prev_value.float())
             else:
                 print('Warning: no sample embedding layer for: {}'.format(prev_address))
                 success = False

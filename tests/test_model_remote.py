@@ -37,7 +37,6 @@ class ModelRemoteTestCase(unittest.TestCase):
         prior_mean = float(prior.mean)
         prior_stddev = float(prior.stddev)
         util.debug('samples', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
-        print('End T1')
         self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
 
@@ -54,7 +53,6 @@ class ModelRemoteTestCase(unittest.TestCase):
 
         util.debug('samples', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max')
 
-        print('End T2')
         self.assertAlmostEqual(trace_length_mean, trace_length_mean_correct, places=0)
         self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)
         self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
@@ -89,7 +87,7 @@ class ModelRemoteTestCase(unittest.TestCase):
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
-        self.assertLess(kl_divergence, 0.15)
+        self.assertLess(kl_divergence, 0.25)
 
     def test_model_remote_inference_gum_posterior_inference_compilation(self):
         training_traces = 2000
@@ -110,7 +108,7 @@ class ModelRemoteTestCase(unittest.TestCase):
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
-        self.assertLess(kl_divergence, 0.15)
+        self.assertLess(kl_divergence, 0.25)
 
 
 class ModelRemoteWithReplacementTestCase(unittest.TestCase):
