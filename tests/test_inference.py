@@ -12,8 +12,8 @@ from pyprob import Model
 from pyprob.distributions import Categorical, Empirical, Normal, Uniform
 
 
-samples = 1000
-training_traces = 5000
+samples = 2000
+training_traces = 10000
 perf_score_importance_sampling = 0
 perf_score_inference_compilation = 0
 
@@ -235,11 +235,11 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
 
 if __name__ == '__main__':
     # if torch.cuda.is_available():
-        # pyprob.set_cuda(True)
+    #     pyprob.set_cuda(True)
     tests = []
-    # tests.append('GaussianWithUnknownMeanTestCase')
+    tests.append('GaussianWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
-    # tests.append('HiddenMarkovModelTestCase')
+    tests.append('HiddenMarkovModelTestCase')
 
     time_start = time.time()
     success = unittest.main(defaultTest=tests, verbosity=2, exit=False).result.wasSuccessful()
