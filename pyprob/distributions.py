@@ -20,7 +20,7 @@ class Distribution(object):
     def sample(self):
         if self._torch_dist is not None:
             s = self._torch_dist.sample()
-            if s.dim() == 1 and self.length_variates == 1:
+            if self.length_batch > 1 and s.dim() == 1 and self.length_variates == 1:
                 s = s.unsqueeze(1)
             return s
         else:
@@ -29,11 +29,10 @@ class Distribution(object):
     def log_prob(self, value):
         if self._torch_dist is not None:
             value = util.to_variable(value)
-            value = value.view(self.length_batch, self.length_variates)
             lp = self._torch_dist.log_prob(value)
             if lp.dim() == 2 and self.length_variates > 1:
                 lp = torch.sum(lp, dim=1)
-            if lp.dim() == 1:
+            if self.length_batch > 1 and self.length_variates > 1:
                 lp = lp.unsqueeze(1)
             return lp
         else:
@@ -184,6 +183,9 @@ class Empirical(Distribution):
     def stddev_unweighted(self):
         return self.variance_unweighted.sqrt()
 
+    def unweighted(self):
+        return Empirical(self.values)
+
 
 class Categorical(Distribution):
     def __init__(self, probs):
@@ -215,7 +217,9 @@ class Categorical(Distribution):
     def log_prob(self, value):
         value = util.to_variable(value)
         value = util.to_variable(value).view(-1).long()
-        ret = self._torch_dist.log_prob(value).unsqueeze(1)
+        ret = self._torch_dist.log_prob(value)
+        if self.length_batch > 1:
+            ret = ret.unsqueeze(1)
         return ret
 
 
@@ -249,7 +253,10 @@ class Mixture(Distribution):
 
     def log_prob(self, value):
         value = util.to_variable(value).view(self.length_batch, 1)
-        return util.log_sum_exp(torch.log(self._probs) + torch.stack([d.log_prob(value).squeeze(-1) for d in self._distributions]).t())
+        ret = util.log_sum_exp(torch.log(self._probs) + torch.stack([d.log_prob(value).squeeze(-1) for d in self._distributions]).t())
+        if self.length_batch == 1:
+            ret = ret.squeeze(1)
+        return ret
 
     def sample(self):
         if self.length_batch == 1:
@@ -271,7 +278,8 @@ class Mixture(Distribution):
                 self._mean = torch.dot(self._probs, means)
             else:
                 self._mean = torch.diag(torch.mm(self._probs, means))
-            self._mean = self._mean.unsqueeze(1)
+            if self.length_batch > 1:
+                self._mean = self._mean.unsqueeze(1)
         return self._mean
 
     @property
@@ -282,7 +290,8 @@ class Mixture(Distribution):
                 self._variance = torch.dot(self._probs, variances)
             else:
                 self._variance = torch.diag(torch.mm(self._probs, variances))
-            self._variance = self._variance.unsqueeze(1)
+            if self.length_batch > 1:
+                self._variance = self._variance.unsqueeze(1)
         return self._variance
 
 
@@ -353,7 +362,10 @@ class TruncatedNormal(Distribution):
         value = value.view(self.length_batch, self.length_variates)
         lb = value.ge(self._low).type_as(self._low)
         ub = value.le(self._high).type_as(self._low)
-        return torch.log(lb.mul(ub)) + self._standard_normal_dist.log_prob((value - self._mean_non_truncated) / self._stddev_non_truncated) - self._log_stddev_Z
+        ret = torch.log(lb.mul(ub)) + self._standard_normal_dist.log_prob((value - self._mean_non_truncated) / self._stddev_non_truncated) - self._log_stddev_Z
+        if self.length_batch == 1:
+            ret = ret.squeeze(0)
+        return ret
 
     @property
     def low(self):
@@ -379,6 +391,8 @@ class TruncatedNormal(Distribution):
     def mean(self):
         if self._mean is None:
             self._mean = self._mean_non_truncated + self._stddev_non_truncated * (self._standard_normal_dist.prob(self._alpha) - self._standard_normal_dist.prob(self._beta)) / self._Z
+            if self.length_batch == 1:
+                self._mean = self._mean.squeeze(0)
         return self._mean
 
     @property
@@ -387,6 +401,8 @@ class TruncatedNormal(Distribution):
             standard_normal_prob_alpha = self._standard_normal_dist.prob(self._alpha)
             standard_normal_prob_beta = self._standard_normal_dist.prob(self._beta)
             self._variance = self._stddev_non_truncated.pow(2) * (1 + ((self._alpha * standard_normal_prob_alpha - self._beta * standard_normal_prob_beta)/self._Z) - ((standard_normal_prob_alpha - standard_normal_prob_beta)/self._Z).pow(2))
+            if self.length_batch == 1:
+                self._variance = self._variance.squeeze(0)
         return self._variance
 
     def sample(self):
@@ -400,6 +416,8 @@ class TruncatedNormal(Distribution):
             if (attempt_count == 10000):
                 print('Warning: trying to sample from the tail of a truncated normal distribution, which can take a long time. A more efficient implementation is pending.')
             ret = self._standard_normal_dist.icdf(self._standard_normal_cdf_alpha + rand * (self._standard_normal_cdf_beta - self._standard_normal_cdf_alpha)) * self._stddev_non_truncated + self._mean_non_truncated
+        if self.length_batch == 1:
+            ret = ret.squeeze(0)
         return ret
 
 
@@ -411,8 +429,6 @@ class Uniform(Distribution):
         if self._low.dim() == 1:
             self.length_variates = self._low.size(0)
             self.length_batch = 1
-            self._low = self._low.unsqueeze(0)
-            self._high = self._high.unsqueeze(0)
         elif self._low.dim() == 2:
             self.length_variates = self._low.size(1)
             self.length_batch = self._low.size(0)
@@ -426,14 +442,20 @@ class Uniform(Distribution):
     def sample(self):
         shape = self._low.size()
         rand = util.to_variable(torch.zeros(shape).uniform_())
-        return self._low + rand * (self._high - self._low)
+        ret = self._low + rand * (self._high - self._low)
+        if self.length_batch == 1:
+            ret = ret.squeeze(0)
+        return ret
 
     def log_prob(self, value):
         value = util.to_variable(value)
         value = value.view(self.length_batch, self.length_variates)
         lb = value.ge(self._low).type_as(self._low)
         ub = value.lt(self._high).type_as(self._low)
-        return torch.log(lb.mul(ub)) - torch.log(self._high - self._low)
+        ret = torch.log(lb.mul(ub)) - torch.log(self._high - self._low)
+        if self.length_batch == 1:
+            ret = ret.squeeze(0)
+        return ret
 
     @property
     def mean(self):

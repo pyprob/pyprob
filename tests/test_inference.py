@@ -13,7 +13,7 @@ from pyprob import Model
 from pyprob.distributions import Categorical, Empirical, Normal, Uniform
 
 
-samples = 1000
+samples = 2000
 training_traces = 10000
 perf_score_importance_sampling = 0
 perf_score_inference_compilation = 0
@@ -300,7 +300,7 @@ if __name__ == '__main__':
     # tests.append('MVNWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
-    # tests.append('HiddenMarkovModelTestCase')
+    tests.append('HiddenMarkovModelTestCase')
 
     time_start = time.time()
     success = unittest.main(defaultTest=tests, verbosity=2, exit=False).result.wasSuccessful()
