@@ -493,6 +493,7 @@ class InferenceNetwork(nn.Module):
                 proposal_distribution = self._proposal_layers[current_address](proposal_input, current_samples)
                 l = proposal_distribution.log_prob(current_samples_values)
                 if util.has_nan_or_inf(l):
+                    print('Warning: NaN or Inf encountered proposal log_prob.')
                     return False, 0
                 log_prob += torch.sum(l)
 

@@ -299,8 +299,8 @@ if __name__ == '__main__':
     tests = []
     # tests.append('MVNWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanTestCase')
-    tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
-    tests.append('HiddenMarkovModelTestCase')
+    # tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
+    # tests.append('HiddenMarkovModelTestCase')
 
     time_start = time.time()
     success = unittest.main(defaultTest=tests, verbosity=2, exit=False).result.wasSuccessful()
