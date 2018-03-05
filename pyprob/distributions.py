@@ -71,7 +71,7 @@ class Distribution(object):
 
 
 class Empirical(Distribution):
-    def __init__(self, values, log_weights=None, sort_by_weights=True, combine_duplicates=False):
+    def __init__(self, values, log_weights=None, combine_duplicates=False):
         length = len(values)
         if log_weights is None:
             log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length))  # assume uniform distribution if no weights are given
@@ -99,12 +99,12 @@ class Empirical(Distribution):
         else:
             for i in range(length):
                 distribution[values[i]] += weights[i]
+        values = list(distribution.keys())
+        weights = list(distribution.values())
         self.length = len(values)
-        self.values = list(distribution.keys())
-        self.weights = torch.cat(list(distribution.values()))
-        if sort_by_weights:
-            self.weights, indices = torch.sort(self.weights, descending=True)
-            self.values = [values[int(i)] for i in indices]
+        weights = torch.cat(weights)
+        self.weights, indices = torch.sort(weights, descending=True)
+        self.values = [values[int(i)] for i in indices]
         self.weights_numpy = self.weights.data.cpu().numpy()
         try:  # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
             self.values_numpy = torch.stack(self.values).data.cpu().numpy()
@@ -142,10 +142,7 @@ class Empirical(Distribution):
         return ret
 
     def map(self, func):
-        ret = Empirical(list(map(func, self.values)), sort_by_weights=False)
-        ret.weights = self.weights
-        ret.weights_numpy = self.weights_numpy
-        return ret
+        return Empirical(list(map(func, self.values)), list(map(torch.log, self.weights)))
 
     @property
     def mean(self):

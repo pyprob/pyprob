@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.optim as optim
 import time
+import sys
 
 from .distributions import Empirical
 from . import state, util
@@ -37,8 +38,13 @@ class Model(nn.Module):
         ret = []
         time_start = time.time()
         for i in range(samples):
-            print('                                                                \r{} | {} / {} | {:,} traces/s'.format(util.progress_bar(i+1, samples), i+1, samples, int(i / (time.time() - time_start))), end='\r')
+            if trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK:
+                duration = time.time() - time_start
+                print('                                                                \r{} | {} | {} / {} | {:,} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, samples), i+1, samples, int(i / duration)), end='\r')
+                sys.stdout.flush()
             ret.append(next(generator))
+        if trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK:
+            print()
         return ret
 
     def prior_sample(self, *args, **kwargs):
@@ -50,8 +56,11 @@ class Model(nn.Module):
         ret = []
         time_start = time.time()
         for i in range(samples):
-            print('                                                                \r{} | {} / {} | {:,} traces/s'.format(util.progress_bar(i+1, samples), i+1, samples, int(i / (time.time() - time_start))), end='\r')
+            duration = time.time() - time_start
+            print('                                                                \r{} | {} | {} / {} | {:,} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, samples), i+1, samples, int(i / duration)), end='\r')
+            sys.stdout.flush()
             ret.append(next(generator))
+        print()
         return Empirical(ret)
 
     def posterior_distribution(self, samples=1000, use_inference_network=False, *args, **kwargs):

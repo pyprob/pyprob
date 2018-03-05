@@ -1,9 +1,8 @@
 import enum
-import math
 import random
 import gc
+import sys
 import torch
-from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 from termcolor import colored
@@ -64,7 +63,7 @@ class Batch(object):
             trace.cpu()
 
     def sort_by_observes_length(self):
-        return Batch(sorted(self.batch, reverse=True, key=lambda x:x.observes_variable.nelement()), False)
+        return Batch(sorted(self.batch, reverse=True, key=lambda x: x.observes_variable.nelement()), False)
 
 
 class ObserveEmbeddingFC(nn.Module):
@@ -199,7 +198,7 @@ class ProposalUniformMixture(nn.Module):
 
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
-        distributions = [TruncatedNormal(means[:,i:i+1], stddevs[:,i:i+1], prior_lows, prior_highs) for i in range(self._mixture_components)]
+        distributions = [TruncatedNormal(means[:, i:i+1], stddevs[:, i:i+1], prior_lows, prior_highs) for i in range(self._mixture_components)]
         return Mixture(distributions, coeffs)
 
 
@@ -214,7 +213,7 @@ class InferenceNetwork(nn.Module):
         self._sample_embedding = sample_embedding
         self._sample_embedding_dim = sample_embedding_dim
         self._address_embedding_dim = address_embedding_dim
-        self._distribution_type_embedding_dim = 3 # Needs to match the number of distribution types in pyprob (except Emprical)
+        self._distribution_type_embedding_dim = 3  # Needs to match the number of distribution types in pyprob (except Emprical)
         self._valid_batch = valid_batch
         self._on_cuda = cuda
         self._cuda_device = device
@@ -238,7 +237,7 @@ class InferenceNetwork(nn.Module):
 
         self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
         self._lstm = nn.LSTM(self._lstm_input_dim, self._lstm_dim, self._lstm_depth)
-        example_observes = self._valid_batch[0].observes_variable # To do: we need to check all the observes in the batch, to be more intelligent
+        example_observes = self._valid_batch[0].observes_variable  # To do: we need to check all the observes in the batch, to be more intelligent
         if self._observe_embedding == ObserveEmbedding.FULLY_CONNECTED:
             self._observe_embedding_layer = ObserveEmbeddingFC(example_observes, self._observe_embedding_dim)
         else:
@@ -270,7 +269,7 @@ class InferenceNetwork(nn.Module):
         self._valid_batch.cpu()
 
     def _add_address(self, address):
-        if not address in self._address_embeddings:
+        if address not in self._address_embeddings:
             # print('Polymorphing, new address: {}'.format(address))
             i = len(self._address_embeddings)
             if i < self._address_embedding_dim:
@@ -281,7 +280,7 @@ class InferenceNetwork(nn.Module):
                 self._address_embeddings[address] = random.choice(list(self._address_embeddings.values()))
 
     def _add_distribution_type(self, distribution_type):
-        if not distribution_type in self._distribution_type_embeddings:
+        if distribution_type not in self._distribution_type_embeddings:
             # print('Polymorphing, new distribution type: {}'.format(distribution_type))
             i = len(self._distribution_type_embeddings)
             if i < self._distribution_type_embedding_dim:
@@ -310,7 +309,7 @@ class InferenceNetwork(nn.Module):
                 self._add_address(address)
                 self._add_distribution_type(distribution.name)
 
-                if not address in self._sample_embedding_layers:
+                if address not in self._sample_embedding_layers:
                     if self._sample_embedding == SampleEmbedding.FULLY_CONNECTED:
                         if isinstance(distribution, Categorical):
                             sample_embedding_layer = SampleEmbeddingFC(sample.value.nelement(), self._sample_embedding_dim, input_is_one_hot_index=True, input_one_hot_dim=distribution.length_categories)
@@ -379,7 +378,7 @@ class InferenceNetwork(nn.Module):
 
         current_address = current_sample.address_suffixed
         current_distribution = current_sample.distribution
-        if not current_address in self._proposal_layers:
+        if current_address not in self._proposal_layers:
             print('Warning: no proposal layer for: {}'.format(current_address))
             success = False
         if current_address in self._address_embeddings:
@@ -518,6 +517,7 @@ class InferenceNetwork(nn.Module):
         loss_max = None
         loss_prev = float('inf')
         stop = False
+        prev_print_line_length = 0
         print('Train. time | Trace     | Init. loss | Max. loss  | Min. loss  | Curr. loss | T.since min | Traces/sec')
         while not stop:
             iteration += 1
@@ -566,7 +566,10 @@ class InferenceNetwork(nn.Module):
                     if trace >= early_stop_traces:
                         stop = True
 
-                print('{} | {} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_max_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str), end='\r')
+                print_line = '{} | {} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_max_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
+                print(' '*prev_print_line_length + '\r' + print_line, end='\r')
+                sys.stdout.flush()
+                prev_print_line_length = len(print_line)
         print()
 
     def save(self, file_name):
