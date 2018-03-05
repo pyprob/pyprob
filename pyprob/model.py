@@ -1,8 +1,6 @@
 import torch.nn as nn
 import torch.optim as optim
-import os
-import signal
-import subprocess
+import time
 
 from .distributions import Empirical
 from . import state, util
@@ -36,7 +34,12 @@ class Model(nn.Module):
 
     def _prior_traces(self, samples=10, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs):
         generator = self._prior_trace_generator(trace_state, proposal_network, *args, **kwargs)
-        return [next(generator) for i in range(samples)]
+        ret = []
+        time_start = time.time()
+        for i in range(samples):
+            print('                                                                \r{} | {} / {} | {:,} traces/s'.format(util.progress_bar(i+1, samples), i+1, samples, int(i / (time.time() - time_start))), end='\r')
+            ret.append(next(generator))
+        return ret
 
     def prior_sample(self, *args, **kwargs):
         generator = self._prior_sample_generator(*args, **kwargs)
@@ -44,7 +47,12 @@ class Model(nn.Module):
 
     def prior_distribution(self, samples=1000, *args, **kwargs):
         generator = self._prior_sample_generator(*args, **kwargs)
-        return Empirical([next(generator) for i in range(samples)])
+        ret = []
+        time_start = time.time()
+        for i in range(samples):
+            print('                                                                \r{} | {} / {} | {:,} traces/s'.format(util.progress_bar(i+1, samples), i+1, samples, int(i / (time.time() - time_start))), end='\r')
+            ret.append(next(generator))
+        return Empirical(ret)
 
     def posterior_distribution(self, samples=1000, use_inference_network=False, *args, **kwargs):
         if use_inference_network and (self._inference_network is None):
@@ -86,23 +94,23 @@ class Model(nn.Module):
     def load_inference_network(self, file_name):
         self._inference_network = InferenceNetwork.load(file_name, util._cuda_enabled, util._cuda_device)
 
-    def trace_length_mean(self, samples=1000):
-        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None)
+    def trace_length_mean(self, samples=1000, *args, **kwargs):
+        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return trace_length_dist.mean
 
-    def trace_length_stddev(self, samples=1000):
-        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None)
+    def trace_length_stddev(self, samples=1000, *args, **kwargs):
+        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return trace_length_dist.stddev
 
-    def trace_length_min(self, samples=1000):
-        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None)
+    def trace_length_min(self, samples=1000, *args, **kwargs):
+        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return min(trace_length_dist.values_numpy)
 
-    def trace_length_max(self, samples=1000):
-        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None)
+    def trace_length_max(self, samples=1000, *args, **kwargs):
+        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return max(trace_length_dist.values_numpy)
 

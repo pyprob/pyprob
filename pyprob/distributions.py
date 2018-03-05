@@ -13,9 +13,6 @@ class Distribution(object):
         self.name = name
         self.address_suffix = address_suffix
         self._torch_dist = torch_dist
-        self.__mean = None
-        self.__variance = None
-        self.__stddev = None
 
     def sample(self):
         if self._torch_dist is not None:
@@ -42,9 +39,6 @@ class Distribution(object):
         value = util.to_variable(value)
         return torch.exp(self.log_prob(value))
 
-    def expectation(self, func):
-        self._expectation(func)
-
     @property
     def mean(self):
         if self._torch_dist is not None:
@@ -57,7 +51,7 @@ class Distribution(object):
         if self._torch_dist is not None:
             try:
                 return self._torch_dist.variance
-            except AttributeError: # This is because of the changing nature of PyTorch distributions. Should be removed when PyTorch stabilizes.
+            except AttributeError:  # This is because of the changing nature of PyTorch distributions. Should be removed when PyTorch stabilizes.
                 return self._torch_dist.std.pow(2)
         else:
             raise NotImplementedError()
@@ -67,7 +61,7 @@ class Distribution(object):
         if self._torch_dist is not None:
             try:
                 return self._torch_dist.stddev
-            except AttributeError: # This is because of the changing nature of PyTorch distributions. Should be removed when PyTorch stabilizes.
+            except AttributeError:  # This is because of the changing nature of PyTorch distributions. Should be removed when PyTorch stabilizes.
                 return self._torch_dist.std
         else:
             return self.variance.sqrt()
@@ -77,10 +71,10 @@ class Distribution(object):
 
 
 class Empirical(Distribution):
-    def __init__(self, values, log_weights=None, combine_duplicates=False):
+    def __init__(self, values, log_weights=None, sort_by_weights=True, combine_duplicates=False):
         length = len(values)
         if log_weights is None:
-            log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length)) # assume uniform distribution if no weights are given
+            log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length))  # assume uniform distribution if no weights are given
         else:
             log_weights = util.to_variable(log_weights)
         if isinstance(values, Variable) or torch.is_tensor(values):
@@ -105,14 +99,14 @@ class Empirical(Distribution):
         else:
             for i in range(length):
                 distribution[values[i]] += weights[i]
-        values = list(distribution.keys())
-        weights = list(distribution.values())
         self.length = len(values)
-        weights = torch.cat(weights)
-        self.weights, indices = torch.sort(weights, descending=True)
-        self.values = [values[int(i)] for i in indices]
+        self.values = list(distribution.keys())
+        self.weights = torch.cat(list(distribution.values()))
+        if sort_by_weights:
+            self.weights, indices = torch.sort(self.weights, descending=True)
+            self.values = [values[int(i)] for i in indices]
         self.weights_numpy = self.weights.data.cpu().numpy()
-        try: # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
+        try:  # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
             self.values_numpy = torch.stack(self.values).data.cpu().numpy()
         except:
             try:
@@ -127,7 +121,7 @@ class Empirical(Distribution):
         self._max = None
         self._mean = None
         self._variance = None
-        super().__init__('Emprical')
+        super().__init__('Empirical')
 
     def __len__(self):
         return self.length
@@ -145,6 +139,12 @@ class Empirical(Distribution):
         ret = 0.
         for i in range(self.length):
             ret += func(self.values[i]) * self.weights[i]
+        return ret
+
+    def map(self, func):
+        ret = Empirical(list(map(func, self.values)), sort_by_weights=False)
+        ret.weights = self.weights
+        ret.weights_numpy = self.weights_numpy
         return ret
 
     @property

@@ -75,7 +75,10 @@ class ModelServer(object):
     def _protocol_tensor_to_variable(self, protocol_tensor):
         data = protocol_tensor.DataAsNumpy()
         shape = protocol_tensor.ShapeAsNumpy()
-        t = torch.from_numpy(data)
+        if len(data) == 0:
+            return None
+        else:
+            t = torch.from_numpy(data)
         if len(shape) != 0:
             t = t.view(shape.tolist())
         return util.to_variable(t)
@@ -145,9 +148,9 @@ class ModelServer(object):
             model_name = message_body.ModelName().decode('utf-8')
             return system_name, model_name
         else:
-            raise RuntimeError('Unexpected resply to handshake.')
+            raise RuntimeError('Unexpected reply to handshake.')
 
-    def forward(self, observation):
+    def forward(self, observation=[]):
         builder = flatbuffers.Builder(64)
 
         # construct ProtocolTensor
@@ -227,7 +230,10 @@ class ModelServer(object):
                     dist = Normal(mean, stddev)
                 else:
                     raise RuntimeError('Sample from an unexpected distribution requested.')
-                state.observe(dist, value)
+                if value is None:
+                    print('Warning: observe called with non-existing value.')
+                else:
+                    state.observe(dist, value)
                 builder = flatbuffers.Builder(64)
                 PPLProtocol_ObserveResult.ObserveResultStart(builder)
                 message_body = PPLProtocol_ObserveResult.ObserveResultEnd(builder)
