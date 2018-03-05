@@ -3,10 +3,9 @@ import math
 import uuid
 import tempfile
 import os
-import sys
-import traceback
 import docker
 
+import pyprob
 from pyprob import ModelRemote
 from pyprob import util
 
