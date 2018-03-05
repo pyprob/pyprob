@@ -43,6 +43,14 @@ def set_cuda(cuda, device=0):
         Tensor = torch.FloatTensor
 
 
+verbosity = 2
+
+
+def set_verbosity(v=2):
+    global verbosity
+    verbosity = v
+
+
 def to_variable(value, requires_grad=False):
     ret = None
     if isinstance(value, Variable):

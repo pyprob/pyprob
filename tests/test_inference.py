@@ -296,6 +296,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
 if __name__ == '__main__':
     # if torch.cuda.is_available():
         # pyprob.set_cuda(True)
+    pyprob.set_verbosity(1)
     tests = []
     # tests.append('MVNWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanTestCase')

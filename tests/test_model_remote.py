@@ -150,4 +150,5 @@ class ModelRemoteWithReplacementTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    pyprob.set_verbosity(1)
     unittest.main(verbosity=2)

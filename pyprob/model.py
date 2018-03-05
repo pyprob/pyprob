@@ -38,12 +38,12 @@ class Model(nn.Module):
         ret = []
         time_start = time.time()
         for i in range(samples):
-            if trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK:
+            if (trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1):
                 duration = time.time() - time_start
                 print('                                                                \r{} | {} | {} / {} | {:,} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, samples), i+1, samples, int(i / duration)), end='\r')
                 sys.stdout.flush()
             ret.append(next(generator))
-        if trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK:
+        if (trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1):
             print()
         return ret
 
@@ -56,11 +56,13 @@ class Model(nn.Module):
         ret = []
         time_start = time.time()
         for i in range(samples):
-            duration = time.time() - time_start
-            print('                                                                \r{} | {} | {} / {} | {:,} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, samples), i+1, samples, int(i / duration)), end='\r')
-            sys.stdout.flush()
+            if (util.verbosity > 1):
+                duration = time.time() - time_start
+                print('                                                                \r{} | {} | {} / {} | {:,} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, samples), i+1, samples, int(i / duration)), end='\r')
+                sys.stdout.flush()
             ret.append(next(generator))
-        print()
+        if (util.verbosity > 1):
+            print()
         return Empirical(ret)
 
     def posterior_distribution(self, samples=1000, use_inference_network=False, *args, **kwargs):
