@@ -25,8 +25,7 @@ class Model(nn.Module):
                 self._inference_network.new_trace(util.pack_observes_to_variable(kwargs['observation']).unsqueeze(0))
             state.begin_trace(self.forward, trace_state, proposal_network)
             res = self.forward(*args, **kwargs)
-            trace = state.end_trace()
-            trace.set_result(res)
+            trace = state.end_trace(res)
             yield trace
 
     def _prior_sample_generator(self, *args, **kwargs):
@@ -73,7 +72,7 @@ class Model(nn.Module):
             self._inference_network.eval()
             traces = self._prior_traces(samples, trace_state=TraceState.RECORD_USE_INFERENCE_NETWORK, proposal_network=self._inference_network, *args, **kwargs)
         else:
-            traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
+            traces = self._prior_traces(samples, trace_state=TraceState.RECORD_IMPORTANCE, proposal_network=None, *args, **kwargs)
         log_weights = [trace.log_prob for trace in traces]
         results = [trace.result for trace in traces]
         return Empirical(results, log_weights)

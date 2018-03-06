@@ -54,6 +54,7 @@ table SampleResult {
 }
 
 table Observe {
+  address: string;
   distribution: Distribution;
   value: ProtocolTensor;
 }

@@ -28,7 +28,7 @@ class Requester(object):
         self._socket = self._context.socket(zmq.REQ)
         self._socket.setsockopt(zmq.LINGER, 100)
         self._socket.connect(self._server_address)
-        print('Protocol (Python): zmq.REQ socket connected to server {}'.format(self._server_address))
+        print('PPLProtocol (Python): zmq.REQ socket connected to server {}'.format(self._server_address))
 
     def __enter__(self):
         return self
@@ -43,7 +43,7 @@ class Requester(object):
         if not self._socket.closed:
             self._socket.close()
             self._context.destroy()
-            print('Protocol (Python): zmq.REQ socket disconnected from server {}'.format(self._server_address))
+            print('PPLProtocol (Python): zmq.REQ socket disconnected from server {}'.format(self._server_address))
 
     def send_request(self, request):
         self._socket.send(request)
@@ -56,9 +56,9 @@ class ModelServer(object):
     def __init__(self, server_address):
         self._requester = Requester(server_address)
         self.system_name, self.model_name = self._handshake()
-        print('Protocol (Python): this system        : {}'.format(colored('pyprob {}'.format(__version__), 'green')))
-        print('Protocol (Python): connected to system: {}'.format(colored(self.system_name, 'green')))
-        print('Protocol (Python): model name         : {}'.format(colored(self.model_name, 'green', attrs=['bold'])))
+        print('PPLProtocol (Python): this system        : {}'.format(colored('pyprob {}'.format(__version__), 'green')))
+        print('PPLProtocol (Python): connected to system: {}'.format(colored(self.system_name, 'green')))
+        print('PPLProtocol (Python): model name         : {}'.format(colored(self.model_name, 'green', attrs=['bold'])))
 
     def __enter__(self):
         return self
@@ -214,6 +214,7 @@ class ModelServer(object):
                 message = builder.Output()
                 self._requester.send_request(message)
             elif isinstance(message_body, PPLProtocol_Observe.Observe):
+                address = message_body.Address().decode('utf-8')
                 value = self._protocol_tensor_to_variable(message_body.Value())
                 distribution_type = message_body.DistributionType()
                 if distribution_type == PPLProtocol_Distribution.Distribution().Uniform:
@@ -233,7 +234,7 @@ class ModelServer(object):
                 if value is None:
                     print('Warning: observe called with non-existing value.')
                 else:
-                    state.observe(dist, value)
+                    state.observe(dist, value, address)
                 builder = flatbuffers.Builder(64)
                 PPLProtocol_ObserveResult.ObserveResultStart(builder)
                 message_body = PPLProtocol_ObserveResult.ObserveResultEnd(builder)

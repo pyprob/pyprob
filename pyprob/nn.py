@@ -30,7 +30,7 @@ class Batch(object):
         self.observes_max_length = 0
         sb = {}
         for trace in traces:
-            if trace.length is None:
+            if trace.length == 0:
                 raise ValueError('Trace of length zero')
             if trace.length > self.traces_max_length:
                 self.traces_max_length = trace.length

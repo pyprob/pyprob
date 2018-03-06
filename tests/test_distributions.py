@@ -17,6 +17,8 @@ class DistributionsTestCase(unittest.TestCase):
         log_weights = Variable(util.Tensor([1, 2, 3]))
         dist_mean_correct = 2.5752103328704834
         dist_stddev_correct = 0.6514633893966675
+        dist_expectation_sin_correct = 0.3921678960323334
+        dist_map_sin_mean_correct = 0.3921678960323334
 
         dist = Empirical(values, log_weights)
         dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
@@ -24,13 +26,17 @@ class DistributionsTestCase(unittest.TestCase):
         dist_mean_empirical = float(dist_empirical.mean)
         dist_stddev = float(dist.stddev)
         dist_stddev_empirical = float(dist_empirical.stddev)
+        dist_expectation_sin = float(dist.expectation(torch.sin))
+        dist_map_sin_mean = float(dist.map(torch.sin).mean)
 
-        util.debug('dist_mean', 'dist_mean_empirical', 'dist_mean_correct', 'dist_stddev', 'dist_stddev_empirical', 'dist_stddev_correct')
+        util.debug('dist_mean', 'dist_mean_empirical', 'dist_mean_correct', 'dist_stddev', 'dist_stddev_empirical', 'dist_stddev_correct', 'dist_expectation_sin', 'dist_expectation_sin_correct', 'dist_map_sin_mean', 'dist_map_sin_mean_correct')
 
         self.assertAlmostEqual(dist_mean, dist_mean_correct, places=1)
         self.assertAlmostEqual(dist_mean_empirical, dist_mean_correct, places=1)
         self.assertAlmostEqual(dist_stddev, dist_stddev_correct, places=1)
         self.assertAlmostEqual(dist_stddev_empirical, dist_stddev_correct, places=1)
+        self.assertAlmostEqual(dist_expectation_sin, dist_expectation_sin_correct, places=1)
+        self.assertAlmostEqual(dist_map_sin_mean, dist_map_sin_mean_correct, places=1)
 
     def test_dist_categorical(self):
         dist_sample_shape_correct = [1]
@@ -167,7 +173,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-    #
+
     def test_dist_normal_multivariate(self):
         dist_sample_shape_correct = [1, 3]
         dist_means_correct = [[0, 2, 0]]
@@ -215,7 +221,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-
 
     def test_dist_truncated_normal(self):
         dist_sample_shape_correct = [1]
@@ -333,7 +338,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_lows, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-    #
 
 
 if __name__ == '__main__':
