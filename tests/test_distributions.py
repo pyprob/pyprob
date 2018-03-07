@@ -198,6 +198,30 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
 
+    def test_dist_normal_multivariate_from_flat_params(self):
+        dist_sample_shape_correct = [1, 3]
+        dist_means_correct = [[0, 2, 0]]
+        dist_stddevs_correct = [[1, 3, 1]]
+        dist_log_probs_correct = [sum([-0.918939, -2.01755, -0.918939])]
+
+        dist = Normal(dist_means_correct[0], dist_stddevs_correct[0])
+        dist_sample_shape = list(dist.sample().size())
+        dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
+        dist_means = util.to_numpy(dist.mean)
+        dist_means_empirical = util.to_numpy(dist_empirical.mean)
+        dist_stddevs = util.to_numpy(dist.stddev)
+        dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
+        dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct[0]))
+
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+
+        self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
+        self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+
     def test_dist_normal_multivariate_batched(self):
         dist_sample_shape_correct = [2, 3]
         dist_means_correct = [[0, 2, 0], [2, 0, 2]]

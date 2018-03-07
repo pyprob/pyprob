@@ -174,4 +174,4 @@ def progress_bar(i, len):
     bar_len = 20
     filled_len = int(round(bar_len * i / len))
     # percents = round(100.0 * i / len, 1)
-    return '█' * filled_len + '-' * (bar_len - filled_len)
+    return '#' * filled_len + '-' * (bar_len - filled_len)

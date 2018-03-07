@@ -17,6 +17,8 @@ _trace_state = TraceState.NONE
 _current_trace = None
 _current_trace_root_function_name = None
 _current_trace_inference_network = None
+_current_trace_previous_sample = None
+_current_trace_replaced_sample_proposal_distributions = {}
 
 
 def extract_address(root_function_name):
@@ -86,18 +88,26 @@ def sample(distribution, control=True, replace=False, address=None):
         if control:
             if _trace_state == TraceState.RECORD_IMPORTANCE:
                 # The log_prob of samples are zero for regular importance sampling (no learned proposals) as it cancels out
-                current_sample = Sample(address, distribution, value, log_prob=0, controlled=True)
+                log_prob = 0
             else:
-                current_sample = Sample(address, distribution, value, log_prob=distribution.log_prob(value), controlled=True)
+                log_prob = distribution.log_prob(value)
 
+            current_sample = Sample(address, distribution, value, log_prob=log_prob, controlled=True)
             if _trace_state == TraceState.RECORD_USE_INFERENCE_NETWORK:
-                previous_sample = None
-                if _current_trace.length > 0:
-                    previous_sample = _current_trace.samples[-1]
+                global _current_trace_previous_sample
+                global _current_trace_replaced_sample_proposal_distributions
                 _current_trace_inference_network.eval()
-                proposal_distribution = _current_trace_inference_network.forward_one_time_step(previous_sample, current_sample)
+                if replace:
+                    if address not in _current_trace_replaced_sample_proposal_distributions:
+                        _current_trace_replaced_sample_proposal_distributions[address] = _current_trace_inference_network.forward_one_time_step(_current_trace_previous_sample, current_sample)
+                    proposal_distribution = _current_trace_replaced_sample_proposal_distributions[address]
+                else:
+                    proposal_distribution = _current_trace_inference_network.forward_one_time_step(_current_trace_previous_sample, current_sample)
                 value = proposal_distribution.sample()[0]
                 current_sample = Sample(address, distribution, value, log_prob=distribution.log_prob(value) - proposal_distribution.log_prob(value), controlled=True)
+
+                if not replace:
+                    _current_trace_previous_sample = current_sample
         else:
             current_sample = Sample(address, distribution, value, log_prob=0, controlled=False)
         _current_trace.add_sample(current_sample, replace)

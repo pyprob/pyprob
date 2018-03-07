@@ -13,8 +13,8 @@ from pyprob import Model
 from pyprob.distributions import Categorical, Empirical, Normal, Uniform
 
 
-samples = 2000
-training_traces = 10000
+samples = 1000
+training_traces = 5000
 perf_score_importance_sampling = 0
 perf_score_inference_compilation = 0
 

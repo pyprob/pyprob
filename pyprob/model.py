@@ -32,14 +32,14 @@ class Model(nn.Module):
         while True:
             yield self.forward(*args, **kwargs)
 
-    def _prior_traces(self, samples=10, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs):
+    def _prior_traces(self, traces=10, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs):
         generator = self._prior_trace_generator(trace_state, proposal_network, *args, **kwargs)
         ret = []
         time_start = time.time()
-        for i in range(samples):
+        for i in range(traces):
             if (trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1):
                 duration = time.time() - time_start
-                print('                                                                \r{} | {} | {} / {} | {:,} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, samples), i+1, samples, int(i / duration)), end='\r')
+                print('                                                                \r{} | {} | {} / {} | {:,} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, traces), i+1, traces, int(i / duration)), end='\r')
                 sys.stdout.flush()
             ret.append(next(generator))
         if (trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1):
@@ -50,29 +50,29 @@ class Model(nn.Module):
         generator = self._prior_sample_generator(*args, **kwargs)
         next(generator)
 
-    def prior_distribution(self, samples=1000, *args, **kwargs):
+    def prior_distribution(self, traces=1000, *args, **kwargs):
         generator = self._prior_sample_generator(*args, **kwargs)
         ret = []
         time_start = time.time()
-        for i in range(samples):
+        for i in range(traces):
             if (util.verbosity > 1):
                 duration = time.time() - time_start
-                print('                                                                \r{} | {} | {} / {} | {:,} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, samples), i+1, samples, int(i / duration)), end='\r')
+                print('                                                                \r{} | {} | {} / {} | {:,} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, traces), i+1, traces, int(i / duration)), end='\r')
                 sys.stdout.flush()
             ret.append(next(generator))
         if (util.verbosity > 1):
             print()
         return Empirical(ret)
 
-    def posterior_distribution(self, samples=1000, use_inference_network=False, *args, **kwargs):
+    def posterior_distribution(self, traces=1000, use_inference_network=False, *args, **kwargs):
         if use_inference_network and (self._inference_network is None):
             print('Warning: Cannot run inference with inference network because there is none available. Use learn_inference_network first.')
             use_inference_network = False
         if use_inference_network:
             self._inference_network.eval()
-            traces = self._prior_traces(samples, trace_state=TraceState.RECORD_USE_INFERENCE_NETWORK, proposal_network=self._inference_network, *args, **kwargs)
+            traces = self._prior_traces(traces, trace_state=TraceState.RECORD_USE_INFERENCE_NETWORK, proposal_network=self._inference_network, *args, **kwargs)
         else:
-            traces = self._prior_traces(samples, trace_state=TraceState.RECORD_IMPORTANCE, proposal_network=None, *args, **kwargs)
+            traces = self._prior_traces(traces, trace_state=TraceState.RECORD_IMPORTANCE, proposal_network=None, *args, **kwargs)
         log_weights = [trace.log_prob for trace in traces]
         results = [trace.result for trace in traces]
         return Empirical(results, log_weights)
@@ -104,23 +104,23 @@ class Model(nn.Module):
     def load_inference_network(self, file_name):
         self._inference_network = InferenceNetwork.load(file_name, util._cuda_enabled, util._cuda_device)
 
-    def trace_length_mean(self, samples=1000, *args, **kwargs):
-        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
+    def trace_length_mean(self, traces=1000, *args, **kwargs):
+        traces = self._prior_traces(traces, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return trace_length_dist.mean
 
-    def trace_length_stddev(self, samples=1000, *args, **kwargs):
-        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
+    def trace_length_stddev(self, traces=1000, *args, **kwargs):
+        traces = self._prior_traces(traces, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return trace_length_dist.stddev
 
-    def trace_length_min(self, samples=1000, *args, **kwargs):
-        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
+    def trace_length_min(self, traces=1000, *args, **kwargs):
+        traces = self._prior_traces(traces, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return min(trace_length_dist.values_numpy)
 
-    def trace_length_max(self, samples=1000, *args, **kwargs):
-        traces = self._prior_traces(samples, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
+    def trace_length_max(self, traces=1000, *args, **kwargs):
+        traces = self._prior_traces(traces, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return max(trace_length_dist.values_numpy)
 

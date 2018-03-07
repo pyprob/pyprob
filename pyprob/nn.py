@@ -323,7 +323,7 @@ class InferenceNetwork(nn.Module):
                     elif isinstance(distribution, Normal):
                         proposal_layer = ProposalNormal(self._lstm_dim, distribution.length_variates)
                     elif isinstance(distribution, Uniform):
-                        proposal_layer = ProposalUniformMixture(self._lstm_dim)
+                        proposal_layer = ProposalUniform(self._lstm_dim)
                     else:
                         raise ValueError('Unsupported distribution: {}'.format(distribution.name))
 

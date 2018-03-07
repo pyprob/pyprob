@@ -299,6 +299,9 @@ class Normal(Distribution):
         if self._mean.dim() == 1:
             self.length_variates = self._mean.size(0)
             self.length_batch = 1
+            if self._mean.size(0) > 1:
+                self._mean = self._mean.unsqueeze(0)
+                self._stddev = self._stddev.unsqueeze(0)
         elif self._mean.dim() == 2:
             self.length_variates = self._mean.size(1)
             self.length_batch = self._mean.size(0)

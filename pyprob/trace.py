@@ -22,7 +22,7 @@ class Sample(object):
             self.observed,
             self.address_suffixed,
             str(self.distribution),
-            self.value.data.cpu().numpy().tolist()
+            str(self.value)
         )
 
     def cuda(self, device=None):
