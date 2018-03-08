@@ -12,4 +12,5 @@ class MessageBody(object):
     SampleResult = 6
     Observe = 7
     ObserveResult = 8
+    Reset = 9
 

@@ -100,6 +100,7 @@ def sample(distribution, control=True, replace=False, address=None):
                 if replace:
                     if address not in _current_trace_replaced_sample_proposal_distributions:
                         _current_trace_replaced_sample_proposal_distributions[address] = _current_trace_inference_network.forward_one_time_step(_current_trace_previous_sample, current_sample)
+                        _current_trace_previous_sample = current_sample
                     proposal_distribution = _current_trace_replaced_sample_proposal_distributions[address]
                 else:
                     proposal_distribution = _current_trace_inference_network.forward_one_time_step(_current_trace_previous_sample, current_sample)

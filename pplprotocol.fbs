@@ -8,7 +8,8 @@ union MessageBody {
   Sample,
   SampleResult,
   Observe,
-  ObserveResult
+  ObserveResult,
+  Reset
 }
 
 table Message {
@@ -60,6 +61,8 @@ table Observe {
 }
 
 table ObserveResult {}
+
+table Reset {}
 
 table Normal {
   mean: ProtocolTensor;

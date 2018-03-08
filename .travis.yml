@@ -2,46 +2,36 @@ sudo: required
 language: python
 cache: pip
 services:
-  - docker
-
+- docker
 notifications:
   email: false
-
+  slack:
+    secure: UGSUq791mcizjr1dD20jkir+Sm+DDJenWyVSPOC2AFVPHzV3PCduaNf9EbcUJpN07Z7FOx/rHrqBeEXLhRBjU3biwwvZ5KR8+MOr7UK+62YE+w+0ngckF2ATYDqC6bKaBBzQycAVaRuTTFiQfdyha27AnfHvCHFpu/sZJ4N1venYGYjs6nj1gxticR8xfor7HIRsJ24FURxlU5Lb3T/esTqE4zkVsZGKnKu216KoQQbpRoJWLTdalaPYfGFtgAeDU+13U3qZ9ZQmvBoi04VDFKKl7P856j1eS+Fo+VzTOdEIT6m59zLDyrEfwrbf1rWNb3ttk+coCWuPhHZ6ZMx4rdRX9k/erJQHlBFKDm/NpZcouXW5PP6YA/oOIaJHR1KLrgclB/PvWFOypxPOlkyIRHOKxY5TkxtqtTu4Tchpdk5RRCWd/koBxqaMtaiz+KY/p/m7Y8TbowiD7Bcw2CZEyrvVVfMCE4AMZvUOSvTPHzDyH0KuoRLuhpJJcQKlpgUZZvN05MAMJrhg/xnzXsUltMbn7CzdsGQwtCSOdmpiuqTfKQNsd5TAeh5DuSw7S6OykUuNnfOieCt+5cNrl/OIxy8sN0b+MzotXdO83v0AjtJLtvToIH0Zgwx5Fw6JnWv1BEsI/2vduBS/91M4HyOIVU1lrrJmD7L7ZtEWMxGgpJw=
 env:
   global:
-    - secure: sv19elMDeQz6I/LeXzwZ8t2s7UnW8r3gLwEqzUrpMOuV5tZnroQQ9T+oX/QAT7f6bPgq124EzKPt42bYh+3Ls8DHv4cIJJCXihw8xwkR5sPYsj3VUEpw/K2JyImNc+W3F+MsV5IqGATUQmG/5zYo3IXzlM+Z85cp5omk1oAfJR+CimGsFXwFyUt3s87F82UNW0CV7UplWFpKFuAhnlKx77TEMP2PqJK2bBLuNz22Aw3N2va60L+sykWOLS+tp9hpOC0jRSmbIy57ltsbz0k9bVfQg1VKaGlHC649qyY/9L8vC9sAsvF5j42+HtRK/7V3cUhlU9sVSWD21kCAWkcnmRTeseonq/zorLeYf530CCyUGROXDJ6tG7/YtFYL5+v/fSkLmdegjZDwNYxbvVB1+NvXUrcQKJTrRwFHrRf4sefqpqh9qU2TSWtsRjGv46zNz7hJhSAzW/6KrGm+jVE2PrlzfpyW8u3Y8H0VTX2gdcMq/wLm7FPhPeWbWRUyFiCqGDbEhjOrnI2LBgwAeYQDFQNh2ooxKPrnKw1wlcPiQCNNT1/CARvHGaVHYXDDJhi3O7hCwcqecmt+k27r+jn2l0wZK2fkkGb6ESmK7UJOAZX/CKpSV1F5c+El+jlykl3zq+8x+2fknFg7KH0KQpunhSo1BvvOGBRmqS/JEOvxhGo=
-    - secure: FHlmfo3UTQwvOwispfqIvPQcvrCzNifGxfJn/dVuh15LLiFWVBsuXJp18lTKJQOd9coQ8KQzg+kTWC2RjYSb6LQRrpaG/hLXBhiP9UzYk4a61dU06vMhDtf8T0mjDIGF8ZYUsNmY0rZ5K7eWs6PDm/II4700njFQOUH4FbB+mJybBflWwERWmo8UaIS5EqcDaBRUxQ2dIqaRIxWeLHLiRHldPURD3KTGaVNgT/P/zHzgCDQAGBSGYLMI8YmfJxDoniW8KtHavxJrhlBm+Qrr7x3aFBobe6Bqmy7cx3F9WaS7kFzfuO63f9rby7+gNSnMdAOyOO0eaCF8cP261bqVZDHVXJ9GwtG4t1hQkbaUf1MEeB6SBKkQ5Ww9y2bWhP2xIIxpOzBIX/UdeUV+6lFQhquhzRmNu5f7Opv5AyU9xnLp+QBXpgaO80bqX39Jfdg4eE4CQ9xJgHfsnDFNh8fh7CQvHt/3HHwwpLQ7ZK7NQAw9BD53hkTMrqRaOutvESVZGrBwObhNIur2cm3DFNxZPz+efVb/nJbHkZb7ifFmyypqLj4y7X2KCmKxjniiBiljQKEgfO6Sytxh/5/ProeK0E5D/Vqkosb7U7hoOBljzfu6ay0VBPqM2tC+MJ6yA+s+tU3jQfDVDJho545rM2eVHxrgJ2n7QL5dCTkwl4hKOCo=
-
+  - secure: sv19elMDeQz6I/LeXzwZ8t2s7UnW8r3gLwEqzUrpMOuV5tZnroQQ9T+oX/QAT7f6bPgq124EzKPt42bYh+3Ls8DHv4cIJJCXihw8xwkR5sPYsj3VUEpw/K2JyImNc+W3F+MsV5IqGATUQmG/5zYo3IXzlM+Z85cp5omk1oAfJR+CimGsFXwFyUt3s87F82UNW0CV7UplWFpKFuAhnlKx77TEMP2PqJK2bBLuNz22Aw3N2va60L+sykWOLS+tp9hpOC0jRSmbIy57ltsbz0k9bVfQg1VKaGlHC649qyY/9L8vC9sAsvF5j42+HtRK/7V3cUhlU9sVSWD21kCAWkcnmRTeseonq/zorLeYf530CCyUGROXDJ6tG7/YtFYL5+v/fSkLmdegjZDwNYxbvVB1+NvXUrcQKJTrRwFHrRf4sefqpqh9qU2TSWtsRjGv46zNz7hJhSAzW/6KrGm+jVE2PrlzfpyW8u3Y8H0VTX2gdcMq/wLm7FPhPeWbWRUyFiCqGDbEhjOrnI2LBgwAeYQDFQNh2ooxKPrnKw1wlcPiQCNNT1/CARvHGaVHYXDDJhi3O7hCwcqecmt+k27r+jn2l0wZK2fkkGb6ESmK7UJOAZX/CKpSV1F5c+El+jlykl3zq+8x+2fknFg7KH0KQpunhSo1BvvOGBRmqS/JEOvxhGo=
+  - secure: FHlmfo3UTQwvOwispfqIvPQcvrCzNifGxfJn/dVuh15LLiFWVBsuXJp18lTKJQOd9coQ8KQzg+kTWC2RjYSb6LQRrpaG/hLXBhiP9UzYk4a61dU06vMhDtf8T0mjDIGF8ZYUsNmY0rZ5K7eWs6PDm/II4700njFQOUH4FbB+mJybBflWwERWmo8UaIS5EqcDaBRUxQ2dIqaRIxWeLHLiRHldPURD3KTGaVNgT/P/zHzgCDQAGBSGYLMI8YmfJxDoniW8KtHavxJrhlBm+Qrr7x3aFBobe6Bqmy7cx3F9WaS7kFzfuO63f9rby7+gNSnMdAOyOO0eaCF8cP261bqVZDHVXJ9GwtG4t1hQkbaUf1MEeB6SBKkQ5Ww9y2bWhP2xIIxpOzBIX/UdeUV+6lFQhquhzRmNu5f7Opv5AyU9xnLp+QBXpgaO80bqX39Jfdg4eE4CQ9xJgHfsnDFNh8fh7CQvHt/3HHwwpLQ7ZK7NQAw9BD53hkTMrqRaOutvESVZGrBwObhNIur2cm3DFNxZPz+efVb/nJbHkZb7ifFmyypqLj4y7X2KCmKxjniiBiljQKEgfO6Sytxh/5/ProeK0E5D/Vqkosb7U7hoOBljzfu6ay0VBPqM2tC+MJ6yA+s+tU3jQfDVDJho545rM2eVHxrgJ2n7QL5dCTkwl4hKOCo=
 python:
-  - '3.6'
-
+- '3.6'
 before_install:
-  - sudo apt-get install -y libzmq3-dev uuid-dev
-  - pip install http://download.pytorch.org/whl/cpu/torch-0.3.1-cp36-cp36m-linux_x86_64.whl
-  - pip install torchvision
-
+- sudo apt-get install -y libzmq3-dev uuid-dev
+- pip install http://download.pytorch.org/whl/cpu/torch-0.3.1-cp36-cp36m-linux_x86_64.whl
+- pip install torchvision
 install:
-  - pip install .
-
+- pip install .
 script:
-  - cd tests
-  - travis_wait sh run_all.sh
-  - cd ..
-
+- cd tests
+- travis_wait sh run_all.sh
+- cd ..
 after_success:
-  - export CURRENT_BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
-  - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, TRAVIS_TAG=$TRAVIS_TAG, CURRENT_BRANCH=$CURRENT_BRANCH"
-  - if [[ "$TRAVIS_BRANCH" == "master" ]] || [[ -n "$TRAVIS_TAG" ]]; then
-      GIT_COMMIT="$(git rev-parse HEAD)" ;
-      echo "GIT_COMMIT=$GIT_COMMIT" ;
-      PYPROB_VERSION="$(python setup.py --version)" ;
-      echo "PYPROB_VERSION=$PYPROB_VERSION" ;
-      docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD ;
-      docker build -t probprog/pyprob --build-arg PYPROB_VERSION=$PYPROB_VERSION --build-arg GIT_COMMIT=$GIT_COMMIT . ;
-      docker tag probprog/pyprob probprog/pyprob:latest ;
-      docker push probprog/pyprob:latest ;
-      if [[ -n "$TRAVIS_TAG" ]]; then
-        docker tag probprog/pyprob probprog/pyprob:$TRAVIS_TAG ;
-        docker push probprog/pyprob:$TRAVIS_TAG ;
-      fi
-    fi
+- export CURRENT_BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH;
+  else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
+- echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, TRAVIS_TAG=$TRAVIS_TAG, CURRENT_BRANCH=$CURRENT_BRANCH"
+- if [[ "$TRAVIS_BRANCH" == "master" ]] || [[ -n "$TRAVIS_TAG" ]]; then GIT_COMMIT="$(git
+  rev-parse HEAD)" ; echo "GIT_COMMIT=$GIT_COMMIT" ; PYPROB_VERSION="$(python setup.py
+  --version)" ; echo "PYPROB_VERSION=$PYPROB_VERSION" ; docker login -u $DOCKER_USERNAME
+  -p $DOCKER_PASSWORD ; docker build -t probprog/pyprob --build-arg PYPROB_VERSION=$PYPROB_VERSION
+  --build-arg GIT_COMMIT=$GIT_COMMIT . ; docker tag probprog/pyprob probprog/pyprob:latest
+  ; docker push probprog/pyprob:latest ; if [[ -n "$TRAVIS_TAG" ]]; then docker tag
+  probprog/pyprob probprog/pyprob:$TRAVIS_TAG ; docker push probprog/pyprob:$TRAVIS_TAG
+  ; fi fi

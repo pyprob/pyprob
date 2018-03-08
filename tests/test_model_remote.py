@@ -21,6 +21,9 @@ GaussianWithUnknownMeanMarsagliaCPP = ModelRemote('tcp://127.0.0.1:5555')
 docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_gum_marsaglia_replacement tcp://*:5556', network='host', detach=True)
 GaussianWithUnknownMeanMarsagliaWithReplacementCPP = ModelRemote('tcp://127.0.0.1:5556')
 
+docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_set_defaults_and_addresses tcp://*:5557', network='host', detach=True)
+SetDefaultsAndAddressesCPP = ModelRemote('tcp://127.0.0.1:5557')
+
 
 class ModelRemoteTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
@@ -146,6 +149,38 @@ class ModelRemoteWithReplacementTestCase(unittest.TestCase):
         self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)
         self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
         self.assertAlmostEqual(trace_length_max, trace_length_max_correct, places=0)
+
+
+class ModelRemoteSetDefaultsAndAddressesTestCase(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        self._model = SetDefaultsAndAddressesCPP
+        super().__init__(*args, **kwargs)
+
+    def test_model_remote_set_defaults_and_addresses_prior(self):
+        samples = 2000
+        prior_mean_correct = 1
+        prior_stddev_correct = 3.882074  # Estimate from 100k samples
+
+        prior = self._model.prior_distribution(samples)
+        prior_mean = float(prior.mean)
+        prior_stddev = float(prior.stddev)
+        util.debug('samples', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
+
+        self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
+        self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
+
+    def test_model_remote_set_defaults_and_addresses_addresses(self):
+        addresses_correct = ['normal1', 'normal1', 'normal2']
+        addresses_all_correct = ['normal1', 'normal1', 'normal2', 'normal3', 'normal3', 'likelihood']
+
+        trace = next(self._model._prior_trace_generator(observation=[0]))
+        addresses = [s.address for s in trace.samples]
+        addresses_all = [s.address for s in trace._samples_all]
+
+        util.debug('addresses', 'addresses_correct', 'addresses_all', 'addresses_all_correct')
+
+        self.assertEqual(addresses, addresses_correct)
+        self.assertEqual(addresses_all, addresses_all_correct)
 
 
 if __name__ == '__main__':

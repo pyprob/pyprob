@@ -19,6 +19,7 @@ from .PPLProtocol import Sample as PPLProtocol_Sample
 from .PPLProtocol import SampleResult as PPLProtocol_SampleResult
 from .PPLProtocol import Observe as PPLProtocol_Observe
 from .PPLProtocol import ObserveResult as PPLProtocol_ObserveResult
+from .PPLProtocol import Reset as PPLProtocol_Reset
 
 
 class Requester(object):
@@ -56,9 +57,9 @@ class ModelServer(object):
     def __init__(self, server_address):
         self._requester = Requester(server_address)
         self.system_name, self.model_name = self._handshake()
-        print('PPLProtocol (Python): this system        : {}'.format(colored('pyprob {}'.format(__version__), 'green')))
-        print('PPLProtocol (Python): connected to system: {}'.format(colored(self.system_name, 'green')))
-        print('PPLProtocol (Python): model name         : {}'.format(colored(self.model_name, 'green', attrs=['bold'])))
+        print('PPLProtocol (Python): This system        : {}'.format(colored('pyprob {}'.format(__version__), 'green')))
+        print('PPLProtocol (Python): Connected to system: {}'.format(colored(self.system_name, 'green')))
+        print('PPLProtocol (Python): Model name         : {}'.format(colored(self.model_name, 'green', attrs=['bold'])))
 
     def __enter__(self):
         return self
@@ -118,8 +119,10 @@ class ModelServer(object):
             message_body = PPLProtocol_Sample.Sample()
         elif body_type == PPLProtocol_MessageBody.MessageBody().Observe:
             message_body = PPLProtocol_Observe.Observe()
+        elif body_type == PPLProtocol_MessageBody.MessageBody().Reset:
+            message_body = PPLProtocol_Reset.Reset()
         else:
-            raise RuntimeError('Received unexpected message body type: {}'.format(body_type))
+            raise RuntimeError('PPLProtocol (Python): Received unexpected message body type: {}'.format(body_type))
         message_body.Init(message.Body().Bytes, message.Body().Pos)
         return message_body
 
@@ -148,7 +151,7 @@ class ModelServer(object):
             model_name = message_body.ModelName().decode('utf-8')
             return system_name, model_name
         else:
-            raise RuntimeError('Unexpected reply to handshake.')
+            raise RuntimeError('PPLProtocol (Python): Unexpected reply to handshake.')
 
     def forward(self, observation=[]):
         builder = flatbuffers.Builder(64)
@@ -196,7 +199,7 @@ class ModelServer(object):
                     stddev = self._protocol_tensor_to_variable(normal.Stddev())
                     dist = Normal(mean, stddev)
                 else:
-                    raise RuntimeError('Sample from an unexpected distribution requested.')
+                    raise RuntimeError('PPLProtocol (Python): Sample from an unexpected distribution requested.')
                 result = state.sample(dist, control, replace, address)
                 builder = flatbuffers.Builder(64)
                 result = self._variable_to_protocol_tensor(builder, result)
@@ -230,9 +233,9 @@ class ModelServer(object):
                     stddev = self._protocol_tensor_to_variable(normal.Stddev())
                     dist = Normal(mean, stddev)
                 else:
-                    raise RuntimeError('Sample from an unexpected distribution requested.')
+                    raise RuntimeError('PPLProtocol (Python): Sample from an unexpected distribution requested.')
                 if value is None:
-                    print('Warning: observe called with non-existing value.')
+                    print('PPLProtocol (Python): Warning: observed None value.')
                 else:
                     state.observe(dist, value, address)
                 builder = flatbuffers.Builder(64)
@@ -248,5 +251,7 @@ class ModelServer(object):
 
                 message = builder.Output()
                 self._requester.send_request(message)
+            elif isinstance(message_body, PPLProtocol_Reset.Reset):
+                raise RuntimeError('PPLProtocol (Python): Received a reset request. Protocol out of sync.')
             else:
-                raise RuntimeError('Received unexpected message.')
+                raise RuntimeError('PPLProtocol (Python): Received unexpected message.')

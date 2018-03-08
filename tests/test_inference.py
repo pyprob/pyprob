@@ -159,8 +159,8 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
                 uniform = Uniform(-1, 1)
                 s = 1
                 while float(s) >= 1:
-                    x = pyprob.sample(uniform)[0]
-                    y = pyprob.sample(uniform)[0]
+                    x = pyprob.sample(uniform, replace=True)[0]
+                    y = pyprob.sample(uniform, replace=True)[0]
                     s = x*x + y*y
                 return mean + stddev * (x * torch.sqrt(-2 * torch.log(s) / s))
 
@@ -300,7 +300,7 @@ if __name__ == '__main__':
     tests = []
     # tests.append('MVNWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanTestCase')
-    # tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
+    tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
     # tests.append('HiddenMarkovModelTestCase')
 
     time_start = time.time()
