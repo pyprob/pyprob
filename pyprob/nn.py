@@ -580,9 +580,9 @@ class InferenceNetwork(nn.Module):
         self._torch_version = torch.__version__
         def thread_save():
             torch.save(self, file_name)
-        a = Thread(target=thread_save)
-        a.start()
-        a.join()
+        t = Thread(target=thread_save)
+        t.start()
+        t.join()
 
     @staticmethod
     def load(file_name, cuda=False, device=None):
@@ -595,9 +595,9 @@ class InferenceNetwork(nn.Module):
             raise RuntimeError('Cannot load the inference network.')
 
         if ret._pyprob_version != __version__:
-            print(colored('Warning: different pyprob versions (loaded network:{}, current system:{})'.format(ret._pyprob_version, __version__), 'red', attrs=['bold']))
+            print(colored('Warning: different pyprob versions (loaded network: {}, current system: {})'.format(ret._pyprob_version, __version__), 'red', attrs=['bold']))
         if ret._torch_version != torch.__version__:
-            print(colored('Warning: different PyTorch versions (loaded network:{}, current system:{})'.format(ret._torch_version, torch.__version__), 'red', attrs=['bold']))
+            print(colored('Warning: different PyTorch versions (loaded network: {}, current system: {})'.format(ret._torch_version, torch.__version__), 'red', attrs=['bold']))
 
         if cuda:
             if ret._on_cuda:

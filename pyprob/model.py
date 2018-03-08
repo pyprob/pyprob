@@ -1,10 +1,16 @@
+import torch
 import torch.nn as nn
 import torch.optim as optim
 import time
 import sys
+import os
+import uuid
+from threading import Thread
+from termcolor import colored
+import random
 
 from .distributions import Empirical
-from . import state, util
+from . import state, util, __version__
 from .state import TraceState
 from .nn import ObserveEmbedding, SampleEmbedding, Batch, InferenceNetwork
 from .remote import ModelServer
@@ -15,6 +21,8 @@ class Model(nn.Module):
         super().__init__()
         self.name = name
         self._inference_network = None
+        self._trace_cache_path = None
+        self._trace_cache = []
 
     def forward(self):
         raise NotImplementedError()
@@ -77,7 +85,7 @@ class Model(nn.Module):
         results = [trace.result for trace in traces]
         return Empirical(results, log_weights)
 
-    def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, batch_size=64, valid_size=256, learning_rate=0.001, weight_decay=1e-4, early_stop_traces=-1, auto_save_file_name='', *args, **kwargs):
+    def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, batch_size=64, valid_size=256, learning_rate=0.001, weight_decay=1e-4, early_stop_traces=-1, use_trace_cache=False, *args, **kwargs):
         if self._inference_network is None:
             print('Creating new inference network...')
             traces = self._prior_traces(valid_size, trace_state=TraceState.RECORD_TRAIN_INFERENCE_NETWORK, *args, **kwargs)
@@ -89,9 +97,41 @@ class Model(nn.Module):
 
         optimizer = optim.Adam(self._inference_network.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
-        def new_batch_func():
-            traces = self._prior_traces(batch_size, trace_state=TraceState.RECORD_TRAIN_INFERENCE_NETWORK, *args, **kwargs)
-            return Batch(traces)
+        if use_trace_cache and self._trace_cache_path is None:
+            print('Warning: There is no trace cache assigned, training with online trace generation.')
+            use_trace_cache = False
+
+        if use_trace_cache:
+            def new_batch_func():
+                current_files = self._trace_cache_current_files()
+                if (len(self._trace_cache) == 0) and (len(current_files) == 0):
+                    cache_is_empty = True
+                    cache_was_empty = False
+                    while cache_is_empty:
+                        num_files = len(self._trace_cache_current_files())
+                        if num_files > 0:
+                            cache_is_empty = False
+                            if cache_was_empty:
+                                print('Resuming, new data appeared in trace cache (currently with {} files) at {}'.format(num_files, self._trace_cache_path))
+                        else:
+                            if not cache_was_empty:
+                                print('Waiting for new data, empty trace cache at {}'.format(self._trace_cache_path))
+                                cache_was_empty = True
+                            time.sleep(0.5)
+
+                while len(self._trace_cache) < batch_size:
+                    current_file = random.choice(current_files)
+                    new_traces = self._load_traces(current_file)
+                    random.shuffle(new_traces)
+                    self._trace_cache += new_traces
+
+                traces = self._trace_cache[0:batch_size]
+                self._trace_cache[0:batch_size] = []
+                return Batch(traces)
+        else:
+            def new_batch_func():
+                traces = self._prior_traces(batch_size, trace_state=TraceState.RECORD_TRAIN_INFERENCE_NETWORK, *args, **kwargs)
+                return Batch(traces)
 
         self._inference_network.train()
         self._inference_network.optimize(new_batch_func, optimizer, early_stop_traces)
@@ -123,6 +163,52 @@ class Model(nn.Module):
         traces = self._prior_traces(traces, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return max(trace_length_dist.values_numpy)
+
+    def traces_to_cache(self, traces=100, *args, **kwargs):
+        traces = self._prior_traces(traces, trace_state=TraceState.RECORD_TRAIN_INFERENCE_NETWORK, proposal_network=None, *args, **kwargs)
+        file_name = os.path.join(self._trace_cache_path, str(uuid.uuid4()))
+        self._save_traces(traces, file_name)
+
+    def set_trace_cache(self, trace_cache_path):
+        self._trace_cache_path = trace_cache_path
+        num_files = len(self._trace_cache_current_files())
+        print('Monitoring trace cache (currently with {} files) at {}'.format(num_files, trace_cache_path))
+
+    def _trace_cache_current_files(self):
+        files = [name for name in os.listdir(self._trace_cache_path)]
+        files = list(map(lambda f: os.path.join(self._trace_cache_path, f), files))
+        return files
+
+    def _save_traces(self, traces, file_name):
+        data = {}
+        data['traces'] = traces
+        data['length'] = len(traces)
+        data['model_name'] = self.name
+        data['pyprob_version'] = __version__
+        data['torch_version'] = torch.__version__
+        def thread_save():
+            torch.save(data, file_name)
+        t = Thread(target=thread_save)
+        t.start()
+        t.join()
+
+    def _load_traces(self, file_name):
+        try:
+            if util._cuda_enabled:
+                data = torch.load(file_name)
+            else:
+                data = torch.load(file_name, map_location=lambda storage, loc: storage)
+        except:
+            raise RuntimeError('Cannot load trace cache.')
+
+        # print('Loading trace cache of length {}'.format(data['length']))
+
+        if data['pyprob_version'] != __version__:
+            print(colored('Warning: different pyprob versions (loaded traces: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
+        if data['torch_version'] != torch.__version__:
+            print(colored('Warning: different PyTorch versions (loaded traces: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
+
+        return data['traces']
 
 
 class ModelRemote(Model):

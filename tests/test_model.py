@@ -2,6 +2,7 @@ import unittest
 import math
 import torch
 import uuid
+import shutil
 import tempfile
 import os
 
@@ -134,6 +135,19 @@ class ModelWithReplacementTestCase(unittest.TestCase):
         self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
         self.assertAlmostEqual(trace_length_max, trace_length_max_correct, places=0)
 
+    def test_model_save_trace_cache_train(self):
+        cache_traces = 32
+        training_traces = 128
+        path_name = tempfile.mkdtemp()
+
+        self._model.set_trace_cache(path_name)
+        self._model.traces_to_cache(traces=cache_traces, observation=[0, 0])
+        self._model.learn_inference_network(observation=[0, 0], early_stop_traces=training_traces, use_trace_cache=True)
+        shutil.rmtree(path_name)
+
+        util.debug('cache_traces', 'training_traces', 'path_name')
+
+        self.assertTrue(True)
 
 if __name__ == '__main__':
     pyprob.set_verbosity(1)
