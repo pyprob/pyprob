@@ -45,12 +45,12 @@ class Model(nn.Module):
         ret = []
         time_start = time.time()
         for i in range(traces):
-            if (trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1):
+            if ((trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1)) or (util.verbosity > 2):
                 duration = time.time() - time_start
                 print('                                                                \r{} | {} | {} / {} | {:,} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, traces), i+1, traces, int(i / duration)), end='\r')
                 sys.stdout.flush()
             ret.append(next(generator))
-        if (trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1):
+        if ((trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1)) or (util.verbosity > 2):
             print()
         return ret
 
@@ -164,12 +164,18 @@ class Model(nn.Module):
         trace_length_dist = Empirical([trace.length for trace in traces])
         return max(trace_length_dist.values_numpy)
 
-    def traces_to_cache(self, traces=100, *args, **kwargs):
-        traces = self._prior_traces(traces, trace_state=TraceState.RECORD_TRAIN_INFERENCE_NETWORK, proposal_network=None, *args, **kwargs)
-        file_name = os.path.join(self._trace_cache_path, str(uuid.uuid4()))
-        self._save_traces(traces, file_name)
+    def save_trace_cache(self, trace_cache_path, files=16, traces_per_file=512, *args, **kwargs):
+        f = 0
+        done = False
+        while not done:
+            traces = self._prior_traces(traces_per_file, trace_state=TraceState.RECORD_TRAIN_INFERENCE_NETWORK, proposal_network=None, *args, **kwargs)
+            file_name = os.path.join(trace_cache_path, str(uuid.uuid4()))
+            self._save_traces(traces, file_name)
+            f += 1
+            if (files != -1) and (f >= files):
+                done = True
 
-    def set_trace_cache(self, trace_cache_path):
+    def use_trace_cache(self, trace_cache_path):
         self._trace_cache_path = trace_cache_path
         num_files = len(self._trace_cache_current_files())
         print('Monitoring trace cache (currently with {} files) at {}'.format(num_files, trace_cache_path))
@@ -186,6 +192,7 @@ class Model(nn.Module):
         data['model_name'] = self.name
         data['pyprob_version'] = __version__
         data['torch_version'] = torch.__version__
+
         def thread_save():
             torch.save(data, file_name)
         t = Thread(target=thread_save)
@@ -202,7 +209,8 @@ class Model(nn.Module):
             raise RuntimeError('Cannot load trace cache.')
 
         # print('Loading trace cache of length {}'.format(data['length']))
-
+        if data['model_name'] != self.name:
+            print(colored('Warning: different model names (loaded traces: {}, current model: {})'.format(data['model_name'], self.name), 'red', attrs=['bold']))
         if data['pyprob_version'] != __version__:
             print(colored('Warning: different pyprob versions (loaded traces: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
         if data['torch_version'] != torch.__version__:

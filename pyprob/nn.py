@@ -15,6 +15,7 @@ from .distributions import Categorical, Mixture, Normal, TruncatedNormal, Unifor
 
 class ObserveEmbedding(enum.Enum):
     FULLY_CONNECTED = 0
+    CONVNET_3D_4C = 1
 
 
 class SampleEmbedding(enum.Enum):
@@ -81,6 +82,46 @@ class ObserveEmbeddingFC(nn.Module):
         x = F.relu(self._lin1(x.view(-1, self._input_dim)))
         x = F.relu(self._lin2(x))
         x = F.relu(self._lin3(x))
+        return x
+
+
+class ObserveEmbeddingCNN3D4C(nn.Module):
+    def __init__(self, input_example_non_batch, output_dim):
+        super(ObserveEmbeddingCNN3D4C, self).__init__()
+        if input_example_non_batch.dim() == 3:
+            self.input_sample = input_example_non_batch.unsqueeze(0).cpu()
+        elif input_example_non_batch.dim() == 4:
+            self.input_sample = input_example_non_batch.cpu()
+        else:
+            util.logger.log('ObserveEmbeddingCNN3D4C: Expecting a 4d input_example_non_batch (num_channels x depth x height x width) or a 3d input_example_non_batch (depth x height x width). Received: {0}'.format(input_example_non_batch.size()))
+        self.input_channels = self.input_sample.size(0)
+        self.output_dim = output_dim
+        self.conv1 = nn.Conv3d(self.input_channels, 64, 3)
+        self.conv2 = nn.Conv3d(64, 64, 3)
+        self.conv3 = nn.Conv3d(64, 128, 3)
+        self.conv4 = nn.Conv3d(128, 128, 3)
+
+    def configure(self):
+        self.cnn_output_dim = self.forward_cnn(self.input_sample.unsqueeze(0)).view(-1).size(0)
+        self.lin1 = nn.Linear(self.cnn_output_dim, self.output_dim)
+        self.lin2 = nn.Linear(self.output_dim, self.output_dim)
+
+    def forward_cnn(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = nn.MaxPool3d(2)(x)
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+        x = nn.MaxPool3d(2)(x)
+        return x
+
+    def forward(self, x):
+        if x.dim() == 4:  # This indicates that there are no channel dimensions and we have BxDxHxW
+            x = x.unsqueeze(1)  # Add a channel dimension of 1 after the batch dimension so that we have BxCxDxHxW
+        x = self.forward_cnn(x)
+        x = x.view(-1, self.cnn_output_dim)
+        x = F.relu(self.lin1(x))
+        x = F.relu(self.lin2(x))
         return x
 
 
@@ -240,6 +281,8 @@ class InferenceNetwork(nn.Module):
         example_observes = self._valid_batch[0].observes_variable  # To do: we need to check all the observes in the batch, to be more intelligent
         if self._observe_embedding == ObserveEmbedding.FULLY_CONNECTED:
             self._observe_embedding_layer = ObserveEmbeddingFC(example_observes, self._observe_embedding_dim)
+        elif self._observe_embedding == ObserveEmbedding.CONVNET_3D_4C:
+            self._observe_embedding_layer = ObserveEmbeddingCNN3D4C(example_observes, self._observe_embedding_dim)
         else:
             raise ValueError('Unknown observation embedding: {}'.format(self._observe_embedding))
         self._sample_embedding_layers = {}
@@ -578,6 +621,7 @@ class InferenceNetwork(nn.Module):
         self._trained_on = 'CUDA' if util._cuda_enabled else 'CPU'
         self._pyprob_version = __version__
         self._torch_version = torch.__version__
+
         def thread_save():
             torch.save(self, file_name)
         t = Thread(target=thread_save)

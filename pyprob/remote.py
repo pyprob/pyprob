@@ -28,8 +28,8 @@ class Requester(object):
         self._context = zmq.Context.instance()
         self._socket = self._context.socket(zmq.REQ)
         self._socket.setsockopt(zmq.LINGER, 100)
+        print('PPLProtocol (Python): zmq.REQ socket connecting to server {}'.format(self._server_address))
         self._socket.connect(self._server_address)
-        print('PPLProtocol (Python): zmq.REQ socket connected to server {}'.format(self._server_address))
 
     def __enter__(self):
         return self
@@ -153,15 +153,17 @@ class ModelServer(object):
         else:
             raise RuntimeError('PPLProtocol (Python): Unexpected reply to handshake.')
 
-    def forward(self, observation=[]):
+    def forward(self, observation=None):
         builder = flatbuffers.Builder(64)
 
-        # construct ProtocolTensor
-        observation = self._variable_to_protocol_tensor(builder, observation)
+        if observation is not None:
+            # construct ProtocolTensor
+            observation = self._variable_to_protocol_tensor(builder, observation)
 
         # construct MessageBody
         PPLProtocol_Run.RunStart(builder)
-        PPLProtocol_Run.RunAddObservation(builder, observation)
+        if observation is not None:
+            PPLProtocol_Run.RunAddObservation(builder, observation)
         message_body = PPLProtocol_Run.RunEnd(builder)
 
         # construct Message
