@@ -8,6 +8,9 @@ import uuid
 from threading import Thread
 from termcolor import colored
 import random
+import tarfile
+import tempfile
+import shutil
 
 from .distributions import Empirical
 from . import state, util, __version__
@@ -194,17 +197,29 @@ class Model(nn.Module):
         data['torch_version'] = torch.__version__
 
         def thread_save():
-            torch.save(data, file_name)
+            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+            tmp_file_name = os.path.join(tmp_dir, 'pyprob_traces')
+            torch.save(data, tmp_file_name)
+            tar = tarfile.open(file_name, 'w:xz')
+            tar.add(tmp_file_name, arcname='pyprob_traces')
+            tar.close()
+            shutil.rmtree(tmp_dir)
         t = Thread(target=thread_save)
         t.start()
         t.join()
 
     def _load_traces(self, file_name):
         try:
+            tar = tarfile.open(file_name, 'r:xz')
+            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+            tmp_file = os.path.join(tmp_dir, 'pyprob_traces')
+            tar.extract('pyprob_traces', tmp_dir)
+            tar.close()
             if util._cuda_enabled:
-                data = torch.load(file_name)
+                data = torch.load(tmp_file)
             else:
-                data = torch.load(file_name, map_location=lambda storage, loc: storage)
+                data = torch.load(tmp_file, map_location=lambda storage, loc: storage)
+            shutil.rmtree(tmp_dir)
         except:
             raise RuntimeError('Cannot load trace cache.')
 
