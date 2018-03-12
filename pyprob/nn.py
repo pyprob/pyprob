@@ -85,43 +85,49 @@ class ObserveEmbeddingFC(nn.Module):
         return x
 
 
-class ObserveEmbeddingCNN3D4C(nn.Module):
-    def __init__(self, input_example_non_batch, output_dim):
-        super(ObserveEmbeddingCNN3D4C, self).__init__()
+class ObserveEmbeddingConvnet3D4C(nn.Module):
+    def __init__(self, input_example_non_batch, output_dim, reshape=None):
+        super().__init__()
+        self._reshape = reshape
+        if self._reshape is not None:
+            input_example_non_batch = input_example_non_batch.view(self._reshape)
+            self._reshape.insert(0, -1)  # For correct handling of the batch dimension in self.forward
         if input_example_non_batch.dim() == 3:
-            self.input_sample = input_example_non_batch.unsqueeze(0).cpu()
+            self._input_sample = input_example_non_batch.unsqueeze(0).cpu()
         elif input_example_non_batch.dim() == 4:
-            self.input_sample = input_example_non_batch.cpu()
+            self._input_sample = input_example_non_batch.cpu()
         else:
-            util.logger.log('ObserveEmbeddingCNN3D4C: Expecting a 4d input_example_non_batch (num_channels x depth x height x width) or a 3d input_example_non_batch (depth x height x width). Received: {0}'.format(input_example_non_batch.size()))
-        self.input_channels = self.input_sample.size(0)
-        self.output_dim = output_dim
-        self.conv1 = nn.Conv3d(self.input_channels, 64, 3)
-        self.conv2 = nn.Conv3d(64, 64, 3)
-        self.conv3 = nn.Conv3d(64, 128, 3)
-        self.conv4 = nn.Conv3d(128, 128, 3)
+            raise RuntimeError('ObserveEmbeddingConvnet3D4C: Expecting a 4d input_example_non_batch (num_channels x depth x height x width) or a 3d input_example_non_batch (depth x height x width). Received: {0}'.format(input_example_non_batch.size()))
+        self._input_channels = self._input_sample.size(0)
+        self._output_dim = output_dim
+        self._conv1 = nn.Conv3d(self._input_channels, 64, 3)
+        self._conv2 = nn.Conv3d(64, 64, 3)
+        self._conv3 = nn.Conv3d(64, 128, 3)
+        self._conv4 = nn.Conv3d(128, 128, 3)
 
     def configure(self):
-        self.cnn_output_dim = self.forward_cnn(self.input_sample.unsqueeze(0)).view(-1).size(0)
-        self.lin1 = nn.Linear(self.cnn_output_dim, self.output_dim)
-        self.lin2 = nn.Linear(self.output_dim, self.output_dim)
+        self._cnn_output_dim = self._forward_cnn(self._input_sample.unsqueeze(0)).view(-1).size(0)
+        self._lin1 = nn.Linear(self._cnn_output_dim, self._output_dim)
+        self._lin2 = nn.Linear(self._output_dim, self._output_dim)
 
-    def forward_cnn(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
+    def _forward_cnn(self, x):
+        x = F.relu(self._conv1(x))
+        x = F.relu(self._conv2(x))
         x = nn.MaxPool3d(2)(x)
-        x = F.relu(self.conv3(x))
-        x = F.relu(self.conv4(x))
+        x = F.relu(self._conv3(x))
+        x = F.relu(self._conv4(x))
         x = nn.MaxPool3d(2)(x)
         return x
 
     def forward(self, x):
+        if self._reshape is not None:
+            x = x.view(self._reshape)
         if x.dim() == 4:  # This indicates that there are no channel dimensions and we have BxDxHxW
             x = x.unsqueeze(1)  # Add a channel dimension of 1 after the batch dimension so that we have BxCxDxHxW
-        x = self.forward_cnn(x)
-        x = x.view(-1, self.cnn_output_dim)
-        x = F.relu(self.lin1(x))
-        x = F.relu(self.lin2(x))
+        x = self._forward_cnn(x)
+        x = x.view(-1, self._cnn_output_dim)
+        x = F.relu(self._lin1(x))
+        x = F.relu(self._lin2(x))
         return x
 
 
@@ -244,12 +250,13 @@ class ProposalUniformMixture(nn.Module):
 
 
 class InferenceNetwork(nn.Module):
-    def __init__(self, model_name='Unnamed model', lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, valid_batch=None, cuda=False, device=None):
+    def __init__(self, model_name='Unnamed model', lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, valid_batch=None, cuda=False, device=None):
         super().__init__()
         self._model_name = model_name
         self._lstm_dim = lstm_dim
         self._lstm_depth = lstm_depth
         self._observe_embedding = observe_embedding
+        self._observe_reshape = observe_reshape
         self._observe_embedding_dim = observe_embedding_dim
         self._sample_embedding = sample_embedding
         self._sample_embedding_dim = sample_embedding_dim
@@ -282,7 +289,8 @@ class InferenceNetwork(nn.Module):
         if self._observe_embedding == ObserveEmbedding.FULLY_CONNECTED:
             self._observe_embedding_layer = ObserveEmbeddingFC(example_observes, self._observe_embedding_dim)
         elif self._observe_embedding == ObserveEmbedding.CONVNET_3D_4C:
-            self._observe_embedding_layer = ObserveEmbeddingCNN3D4C(example_observes, self._observe_embedding_dim)
+            self._observe_embedding_layer = ObserveEmbeddingConvnet3D4C(example_observes, self._observe_embedding_dim, self._observe_reshape)
+            self._observe_embedding_layer.configure()
         else:
             raise ValueError('Unknown observation embedding: {}'.format(self._observe_embedding))
         self._sample_embedding_layers = {}
@@ -374,7 +382,7 @@ class InferenceNetwork(nn.Module):
                     self._proposal_layers[address] = proposal_layer
                     self.add_module('sample_embedding_layer({})'.format(address), sample_embedding_layer)
                     self.add_module('proposal_layer({})'.format(address), proposal_layer)
-                    print('Polymorphing, new layers for address: {}'.format(address))
+                    print('Polymorphing, new layers for address: {}'.format(util.truncate_str(address)))
                     layers_changed = True
 
         if self._on_cuda:

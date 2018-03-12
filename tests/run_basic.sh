@@ -15,3 +15,6 @@ python test_model.py
 
 echo "Running remote model tests"
 python test_model_remote.py
+
+echo "Running neural network tests"
+python test_nn.py
