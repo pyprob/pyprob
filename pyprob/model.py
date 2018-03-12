@@ -200,7 +200,7 @@ class Model(nn.Module):
             tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
             tmp_file_name = os.path.join(tmp_dir, 'pyprob_traces')
             torch.save(data, tmp_file_name)
-            tar = tarfile.open(file_name, 'w:xz')
+            tar = tarfile.open(file_name, 'w:gz', compresslevel=2)
             tar.add(tmp_file_name, arcname='pyprob_traces')
             tar.close()
             shutil.rmtree(tmp_dir)
@@ -210,7 +210,7 @@ class Model(nn.Module):
 
     def _load_traces(self, file_name):
         try:
-            tar = tarfile.open(file_name, 'r:xz')
+            tar = tarfile.open(file_name, 'r:gz')
             tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
             tmp_file = os.path.join(tmp_dir, 'pyprob_traces')
             tar.extract('pyprob_traces', tmp_dir)
