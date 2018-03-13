@@ -107,7 +107,7 @@ def log_sum_exp(tensor, keepdim=True):
 def fast_np_random_choice(values, probs):
     # See https://mobile.twitter.com/RadimRehurek/status/928671225861296128
     probs /= probs.sum()
-    return values[np.searchsorted(probs.cumsum(), random.random())]
+    return values[min(np.searchsorted(probs.cumsum(), random.random()), len(values) - 1)]
 
 
 def debug(*expressions):

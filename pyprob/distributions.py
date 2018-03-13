@@ -101,8 +101,8 @@ class Empirical(Distribution):
                 distribution[values[i]] += weights[i]
         values = list(distribution.keys())
         weights = list(distribution.values())
-        self.length = len(values)
         weights = torch.cat(weights)
+        self.length = len(values)
         self.weights, indices = torch.sort(weights, descending=True)
         self.values = [values[int(i)] for i in indices]
         self.weights_numpy = self.weights.data.cpu().numpy()
