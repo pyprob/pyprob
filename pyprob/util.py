@@ -179,3 +179,12 @@ def progress_bar(i, len):
 
 def truncate_str(s, length=40):
     return (s[:length] + '...') if len(s) > length else s
+
+
+def is_hashable(v):
+    """Determine whether `v` can be hashed."""
+    try:
+        hash(v)
+    except TypeError:
+        return False
+    return True

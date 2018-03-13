@@ -86,22 +86,24 @@ class Empirical(Distribution):
         weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
         distribution = collections.defaultdict(float)
         # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
-        if combine_duplicates:
-            for i in range(length):
-                found = False
-                for key, value in distribution.items():
-                    if torch.equal(key, values[i]):
-                        # Differentiability warning: values[i] is discarded here. If we need to differentiate through all values, the gradients of values[i] and key should be tied here.
-                        distribution[key] = value + weights[i]
-                        found = True
-                if not found:
-                    distribution[values[i]] = weights[i]
-        else:
-            for i in range(length):
-                distribution[values[i]] += weights[i]
-        values = list(distribution.keys())
-        weights = list(distribution.values())
-        weights = torch.cat(weights)
+        hashable = util.is_hashable(values[0])
+        if hashable:
+            if combine_duplicates:
+                for i in range(length):
+                    found = False
+                    for key, value in distribution.items():
+                        if torch.equal(key, values[i]):
+                            # Differentiability warning: values[i] is discarded here. If we need to differentiate through all values, the gradients of values[i] and key should be tied here.
+                            distribution[key] = value + weights[i]
+                            found = True
+                    if not found:
+                        distribution[values[i]] = weights[i]
+            else:
+                for i in range(length):
+                    distribution[values[i]] += weights[i]
+            values = list(distribution.keys())
+            weights = list(distribution.values())
+            weights = torch.cat(weights)
         self.length = len(values)
         self.weights, indices = torch.sort(weights, descending=True)
         self.values = [values[int(i)] for i in indices]
