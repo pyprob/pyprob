@@ -1,4 +1,3 @@
-import enum
 import random
 import gc
 import sys
@@ -9,17 +8,8 @@ from termcolor import colored
 from threading import Thread
 import time
 
-from . import util, __version__
+from . import util, __version__, ObserveEmbedding, SampleEmbedding
 from .distributions import Categorical, Mixture, Normal, TruncatedNormal, Uniform
-
-
-class ObserveEmbedding(enum.Enum):
-    FULLY_CONNECTED = 0
-    CONVNET_3D_4C = 1
-
-
-class SampleEmbedding(enum.Enum):
-    FULLY_CONNECTED = 0
 
 
 class Batch(object):
@@ -85,7 +75,55 @@ class ObserveEmbeddingFC(nn.Module):
         return x
 
 
-class ObserveEmbeddingConvnet3D4C(nn.Module):
+class ObserveEmbeddingConvNet2D5C(nn.Module):
+    def __init__(self, input_example_non_batch, output_dim, reshape=None):
+        super().__init__()
+        self._reshape = reshape
+        if self._reshape is not None:
+            input_example_non_batch = input_example_non_batch.view(self._reshape)
+            self._reshape.insert(0, -1)  # For correct handling of the batch dimension in self.forward
+        if input_example_non_batch.dim() == 2:
+            self._input_sample = input_example_non_batch.unsqueeze(0).cpu()
+        elif input_example_non_batch.dim() == 3:
+            self._input_sample = input_example_non_batch.cpu()
+        else:
+            raise RuntimeError('ObserveEmbeddingConvNet2D5C: Expecting a 3d input_example_non_batch (num_channels x height x width) or a 2d input_example_non_batch (height x width). Received: {}'.format(input_example_non_batch.size()))
+        self._input_channels = self._input_sample.size(0)
+        self._output_dim = output_dim
+        self._conv1 = nn.Conv2d(self._input_channels, 64, 3)
+        self._conv2 = nn.Conv2d(64, 64, 3)
+        self._conv3 = nn.Conv2d(64, 128, 3)
+        self._conv4 = nn.Conv2d(128, 128, 3)
+        self._conv5 = nn.Conv2d(128, 128, 3)
+
+    def configure(self):
+        self._cnn_output_dim = self._forward_cnn(self._input_sample.unsqueeze(0)).view(-1).size(0)
+        self._lin1 = nn.Linear(self._cnn_output_dim, self._output_dim)
+        self._lin2 = nn.Linear(self._output_dim, self._output_dim)
+
+    def _forward_cnn(self, x):
+        x = F.relu(self._conv1(x))
+        x = F.relu(self._conv2(x))
+        x = nn.MaxPool2d(2)(x)
+        x = F.relu(self._conv3(x))
+        x = F.relu(self._conv4(x))
+        x = F.relu(self._conv5(x))
+        x = nn.MaxPool2d(2)(x)
+        return x
+
+    def forward(self, x):
+        if self._reshape is not None:
+            x = x.view(self._reshape)
+        if x.dim() == 3:  # This indicates that there are no channel dimensions and we have BxHxW
+            x = x.unsqueeze(1)  # Add a channel dimension of 1 after the batch dimension so thhat we have BxCxHxW
+        x = self._forward_cnn(x)
+        x = x.view(-1, self._cnn_output_dim)
+        x = F.relu(self._lin1(x))
+        x = F.relu(self._lin2(x))
+        return x
+
+
+class ObserveEmbeddingConvNet3D4C(nn.Module):
     def __init__(self, input_example_non_batch, output_dim, reshape=None):
         super().__init__()
         self._reshape = reshape
@@ -97,7 +135,7 @@ class ObserveEmbeddingConvnet3D4C(nn.Module):
         elif input_example_non_batch.dim() == 4:
             self._input_sample = input_example_non_batch.cpu()
         else:
-            raise RuntimeError('ObserveEmbeddingConvnet3D4C: Expecting a 4d input_example_non_batch (num_channels x depth x height x width) or a 3d input_example_non_batch (depth x height x width). Received: {0}'.format(input_example_non_batch.size()))
+            raise RuntimeError('ObserveEmbeddingConvNet3D4C: Expecting a 4d input_example_non_batch (num_channels x depth x height x width) or a 3d input_example_non_batch (depth x height x width). Received: {}'.format(input_example_non_batch.size()))
         self._input_channels = self._input_sample.size(0)
         self._output_dim = output_dim
         self._conv1 = nn.Conv3d(self._input_channels, 64, 3)
@@ -288,8 +326,11 @@ class InferenceNetwork(nn.Module):
         example_observes = self._valid_batch[0].observes_variable  # To do: we need to check all the observes in the batch, to be more intelligent
         if self._observe_embedding == ObserveEmbedding.FULLY_CONNECTED:
             self._observe_embedding_layer = ObserveEmbeddingFC(example_observes, self._observe_embedding_dim)
+        elif self._observe_embedding == ObserveEmbedding.CONVNET_2D_5C:
+            self._observe_embedding_layer = ObserveEmbeddingConvNet2D5C(example_observes, self._observe_embedding_dim, self._observe_reshape)
+            self._observe_embedding_layer.configure()
         elif self._observe_embedding == ObserveEmbedding.CONVNET_3D_4C:
-            self._observe_embedding_layer = ObserveEmbeddingConvnet3D4C(example_observes, self._observe_embedding_dim, self._observe_reshape)
+            self._observe_embedding_layer = ObserveEmbeddingConvNet3D4C(example_observes, self._observe_embedding_dim, self._observe_reshape)
             self._observe_embedding_layer.configure()
         else:
             raise ValueError('Unknown observation embedding: {}'.format(self._observe_embedding))

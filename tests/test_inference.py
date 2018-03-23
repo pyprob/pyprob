@@ -5,12 +5,11 @@ import torch
 import torch.nn.functional as F
 from termcolor import colored
 import time
-import numpy as np
 
 import pyprob
 from pyprob import util
 from pyprob import Model
-from pyprob.distributions import Categorical, Empirical, Normal, Uniform
+from pyprob.distributions import Categorical, Normal, Uniform
 
 
 samples = 1000
@@ -130,7 +129,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev_correct = math.sqrt(1/1.2)
 
         self._model.learn_inference_network(observation=[1,1], early_stop_traces=training_traces)
-        posterior = self._model.posterior_distribution(samples, use_inference_network=True, observation=observation)
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.mean_unweighted)
         posterior_stddev = float(posterior.stddev)
@@ -199,7 +198,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_stddev_correct = math.sqrt(1/1.2)
 
         self._model.learn_inference_network(observation=[1,1], early_stop_traces=training_traces)
-        posterior = self._model.posterior_distribution(samples, use_inference_network=True, observation=observation)
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.mean_unweighted)
         posterior_stddev = float(posterior.stddev)
@@ -281,7 +280,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         posterior_mean_correct = self._posterior_mean_correct
 
         self._model.learn_inference_network(observation=torch.zeros(16,3), early_stop_traces=training_traces)
-        posterior = self._model.posterior_distribution(samples, use_inference_network=True, observation=observation)
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
         posterior_mean_unweighted = posterior.mean_unweighted
         posterior_mean = posterior.mean
 
