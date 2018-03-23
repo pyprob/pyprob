@@ -29,11 +29,14 @@ class Model(nn.Module):
         self._inference_network = None
         self._trace_cache_path = None
         self._trace_cache = []
+        # marginals over all the sample sites
+        # currently computed when lmh is called
+        self._posterior_marginals = []
 
     def forward(self):
         raise NotImplementedError()
 
-    def _prior_trace_generator(self, trace_state=TraceMode.RECORD, proposal_network=None, continuation_address=None, previous_trace=None, *args, **kwargs):
+    def _prior_trace_generator(self, trace_mode=TraceMode.RECORD, proposal_network=None, continuation_address=None, previous_trace=None, *args, **kwargs):
         while True:
             if trace_mode == TraceMode.RECORD_USE_INFERENCE_NETWORK:
                 self._inference_network.new_trace(util.pack_observes_to_variable(kwargs['observation']).unsqueeze(0))
@@ -87,11 +90,13 @@ class Model(nn.Module):
             print()
         return Empirical(ret)
 
-    def posterior_distribution(self, traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, *args, **kwargs):
+    def posterior_distribution(self, traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, lmh_mixin=10000, *args, **kwargs):
         if (inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (self._inference_network is None):
             print('Warning: Cannot run inference with inference network because there is none available. Use learn_inference_network first.')
             print('Warning: Running with InferenceEngine.IMPORTANCE_SAMPLING')
             inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
+        if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS:
+            traces = self._lmh_posterior(mixin=lmh_mixin, num_samples=traces)
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             self._inference_network.eval()
             traces = self._prior_traces(traces, trace_mode=TraceMode.RECORD_USE_INFERENCE_NETWORK, proposal_network=self._inference_network, *args, **kwargs)
@@ -101,8 +106,7 @@ class Model(nn.Module):
         results = [trace.result for trace in traces]
         return Empirical(results, log_weights)
 
-    def lmh_posterior(self, mixin=10000, num_samples=1000, *args, **kwargs):
-
+    def _lmh_posterior(self, mixin=10000, num_samples=1000, *args, **kwargs):
         old_trace = self._single_trace(*args, **kwargs)
         samples = []
         i = 0
@@ -113,19 +117,19 @@ class Model(nn.Module):
             resample_index = random.randint(0, len(old_trace.samples) - 1)   
             resample_address = old_trace.samples[resample_index].address
             new_trace = self._continue_trace_at_address(resample_address, old_trace, *args, **kwargs)
-            log_pdf_old += new_trace.log_fresh()
-            log_pdf_new = new_trace.log_y() + old_trace.log_fresh()
+            log_pdf_old += new_trace.log_p_fresh
+            log_pdf_new = new_trace.log_y() + new_trace.log_p_stale
 
-
-            accept_ratio = (log_pdf_new - log_pdf_old).data[0]
+            accept_ratio = (log_pdf_new - log_pdf_old).data[0] + \
+                    math.log(float(len(old_trace.samples)) / len(new_trace.samples))
 
             duration = time.time() - time_start
             if math.log(random.uniform(0,1)) < accept_ratio:
                 old_trace = new_trace
                 if i > mixin:
                     samples.append(new_trace)
-                i += 1
                 print('                                                                \r{} | {} | {} / {} | {:,.2f} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, num_samples + mixin), i+1, num_samples + mixin, i / duration), end='\r')
+                i += 1
         return samples
 
     def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, batch_size=64, valid_size=256, learning_rate=0.001, weight_decay=1e-4, early_stop_traces=-1, use_trace_cache=False, *args, **kwargs):

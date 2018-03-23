@@ -89,10 +89,11 @@ def sample(distribution, control=True, replace=False, address=None):
         address = extract_address(_current_trace_root_function_name, sampled=True)
 
     if _continue_trace_at == address:
+        _current_trace._resampled = _previous_trace_values[address]
         _use_previous_trace_value = False
     if _use_previous_trace_value == True:
         current_sample = _previous_trace_values[address]
-        _current_trace.add_sample(current_sample, replace)
+        _current_trace.add_sample(current_sample, replace, fresh=False)
         return current_sample.value
 
     value = distribution.sample()
@@ -123,7 +124,6 @@ def sample(distribution, control=True, replace=False, address=None):
                 if not replace:
                     _current_trace_previous_sample = current_sample
         else:
-            pdb.set_trace()
             current_sample = Sample(address, distribution, value, log_prob=distribution.log_prob(value), controlled=False)
         _current_trace.add_sample(current_sample, replace)
     return value
