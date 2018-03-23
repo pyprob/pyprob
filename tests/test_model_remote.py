@@ -99,7 +99,7 @@ class ModelRemoteTestCase(unittest.TestCase):
         posterior_stddev_correct = math.sqrt(1/1.2)
 
         self._model.learn_inference_network(observation=[1,1], early_stop_traces=training_traces)
-        posterior = self._model.posterior_distribution(samples, use_inference_network=True, observation=observation)
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.mean_unweighted)
         posterior_stddev = float(posterior.stddev)

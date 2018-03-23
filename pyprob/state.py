@@ -1,19 +1,10 @@
 import sys
 import opcode
-import enum
 
 from .trace import Sample, Trace
+from . import TraceMode
 
-
-class TraceState(enum.Enum):
-    NONE = 0  # No trace recording, forward sample
-    RECORD = 1  # Record traces
-    RECORD_IMPORTANCE = 2  # Record traces, importance sampling with prior
-    RECORD_TRAIN_INFERENCE_NETWORK = 3  # Record traces, training data generation for inference network, interpret 'observe' as 'sample' (inference compilation training)
-    RECORD_USE_INFERENCE_NETWORK = 4  # Record traces, importance sampling with proposals from inference network (inference compilation inference)
-
-
-_trace_state = TraceState.NONE
+_trace_mode = TraceMode.NONE
 _current_trace = None
 _current_trace_root_function_name = None
 _current_trace_inference_network = None
@@ -80,20 +71,20 @@ def _extract_target_of_assignment():
 
 def sample(distribution, control=True, replace=False, address=None):
     value = distribution.sample()
-    if _trace_state != TraceState.NONE:
+    if _trace_mode != TraceMode.NONE:
         global _current_trace
         if address is None:
             address = extract_address(_current_trace_root_function_name)
 
         if control:
-            if _trace_state == TraceState.RECORD_IMPORTANCE:
+            if _trace_mode == TraceMode.RECORD_IMPORTANCE:
                 # The log_prob of samples are zero for regular importance sampling (no learned proposals) as it cancels out
                 log_prob = 0
             else:
                 log_prob = distribution.log_prob(value)
 
             current_sample = Sample(address, distribution, value, log_prob=log_prob, controlled=True)
-            if _trace_state == TraceState.RECORD_USE_INFERENCE_NETWORK:
+            if _trace_mode == TraceMode.RECORD_USE_INFERENCE_NETWORK:
                 global _current_trace_previous_sample
                 global _current_trace_replaced_sample_proposal_distributions
                 _current_trace_inference_network.eval()
@@ -116,36 +107,36 @@ def sample(distribution, control=True, replace=False, address=None):
 
 
 def observe(distribution, observation, address=None):
-    if _trace_state != TraceState.NONE:
+    if _trace_mode != TraceMode.NONE:
         global _current_trace
         if address is None:
             address = extract_address(_current_trace_root_function_name)
-        if _trace_state == TraceState.RECORD_TRAIN_INFERENCE_NETWORK:
+        if _trace_mode == TraceMode.RECORD_TRAIN_INFERENCE_NETWORK:
             observation = distribution.sample()
         current_sample = Sample(address, distribution, observation, log_prob=distribution.log_prob(observation), controlled=False, observed=True)
         _current_trace.add_sample(current_sample)
     return
 
 
-def begin_trace(func, trace_state=TraceState.RECORD, inference_network=None):
-    global _trace_state
+def begin_trace(func, trace_mode=TraceMode.RECORD, inference_network=None):
+    global _trace_mode
     global _current_trace
     global _current_trace_root_function_name
     global _current_trace_inference_network
-    _trace_state = trace_state
+    _trace_mode = trace_mode
     _current_trace = Trace()
     _current_trace_root_function_name = func.__code__.co_name
     _current_trace_inference_network = inference_network
-    if (trace_state == TraceState.RECORD_USE_INFERENCE_NETWORK) and (inference_network is None):
+    if (trace_mode == TraceMode.RECORD_USE_INFERENCE_NETWORK) and (inference_network is None):
         raise ValueError('Cannot run trace with proposals without an inference network')
 
 
 def end_trace(result):
-    global _trace_state
+    global _trace_mode
     global _current_trace
     global _current_trace_root_function_name
     global _current_trace_inference_network
-    _trace_state = TraceState.NONE
+    _trace_mode = TraceMode.NONE
     _current_trace.end(result)
     ret = _current_trace
     _current_trace = None

@@ -13,8 +13,7 @@ import tempfile
 import shutil
 
 from .distributions import Empirical
-from . import state, util, __version__
-from .state import TraceState
+from . import state, util, __version__, TraceMode, InferenceEngine
 from .nn import ObserveEmbedding, SampleEmbedding, Batch, InferenceNetwork
 from .remote import ModelServer
 
@@ -30,11 +29,11 @@ class Model(nn.Module):
     def forward(self):
         raise NotImplementedError()
 
-    def _prior_trace_generator(self, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs):
+    def _prior_trace_generator(self, trace_mode=TraceMode.RECORD, proposal_network=None, *args, **kwargs):
         while True:
-            if trace_state == TraceState.RECORD_USE_INFERENCE_NETWORK:
+            if trace_mode == TraceMode.RECORD_USE_INFERENCE_NETWORK:
                 self._inference_network.new_trace(util.pack_observes_to_variable(kwargs['observation']).unsqueeze(0))
-            state.begin_trace(self.forward, trace_state, proposal_network)
+            state.begin_trace(self.forward, trace_mode, proposal_network)
             res = self.forward(*args, **kwargs)
             trace = state.end_trace(res)
             yield trace
@@ -43,17 +42,17 @@ class Model(nn.Module):
         while True:
             yield self.forward(*args, **kwargs)
 
-    def _prior_traces(self, traces=10, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs):
-        generator = self._prior_trace_generator(trace_state, proposal_network, *args, **kwargs)
+    def _prior_traces(self, traces=10, trace_mode=TraceMode.RECORD, proposal_network=None, *args, **kwargs):
+        generator = self._prior_trace_generator(trace_mode, proposal_network, *args, **kwargs)
         ret = []
         time_start = time.time()
         for i in range(traces):
-            if ((trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1)) or (util.verbosity > 2):
+            if ((trace_mode != TraceMode.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1)) or (util.verbosity > 2):
                 duration = time.time() - time_start
                 print('                                                                \r{} | {} | {} / {} | {:,.2f} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, traces), i+1, traces, i / duration), end='\r')
                 sys.stdout.flush()
             ret.append(next(generator))
-        if ((trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1)) or (util.verbosity > 2):
+        if ((trace_mode != TraceMode.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1)) or (util.verbosity > 2):
             print()
         return ret
 
@@ -75,15 +74,16 @@ class Model(nn.Module):
             print()
         return Empirical(ret)
 
-    def posterior_distribution(self, traces=1000, use_inference_network=False, *args, **kwargs):
-        if use_inference_network and (self._inference_network is None):
+    def posterior_distribution(self, traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, *args, **kwargs):
+        if (inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (self._inference_network is None):
             print('Warning: Cannot run inference with inference network because there is none available. Use learn_inference_network first.')
-            use_inference_network = False
-        if use_inference_network:
+            print('Warning: Running with InferenceEngine.IMPORTANCE_SAMPLING')
+            inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
+        if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             self._inference_network.eval()
-            traces = self._prior_traces(traces, trace_state=TraceState.RECORD_USE_INFERENCE_NETWORK, proposal_network=self._inference_network, *args, **kwargs)
+            traces = self._prior_traces(traces, trace_mode=TraceMode.RECORD_USE_INFERENCE_NETWORK, proposal_network=self._inference_network, *args, **kwargs)
         else:
-            traces = self._prior_traces(traces, trace_state=TraceState.RECORD_IMPORTANCE, proposal_network=None, *args, **kwargs)
+            traces = self._prior_traces(traces, trace_mode=TraceMode.RECORD_IMPORTANCE, proposal_network=None, *args, **kwargs)
         log_weights = [trace.log_prob for trace in traces]
         results = [trace.result for trace in traces]
         return Empirical(results, log_weights)
@@ -91,7 +91,7 @@ class Model(nn.Module):
     def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, batch_size=64, valid_size=256, learning_rate=0.001, weight_decay=1e-4, early_stop_traces=-1, use_trace_cache=False, *args, **kwargs):
         if self._inference_network is None:
             print('Creating new inference network...')
-            traces = self._prior_traces(valid_size, trace_state=TraceState.RECORD_TRAIN_INFERENCE_NETWORK, *args, **kwargs)
+            traces = self._prior_traces(valid_size, trace_mode=TraceMode.RECORD_TRAIN_INFERENCE_NETWORK, *args, **kwargs)
             valid_batch = Batch(traces)
             self._inference_network = InferenceNetwork(model_name=self.name, lstm_dim=lstm_dim, lstm_depth=lstm_depth, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, sample_embedding=sample_embedding, sample_embedding_dim=sample_embedding_dim, address_embedding_dim=address_embedding_dim, valid_batch=valid_batch, cuda=util._cuda_enabled)
             self._inference_network.polymorph()
@@ -133,7 +133,7 @@ class Model(nn.Module):
                 return Batch(traces)
         else:
             def new_batch_func():
-                traces = self._prior_traces(batch_size, trace_state=TraceState.RECORD_TRAIN_INFERENCE_NETWORK, *args, **kwargs)
+                traces = self._prior_traces(batch_size, trace_mode=TraceMode.RECORD_TRAIN_INFERENCE_NETWORK, *args, **kwargs)
                 return Batch(traces)
 
         self._inference_network.train()
@@ -148,22 +148,22 @@ class Model(nn.Module):
         self._inference_network = InferenceNetwork.load(file_name, util._cuda_enabled, util._cuda_device)
 
     def trace_length_mean(self, traces=1000, *args, **kwargs):
-        traces = self._prior_traces(traces, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
+        traces = self._prior_traces(traces, trace_mode=TraceMode.RECORD, proposal_network=None, *args, **kwargs)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return trace_length_dist.mean
 
     def trace_length_stddev(self, traces=1000, *args, **kwargs):
-        traces = self._prior_traces(traces, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
+        traces = self._prior_traces(traces, trace_mode=TraceMode.RECORD, proposal_network=None, *args, **kwargs)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return trace_length_dist.stddev
 
     def trace_length_min(self, traces=1000, *args, **kwargs):
-        traces = self._prior_traces(traces, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
+        traces = self._prior_traces(traces, trace_mode=TraceMode.RECORD, proposal_network=None, *args, **kwargs)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return min(trace_length_dist.values_numpy)
 
     def trace_length_max(self, traces=1000, *args, **kwargs):
-        traces = self._prior_traces(traces, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs)
+        traces = self._prior_traces(traces, trace_mode=TraceMode.RECORD, proposal_network=None, *args, **kwargs)
         trace_length_dist = Empirical([trace.length for trace in traces])
         return max(trace_length_dist.values_numpy)
 
@@ -171,7 +171,7 @@ class Model(nn.Module):
         f = 0
         done = False
         while not done:
-            traces = self._prior_traces(traces_per_file, trace_state=TraceState.RECORD_TRAIN_INFERENCE_NETWORK, proposal_network=None, *args, **kwargs)
+            traces = self._prior_traces(traces_per_file, trace_mode=TraceMode.RECORD_TRAIN_INFERENCE_NETWORK, proposal_network=None, *args, **kwargs)
             file_name = os.path.join(trace_cache_path, str(uuid.uuid4()))
             self._save_traces(traces, file_name)
             f += 1

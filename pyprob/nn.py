@@ -1,4 +1,3 @@
-import enum
 import random
 import gc
 import sys
@@ -9,18 +8,8 @@ from termcolor import colored
 from threading import Thread
 import time
 
-from . import util, __version__
+from . import util, __version__, ObserveEmbedding, SampleEmbedding
 from .distributions import Categorical, Mixture, Normal, TruncatedNormal, Uniform
-
-
-class ObserveEmbedding(enum.Enum):
-    FULLY_CONNECTED = 0
-    CONVNET_2D_5C = 1
-    CONVNET_3D_4C = 2
-
-
-class SampleEmbedding(enum.Enum):
-    FULLY_CONNECTED = 0
 
 
 class Batch(object):
