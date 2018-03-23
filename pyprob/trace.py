@@ -96,7 +96,7 @@ class Trace(object):
         self.log_prob = util.to_variable(sum([s.log_prob for s in self._samples_all if s.controlled or s.observed])).view(-1)
         self.log_p_obs = util.to_variable(sum([s.log_prob for s in self.samples_observed])).view(-1)
         try:
-            self.log_p_stale = util.to_variable(sum([s.log_prob for s in self.samples_stale]) + self._resampled.log_prob).view(-1)
+            self.log_p_stale = util.to_variable(sum([s.log_prob for s in self.samples_stale])).view(-1)
             self.log_p_fresh = util.to_variable(sum([s.log_prob for s in self.samples_fresh])).view(-1)
         except:
             None

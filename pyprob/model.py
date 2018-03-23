@@ -118,11 +118,12 @@ class Model(nn.Module):
             resample_address = old_trace.samples[resample_index].address
             new_trace = self._continue_trace_at_address(resample_address, old_trace, *args, **kwargs)
             log_pdf_old += new_trace.log_p_fresh
-            log_pdf_new = new_trace.log_y() + new_trace.log_p_stale
+            log_pdf_new = new_trace.log_y() + ( old_trace.log_prob - old_trace.log_y() - new_trace.log_p_stale )
 
             accept_ratio = (log_pdf_new - log_pdf_old).data[0] + \
                     math.log(float(len(old_trace.samples)) / len(new_trace.samples))
 
+            #  accept_ratio = (log_pdf_new - log_pdf_old).data[0]
             duration = time.time() - time_start
             if math.log(random.uniform(0,1)) < accept_ratio:
                 old_trace = new_trace
