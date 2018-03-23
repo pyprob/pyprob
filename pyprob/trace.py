@@ -1,4 +1,5 @@
 from . import util
+import pdb
 
 
 class Sample(object):
@@ -46,6 +47,7 @@ class Trace(object):
         self._samples_all = []
         self.result = None
         self.log_prob = 0
+        self.log_obs = 0
         self.length = 0
         self.length_controlled = 0
 
@@ -62,6 +64,18 @@ class Trace(object):
     def addresses(self):
         return '; '.join([sample.address for sample in self.samples])
 
+    def log_y(self):
+        log_p = 0
+        for sample in self.samples_observed:
+            log_p += sample.log_prob
+        return log_p
+
+    def log_fresh(self):
+        log_p = 0
+        for sample in self.samples:
+            log_p += sample.log_prob
+        return log_p
+
     def addresses_suffixed(self):
         return '; '.join([sample.address_suffixed for sample in self.samples])
 
@@ -74,6 +88,7 @@ class Trace(object):
         self.log_prob = util.to_variable(sum([s.log_prob for s in self._samples_all if s.controlled or s.observed])).view(-1)
         self.observes_variable = util.pack_observes_to_variable([s.value for s in self.samples_observed])
         self.length = len(self.samples)
+        #  pdb.set_trace()
 
     def add_sample(self, sample, replace=False):
         if replace:

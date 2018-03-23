@@ -1,6 +1,7 @@
 import sys
 import opcode
 import enum
+import pdb
 
 from .trace import Sample, Trace
 
@@ -19,9 +20,11 @@ _current_trace_root_function_name = None
 _current_trace_inference_network = None
 _current_trace_previous_sample = None
 _current_trace_replaced_sample_proposal_distributions = {}
+_current_trace_reassignments = {}
+_continue_trace_at = ''
+_use_previous_trace_value = False
 
-
-def extract_address(root_function_name):
+def extract_address(root_function_name, sampled=False):
     # tb = traceback.extract_stack()
     # print()
     # for t in tb:
@@ -43,8 +46,15 @@ def extract_address(root_function_name):
         names.append(n)
         if n == root_function_name: break
         frame = frame.f_back
-    return "{}/{}".format(ip, '.'.join(reversed(names)))
-
+    iter_id = 0
+    byte_address = "{}/{}".format(ip, '.'.join(reversed(names)))
+    global _current_trace_reassignments
+    if (sampled == True) and (byte_address in _current_trace_reassignments):
+        iter_id = _current_trace_reassignments[byte_address] + 1
+    _current_trace_reassignments[byte_address] = iter_id
+    byte_address += str(iter_id)
+    
+    return byte_address
 
 def _extract_target_of_assignment():
     frame = sys._getframe(3)
@@ -79,16 +89,27 @@ def _extract_target_of_assignment():
 
 
 def sample(distribution, control=True, replace=False, address=None):
+    global _use_previous_trace_value
+    global _previous_trace_values
+    global _current_trace
+    global _continue_trace_at 
+    if address is None:
+        address = extract_address(_current_trace_root_function_name, sampled=True)
+
+    if _continue_trace_at == address:
+        _use_previous_trace_value = False
+    if _use_previous_trace_value == True:
+        current_sample = _previous_trace_values[address]
+        _current_trace.add_sample(current_sample, replace)
+        return current_sample.value
+
     value = distribution.sample()
     if _trace_state != TraceState.NONE:
-        global _current_trace
-        if address is None:
-            address = extract_address(_current_trace_root_function_name)
-
         if control:
             if _trace_state == TraceState.RECORD_IMPORTANCE:
                 # The log_prob of samples are zero for regular importance sampling (no learned proposals) as it cancels out
-                log_prob = 0
+                #  log_prob = 0
+                log_prob = distribution.log_prob(value)
             else:
                 log_prob = distribution.log_prob(value)
 
@@ -110,7 +131,8 @@ def sample(distribution, control=True, replace=False, address=None):
                 if not replace:
                     _current_trace_previous_sample = current_sample
         else:
-            current_sample = Sample(address, distribution, value, log_prob=0, controlled=False)
+            pdb.set_trace()
+            current_sample = Sample(address, distribution, value, log_prob=distribution.log_prob(value), controlled=False)
         _current_trace.add_sample(current_sample, replace)
     return value
 
@@ -126,16 +148,31 @@ def observe(distribution, observation, address=None):
         _current_trace.add_sample(current_sample)
     return
 
+def dictify_previous_trace(previous_trace):
+    d = {}
+    for sample in (previous_trace.samples+previous_trace.samples_uncontrolled+previous_trace.samples_observed):
+        d[sample.address] = sample
+    return d
 
-def begin_trace(func, trace_state=TraceState.RECORD, inference_network=None):
+def begin_trace(func, trace_state=TraceState.RECORD, inference_network=None, continuation_address=None, previous_trace=None):
     global _trace_state
     global _current_trace
+    global _previous_trace_values
     global _current_trace_root_function_name
     global _current_trace_inference_network
+    global _continue_trace_at
+    global _use_previous_trace_value
+    global _current_trace_reassignments 
+    _use_previous_trace_value = False
+    if continuation_address is not None:
+        _use_previous_trace_value = True
+        _previous_trace_values = dictify_previous_trace(previous_trace)
     _trace_state = trace_state
     _current_trace = Trace()
     _current_trace_root_function_name = func.__code__.co_name
     _current_trace_inference_network = inference_network
+    _continue_trace_at = continuation_address
+    _current_trace_reassignments = {}
     if (trace_state == TraceState.RECORD_USE_INFERENCE_NETWORK) and (inference_network is None):
         raise ValueError('Cannot run trace with proposals without an inference network')
 
@@ -145,10 +182,16 @@ def end_trace(result):
     global _current_trace
     global _current_trace_root_function_name
     global _current_trace_inference_network
+    global _continue_trace_at
+    global _use_previous_trace_value
+    global _current_trace_reassignments 
     _trace_state = TraceState.NONE
     _current_trace.end(result)
     ret = _current_trace
     _current_trace = None
     _current_trace_root_function_name = None
     _current_trace_inference_network = None
+    _continue_trace_at = ''
+    _use_previous_trace_value = False
+    _current_trace_reassignments = {}
     return ret

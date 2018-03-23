@@ -5,3 +5,5 @@
 /*.egg-info
 *.ipynb_checkpoints
 /*.ropeproject
+*.swp
+*.swo

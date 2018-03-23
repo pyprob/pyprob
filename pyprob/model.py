@@ -11,6 +11,10 @@ import random
 import tarfile
 import tempfile
 import shutil
+import random
+from random import randint
+import math
+import pdb
 
 from .distributions import Empirical
 from . import state, util, __version__
@@ -30,11 +34,11 @@ class Model(nn.Module):
     def forward(self):
         raise NotImplementedError()
 
-    def _prior_trace_generator(self, trace_state=TraceState.RECORD, proposal_network=None, *args, **kwargs):
+    def _prior_trace_generator(self, trace_state=TraceState.RECORD, proposal_network=None, continuation_address=None, previous_trace=None, *args, **kwargs):
         while True:
             if trace_state == TraceState.RECORD_USE_INFERENCE_NETWORK:
                 self._inference_network.new_trace(util.pack_observes_to_variable(kwargs['observation']).unsqueeze(0))
-            state.begin_trace(self.forward, trace_state, proposal_network)
+            state.begin_trace(self.forward, trace_state, proposal_network, continuation_address, previous_trace)
             res = self.forward(*args, **kwargs)
             trace = state.end_trace(res)
             yield trace
@@ -56,6 +60,15 @@ class Model(nn.Module):
         if ((trace_state != TraceState.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1)) or (util.verbosity > 2):
             print()
         return ret
+
+    def _single_trace(self, *args, **kwargs):
+        generator = self._prior_trace_generator(*args, **kwargs)
+        return next(generator)
+
+    def _continue_trace_at_address(self, continuation_address, previous_trace, *args, **kwargs):
+        #  generator = self._prior_trace_generator(*args, **kwargs)
+        generator = self._prior_trace_generator(continuation_address=continuation_address, previous_trace=previous_trace, *args, **kwargs)
+        return next(generator)
 
     def prior_sample(self, *args, **kwargs):
         generator = self._prior_sample_generator(*args, **kwargs)
@@ -87,6 +100,33 @@ class Model(nn.Module):
         log_weights = [trace.log_prob for trace in traces]
         results = [trace.result for trace in traces]
         return Empirical(results, log_weights)
+
+    def lmh_posterior(self, mixin=10000, num_samples=1000, *args, **kwargs):
+
+        old_trace = self._single_trace(*args, **kwargs)
+        samples = []
+        i = 0
+
+        time_start = time.time()
+        while len(samples) < num_samples:
+            log_pdf_old = old_trace.log_y() 
+            resample_index = random.randint(0, len(old_trace.samples) - 1)   
+            resample_address = old_trace.samples[resample_index].address
+            new_trace = self._continue_trace_at_address(resample_address, old_trace, *args, **kwargs)
+            log_pdf_old += new_trace.log_fresh()
+            log_pdf_new = new_trace.log_y() + old_trace.log_fresh()
+
+
+            accept_ratio = (log_pdf_new - log_pdf_old).data[0]
+
+            duration = time.time() - time_start
+            if math.log(random.uniform(0,1)) < accept_ratio:
+                old_trace = new_trace
+                if i > mixin:
+                    samples.append(new_trace)
+                i += 1
+                print('                                                                \r{} | {} | {} / {} | {:,.2f} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, num_samples + mixin), i+1, num_samples + mixin, i / duration), end='\r')
+        return samples
 
     def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, batch_size=64, valid_size=256, learning_rate=0.001, weight_decay=1e-4, early_stop_traces=-1, use_trace_cache=False, *args, **kwargs):
         if self._inference_network is None:
