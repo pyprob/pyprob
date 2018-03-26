@@ -14,6 +14,7 @@ import shutil
 import random
 from random import randint
 import math
+import numpy as np
 import pdb
 
 from .distributions import Empirical
@@ -117,11 +118,13 @@ class Model(nn.Module):
             resample_index = random.randint(0, len(old_trace.samples) - 1)   
             resample_address = old_trace.samples[resample_index].address
             new_trace = self._continue_trace_at_address(resample_address, old_trace, *args, **kwargs)
-            log_pdf_old += new_trace.log_p_fresh
-            log_pdf_new = new_trace.log_y() + ( old_trace.log_prob - old_trace.log_y() - new_trace.log_p_stale )
+            log_pdf_old += np.sum(new_trace.log_p_fresh.data.numpy())
+            log_pdf_new = new_trace.log_y() + ( np.sum(old_trace.log_prob.data.numpy()) - old_trace.log_y() - np.sum(new_trace.log_p_stale.data.numpy()) )
 
             accept_ratio = (log_pdf_new - log_pdf_old).data[0] + \
                     math.log(float(len(old_trace.samples)) / len(new_trace.samples))
+
+            #  pdb.set_trace()
 
             #  accept_ratio = (log_pdf_new - log_pdf_old).data[0]
             duration = time.time() - time_start
