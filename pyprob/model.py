@@ -98,7 +98,7 @@ class Model(nn.Module):
             inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
         if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS:
             print("running inference with lmh")
-            # TODO put these somewhere
+            # TODO put the burnins somewhere
             traces, _ = self._lmh_posterior(num_samples=traces, *args, **kwargs)
             # TODO put these into a dict or something 
             self._posterior_marginals = traces
@@ -141,7 +141,7 @@ class Model(nn.Module):
                 else:
                     if mixing_samples != None:
                         mixing_samples.append(new_trace)
-                print('                                                                \r{} | {} | {} / {} | {:,.2f} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, num_samples + mixin), i+1, num_samples + mixin, i / duration), end='\r')
+                print('                                                                \r{} | {} | {} / {} | {:,.2f} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, num_samples + burn_in), i+1, num_samples + burn_in, i / duration), end='\r')
                 i += 1
         return (samples, mixing_samples)
 
