@@ -91,14 +91,15 @@ class Model(nn.Module):
             print()
         return Empirical(ret)
 
-    def posterior_distribution(self, traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, lmh_mixin=10000, *args, **kwargs):
+    def posterior_distribution(self, traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, *args, **kwargs):
         if (inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (self._inference_network is None):
             print('Warning: Cannot run inference with inference network because there is none available. Use learn_inference_network first.')
             print('Warning: Running with InferenceEngine.IMPORTANCE_SAMPLING')
             inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
         if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS:
             print("running inference with lmh")
-            traces = self._lmh_posterior(mixin=lmh_mixin, num_samples=traces)
+            # TODO put these somewhere
+            traces, _ = self._lmh_posterior(num_samples=traces, *args, **kwargs)
             # TODO put these into a dict or something 
             self._posterior_marginals = traces
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
@@ -110,7 +111,7 @@ class Model(nn.Module):
         results = [trace.result for trace in traces]
         return Empirical(results, log_weights)
 
-    def _lmh_posterior(self, mixins=None, samples=[], mixin=100000, num_samples=1000, *args, **kwargs):
+    def _lmh_posterior(self, mixing_samples=None, samples=[], burn_in=100000, num_samples=1000, *args, **kwargs):
         old_trace = self._single_trace(*args, **kwargs)
         i = 0
 
@@ -135,14 +136,14 @@ class Model(nn.Module):
             duration = time.time() - time_start
             if math.log(random.uniform(0,1)) < accept_ratio:
                 old_trace = new_trace
-                if i > mixin:
+                if i > burn_in:
                     samples.append(new_trace)
                 else:
-                    if mixins != None:
-                        mixins.append(new_trace)
+                    if mixing_samples != None:
+                        mixing_samples.append(new_trace)
                 print('                                                                \r{} | {} | {} / {} | {:,.2f} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, num_samples + mixin), i+1, num_samples + mixin, i / duration), end='\r')
                 i += 1
-        return samples
+        return (samples, mixing_samples)
 
 
 
