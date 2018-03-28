@@ -45,8 +45,6 @@ class Trace(object):
         self.samples_uncontrolled = []
         self.samples_observed = []
         # these two always combine to form self.samples
-        self.samples_fresh = []
-        self.samples_stale = []
         self._samples_all = []
         self._resampled = None
         self.result = None
@@ -94,21 +92,12 @@ class Trace(object):
 
         self.log_prob = util.to_variable(sum([s.log_prob for s in self._samples_all if s.controlled or s.observed])).view(-1)
         self.log_p_obs = util.to_variable(sum([s.log_prob for s in self.samples_observed])).view(-1)
-        try:
-            self.log_p_stale = util.to_variable(sum([s.log_prob for s in self.samples_stale]) + self._resampled.log_prob).view(-1)
-            self.log_p_fresh = util.to_variable(sum([s.log_prob for s in self.samples_fresh])).view(-1)
-        except:
-            None
 
         #  pdb.set_trace()
         self.observes_variable = util.pack_observes_to_variable([s.value for s in self.samples_observed])
         self.length = len(self.samples)
 
     def add_sample(self, sample, replace=False, fresh=True):
-        if fresh != True and sample.observed == False:
-            self.samples_stale.append(sample)
-        if fresh == True and sample.observed == False:
-            self.samples_fresh.append(sample)
         if replace:
             i = self._find_last_sample(sample.address)
             if i is not None:

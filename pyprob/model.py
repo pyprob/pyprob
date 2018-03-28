@@ -97,8 +97,11 @@ class Model(nn.Module):
             print('Warning: Running with InferenceEngine.IMPORTANCE_SAMPLING')
             inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
         if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS:
+            print("running inference with lmh")
             traces = self._lmh_posterior(mixin=lmh_mixin, num_samples=traces)
-        if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+            # TODO put these into a dict or something 
+            self._posterior_marginals = traces
+        elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             self._inference_network.eval()
             traces = self._prior_traces(traces, trace_mode=TraceMode.RECORD_USE_INFERENCE_NETWORK, proposal_network=self._inference_network, *args, **kwargs)
         else:
@@ -107,34 +110,41 @@ class Model(nn.Module):
         results = [trace.result for trace in traces]
         return Empirical(results, log_weights)
 
-    def _lmh_posterior(self, mixin=10000, num_samples=1000, *args, **kwargs):
+    def _lmh_posterior(self, mixins=None, samples=[], mixin=100000, num_samples=1000, *args, **kwargs):
         old_trace = self._single_trace(*args, **kwargs)
-        samples = []
         i = 0
 
         time_start = time.time()
         while len(samples) < num_samples:
-            log_pdf_old = old_trace.log_y() 
+            # pick random index to resample
             resample_index = random.randint(0, len(old_trace.samples) - 1)   
             resample_address = old_trace.samples[resample_index].address
             new_trace = self._continue_trace_at_address(resample_address, old_trace, *args, **kwargs)
-            log_pdf_old += np.sum(new_trace.log_p_fresh.data.numpy())
-            log_pdf_new = new_trace.log_y() + ( np.sum(old_trace.log_prob.data.numpy()) - old_trace.log_y() - np.sum(new_trace.log_p_stale.data.numpy()) )
 
-            accept_ratio = (log_pdf_new - log_pdf_old).data[0] + \
-                    math.log(float(len(old_trace.samples)) / len(new_trace.samples))
+            #pdb.set_trace()
+            log_pdf_new = new_trace.log_p_obs + \
+                        (old_trace.log_prob  - old_trace.log_p_obs) + \
+                        math.log(len(old_trace.samples))
+            
+            log_pdf_old = old_trace.log_p_obs + \
+                        (new_trace.log_prob - new_trace.log_p_obs) + \
+                        math.log(len(new_trace.samples))
 
-            #  pdb.set_trace()
-
-            #  accept_ratio = (log_pdf_new - log_pdf_old).data[0]
+            accept_ratio = (log_pdf_new - log_pdf_old).data[0]
+     
             duration = time.time() - time_start
             if math.log(random.uniform(0,1)) < accept_ratio:
                 old_trace = new_trace
                 if i > mixin:
                     samples.append(new_trace)
+                else:
+                    if mixins != None:
+                        mixins.append(new_trace)
                 print('                                                                \r{} | {} | {} / {} | {:,.2f} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, num_samples + mixin), i+1, num_samples + mixin, i / duration), end='\r')
                 i += 1
         return samples
+
+
 
     def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, batch_size=64, valid_size=256, learning_rate=0.001, weight_decay=1e-4, early_stop_traces=-1, use_trace_cache=False, *args, **kwargs):
         if self._inference_network is None:
