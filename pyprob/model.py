@@ -11,6 +11,11 @@ import random
 import tarfile
 import tempfile
 import shutil
+import random
+from random import randint
+import math
+import numpy as np
+import pdb
 
 from .distributions import Empirical
 from . import state, util, __version__, TraceMode, InferenceEngine
@@ -25,15 +30,18 @@ class Model(nn.Module):
         self._inference_network = None
         self._trace_cache_path = None
         self._trace_cache = []
+        # marginals over all the sample sites
+        # currently computed when lmh is called
+        self._posterior_marginals = []
 
     def forward(self):
         raise NotImplementedError()
 
-    def _prior_trace_generator(self, trace_mode=TraceMode.RECORD, proposal_network=None, *args, **kwargs):
+    def _prior_trace_generator(self, trace_mode=TraceMode.RECORD, proposal_network=None, continuation_address=None, previous_trace=None, *args, **kwargs):
         while True:
             if trace_mode == TraceMode.RECORD_USE_INFERENCE_NETWORK:
                 self._inference_network.new_trace(util.pack_observes_to_variable(kwargs['observation']).unsqueeze(0))
-            state.begin_trace(self.forward, trace_mode, proposal_network)
+            state.begin_trace(self.forward, trace_mode, proposal_network, continuation_address, previous_trace)
             res = self.forward(*args, **kwargs)
             trace = state.end_trace(res)
             yield trace
@@ -55,6 +63,15 @@ class Model(nn.Module):
         if ((trace_mode != TraceMode.RECORD_TRAIN_INFERENCE_NETWORK) and (util.verbosity > 1)) or (util.verbosity > 2):
             print()
         return ret
+
+    def _single_trace(self, *args, **kwargs):
+        generator = self._prior_trace_generator(*args, **kwargs)
+        return next(generator)
+
+    def _continue_trace_at_address(self, continuation_address, previous_trace, *args, **kwargs):
+        #  generator = self._prior_trace_generator(*args, **kwargs)
+        generator = self._prior_trace_generator(continuation_address=continuation_address, previous_trace=previous_trace, *args, **kwargs)
+        return next(generator)
 
     def prior_sample(self, *args, **kwargs):
         generator = self._prior_sample_generator(*args, **kwargs)
@@ -79,7 +96,13 @@ class Model(nn.Module):
             print('Warning: Cannot run inference with inference network because there is none available. Use learn_inference_network first.')
             print('Warning: Running with InferenceEngine.IMPORTANCE_SAMPLING')
             inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
-        if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+        if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS:
+            print("running inference with lmh")
+            # TODO put the burnins somewhere
+            traces, _ = self._lmh_posterior(num_samples=traces, *args, **kwargs)
+            # TODO put these into a dict or something 
+            self._posterior_marginals = traces
+        elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             self._inference_network.eval()
             traces = self._prior_traces(traces, trace_mode=TraceMode.RECORD_USE_INFERENCE_NETWORK, proposal_network=self._inference_network, *args, **kwargs)
         else:
@@ -87,6 +110,42 @@ class Model(nn.Module):
         log_weights = [trace.log_prob for trace in traces]
         results = [trace.result for trace in traces]
         return Empirical(results, log_weights)
+
+    def _lmh_posterior(self, mixing_samples=None, samples=[], burn_in=100000, num_samples=1000, *args, **kwargs):
+        old_trace = self._single_trace(*args, **kwargs)
+        i = 0
+
+        time_start = time.time()
+        while len(samples) < num_samples:
+            # pick random index to resample
+            resample_index = random.randint(0, len(old_trace.samples) - 1)   
+            resample_address = old_trace.samples[resample_index].address
+            new_trace = self._continue_trace_at_address(resample_address, old_trace, *args, **kwargs)
+
+            #pdb.set_trace()
+            log_pdf_new = new_trace.log_p_obs + \
+                        (old_trace.log_prob  - old_trace.log_p_obs) + \
+                        math.log(len(old_trace.samples))
+            
+            log_pdf_old = old_trace.log_p_obs + \
+                        (new_trace.log_prob - new_trace.log_p_obs) + \
+                        math.log(len(new_trace.samples))
+
+            accept_ratio = (log_pdf_new - log_pdf_old).data[0]
+     
+            duration = time.time() - time_start
+            if math.log(random.uniform(0,1)) < accept_ratio:
+                old_trace = new_trace
+                if i > burn_in:
+                    samples.append(new_trace)
+                else:
+                    if mixing_samples != None:
+                        mixing_samples.append(new_trace)
+                print('                                                                \r{} | {} | {} / {} | {:,.2f} traces/s'.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, num_samples + burn_in), i+1, num_samples + burn_in, i / duration), end='\r')
+                i += 1
+        return (samples, mixing_samples)
+
+
 
     def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, batch_size=64, valid_size=256, learning_rate=0.001, weight_decay=1e-4, early_stop_traces=-1, use_trace_cache=False, *args, **kwargs):
         if self._inference_network is None:
