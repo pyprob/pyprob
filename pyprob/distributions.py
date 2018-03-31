@@ -328,11 +328,13 @@ class Normal(Distribution):
 
 
 class TruncatedNormal(Distribution):
-    def __init__(self, mean_non_truncated, stddev_non_truncated, low, high):
+    def __init__(self, mean_non_truncated, stddev_non_truncated, low, high, clamp_mean_between_low_high=False):
         self._mean_non_truncated = util.to_variable(mean_non_truncated)
         self._stddev_non_truncated = util.to_variable(stddev_non_truncated)
         self._low = util.to_variable(low)
         self._high = util.to_variable(high)
+        if clamp_mean_between_low_high:
+            self._mean_non_truncated = torch.max(torch.min(self._mean_non_truncated, self._high), self._low)
         if self._mean_non_truncated.dim() == 1:
             self.length_variates = self._mean_non_truncated.size(0)
             self.length_batch = 1
