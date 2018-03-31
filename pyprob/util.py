@@ -9,6 +9,7 @@ from termcolor import colored
 
 
 _random_seed = 0
+_epsilon = 1e-8
 
 
 def set_random_seed(seed=123):

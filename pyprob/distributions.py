@@ -202,7 +202,7 @@ class Categorical(Distribution):
             self._probs = self._probs / self._probs.sum(-1, keepdim=True)
         else:
             raise ValueError('Expecting 1d or 2d (batched) probabilities.')
-        super().__init__('Categorical', '_Categorical(length_categories:{})'.format(self.length_categories), torch.distributions.Categorical(probs=self._probs))
+        super().__init__('Categorical', 'Categorical(length_categories:{})'.format(self.length_categories), torch.distributions.Categorical(probs=self._probs))
 
     def __repr__(self):
         return 'Categorical(probs:{}, length_variates:{}, length_batch:{})'.format(self._probs, self.length_variates, self.length_batch)
@@ -242,7 +242,7 @@ class Mixture(Distribution):
         self._mixing_dist = Categorical(self._probs)
         self._mean = None
         self._variance = None
-        super().__init__('Mixture', '_Mixture({})'.format(', '.join([d.address_suffix for d in self._distributions])))
+        super().__init__('Mixture', 'Mixture({})'.format(', '.join([d.address_suffix for d in self._distributions])))
 
     def __repr__(self):
         return 'Mixture(distributions:({}), probs:{})'.format(', '.join([repr(d) for d in self._distributions]), self._probs)
@@ -311,7 +311,7 @@ class Normal(Distribution):
             print(self._mean.size())
             print(self._stddev.size())
             raise RuntimeError('Expecting 1d or 2d (batched) probabilities.')
-        super().__init__('Normal', '_Normal', torch.distributions.Normal(self._mean, self._stddev))
+        super().__init__('Normal', 'Normal', torch.distributions.Normal(self._mean, self._stddev))
 
     def __repr__(self):
         return 'Normal(mean:{}, stddev:{}, length_variates:{}, length_batch:{})'.format(self._mean, self._stddev, self.length_variates, self.length_batch)
@@ -354,7 +354,7 @@ class TruncatedNormal(Distribution):
         self._log_stddev_Z = torch.log(self._stddev_non_truncated * self._Z)
         self._mean = None
         self._variance = None
-        super().__init__('TruncatedNormal', '_TruncatedNormal')
+        super().__init__('TruncatedNormal', 'TruncatedNormal')
 
     def __repr__(self):
         return 'TruncatedNormal(mean_non_truncated:{}, stddev_non_truncated:{}, low:{}, high:{})'.format(self._mean_non_truncated, self._stddev_non_truncated, self._low, self._high)
@@ -436,7 +436,7 @@ class Uniform(Distribution):
             self.length_batch = self._low.size(0)
         self._mean = (self._high + self._low) / 2
         self._variance = (self._high - self._low).pow(2) / 12
-        super().__init__('Uniform', '_Uniform')
+        super().__init__('Uniform', 'Uniform')
 
     def __repr__(self):
         return 'Uniform(low: {}, high:{}, length_variates:{}, length_batch:{})'.format(self._low, self._high, self.length_variates, self.length_batch)

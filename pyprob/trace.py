@@ -1,27 +1,37 @@
 from . import util
-import pdb
 
 
 class Sample(object):
-    def __init__(self, address, distribution, value, log_prob=0, controlled=False, observed=False):
-        self.address = address
+    def __init__(self, distribution, value, address_base, instance, log_prob=None, control=False, replace=False, observed=False, reused=False):
+        self.address_base = address_base
         self.distribution = distribution
-        if distribution is None:
-            self.address_suffixed = address
+        self.instance = instance
+        if replace:
+            instance_str = 'replaced'
         else:
-            self.address_suffixed = address + distribution.address_suffix
+            instance_str = str(instance)
+        if distribution is None:
+            self.address = '{}__{}'.format(address_base, instance_str)
+        else:
+            self.address = '{}_{}_{}'.format(address_base, distribution.address_suffix, instance_str)
         self.value = util.to_variable(value)
-        self.controlled = controlled
+        self.control = control
+        self.replace = replace
         self.observed = observed
-        self.log_prob = log_prob
+        self.reused = reused
+        if log_prob is None:
+            self.log_prob = distribution.log_prob(value)
+        else:
+            self.log_prob = log_prob
         self.lstm_input = None
         self.lstm_output = None
 
     def __repr__(self):
-        return 'Sample(controlled:{}, observed:{}, address_suffixed:{}, distribution:{}, value:{})'.format(
-            self.controlled,
+        return 'Sample(control:{}, replace:{}, observed:{}, address:{}, distribution:{}, value:{})'.format(
+            self.control,
+            self.replace,
             self.observed,
-            self.address_suffixed,
+            self.address,
             str(self.distribution),
             str(self.value)
         )
@@ -44,66 +54,51 @@ class Trace(object):
         self.samples = []  # controlled
         self.samples_uncontrolled = []
         self.samples_observed = []
-        # these two always combine to form self.samples
         self._samples_all = []
-        self._resampled = None
+        self._samples_all_dict_address = {}
+        self._samples_all_dict_adddress_base = {}
         self.result = None
         self.log_prob = 0
-        self.log_p_obs = 0
-        self.log_p_fresh = 0
-        self.log_p_stale = 0
-
+        self.log_prob_observed = 0
         self.length = 0
-        self.length_controlled = 0
 
     def __repr__(self):
         return 'Trace(controlled:{}, uncontrolled:{}, observed:{}, log_prob:{})'.format(len(self.samples), len(self.samples_uncontrolled), len(self.samples_observed), float(self.log_prob))
 
-    def _find_last_sample(self, address):
-        indices = [i for i, sample in enumerate(self._samples_all) if sample.address == address]
-        if len(indices) == 0:
-            return None
-        else:
-            return max(indices)
-
-    def log_fresh(self):
-        log_p = 0
-        for sample in self.samples:
-            log_p += sample.log_prob
-        return log_p
-
-    def log_y(self):
-        log_p = 0
-        for sample in self.samples_observed:
-            log_p += sample.log_prob
-        return log_p
     def addresses(self):
         return '; '.join([sample.address for sample in self.samples])
 
-    def addresses_suffixed(self):
-        return '; '.join([sample.address_suffixed for sample in self.samples])
-
     def end(self, result):
         self.result = result
-        self.samples = [s for s in self._samples_all if s.controlled]
-        self.samples_uncontrolled = [s for s in self._samples_all if (not s.controlled) and (not s.observed)]
+        self.samples = []
+        replaced_indices = []
+        for i in range(len(self._samples_all)):
+            sample = self._samples_all[i]
+            if sample.control and i not in replaced_indices:
+                if sample.replace:
+                    for j in range(i + 1, len(self._samples_all)):
+                        if self._samples_all[j].address_base == sample.address_base:
+                            sample = self._samples_all[j]
+                            replaced_indices.append(j)
+                self.samples.append(sample)
+        self.samples_uncontrolled = [s for s in self._samples_all if (not s.control) and (not s.observed)]
         self.samples_observed = [s for s in self._samples_all if s.observed]
+        self.log_prob_observed = util.to_variable(sum([s.log_prob for s in self.samples_observed])).view(-1)
 
-
-        self.log_prob = util.to_variable(sum([s.log_prob for s in self._samples_all if s.controlled or s.observed])).view(-1)
-        self.log_p_obs = util.to_variable(sum([s.log_prob for s in self.samples_observed])).view(-1)
-
-        #  pdb.set_trace()
+        self.log_prob = util.to_variable(sum([s.log_prob for s in self._samples_all if s.control or s.observed])).view(-1)
         self.observes_variable = util.pack_observes_to_variable([s.value for s in self.samples_observed])
         self.length = len(self.samples)
 
-    def add_sample(self, sample, replace=False, fresh=True):
-        if replace:
-            i = self._find_last_sample(sample.address)
-            if i is not None:
-                self._samples_all[i] = sample
-                return
+    def last_instance(self, address_base):
+        if address_base in self._samples_all_dict_adddress_base:
+            return self._samples_all_dict_adddress_base[address_base].instance
+        else:
+            return 0
+
+    def add_sample(self, sample):
         self._samples_all.append(sample)
+        self._samples_all_dict_address[sample.address] = sample
+        self._samples_all_dict_adddress_base[sample.address_base] = sample
 
     def cuda(self, device=None):
         if self.observes_variable is not None:

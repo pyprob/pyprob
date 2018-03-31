@@ -16,9 +16,10 @@ class SampleEmbedding(enum.Enum):
 class TraceMode(enum.Enum):
     NONE = 0  # No trace recording, forward sample
     RECORD = 1  # Record traces
-    RECORD_IMPORTANCE = 2  # Record traces, importance sampling with prior
-    RECORD_TRAIN_INFERENCE_NETWORK = 3  # Record traces, training data generation for inference network, interpret 'observe' as 'sample' (inference compilation training)
-    RECORD_USE_INFERENCE_NETWORK = 4  # Record traces, importance sampling with proposals from inference network (inference compilation inference)
+    IMPORTANCE_SAMPLING_WITH_PRIOR = 2  # Record traces, importance sampling with prior
+    IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK = 3  # Record traces, importance sampling with proposals from inference network (inference compilation inference)
+    IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN = 4  # Record traces, training data generation for inference network, interpret 'observe' as 'sample' (inference compilation training)
+    LIGHTWEIGHT_METROPOLIS_HASTINGS = 5  # Record traces for single-site Metropolis Hastings sampling, http://proceedings.mlr.press/v15/wingate11a/wingate11a.pdf and https://arxiv.org/abs/1507.00996
 
 
 class InferenceEngine(enum.Enum):

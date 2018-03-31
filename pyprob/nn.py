@@ -27,7 +27,7 @@ class Batch(object):
                 self.traces_max_length = trace.length
             if trace.observes_variable.size(0) > self.observes_max_length:
                 self.observes_max_length = trace.observes_variable.size(0)
-            h = hash(trace.addresses_suffixed())
+            h = hash(trace.addresses())
             if h not in sb:
                 sb[h] = []
             sb[h].append(trace)
@@ -394,7 +394,7 @@ class InferenceNetwork(nn.Module):
             example_trace = sub_batch[0]
 
             for sample in example_trace.samples:
-                address = sample.address_suffixed
+                address = sample.address
                 distribution = sample.distribution
 
                 # Update the dictionaries for address and distribution type embeddings
@@ -449,7 +449,7 @@ class InferenceNetwork(nn.Module):
             self._state_lstm_hidden_state = (h0, h0)
             self._state_new_trace = False
         else:
-            prev_address = previous_sample.address_suffixed
+            prev_address = previous_sample.address
             prev_distribution = previous_sample.distribution
             prev_value = previous_sample.value
             if prev_address in self._sample_embedding_layers:
@@ -468,7 +468,7 @@ class InferenceNetwork(nn.Module):
                 print('Warning: unkown distribution type (previous): {}'.format(prev_distribution.name))
                 success = False
 
-        current_address = current_sample.address_suffixed
+        current_address = current_sample.address
         current_distribution = current_sample.distribution
         if current_address not in self._proposal_layers:
             print('Warning: no proposal layer for: {}'.format(current_address))
@@ -515,7 +515,7 @@ class InferenceNetwork(nn.Module):
 
             for time_step in range(example_trace.length):
                 current_sample = example_trace.samples[time_step]
-                current_address = current_sample.address_suffixed
+                current_address = current_sample.address
                 current_distribution = current_sample.distribution
                 current_addres_embedding = self._address_embeddings[current_address]
                 current_distribution_type_embedding = self._distribution_type_embeddings[current_distribution.name]
@@ -526,7 +526,7 @@ class InferenceNetwork(nn.Module):
                     prev_distribution_type_embedding = self._distribution_type_embedding_empty
                 else:
                     prev_sample = example_trace.samples[time_step - 1]
-                    prev_address = prev_sample.address_suffixed
+                    prev_address = prev_sample.address
                     prev_distribution = prev_sample.distribution
                     smp = torch.stack([trace.samples[time_step - 1].value.float() for trace in sub_batch])
                     prev_sample_embedding = self._sample_embedding_layers[prev_address](smp)
@@ -572,7 +572,7 @@ class InferenceNetwork(nn.Module):
 
             for time_step in range(example_trace.length):
                 current_sample = example_trace.samples[time_step]
-                current_address = current_sample.address_suffixed
+                current_address = current_sample.address
 
                 p = []
                 for b in range(sub_batch_length):
@@ -597,7 +597,7 @@ class InferenceNetwork(nn.Module):
 
         return True, float(loss)
 
-    def optimize(self, new_batch_func, optimizer, early_stop_traces=-1):
+    def optimize(self, new_batch_func, optimizer, num_traces=-1):
         prev_total_training_seconds = self._total_training_seconds
         time_start = time.time()
         time_loss_min = time.time()
@@ -654,8 +654,8 @@ class InferenceNetwork(nn.Module):
                 total_training_seconds_str = util.days_hours_mins_secs_str(self._total_training_seconds)
                 traces_per_second_str = '{:,}'.format(int(batch.length / (time.time() - time_last_batch)))
                 time_last_batch = time.time()
-                if early_stop_traces != -1:
-                    if trace >= early_stop_traces:
+                if num_traces != -1:
+                    if trace >= num_traces:
                         stop = True
 
                 print_line = '{} | {} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_max_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)

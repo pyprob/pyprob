@@ -1,7 +1,7 @@
 import sys
 import opcode
-import enum
-import pdb
+import random
+import math
 
 from .trace import Sample, Trace
 from . import TraceMode
@@ -12,11 +12,11 @@ _current_trace_root_function_name = None
 _current_trace_inference_network = None
 _current_trace_previous_sample = None
 _current_trace_replaced_sample_proposal_distributions = {}
-_current_trace_reassignments = {}
-_continue_trace_at = ''
-_use_previous_trace_value = False
+_metropolis_hastings_trace = None
+_metropolis_hastings_proposal_address = None
 
-def extract_address(root_function_name, sampled=False):
+
+def extract_address(root_function_name):
     # tb = traceback.extract_stack()
     # print()
     # for t in tb:
@@ -32,21 +32,18 @@ def extract_address(root_function_name, sampled=False):
     var_name = _extract_target_of_assignment()
     if var_name is not None:
         names.append(var_name)
+    else:
+        names.append('?')
     while frame is not None:
         n = frame.f_code.co_name
-        if n.startswith('<'): break
+        if n.startswith('<') and not n == '<listcomp>':
+            break
         names.append(n)
-        if n == root_function_name: break
+        if n == root_function_name:
+            break
         frame = frame.f_back
-    iter_id = 0
-    byte_address = "{}/{}".format(ip, '.'.join(reversed(names)))
-    global _current_trace_reassignments
-    if (sampled == True) and (byte_address in _current_trace_reassignments):
-        iter_id = _current_trace_reassignments[byte_address] + 1
-    _current_trace_reassignments[byte_address] = iter_id
-    byte_address += str(iter_id)
-    
-    return byte_address
+    return "{}/{}".format(ip, '.'.join(reversed(names)))
+
 
 def _extract_target_of_assignment():
     frame = sys._getframe(3)
@@ -76,41 +73,34 @@ def _extract_target_of_assignment():
             return base_name + '[' + index_name + ']'
         else:
             return None
+    elif instruction_name == 'RETURN_VALUE':
+        return 'return'
     else:
         return None
 
 
 def sample(distribution, control=True, replace=False, address=None):
-    global _use_previous_trace_value
-    global _previous_trace_values
-    global _current_trace
-    global _continue_trace_at 
-    if address is None:
-        address = extract_address(_current_trace_root_function_name, sampled=True)
+    if _trace_mode == TraceMode.NONE:
+        return distribution.sample()  # Forward sample
+    else:
+        global _current_trace
+        if address is None:
+            address = extract_address(_current_trace_root_function_name)
 
-    if _continue_trace_at == address:
-        _current_trace._resampled = _previous_trace_values[address]
-        _use_previous_trace_value = False
-    if _use_previous_trace_value == True:
-        current_sample = _previous_trace_values[address]
-        _current_trace.add_sample(current_sample, replace, fresh=False)
-        return current_sample.value
+        # Loop counter suffix
+        # if _current_trace._samples_all[-1].address
+        instance = _current_trace.last_instance(address) + 1
 
-    value = distribution.sample()
-    if _trace_mode != TraceMode.NONE:
         if control:
-            if _trace_mode == TraceMode.RECORD_IMPORTANCE:
-                # The log_prob of samples are zero for regular importance sampling (no learned proposals) as it cancels out
-                #  log_prob = 0
-                log_prob = distribution.log_prob(value)
-            else:
-                log_prob = distribution.log_prob(value)
-
-            current_sample = Sample(address, distribution, value, log_prob=log_prob, controlled=True)
-            if _trace_mode == TraceMode.RECORD_USE_INFERENCE_NETWORK:
+            if _trace_mode == TraceMode.RECORD:
+                current_sample = Sample(distribution, distribution.sample(), address, instance, control=control, replace=replace)
+            elif _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_PRIOR:
+                current_sample = Sample(distribution, distribution.sample(), address, instance, log_prob=0, control=control, replace=replace)
+            elif _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
                 global _current_trace_previous_sample
                 global _current_trace_replaced_sample_proposal_distributions
                 _current_trace_inference_network.eval()
+                current_sample = Sample(distribution, 0, address, instance, log_prob=0, control=control, replace=replace)
                 if replace:
                     if address not in _current_trace_replaced_sample_proposal_distributions:
                         _current_trace_replaced_sample_proposal_distributions[address] = _current_trace_inference_network.forward_one_time_step(_current_trace_previous_sample, current_sample)
@@ -119,14 +109,26 @@ def sample(distribution, control=True, replace=False, address=None):
                 else:
                     proposal_distribution = _current_trace_inference_network.forward_one_time_step(_current_trace_previous_sample, current_sample)
                 value = proposal_distribution.sample()[0]
-                current_sample = Sample(address, distribution, value, log_prob=distribution.log_prob(value) - proposal_distribution.log_prob(value), controlled=True)
+                log_prob = distribution.log_prob(value) - proposal_distribution.log_prob(value)
+                current_sample = Sample(distribution, value, address, instance, log_prob=log_prob, control=control, replace=replace)
 
                 if not replace:
                     _current_trace_previous_sample = current_sample
-        else:
-            current_sample = Sample(address, distribution, value, log_prob=distribution.log_prob(value), controlled=False)
-        _current_trace.add_sample(current_sample, replace)
-    return value
+            elif _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN:
+                current_sample = Sample(distribution, distribution.sample(), address, instance, log_prob=0, control=control, replace=replace)
+            else:  # _trace_mode == TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS:
+                current_sample = Sample(distribution, distribution.sample(), address, instance, control=True, replace=False)
+                if _metropolis_hastings_trace is not None:
+                    if current_sample.address == _metropolis_hastings_proposal_address or current_sample.address not in _metropolis_hastings_trace._samples_all_dict_address:
+                        value = distribution.sample()
+                        reused = False
+                    else:
+                        value = _metropolis_hastings_trace._samples_all_dict_address[current_sample.address].value
+                        reused = True
+                    current_sample = Sample(distribution, value, address, instance, control=True, replace=False, reused=reused)
+
+        _current_trace.add_sample(current_sample)
+        return current_sample.value
 
 
 def observe(distribution, observation, address=None):
@@ -134,39 +136,33 @@ def observe(distribution, observation, address=None):
         global _current_trace
         if address is None:
             address = extract_address(_current_trace_root_function_name)
-        if _trace_mode == TraceMode.RECORD_TRAIN_INFERENCE_NETWORK:
+        if _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN:
             observation = distribution.sample()
-        current_sample = Sample(address, distribution, observation, log_prob=distribution.log_prob(observation), controlled=False, observed=True)
+        instance = _current_trace.last_instance(address) + 1
+        current_sample = Sample(distribution, observation, address, instance, observed=True)
         _current_trace.add_sample(current_sample)
     return
 
-def dictify_previous_trace(previous_trace):
-    d = {}
-    for sample in (previous_trace.samples+previous_trace.samples_uncontrolled+previous_trace.samples_observed):
-        d[sample.address] = sample
-    return d
 
-def begin_trace(func, trace_mode=TraceMode.RECORD, inference_network=None, continuation_address=None, previous_trace=None):
+def begin_trace(func, trace_mode=TraceMode.RECORD, inference_network=None, metropolis_hastings_trace=None):
     global _trace_mode
     global _current_trace
-    global _previous_trace_values
     global _current_trace_root_function_name
     global _current_trace_inference_network
-    global _continue_trace_at
-    global _use_previous_trace_value
-    global _current_trace_reassignments 
-    _use_previous_trace_value = False
-    if continuation_address is not None:
-        _use_previous_trace_value = True
-        _previous_trace_values = dictify_previous_trace(previous_trace)
+    global _current_trace_replaced_sample_proposal_distributions
     _trace_mode = trace_mode
     _current_trace = Trace()
     _current_trace_root_function_name = func.__code__.co_name
     _current_trace_inference_network = inference_network
-    _continue_trace_at = continuation_address
-    _current_trace_reassignments = {}
-    if (trace_mode == TraceMode.RECORD_USE_INFERENCE_NETWORK) and (inference_network is None):
+    _current_trace_replaced_sample_proposal_distributions = {}
+    if (trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (inference_network is None):
         raise ValueError('Cannot run trace with proposals without an inference network')
+    if trace_mode == TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS:
+        global _metropolis_hastings_trace
+        _metropolis_hastings_trace = metropolis_hastings_trace
+        if _metropolis_hastings_trace is not None:
+            global _metropolis_hastings_proposal_address
+            _metropolis_hastings_proposal_address = random.choice([s.address for s in _metropolis_hastings_trace.samples])
 
 
 def end_trace(result):
@@ -174,16 +170,11 @@ def end_trace(result):
     global _current_trace
     global _current_trace_root_function_name
     global _current_trace_inference_network
-    global _continue_trace_at
-    global _use_previous_trace_value
-    global _current_trace_reassignments 
     _trace_mode = TraceMode.NONE
     _current_trace.end(result)
     ret = _current_trace
     _current_trace = None
     _current_trace_root_function_name = None
     _current_trace_inference_network = None
-    _continue_trace_at = ''
-    _use_previous_trace_value = False
-    _current_trace_reassignments = {}
+
     return ret

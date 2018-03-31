@@ -63,7 +63,7 @@ class ModelRemoteTestCase(unittest.TestCase):
         training_traces = 128
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
 
-        self._model.learn_inference_network(observation=[1, 1], early_stop_traces=training_traces)
+        self._model.learn_inference_network(observation=[1, 1], num_traces=training_traces)
         self._model.save_inference_network(file_name)
         self._model.load_inference_network(file_name)
         os.remove(file_name)
@@ -98,7 +98,7 @@ class ModelRemoteTestCase(unittest.TestCase):
         posterior_mean_correct = 7.25
         posterior_stddev_correct = math.sqrt(1/1.2)
 
-        self._model.learn_inference_network(observation=[1,1], early_stop_traces=training_traces)
+        self._model.learn_inference_network(observation=[1,1], num_traces=training_traces)
         posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.mean_unweighted)
