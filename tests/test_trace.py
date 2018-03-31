@@ -54,7 +54,7 @@ class TraceTestCase(unittest.TestCase):
 
         self._model.use_trace_cache(path_name)
         self._model.save_trace_cache(path_name, files=cache_files, traces_per_file=cache_traces_per_file, observation=[0, 0])
-        self._model.learn_inference_network(observation=[0, 0], early_stop_traces=training_traces, use_trace_cache=True)
+        self._model.learn_inference_network(observation=[0, 0], num_traces=training_traces, use_trace_cache=True)
         shutil.rmtree(path_name)
 
         util.debug('path_name', 'cache_files', 'cache_traces_per_file', 'training_traces')

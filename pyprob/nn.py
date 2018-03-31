@@ -254,7 +254,7 @@ class ProposalUniform(nn.Module):
         prior_highs = torch.stack([s.distribution.high for s in samples])
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
-        return TruncatedNormal(means, stddevs, prior_lows, prior_highs)
+        return TruncatedNormal(means, stddevs, prior_lows, prior_highs, clamp_mean_between_low_high=True)
 
 
 class ProposalUniformMixture(nn.Module):
