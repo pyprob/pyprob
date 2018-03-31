@@ -47,10 +47,14 @@ class Model(nn.Module):
         generator = self._prior_trace_generator(trace_mode, inference_network, *args, **kwargs)
         ret = []
         time_start = time.time()
+        if ((trace_mode != TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN) and (util.verbosity > 1)) or (util.verbosity > 2):
+            len_str_num_traces = len(str(num_traces))
+            print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
         for i in range(num_traces):
             if ((trace_mode != TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN) and (util.verbosity > 1)) or (util.verbosity > 2):
                 duration = time.time() - time_start
-                print('                                                                \r{} | {} | {} / {} | {:,.2f} traces/s    '.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, num_traces), i+1, num_traces, i / duration), end='\r')
+                traces_per_second = (i + 1) / duration
+                print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
                 sys.stdout.flush()
             ret.append(next(generator))
         if ((trace_mode != TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN) and (util.verbosity > 1)) or (util.verbosity > 2):
@@ -65,13 +69,17 @@ class Model(nn.Module):
         generator = self._prior_sample_generator(*args, **kwargs)
         ret = []
         time_start = time.time()
+        if util.verbosity > 1:
+            len_str_num_traces = len(str(num_traces))
+            print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
         for i in range(num_traces):
-            if (util.verbosity > 1):
+            if util.verbosity > 1:
                 duration = time.time() - time_start
-                print('                                                                \r{} | {} | {} / {} | {:,.2f} traces/s    '.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, num_traces), i+1, num_traces, i / duration), end='\r')
+                traces_per_second = (i + 1) / duration
+                print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
                 sys.stdout.flush()
             ret.append(next(generator))
-        if (util.verbosity > 1):
+        if util.verbosity > 1:
             print()
         return Empirical(ret)
 
@@ -99,10 +107,14 @@ class Model(nn.Module):
             current_trace = next(self._prior_trace_generator(trace_mode=TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS, *args, **kwargs))
             time_start = time.time()
             accepted = 1
+            if util.verbosity > 1:
+                len_str_num_traces = len(str(num_traces))
+                print('Time spent  | Time remain.| Progress             | {} | Accepted| Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
             for i in range(num_traces):
-                if (util.verbosity > 1):
+                if util.verbosity > 1:
                     duration = time.time() - time_start
-                    print('                                                                \r{} | {} | {} / {} | {:,.2f} traces/s | accepted {:,.2f}%  '.format(util.days_hours_mins_secs_str(duration), util.progress_bar(i+1, num_traces), i+1, num_traces, i / duration, 100 * (accepted / (i + 1))), end='\r')
+                    traces_per_second = (i + 1) / duration
+                    print('{} | {} | {} | {}/{} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:,.2f}%'.format(100 * (accepted / (i + 1))).rjust(7), traces_per_second), end='\r')
                     sys.stdout.flush()
                 candidate_trace = next(self._prior_trace_generator(trace_mode=TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS, metropolis_hastings_trace=current_trace, *args, **kwargs))
                 log_acceptance_ratio = math.log(current_trace.length) - math.log(candidate_trace.length) + candidate_trace.log_prob_observed - current_trace.log_prob_observed
@@ -115,6 +127,8 @@ class Model(nn.Module):
                     accepted += 1
                     current_trace = candidate_trace
                 traces.append(current_trace)
+            if util.verbosity > 1:
+                print()
             if burn_in is not None:
                 traces = traces[burn_in:]
             log_weights = None

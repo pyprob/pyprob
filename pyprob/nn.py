@@ -609,8 +609,8 @@ class InferenceNetwork(nn.Module):
         loss_max = None
         loss_prev = float('inf')
         stop = False
-        prev_print_line_length = 0
-        print('Train. time | Trace     | Init. loss | Max. loss  | Min. loss  | Curr. loss | T.since min | Traces/sec')
+        print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
+        max_print_line_len = 0
         while not stop:
             iteration += 1
             batch = new_batch_func()
@@ -622,28 +622,28 @@ class InferenceNetwork(nn.Module):
             else:
                 if loss_initial is None:
                     loss_initial = loss
-                    loss_initial_str = '{:+.3e}'.format(loss_initial)
+                    loss_initial_str = '{:+.2e}'.format(loss_initial)
                     loss_max = loss
-                    loss_max_str = '{:+.3e}'.format(loss_max)
+                    # loss_max_str = '{:+.3e}'.format(loss_max)
                 if loss < loss_min:
                     loss_min = loss
-                    loss_str = colored('{:+.3e}'.format(loss), 'green', attrs=['bold'])
-                    loss_min_str = colored('{:+.3e}'.format(loss_min), 'green', attrs=['bold'])
+                    loss_str = colored('{:+.2e}'.format(loss), 'green', attrs=['bold'])
+                    loss_min_str = colored('{:+.2e}'.format(loss_min), 'green', attrs=['bold'])
                     time_loss_min = time.time()
                     time_since_loss_min_str = colored(util.days_hours_mins_secs_str(0), 'green', attrs=['bold'])
                 elif loss > loss_max:
                     loss_max = loss
-                    loss_str = colored('{:+.3e}'.format(loss), 'red', attrs=['bold'])
-                    loss_max_str = colored('{:+.3e}'.format(loss_max), 'red', attrs=['bold'])
+                    loss_str = colored('{:+.2e}'.format(loss), 'red', attrs=['bold'])
+                    # loss_max_str = colored('{:+.3e}'.format(loss_max), 'red', attrs=['bold'])
                 else:
                     if loss < loss_prev:
-                        loss_str = colored('{:+.3e}'.format(loss), 'green')
+                        loss_str = colored('{:+.2e}'.format(loss), 'green')
                     elif loss > loss_prev:
-                        loss_str = colored('{:+.3e}'.format(loss), 'red')
+                        loss_str = colored('{:+.2e}'.format(loss), 'red')
                     else:
-                        loss_str = '{:+.3e}'.format(loss)
-                    loss_min_str = '{:+.3e}'.format(loss_min)
-                    loss_max_str = '{:+.3e}'.format(loss_max)
+                        loss_str = '{:+.2e}'.format(loss)
+                    loss_min_str = '{:+.2e}'.format(loss_min)
+                    # loss_max_str = '{:+.3e}'.format(loss_max)
                     time_since_loss_min_str = util.days_hours_mins_secs_str(time.time() - time_loss_min)
 
                 loss_prev = loss
@@ -652,16 +652,16 @@ class InferenceNetwork(nn.Module):
                 total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_training_traces))
                 self._total_training_seconds = prev_total_training_seconds + (time.time() - time_start)
                 total_training_seconds_str = util.days_hours_mins_secs_str(self._total_training_seconds)
-                traces_per_second_str = '{:,}'.format(int(batch.length / (time.time() - time_last_batch)))
+                traces_per_second_str = '{:,.1f}'.format(int(batch.length / (time.time() - time_last_batch)))
                 time_last_batch = time.time()
                 if num_traces != -1:
                     if trace >= num_traces:
                         stop = True
 
-                print_line = '{} | {} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_max_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
-                print(' '*prev_print_line_length + '\r' + print_line, end='\r')
+                print_line = '{} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
+                max_print_line_len = max(len(print_line), max_print_line_len)
+                print(print_line.ljust(max_print_line_len), end='\r')
                 sys.stdout.flush()
-                prev_print_line_length = len(print_line)
         print()
 
     def save(self, file_name):

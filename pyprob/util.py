@@ -6,6 +6,7 @@ import random
 import datetime
 import inspect
 from termcolor import colored
+import re
 
 
 _random_seed = 0
@@ -189,3 +190,10 @@ def is_hashable(v):
     except TypeError:
         return False
     return True
+
+
+_ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
+
+
+def remove_ansi_escape(s):
+    return _ansi_escape.sub('', s)
