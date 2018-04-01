@@ -1,7 +1,7 @@
 import torch
 from torch.autograd import Variable
 import torch.distributions
-import numpy as np
+import copy
 import collections
 import math
 
@@ -146,7 +146,17 @@ class Empirical(Distribution):
         return ret
 
     def map(self, func):
-        return Empirical(list(map(func, self.values)), list(map(torch.log, self.weights)))
+        ret = copy.copy(self)
+        ret.values = list(map(func, self.values))
+        ret._mean = None
+        ret._mean_unweighted = None
+        ret._variance = None
+        ret._variance_unweighted = None
+        ret._min = None
+        ret._max = None
+        ret._mean = None
+        ret._variance = None
+        return ret
 
     @property
     def min(self):
