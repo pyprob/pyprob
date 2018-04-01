@@ -4,8 +4,15 @@ import torch.distributions
 import copy
 import collections
 import math
+import tarfile
+import tempfile
+import shutil
+import os
+import uuid
+from threading import Thread
+from termcolor import colored
 
-from . import util
+from . import util, __version__
 
 
 class Distribution(object):
@@ -68,6 +75,47 @@ class Distribution(object):
 
     def expectation(self, func):
         raise NotImplementedError()
+
+    def save(self, file_name):
+        data = {}
+        data['distribution'] = self
+        data['pyprob_version'] = __version__
+        data['torch_version'] = torch.__version__
+
+        def thread_save():
+            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+            tmp_file_name = os.path.join(tmp_dir, 'pyprob_distribution')
+            torch.save(data, tmp_file_name)
+            tar = tarfile.open(file_name, 'w:gz', compresslevel=2)
+            tar.add(tmp_file_name, arcname='pyprob_distribution')
+            tar.close()
+            shutil.rmtree(tmp_dir)
+        t = Thread(target=thread_save)
+        t.start()
+        t.join()
+
+    @staticmethod
+    def load(file_name):
+        try:
+            tar = tarfile.open(file_name, 'r:gz')
+            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+            tmp_file = os.path.join(tmp_dir, 'pyprob_distribution')
+            tar.extract('pyprob_distribution', tmp_dir)
+            tar.close()
+            if util._cuda_enabled:
+                data = torch.load(tmp_file)
+            else:
+                data = torch.load(tmp_file, map_location=lambda storage, loc: storage)
+            shutil.rmtree(tmp_dir)
+        except:
+            raise RuntimeError('Cannot load distribution.')
+
+        if data['pyprob_version'] != __version__:
+            print(colored('Warning: different pyprob versions (loaded distribution: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
+        if data['torch_version'] != torch.__version__:
+            print(colored('Warning: different PyTorch versions (loaded distribution: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
+
+        return data['distribution']
 
 
 class Empirical(Distribution):

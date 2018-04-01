@@ -2,10 +2,13 @@ import unittest
 import torch
 from torch.autograd import Variable
 import numpy as np
+import uuid
+import tempfile
+import os
 
 import pyprob
 from pyprob import util
-from pyprob.distributions import Categorical, Empirical, Mixture, Normal, TruncatedNormal, Uniform
+from pyprob.distributions import Distribution, Categorical, Empirical, Mixture, Normal, TruncatedNormal, Uniform
 
 
 empirical_samples = 10000
@@ -394,6 +397,36 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_lows, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+
+    def test_dist_empirical_save_load(self):
+        file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        values = Variable(util.Tensor([1, 2, 3]))
+        log_weights = Variable(util.Tensor([1, 2, 3]))
+        dist_mean_correct = 2.5752103328704834
+        dist_stddev_correct = 0.6514633893966675
+        dist_expectation_sin_correct = 0.3921678960323334
+        dist_map_sin_mean_correct = 0.3921678960323334
+
+        dist_on_file = Empirical(values, log_weights)
+        dist_on_file.save(file_name)
+        dist = Distribution.load(file_name)
+        os.remove(file_name)
+        dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
+        dist_mean = float(dist.mean)
+        dist_mean_empirical = float(dist_empirical.mean)
+        dist_stddev = float(dist.stddev)
+        dist_stddev_empirical = float(dist_empirical.stddev)
+        dist_expectation_sin = float(dist.expectation(torch.sin))
+        dist_map_sin_mean = float(dist.map(torch.sin).mean)
+
+        util.debug('file_name', 'dist_mean', 'dist_mean_empirical', 'dist_mean_correct', 'dist_stddev', 'dist_stddev_empirical', 'dist_stddev_correct', 'dist_expectation_sin', 'dist_expectation_sin_correct', 'dist_map_sin_mean', 'dist_map_sin_mean_correct')
+
+        self.assertAlmostEqual(dist_mean, dist_mean_correct, places=1)
+        self.assertAlmostEqual(dist_mean_empirical, dist_mean_correct, places=1)
+        self.assertAlmostEqual(dist_stddev, dist_stddev_correct, places=1)
+        self.assertAlmostEqual(dist_stddev_empirical, dist_stddev_correct, places=1)
+        self.assertAlmostEqual(dist_expectation_sin, dist_expectation_sin_correct, places=1)
+        self.assertAlmostEqual(dist_map_sin_mean, dist_map_sin_mean_correct, places=1)
 
 
 if __name__ == '__main__':

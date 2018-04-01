@@ -114,25 +114,29 @@ class Model(nn.Module):
             results = []
             current_trace = next(self._prior_trace_generator(trace_mode=TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS, *args, **kwargs))
             time_start = time.time()
-            accepted = 1
+            traces_accepted = 1
+            samples_reused = 1
+            samples_all = 1
             if util.verbosity > 1:
                 len_str_num_traces = len(str(num_traces))
-                print('Time spent  | Time remain.| Progress             | {} | Accepted| Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
+                print('Time spent  | Time remain.| Progress             | {} | Accepted|Smp reuse| Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
             for i in range(num_traces):
                 if util.verbosity > 1:
                     duration = time.time() - time_start
                     traces_per_second = (i + 1) / duration
-                    print('{} | {} | {} | {}/{} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:,.2f}%'.format(100 * (accepted / (i + 1))).rjust(7), traces_per_second), end='\r')
+                    print('{} | {} | {} | {}/{} | {} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:,.2f}%'.format(100 * (traces_accepted / (i + 1))).rjust(7), '{:,.2f}%'.format(100 * samples_reused / samples_all).rjust(7), traces_per_second), end='\r')
                     sys.stdout.flush()
                 candidate_trace = next(self._prior_trace_generator(trace_mode=TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS, metropolis_hastings_trace=current_trace, *args, **kwargs))
                 log_acceptance_ratio = math.log(current_trace.length) - math.log(candidate_trace.length) + candidate_trace.log_prob_observed - current_trace.log_prob_observed
-                for sample in candidate_trace._samples_all:
+                for sample in candidate_trace.samples:
                     if sample.reused:
                         log_acceptance_ratio += torch.sum(sample.log_prob)
                         log_acceptance_ratio -= torch.sum(current_trace._samples_all_dict_address[sample.address].log_prob)
+                        samples_reused += 1
+                samples_all += candidate_trace.length
 
                 if math.log(random.random()) < float(log_acceptance_ratio):
-                    accepted += 1
+                    traces_accepted += 1
                     current_trace = candidate_trace
                 results.append(current_trace.result)
             if util.verbosity > 1:
