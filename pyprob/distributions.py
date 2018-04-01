@@ -74,16 +74,18 @@ class Empirical(Distribution):
     def __init__(self, values, log_weights=None, combine_duplicates=False):
         length = len(values)
         if log_weights is None:
-            log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length))  # assume uniform distribution if no weights are given
+            # assume uniform distribution if no weights are given
+            # log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length))
+            weights = util.to_variable(torch.zeros(length).fill_(1./length))
         else:
-            log_weights = util.to_variable(log_weights)
+            log_weights = util.to_variable(log_weights).view(-1)
+            weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
+
         if isinstance(values, Variable) or torch.is_tensor(values):
             values = util.to_variable(values)
         elif isinstance(values, (list, tuple)):
             if isinstance(values[0], Variable) or torch.is_tensor(values[0]):
                 values = util.to_variable(values)
-        log_weights = log_weights.view(-1)
-        weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
         distribution = collections.defaultdict(float)
         # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
         hashable = util.is_hashable(values[0])
@@ -108,13 +110,13 @@ class Empirical(Distribution):
         self.weights, indices = torch.sort(weights, descending=True)
         self.values = [values[int(i)] for i in indices]
         self.weights_numpy = self.weights.data.cpu().numpy()
-        try:  # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
-            self.values_numpy = torch.stack(self.values).data.cpu().numpy()
-        except:
-            try:
-                self.values_numpy = np.array(self.values)
-            except:
-                self.values_numpy = None
+        # try:  # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
+        #     self.values_numpy = torch.stack(self.values).data.cpu().numpy()
+        # except:
+        #     try:
+        #         self.values_numpy = np.array(self.values)
+        #     except:
+        #         self.values_numpy = None
         self._mean = None
         self._mean_unweighted = None
         self._variance = None
@@ -145,6 +147,22 @@ class Empirical(Distribution):
 
     def map(self, func):
         return Empirical(list(map(func, self.values)), list(map(torch.log, self.weights)))
+
+    @property
+    def min(self):
+        if self._min is None:
+            sorted_values = sorted(self.values)
+            self._min = sorted_values[0]
+            self._max = sorted_values[-1]
+        return self._min
+
+    @property
+    def max(self):
+        if self._max is None:
+            sorted_values = sorted(self.values)
+            self._min = sorted_values[0]
+            self._max = sorted_values[-1]
+        return self._max
 
     @property
     def mean(self):

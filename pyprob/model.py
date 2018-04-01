@@ -203,24 +203,24 @@ class Model(nn.Module):
         self._inference_network = InferenceNetwork.load(file_name, util._cuda_enabled, util._cuda_device)
 
     def trace_length_mean(self, num_traces=1000, *args, **kwargs):
-        traces = self._prior_traces(num_traces, trace_mode=TraceMode.RECORD, inference_network=None, *args, **kwargs)
-        trace_length_dist = Empirical([trace.length for trace in traces])
+        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.RECORD, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
+        trace_length_dist = Empirical(trace_lengths)
         return trace_length_dist.mean
 
     def trace_length_stddev(self, num_traces=1000, *args, **kwargs):
-        traces = self._prior_traces(num_traces, trace_mode=TraceMode.RECORD, inference_network=None, *args, **kwargs)
-        trace_length_dist = Empirical([trace.length for trace in traces])
+        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.RECORD, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
+        trace_length_dist = Empirical(trace_lengths)
         return trace_length_dist.stddev
 
     def trace_length_min(self, num_traces=1000, *args, **kwargs):
-        traces = self._prior_traces(num_traces, trace_mode=TraceMode.RECORD, inference_network=None, *args, **kwargs)
-        trace_length_dist = Empirical([trace.length for trace in traces])
-        return min(trace_length_dist.values_numpy)
+        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.RECORD, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
+        trace_length_dist = Empirical(trace_lengths)
+        return trace_length_dist.min
 
     def trace_length_max(self, num_traces=1000, *args, **kwargs):
-        traces = self._prior_traces(num_traces, trace_mode=TraceMode.RECORD, inference_network=None, *args, **kwargs)
-        trace_length_dist = Empirical([trace.length for trace in traces])
-        return max(trace_length_dist.values_numpy)
+        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.RECORD, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
+        trace_length_dist = Empirical(trace_lengths)
+        return trace_length_dist.max
 
     def save_trace_cache(self, trace_cache_path, files=16, traces_per_file=512, *args, **kwargs):
         f = 0
