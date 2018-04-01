@@ -1,3 +1,4 @@
+import torch
 from . import util
 
 
@@ -22,7 +23,7 @@ class Sample(object):
         if log_prob is None:
             self.log_prob = distribution.log_prob(value)
         else:
-            self.log_prob = log_prob
+            self.log_prob = util.to_variable(log_prob)
         self.lstm_input = None
         self.lstm_output = None
 
@@ -58,8 +59,8 @@ class Trace(object):
         self._samples_all_dict_address = {}
         self._samples_all_dict_adddress_base = {}
         self.result = None
-        self.log_prob = 0
-        self.log_prob_observed = 0
+        self.log_prob = 0.
+        self.log_prob_observed = 0.
         self.length = 0
 
     def __repr__(self):
@@ -83,9 +84,9 @@ class Trace(object):
                 self.samples.append(sample)
         self.samples_uncontrolled = [s for s in self._samples_all if (not s.control) and (not s.observed)]
         self.samples_observed = [s for s in self._samples_all if s.observed]
-        self.log_prob_observed = util.to_variable(sum([s.log_prob for s in self.samples_observed])).view(-1)
+        self.log_prob_observed = util.to_variable(sum([torch.sum(s.log_prob) for s in self.samples_observed])).view(-1)
 
-        self.log_prob = util.to_variable(sum([s.log_prob for s in self._samples_all if s.control or s.observed])).view(-1)
+        self.log_prob = util.to_variable(sum([torch.sum(s.log_prob) for s in self._samples_all if s.control or s.observed])).view(-1)
         self.observes_variable = util.pack_observes_to_variable([s.value for s in self.samples_observed])
         self.length = len(self.samples)
 

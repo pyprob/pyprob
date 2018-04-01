@@ -87,8 +87,7 @@ def sample(distribution, control=True, replace=False, address=None):
         if address is None:
             address = extract_address(_current_trace_root_function_name)
 
-        # Loop counter suffix
-        # if _current_trace._samples_all[-1].address
+        # Loop counter
         instance = _current_trace.last_instance(address) + 1
 
         if _trace_mode == TraceMode.RECORD:
@@ -116,14 +115,23 @@ def sample(distribution, control=True, replace=False, address=None):
         elif _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN:
             current_sample = Sample(distribution, distribution.sample(), address, instance, log_prob=0, control=control, replace=replace)
         else:  # _trace_mode == TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS:
-            current_sample = Sample(distribution, distribution.sample(), address, instance, control=True, replace=False)
-            if _metropolis_hastings_trace is not None:
+            if _metropolis_hastings_trace is None:
+                current_sample = Sample(distribution, distribution.sample(), address, instance, control=True, replace=False)
+            else:
+                current_sample = Sample(distribution, 0, address, instance, log_prob=0, control=True, replace=False)
                 if current_sample.address == _metropolis_hastings_proposal_address or current_sample.address not in _metropolis_hastings_trace._samples_all_dict_address:
                     value = distribution.sample()
+                    log_prob = distribution.log_prob(value)
                     reused = False
                 else:
                     value = _metropolis_hastings_trace._samples_all_dict_address[current_sample.address].value
                     reused = True
+                    try:  # Takes care of issues such as changed distribution parameters (e.g., batch size) that prevent a rescoring of a reused value under this distribution.
+                        log_prob = distribution.log_prob(value)
+                    except:
+                        value = distribution.sample()
+                        log_prob = distribution.log_prob(value)
+                        reused = False
                 current_sample = Sample(distribution, value, address, instance, control=True, replace=False, reused=reused)
 
         _current_trace.add_sample(current_sample)

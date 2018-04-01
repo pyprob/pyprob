@@ -120,8 +120,8 @@ class Model(nn.Module):
                 log_acceptance_ratio = math.log(current_trace.length) - math.log(candidate_trace.length) + candidate_trace.log_prob_observed - current_trace.log_prob_observed
                 for sample in candidate_trace._samples_all:
                     if sample.reused:
-                        log_acceptance_ratio += sample.log_prob
-                        log_acceptance_ratio -= current_trace._samples_all_dict_address[sample.address].log_prob
+                        log_acceptance_ratio += torch.sum(sample.log_prob)
+                        log_acceptance_ratio -= torch.sum(current_trace._samples_all_dict_address[sample.address].log_prob)
 
                 if math.log(random.random()) < float(log_acceptance_ratio):
                     accepted += 1
