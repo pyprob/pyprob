@@ -5,6 +5,7 @@ import torch
 import torch.nn.functional as F
 from termcolor import colored
 import time
+import numpy as np
 
 import pyprob
 from pyprob import util
@@ -54,7 +55,7 @@ def add_perf_score_metropolis_hastings(score):
 #         super().__init__(*args, **kwargs)
 #
 #     def test_inference_mvnum_posterior_importance_sampling(self):
-#         samples = 2
+#         samples = 10000
 #
 #         observation = [[8, 8], [9, 9]]
 #         posterior_mean_correct = [[7.25, 7.25]]
@@ -72,7 +73,27 @@ def add_perf_score_metropolis_hastings(score):
 #         self.assertTrue(np.allclose(posterior_mean, posterior_mean_correct, atol=0.1))
 #         self.assertTrue(np.allclose(posterior_stddev, posterior_stddev_correct, atol=0.1))
 #         # self.assertLess(kl_divergence, 0.15)
-    #
+#
+#     def test_inference_mvnum_posterior_metropolis_hastings(self):
+#         samples = 1000000
+#
+#         observation = [[8, 8], [9, 9]]
+#         posterior_mean_correct = [[7.25, 7.25]]
+#         posterior_stddev_correct = [[math.sqrt(1/1.2), math.sqrt(1/1.2)]]
+#
+#         posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observation=observation)
+#         posterior_mean = util.to_numpy(posterior.mean)
+#         posterior_mean_unweighted = util.to_numpy(posterior.mean_unweighted)
+#         posterior_stddev = util.to_numpy(posterior.stddev)
+#         posterior_stddev_unweighted = util.to_numpy(posterior.stddev_unweighted)
+#         # kl_divergence = util.to_numpy(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+#         # add_perf_score_importance_sampling(kl_divergence)
+#
+#         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct')
+#         self.assertTrue(np.allclose(posterior_mean, posterior_mean_correct, atol=0.1))
+#         self.assertTrue(np.allclose(posterior_stddev, posterior_stddev_correct, atol=0.1))
+#         # self.assertLess(kl_divergence, 0.15)
+
     # def test_inference_mvnum_posterior_inference_compilation(self):
     #     observation = [[8, 8], [9, 9]]
     #     posterior_mean_correct = [[7.25, 7.25]]
@@ -336,21 +357,21 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
     #     add_perf_score_inference_compilation(l2_distance)
     #
     #     self.assertLess(l2_distance, 6)
-
-    def test_inference_hmm_posterior_metropolis_hastings(self):
-        observation = self._observation
-        posterior_mean_correct = self._posterior_mean_correct
-
-        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observation=observation)
-        posterior_mean_unweighted = posterior.mean_unweighted
-        posterior_mean = posterior.mean
-
-        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
-
-        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
-        add_perf_score_metropolis_hastings(l2_distance)
-
-        self.assertLess(l2_distance, 6)
+    #
+    # def test_inference_hmm_posterior_metropolis_hastings(self):
+    #     observation = self._observation
+    #     posterior_mean_correct = self._posterior_mean_correct
+    #
+    #     posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observation=observation)
+    #     posterior_mean_unweighted = posterior.mean_unweighted
+    #     posterior_mean = posterior.mean
+    #
+    #     l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+    #
+    #     util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
+    #     add_perf_score_metropolis_hastings(l2_distance)
+    #
+    #     self.assertLess(l2_distance, 6)
 
 
 if __name__ == '__main__':
