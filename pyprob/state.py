@@ -84,47 +84,54 @@ def sample(distribution, control=True, replace=False, address=None):
         return distribution.sample()  # Forward sample
     else:
         global _current_trace
-        if address is None:
-            address = extract_address(_current_trace_root_function_name)
 
-        # Loop counter
-        instance = _current_trace.last_instance(address) + 1
+        if address is None:
+            address_base = extract_address(_current_trace_root_function_name)
+        else:
+            address_base = address
+        instance = _current_trace.last_instance(address_base) + 1
+        address = '{}_{}_{}'.format(address_base, distribution.address_suffix, 'replaced' if replace else str(instance))
+        reused = False
+        update_previous_sample = False
 
         if _trace_mode == TraceMode.RECORD:
-            current_sample = Sample(distribution, distribution.sample(), address, instance, control=control, replace=replace)
+            value = distribution.sample()
+            log_prob = distribution.log_prob(value)
         elif _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_PRIOR:
-            current_sample = Sample(distribution, distribution.sample(), address, instance, log_prob=0, control=control, replace=replace)
+            value = distribution.sample()
+            log_prob = 0  # Not computed because log_prob of samples get canceled out when using importance sampling with samples from prior
         elif _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             global _current_trace_previous_sample
             global _current_trace_replaced_sample_proposal_distributions
             _current_trace_inference_network.eval()
-            current_sample = Sample(distribution, 0, address, instance, log_prob=0, control=control, replace=replace)
+            current_sample = Sample(distribution, 0, address_base, address, instance, log_prob=0, control=control, replace=replace)
             if replace:
                 if address not in _current_trace_replaced_sample_proposal_distributions:
                     _current_trace_replaced_sample_proposal_distributions[address] = _current_trace_inference_network.forward_one_time_step(_current_trace_previous_sample, current_sample)
-                    _current_trace_previous_sample = current_sample
+                    update_previous_sample = True
                 proposal_distribution = _current_trace_replaced_sample_proposal_distributions[address]
             else:
                 proposal_distribution = _current_trace_inference_network.forward_one_time_step(_current_trace_previous_sample, current_sample)
+                update_previous_sample = True
+
             value = proposal_distribution.sample()[0]
             log_prob = distribution.log_prob(value) - proposal_distribution.log_prob(value)
-            current_sample = Sample(distribution, value, address, instance, log_prob=log_prob, control=control, replace=replace)
-
-            if not replace:
-                _current_trace_previous_sample = current_sample
         elif _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN:
-            current_sample = Sample(distribution, distribution.sample(), address, instance, log_prob=0, control=control, replace=replace)
+            value = distribution.sample()
+            log_prob = 0
         else:  # _trace_mode == TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS:
+            control = True
+            replace = False
             if _metropolis_hastings_trace is None:
-                current_sample = Sample(distribution, distribution.sample(), address, instance, control=True, replace=False)
+                value = distribution.sample()
+                log_prob = distribution.log_prob(value)
             else:
-                current_sample = Sample(distribution, 0, address, instance, log_prob=0, control=True, replace=False)
-                if current_sample.address == _metropolis_hastings_proposal_address or current_sample.address not in _metropolis_hastings_trace._samples_all_dict_address:
+                if address == _metropolis_hastings_proposal_address or address not in _metropolis_hastings_trace._samples_all_dict_address:
                     value = distribution.sample()
                     log_prob = distribution.log_prob(value)
                     reused = False
                 else:
-                    value = _metropolis_hastings_trace._samples_all_dict_address[current_sample.address].value
+                    value = _metropolis_hastings_trace._samples_all_dict_address[address].value
                     reused = True
                     try:  # Takes care of issues such as changed distribution parameters (e.g., batch size) that prevent a rescoring of a reused value under this distribution.
                         log_prob = distribution.log_prob(value)
@@ -132,9 +139,13 @@ def sample(distribution, control=True, replace=False, address=None):
                         value = distribution.sample()
                         log_prob = distribution.log_prob(value)
                         reused = False
-                current_sample = Sample(distribution, value, address, instance, control=True, replace=False, reused=reused)
 
+        current_sample = Sample(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, control=control, replace=replace, reused=reused)
         _current_trace.add_sample(current_sample)
+
+        if update_previous_sample:
+            _current_trace_previous_sample = current_sample
+
         return current_sample.value
 
 
@@ -142,11 +153,18 @@ def observe(distribution, observation, address=None):
     if _trace_mode != TraceMode.NONE:
         global _current_trace
         if address is None:
-            address = extract_address(_current_trace_root_function_name)
+            address_base = extract_address(_current_trace_root_function_name)
+        else:
+            address_base = address
+        instance = _current_trace.last_instance(address_base) + 1
+        address = '{}_{}_{}'.format(address_base, distribution.address_suffix, instance)
+
         if _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN:
             observation = distribution.sample()
-        instance = _current_trace.last_instance(address) + 1
-        current_sample = Sample(distribution, observation, address, instance, observed=True)
+
+        log_prob = distribution.log_prob(observation)
+
+        current_sample = Sample(distribution=distribution, value=observation, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True)
         _current_trace.add_sample(current_sample)
     return
 

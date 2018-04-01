@@ -3,18 +3,11 @@ from . import util
 
 
 class Sample(object):
-    def __init__(self, distribution, value, address_base, instance, log_prob=None, control=False, replace=False, observed=False, reused=False):
+    def __init__(self, distribution, value, address_base, address, instance, log_prob=None, control=False, replace=False, observed=False, reused=False):
         self.address_base = address_base
+        self.address = address
         self.distribution = distribution
         self.instance = instance
-        if replace:
-            instance_str = 'replaced'
-        else:
-            instance_str = str(instance)
-        if distribution is None:
-            self.address = '{}__{}'.format(address_base, instance_str)
-        else:
-            self.address = '{}_{}_{}'.format(address_base, distribution.address_suffix, instance_str)
         self.value = util.to_variable(value)
         self.control = control
         self.replace = replace

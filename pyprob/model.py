@@ -43,7 +43,7 @@ class Model(nn.Module):
         while True:
             yield self.forward(*args, **kwargs)
 
-    def _prior_traces(self, num_traces=10, trace_mode=TraceMode.RECORD, inference_network=None, *args, **kwargs):
+    def _prior_traces(self, num_traces=10, trace_mode=TraceMode.RECORD, inference_network=None, map_func=None, *args, **kwargs):
         generator = self._prior_trace_generator(trace_mode, inference_network, *args, **kwargs)
         ret = []
         time_start = time.time()
@@ -56,7 +56,11 @@ class Model(nn.Module):
                 traces_per_second = (i + 1) / duration
                 print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
                 sys.stdout.flush()
-            ret.append(next(generator))
+            trace = next(generator)
+            if map_func is not None:
+                ret.append(map_func(trace))
+            else:
+                ret.append(trace)
         if ((trace_mode != TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN) and (util.verbosity > 1)) or (util.verbosity > 2):
             print()
         return ret
@@ -93,17 +97,21 @@ class Model(nn.Module):
                 raise ValueError('burn_in must be less than num_traces')
         else:
             # Default burn_in
-            burn_in = int(min(num_traces / 100, 1000))
+            burn_in = int(min(num_traces / 10, 1000))
 
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
-            traces = self._prior_traces(num_traces, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_PRIOR, inference_network=None, *args, **kwargs)
-            log_weights = [trace.log_prob for trace in traces]
+            ret = self._prior_traces(num_traces, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_PRIOR, inference_network=None, map_func=lambda trace: (trace.log_prob, trace.result), *args, **kwargs)
+            ret = [list(t) for t in zip(*ret)]
+            log_weights = ret[0]
+            results = ret[1]
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             self._inference_network.eval()
-            traces = self._prior_traces(num_traces, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, inference_network=self._inference_network, *args, **kwargs)
-            log_weights = [trace.log_prob for trace in traces]
+            ret = self._prior_traces(num_traces, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, inference_network=self._inference_network, map_func=lambda trace: (trace.log_prob, trace.result), *args, **kwargs)
+            ret = [list(t) for t in zip(*ret)]
+            log_weights = ret[0]
+            results = ret[1]
         else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS
-            traces = []
+            results = []
             current_trace = next(self._prior_trace_generator(trace_mode=TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS, *args, **kwargs))
             time_start = time.time()
             accepted = 1
@@ -126,13 +134,13 @@ class Model(nn.Module):
                 if math.log(random.random()) < float(log_acceptance_ratio):
                     accepted += 1
                     current_trace = candidate_trace
-                traces.append(current_trace)
+                results.append(current_trace.result)
             if util.verbosity > 1:
                 print()
             if burn_in is not None:
-                traces = traces[burn_in:]
+                results = results[burn_in:]
             log_weights = None
-        results = [trace.result for trace in traces]
+
         return Empirical(results, log_weights)
 
     def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, batch_size=64, valid_size=256, learning_rate=0.001, weight_decay=1e-4, num_traces=-1, use_trace_cache=False, *args, **kwargs):
