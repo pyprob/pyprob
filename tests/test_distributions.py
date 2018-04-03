@@ -41,13 +41,27 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_expectation_sin, dist_expectation_sin_correct, places=1)
         self.assertAlmostEqual(dist_map_sin_mean, dist_map_sin_mean_correct, places=1)
 
+    def test_dist_empirical_subsample(self):
+        dist_means_correct = [2]
+        dist_stddevs_correct = [5]
+
+        dist = Normal(dist_means_correct, dist_stddevs_correct)
+        dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
+        dist_empirical = dist_empirical.subsample(int(empirical_samples/2))
+        dist_means_empirical = util.to_numpy(dist_empirical.mean)
+        dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
+
+        util.debug('dist_means_empirical', 'dist_means_correct', 'dist_stddevs_empirical', 'dist_stddevs_correct')
+
+        self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.25))
+        self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.25))
+
     def test_dist_categorical(self):
         dist_sample_shape_correct = [1]
         dist_log_probs_correct = [-2.30259]
 
         dist = Categorical([0.1, 0.2, 0.7])
 
-        print(dist.sample())
         dist_sample_shape = list(dist.sample().size())
         dist_log_probs = util.to_numpy(dist.log_prob(0))
 
@@ -89,7 +103,6 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
-        print(dist_log_probs)
 
         # print(dist.log_prob([2,2]))
         util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')

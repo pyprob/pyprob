@@ -9,6 +9,7 @@ import tempfile
 import shutil
 import os
 import uuid
+import random
 from threading import Thread
 from termcolor import colored
 
@@ -125,9 +126,11 @@ class Empirical(Distribution):
             # assume uniform distribution if no weights are given
             # log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length))
             weights = util.to_variable(torch.zeros(length).fill_(1./length))
+            self._uniform_weights = True
         else:
             log_weights = util.to_variable(log_weights).view(-1)
             weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
+            self._uniform_weights = False
 
         if isinstance(values, Variable) or torch.is_tensor(values):
             values = util.to_variable(values)
@@ -185,7 +188,10 @@ class Empirical(Distribution):
             return 'Empirical(length:{})'.format(self.length)
 
     def sample(self):
-        return util.fast_np_random_choice(self.values, self.weights_numpy)
+        if self._uniform_weights:
+            return random.choice(self.values)
+        else:
+            return util.fast_np_random_choice(self.values, self.weights_numpy)
 
     def expectation(self, func):
         ret = 0.
@@ -260,6 +266,11 @@ class Empirical(Distribution):
 
     def unweighted(self):
         return Empirical(self.values)
+
+    def subsample(self, samples):
+        if samples >= self.length:
+            raise ValueError('samples for subsampling must be less than the current number of samples.')
+        return Empirical([self.sample() for i in range(samples)])
 
 
 class Categorical(Distribution):
