@@ -326,52 +326,52 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
                                                          [0.2017, 0.0472, 0.7511],
                                                          [0.2545, 0.0611, 0.6844]])
         super().__init__(*args, **kwargs)
-    #
-    # def test_inference_hmm_posterior_importance_sampling(self):
-    #     observation = self._observation
-    #     posterior_mean_correct = self._posterior_mean_correct
-    #
-    #     posterior = self._model.posterior_distribution(samples, observation=observation)
-    #     posterior_mean_unweighted = posterior.mean_unweighted
-    #     posterior_mean = posterior.mean
-    #
-    #     l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
-    #
-    #     util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
-    #     add_perf_score_importance_sampling(l2_distance)
-    #
-    #     self.assertLess(l2_distance, 6)
-    #
-    # def test_inference_hmm_posterior_inference_compilation(self):
-    #     observation = self._observation
-    #     posterior_mean_correct = self._posterior_mean_correct
-    #
-    #     self._model.learn_inference_network(observation=torch.zeros(16,3), num_traces=training_traces)
-    #     posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
-    #     posterior_mean_unweighted = posterior.mean_unweighted
-    #     posterior_mean = posterior.mean
-    #
-    #     l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
-    #
-    #     util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
-    #     add_perf_score_inference_compilation(l2_distance)
-    #
-    #     self.assertLess(l2_distance, 6)
-    #
-    # def test_inference_hmm_posterior_metropolis_hastings(self):
-    #     observation = self._observation
-    #     posterior_mean_correct = self._posterior_mean_correct
-    #
-    #     posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observation=observation)
-    #     posterior_mean_unweighted = posterior.mean_unweighted
-    #     posterior_mean = posterior.mean
-    #
-    #     l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
-    #
-    #     util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
-    #     add_perf_score_metropolis_hastings(l2_distance)
-    #
-    #     self.assertLess(l2_distance, 6)
+
+    def test_inference_hmm_posterior_importance_sampling(self):
+        observation = self._observation
+        posterior_mean_correct = self._posterior_mean_correct
+
+        posterior = self._model.posterior_distribution(samples, observation=observation)
+        posterior_mean_unweighted = posterior.mean_unweighted
+        posterior_mean = posterior.mean
+
+        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
+        add_perf_score_importance_sampling(l2_distance)
+
+        self.assertLess(l2_distance, 6)
+
+    def test_inference_hmm_posterior_inference_compilation(self):
+        observation = self._observation
+        posterior_mean_correct = self._posterior_mean_correct
+
+        self._model.learn_inference_network(observation=torch.zeros(16,3), num_traces=training_traces)
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
+        posterior_mean_unweighted = posterior.mean_unweighted
+        posterior_mean = posterior.mean
+
+        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
+        add_perf_score_inference_compilation(l2_distance)
+
+        self.assertLess(l2_distance, 6)
+
+    def test_inference_hmm_posterior_metropolis_hastings(self):
+        observation = self._observation
+        posterior_mean_correct = self._posterior_mean_correct
+
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observation=observation)
+        posterior_mean_unweighted = posterior.mean_unweighted
+        posterior_mean = posterior.mean
+
+        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
+        add_perf_score_metropolis_hastings(l2_distance)
+
+        self.assertLess(l2_distance, 6)
 
 
 if __name__ == '__main__':

@@ -22,6 +22,8 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddev_correct = 0.6514633893966675
         dist_expectation_sin_correct = 0.3921678960323334
         dist_map_sin_mean_correct = 0.3921678960323334
+        dist_min_correct = 1
+        dist_max_correct = 3
 
         dist = Empirical(values, log_weights)
         dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
@@ -31,8 +33,10 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddev_empirical = float(dist_empirical.stddev)
         dist_expectation_sin = float(dist.expectation(torch.sin))
         dist_map_sin_mean = float(dist.map(torch.sin).mean)
+        dist_min = float(dist.min)
+        dist_max = float(dist.max)
 
-        util.debug('dist_mean', 'dist_mean_empirical', 'dist_mean_correct', 'dist_stddev', 'dist_stddev_empirical', 'dist_stddev_correct', 'dist_expectation_sin', 'dist_expectation_sin_correct', 'dist_map_sin_mean', 'dist_map_sin_mean_correct')
+        util.debug('dist_mean', 'dist_mean_empirical', 'dist_mean_correct', 'dist_stddev', 'dist_stddev_empirical', 'dist_stddev_correct', 'dist_expectation_sin', 'dist_expectation_sin_correct', 'dist_map_sin_mean', 'dist_map_sin_mean_correct', 'dist_min', 'dist_min_correct', 'dist_max', 'dist_max_correct')
 
         self.assertAlmostEqual(dist_mean, dist_mean_correct, places=1)
         self.assertAlmostEqual(dist_mean_empirical, dist_mean_correct, places=1)
@@ -40,6 +44,8 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_stddev_empirical, dist_stddev_correct, places=1)
         self.assertAlmostEqual(dist_expectation_sin, dist_expectation_sin_correct, places=1)
         self.assertAlmostEqual(dist_map_sin_mean, dist_map_sin_mean_correct, places=1)
+        self.assertAlmostEqual(dist_min, dist_min_correct, places=1)
+        self.assertAlmostEqual(dist_max, dist_max_correct, places=1)
 
     def test_dist_empirical_subsample(self):
         dist_means_correct = [2]

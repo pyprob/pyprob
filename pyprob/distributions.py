@@ -215,17 +215,23 @@ class Empirical(Distribution):
     @property
     def min(self):
         if self._min is None:
-            sorted_values = sorted(self.values)
-            self._min = sorted_values[0]
-            self._max = sorted_values[-1]
+            try:
+                sorted_values = sorted(map(float, self.values))
+                self._min = sorted_values[0]
+                self._max = sorted_values[-1]
+            except:
+                raise RuntimeError('Cannot compute the minimum of values in this Empirical. Make sure the distribution is over values that are scalar or castable to scalar, e.g., a PyTorch tensor of one element.')
         return self._min
 
     @property
     def max(self):
         if self._max is None:
-            sorted_values = sorted(self.values)
-            self._min = sorted_values[0]
-            self._max = sorted_values[-1]
+            try:
+                sorted_values = sorted(map(float, self.values))
+                self._min = sorted_values[0]
+                self._max = sorted_values[-1]
+            except:
+                raise RuntimeError('Cannot compute the maximum of values in this Empirical. Make sure the distribution is over values that are scalar or castable to scalar, e.g., a PyTorch tensor of one element.')
         return self._max
 
     @property
