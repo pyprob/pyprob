@@ -29,11 +29,11 @@ _cuda_enabled = False
 _cuda_device = -1
 
 
-def set_cuda(cuda, device=0):
+def set_cuda(enabled, device=0):
     global Tensor
     global _cuda_enabled
     global _cuda_device
-    if torch.cuda.is_available() and cuda:
+    if torch.cuda.is_available() and enabled:
         _cuda_enabled = True
         _cuda_device = device
         torch.cuda.set_device(device)

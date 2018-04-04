@@ -101,21 +101,25 @@ def sample(distribution, control=True, replace=False, address=None):
             value = distribution.sample()
             log_prob = 0  # Not computed because log_prob of samples get canceled out when using importance sampling with samples from prior
         elif _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-            global _current_trace_previous_sample
-            global _current_trace_replaced_sample_proposal_distributions
-            _current_trace_inference_network.eval()
-            current_sample = Sample(distribution, 0, address_base, address, instance, log_prob=0, control=control, replace=replace)
-            if replace:
-                if address not in _current_trace_replaced_sample_proposal_distributions:
-                    _current_trace_replaced_sample_proposal_distributions[address] = _current_trace_inference_network.forward_one_time_step(_current_trace_previous_sample, current_sample)
+            if control:
+                global _current_trace_previous_sample
+                global _current_trace_replaced_sample_proposal_distributions
+                _current_trace_inference_network.eval()
+                current_sample = Sample(distribution, 0, address_base, address, instance, log_prob=0, control=control, replace=replace)
+                if replace:
+                    if address not in _current_trace_replaced_sample_proposal_distributions:
+                        _current_trace_replaced_sample_proposal_distributions[address] = _current_trace_inference_network.forward_one_time_step(_current_trace_previous_sample, current_sample)
+                        update_previous_sample = True
+                    proposal_distribution = _current_trace_replaced_sample_proposal_distributions[address]
+                else:
+                    proposal_distribution = _current_trace_inference_network.forward_one_time_step(_current_trace_previous_sample, current_sample)
                     update_previous_sample = True
-                proposal_distribution = _current_trace_replaced_sample_proposal_distributions[address]
-            else:
-                proposal_distribution = _current_trace_inference_network.forward_one_time_step(_current_trace_previous_sample, current_sample)
-                update_previous_sample = True
 
-            value = proposal_distribution.sample()[0]
-            log_prob = distribution.log_prob(value) - proposal_distribution.log_prob(value)
+                value = proposal_distribution.sample()[0]
+                log_prob = distribution.log_prob(value) - proposal_distribution.log_prob(value)
+            else:
+                value = distribution.sample()
+                log_prob = 0
         elif _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN:
             value = distribution.sample()
             log_prob = 0
