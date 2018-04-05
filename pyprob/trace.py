@@ -43,8 +43,6 @@ class Sample(object):
 
 class Trace(object):
     def __init__(self):
-        self.observes_variable = None
-        self.observes_embedding = None
         self.samples = []  # controlled
         self.samples_uncontrolled = []
         self.samples_observed = []
@@ -54,7 +52,10 @@ class Trace(object):
         self.result = None
         self.log_prob = 0.
         self.log_prob_observed = 0.
+        self.log_importance_weight = 0.
         self.length = 0
+        self._inference_network_training_observes_variable = None
+        self._inference_network_training_observes_embedding = None
 
     def __repr__(self):
         return 'Trace(controlled:{}, uncontrolled:{}, observed:{}, log_prob:{})'.format(len(self.samples), len(self.samples_uncontrolled), len(self.samples_observed), float(self.log_prob))
@@ -80,7 +81,7 @@ class Trace(object):
         self.log_prob_observed = util.to_variable(sum([torch.sum(s.log_prob) for s in self.samples_observed])).view(-1)
 
         self.log_prob = util.to_variable(sum([torch.sum(s.log_prob) for s in self._samples_all if s.control or s.observed])).view(-1)
-        self.observes_variable = util.pack_observes_to_variable([s.value for s in self.samples_observed])
+        self._inference_network_training_observes_variable = util.pack_observes_to_variable([s.distribution.sample() for s in self.samples_observed])
         self.length = len(self.samples)
 
     def last_instance(self, address_base):
@@ -95,17 +96,17 @@ class Trace(object):
         self._samples_all_dict_adddress_base[sample.address_base] = sample
 
     def cuda(self, device=None):
-        if self.observes_variable is not None:
-            self.observes_variable = self.observes_variable.cuda(device)
-        if self.observes_embedding is not None:
-            self.observes_embedding = self.observes_embedding.cuda(device)
+        if self._inference_network_training_observes_variable is not None:
+            self._inference_network_training_observes_variable = self._inference_network_training_observes_variable.cuda(device)
+        if self._inference_network_training_observes_embedding is not None:
+            self._inference_network_training_observes_embedding = self._inference_network_training_observes_embedding.cuda(device)
         for sample in self._samples_all:
             sample.cuda(device)
 
     def cpu(self):
-        if self.observes_variable is not None:
-            self.observes_variable = self.observes_variable.cpu()
-        if self.observes_embedding is not None:
-            self.observes_embedding = self.observes_embedding.cpu()
+        if self._inference_network_training_observes_variable is not None:
+            self._inference_network_training_observes_variable = self._inference_network_training_observes_variable.cpu()
+        if self._inference_network_training_observes_embedding is not None:
+            self._inference_network_training_observes_embedding = self._inference_network_training_observes_embedding.cpu()
         for sample in self._samples_all:
             sample.cpu()

@@ -94,12 +94,13 @@ def sample(distribution, control=True, replace=False, address=None):
         reused = False
         update_previous_sample = False
 
-        if _trace_mode == TraceMode.RECORD:
+        if _trace_mode == TraceMode.DEFAULT:
             value = distribution.sample()
             log_prob = distribution.log_prob(value)
         elif _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_PRIOR:
             value = distribution.sample()
-            log_prob = 0  # Not computed because log_prob of samples get canceled out when using importance sampling with samples from prior
+            log_prob = distribution.log_prob(value)
+            # _current_trace.log_importance_weight += 0  # Not computed because log_importance_weight is zero when running importance sampling with prior as proposal
         elif _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             if control:
                 global _current_trace_previous_sample
@@ -116,13 +117,11 @@ def sample(distribution, control=True, replace=False, address=None):
                     update_previous_sample = True
 
                 value = proposal_distribution.sample()[0]
-                log_prob = distribution.log_prob(value) - proposal_distribution.log_prob(value)
+                log_prob = distribution.log_prob(value)
+                _current_trace.log_importance_weight += log_prob - proposal_distribution.log_prob(value)
             else:
                 value = distribution.sample()
                 log_prob = 0
-        elif _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN:
-            value = distribution.sample()
-            log_prob = 0
         else:  # _trace_mode == TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS:
             control = True
             replace = False
@@ -163,17 +162,16 @@ def observe(distribution, observation, address=None):
         instance = _current_trace.last_instance(address_base) + 1
         address = '{}_{}_{}'.format(address_base, distribution.address_suffix, instance)
 
-        if _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN:
-            observation = distribution.sample()
-
         log_prob = distribution.log_prob(observation)
+        if _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_PRIOR or _trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+            _current_trace.log_importance_weight += log_prob
 
         current_sample = Sample(distribution=distribution, value=observation, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True)
         _current_trace.add_sample(current_sample)
     return
 
 
-def begin_trace(func, trace_mode=TraceMode.RECORD, inference_network=None, metropolis_hastings_trace=None):
+def begin_trace(func, trace_mode=TraceMode.DEFAULT, inference_network=None, metropolis_hastings_trace=None):
     global _trace_mode
     global _current_trace
     global _current_trace_root_function_name

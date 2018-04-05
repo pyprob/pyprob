@@ -14,7 +14,7 @@ import tempfile
 import shutil
 
 from .distributions import Empirical
-from . import state, util, __version__, TraceMode, InferenceEngine
+from . import state, util, __version__, TraceMode, InferenceEngine, Optimizer
 from .nn import ObserveEmbedding, SampleEmbedding, Batch, InferenceNetwork
 from .remote import ModelServer
 
@@ -26,11 +26,12 @@ class Model(nn.Module):
         self._inference_network = None
         self._trace_cache_path = None
         self._trace_cache = []
+        self._trace_cache_discarded_file_names = []
 
     def forward(self):
         raise NotImplementedError()
 
-    def _prior_trace_generator(self, trace_mode=TraceMode.RECORD, inference_network=None, metropolis_hastings_trace=None, *args, **kwargs):
+    def _prior_trace_generator(self, trace_mode=TraceMode.DEFAULT, inference_network=None, metropolis_hastings_trace=None, *args, **kwargs):
         while True:
             if trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
                 self._inference_network.new_trace(util.pack_observes_to_variable(kwargs['observation']).unsqueeze(0))
@@ -43,15 +44,15 @@ class Model(nn.Module):
         while True:
             yield self.forward(*args, **kwargs)
 
-    def _prior_traces(self, num_traces=10, trace_mode=TraceMode.RECORD, inference_network=None, map_func=None, *args, **kwargs):
+    def _prior_traces(self, num_traces=10, trace_mode=TraceMode.DEFAULT, inference_network=None, map_func=None, *args, **kwargs):
         generator = self._prior_trace_generator(trace_mode, inference_network, *args, **kwargs)
         ret = []
         time_start = time.time()
-        if ((trace_mode != TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN) and (util.verbosity > 1)) or (util.verbosity > 2):
+        if ((trace_mode != TraceMode.DEFAULT) and (util.verbosity > 1)) or (util.verbosity > 2):
             len_str_num_traces = len(str(num_traces))
             print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
         for i in range(num_traces):
-            if ((trace_mode != TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN) and (util.verbosity > 1)) or (util.verbosity > 2):
+            if ((trace_mode != TraceMode.DEFAULT) and (util.verbosity > 1)) or (util.verbosity > 2):
                 duration = time.time() - time_start
                 traces_per_second = (i + 1) / duration
                 print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
@@ -61,7 +62,7 @@ class Model(nn.Module):
                 ret.append(map_func(trace))
             else:
                 ret.append(trace)
-        if ((trace_mode != TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN) and (util.verbosity > 1)) or (util.verbosity > 2):
+        if ((trace_mode != TraceMode.DEFAULT) and (util.verbosity > 1)) or (util.verbosity > 2):
             print()
         return ret
 
@@ -100,13 +101,13 @@ class Model(nn.Module):
             burn_in = int(min(num_traces / 10, 1000))
 
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
-            ret = self._prior_traces(num_traces, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_PRIOR, inference_network=None, map_func=lambda trace: (trace.log_prob, trace.result), *args, **kwargs)
+            ret = self._prior_traces(num_traces, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_PRIOR, inference_network=None, map_func=lambda trace: (trace.log_importance_weight, trace.result), *args, **kwargs)
             ret = [list(t) for t in zip(*ret)]
             log_weights = ret[0]
             results = ret[1]
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             self._inference_network.eval()
-            ret = self._prior_traces(num_traces, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, inference_network=self._inference_network, map_func=lambda trace: (trace.log_prob, trace.result), *args, **kwargs)
+            ret = self._prior_traces(num_traces, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, inference_network=self._inference_network, map_func=lambda trace: (trace.log_importance_weight, trace.result), *args, **kwargs)
             ret = [list(t) for t in zip(*ret)]
             log_weights = ret[0]
             results = ret[1]
@@ -147,25 +148,18 @@ class Model(nn.Module):
 
         return Empirical(results, log_weights)
 
-    def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, batch_size=64, valid_size=256, learning_rate=0.001, weight_decay=1e-4, num_traces=-1, use_trace_cache=False, *args, **kwargs):
-        if self._inference_network is None:
-            print('Creating new inference network...')
-            traces = self._prior_traces(valid_size, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN, *args, **kwargs)
-            valid_batch = Batch(traces)
-            self._inference_network = InferenceNetwork(model_name=self.name, lstm_dim=lstm_dim, lstm_depth=lstm_depth, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, sample_embedding=sample_embedding, sample_embedding_dim=sample_embedding_dim, address_embedding_dim=address_embedding_dim, valid_batch=valid_batch, cuda=util._cuda_enabled)
-            self._inference_network.polymorph()
-        else:
-            print('Continuing to train existing inference network...')
-
-        optimizer = optim.Adam(self._inference_network.parameters(), lr=learning_rate, weight_decay=weight_decay)
-
+    def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, batch_size=64, valid_size=256, learning_rate=0.001, weight_decay=1e-4, num_traces=-1, use_trace_cache=False, optimizer_type=Optimizer.ADAM, *args, **kwargs):
         if use_trace_cache and self._trace_cache_path is None:
             print('Warning: There is no trace cache assigned, training with online trace generation.')
             use_trace_cache = False
 
         if use_trace_cache:
-            def new_batch_func():
+            print('Using trace cache to train...')
+
+            def new_batch_func(size=batch_size, discard_source=False):
                 current_files = self._trace_cache_current_files()
+                if discard_source:
+                    self._trace_cache = []
                 if (len(self._trace_cache) == 0) and (len(current_files) == 0):
                     cache_is_empty = True
                     cache_was_empty = False
@@ -181,22 +175,33 @@ class Model(nn.Module):
                                 cache_was_empty = True
                             time.sleep(0.5)
 
-                while len(self._trace_cache) < batch_size:
+                while len(self._trace_cache) < size:
+                    current_files = self._trace_cache_current_files()
                     current_file = random.choice(current_files)
+                    if discard_source:
+                        self._trace_cache_discarded_file_names.append(current_file)
                     new_traces = self._load_traces(current_file)
                     random.shuffle(new_traces)
                     self._trace_cache += new_traces
 
-                traces = self._trace_cache[0:batch_size]
-                self._trace_cache[0:batch_size] = []
+                traces = self._trace_cache[0:size]
+                self._trace_cache[0:size] = []
                 return Batch(traces)
         else:
-            def new_batch_func():
-                traces = self._prior_traces(batch_size, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN, *args, **kwargs)
+            def new_batch_func(size=batch_size, discard_source=False):
+                traces = self._prior_traces(size, trace_mode=TraceMode.DEFAULT, *args, **kwargs)
                 return Batch(traces)
 
+        if self._inference_network is None:
+            print('Creating new inference network...')
+            valid_batch = new_batch_func(valid_size, discard_source=True)
+            self._inference_network = InferenceNetwork(model_name=self.name, lstm_dim=lstm_dim, lstm_depth=lstm_depth, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, sample_embedding=sample_embedding, sample_embedding_dim=sample_embedding_dim, address_embedding_dim=address_embedding_dim, valid_batch=valid_batch, cuda=util._cuda_enabled)
+            self._inference_network.polymorph()
+        else:
+            print('Continuing to train existing inference network...')
+
         self._inference_network.train()
-        self._inference_network.optimize(new_batch_func, optimizer, num_traces)
+        self._inference_network.optimize(new_batch_func, optimizer_type, num_traces, learning_rate, weight_decay)
 
     def save_inference_network(self, file_name):
         if self._inference_network is None:
@@ -207,22 +212,22 @@ class Model(nn.Module):
         self._inference_network = InferenceNetwork.load(file_name, util._cuda_enabled, util._cuda_device)
 
     def trace_length_mean(self, num_traces=1000, *args, **kwargs):
-        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.RECORD, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
+        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.DEFAULT, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
         trace_length_dist = Empirical(trace_lengths)
         return trace_length_dist.mean
 
     def trace_length_stddev(self, num_traces=1000, *args, **kwargs):
-        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.RECORD, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
+        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.DEFAULT, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
         trace_length_dist = Empirical(trace_lengths)
         return trace_length_dist.stddev
 
     def trace_length_min(self, num_traces=1000, *args, **kwargs):
-        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.RECORD, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
+        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.DEFAULT, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
         trace_length_dist = Empirical(trace_lengths)
         return trace_length_dist.min
 
     def trace_length_max(self, num_traces=1000, *args, **kwargs):
-        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.RECORD, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
+        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.DEFAULT, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
         trace_length_dist = Empirical(trace_lengths)
         return trace_length_dist.max
 
@@ -230,7 +235,7 @@ class Model(nn.Module):
         f = 0
         done = False
         while not done:
-            traces = self._prior_traces(traces_per_file, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN, inference_network=None, *args, **kwargs)
+            traces = self._prior_traces(traces_per_file, trace_mode=TraceMode.DEFAULT, inference_network=None, *args, **kwargs)
             file_name = os.path.join(trace_cache_path, str(uuid.uuid4()))
             self._save_traces(traces, file_name)
             f += 1
@@ -245,6 +250,9 @@ class Model(nn.Module):
     def _trace_cache_current_files(self):
         files = [name for name in os.listdir(self._trace_cache_path)]
         files = list(map(lambda f: os.path.join(self._trace_cache_path, f), files))
+        for discarded_file_name in self._trace_cache_discarded_file_names:
+            if discarded_file_name in files:
+                files.remove(discarded_file_name)
         return files
 
     def _save_traces(self, traces, file_name):

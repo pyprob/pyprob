@@ -14,18 +14,22 @@ class SampleEmbedding(enum.Enum):
 
 
 class TraceMode(enum.Enum):
-    NONE = 0  # No trace recording, forward sample
-    RECORD = 1  # Record traces
-    IMPORTANCE_SAMPLING_WITH_PRIOR = 2  # Record traces, importance sampling with prior
-    IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK = 3  # Record traces, importance sampling with proposals from inference network (inference compilation inference)
-    IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK_TRAIN = 4  # Record traces, training data generation for inference network, interpret 'observe' as 'sample' (inference compilation training)
-    LIGHTWEIGHT_METROPOLIS_HASTINGS = 5  # Record traces for single-site Metropolis Hastings sampling, http://proceedings.mlr.press/v15/wingate11a/wingate11a.pdf and https://arxiv.org/abs/1507.00996
+    NONE = 0  # No trace recording, forward sample trace results only
+    DEFAULT = 1  # Record traces, training data generation for inference network
+    IMPORTANCE_SAMPLING_WITH_PRIOR = 2  # Record traces, importance sampling with proposals from prior
+    IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK = 3  # Record traces, importance sampling with proposals from inference network
+    LIGHTWEIGHT_METROPOLIS_HASTINGS = 4  # Record traces for single-site Metropolis Hastings sampling, http://proceedings.mlr.press/v15/wingate11a/wingate11a.pdf and https://arxiv.org/abs/1507.00996
 
 
 class InferenceEngine(enum.Enum):
     IMPORTANCE_SAMPLING = 0  # Type: IS
     IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK = 1  # Type: IS
     LIGHTWEIGHT_METROPOLIS_HASTINGS = 2  # Type: MCMC
+
+
+class Optimizer(enum.Enum):
+    ADAM = 0
+    SGD = 1
 
 
 del enum

@@ -4,11 +4,12 @@ import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
 from termcolor import colored
 from threading import Thread
 import time
 
-from . import util, __version__, ObserveEmbedding, SampleEmbedding
+from . import util, __version__, ObserveEmbedding, SampleEmbedding, Optimizer
 from .distributions import Categorical, Mixture, Normal, TruncatedNormal, Uniform
 
 
@@ -25,8 +26,8 @@ class Batch(object):
                 raise ValueError('Trace of length zero')
             if trace.length > self.traces_max_length:
                 self.traces_max_length = trace.length
-            if trace.observes_variable.size(0) > self.observes_max_length:
-                self.observes_max_length = trace.observes_variable.size(0)
+            if trace._inference_network_training_observes_variable.size(0) > self.observes_max_length:
+                self.observes_max_length = trace._inference_network_training_observes_variable.size(0)
             h = hash(trace.addresses())
             if h not in sb:
                 sb[h] = []
@@ -54,7 +55,7 @@ class Batch(object):
             trace.cpu()
 
     def sort_by_observes_length(self):
-        return Batch(sorted(self.batch, reverse=True, key=lambda x: x.observes_variable.nelement()), False)
+        return Batch(sorted(self.batch, reverse=True, key=lambda x: x._inference_network_training_observes_variable.nelement()), False)
 
 
 class ObserveEmbeddingFC(nn.Module):
@@ -305,6 +306,10 @@ class InferenceNetwork(nn.Module):
         self._cuda_device = device
         self._total_training_seconds = 0
         self._total_training_traces = 0
+        self.loss_initial = None
+        self.loss_min = float('inf')
+        self.loss_max = None
+        self.loss_prev = float('inf')
         self._modified = util.get_time_str()
         self._updates = 0
         self._pyprob_version = __version__
@@ -323,7 +328,7 @@ class InferenceNetwork(nn.Module):
 
         self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
         self._lstm = nn.LSTM(self._lstm_input_dim, self._lstm_dim, self._lstm_depth)
-        example_observes = self._valid_batch[0].observes_variable  # To do: we need to check all the observes in the batch, to be more intelligent
+        example_observes = self._valid_batch[0]._inference_network_training_observes_variable  # To do: we need to check all the observes in the batch, to be more intelligent
         if self._observe_embedding == ObserveEmbedding.FULLY_CONNECTED:
             self._observe_embedding_layer = ObserveEmbeddingFC(example_observes, self._observe_embedding_dim)
         elif self._observe_embedding == ObserveEmbedding.CONVNET_2D_5C:
@@ -504,10 +509,10 @@ class InferenceNetwork(nn.Module):
     def loss(self, batch, optimizer):
         gc.collect()
 
-        obs = torch.stack([b.observes_variable for b in batch])
+        obs = torch.stack([b._inference_network_training_observes_variable for b in batch])
         obs_emb = self._observe_embedding_layer(obs)
         for b in range(batch.length):
-            batch[b].observes_embedding = obs_emb[b]
+            batch[b]._inference_network_training_observes_embedding = obs_emb[b]
 
         for sub_batch in batch.sub_batches:
             sub_batch_length = len(sub_batch)
@@ -534,7 +539,7 @@ class InferenceNetwork(nn.Module):
                     prev_distribution_type_embedding = self._distribution_type_embeddings[prev_distribution.name]
 
                 for b in range(sub_batch_length):
-                    t = torch.cat([sub_batch[b].observes_embedding,
+                    t = torch.cat([sub_batch[b]._inference_network_training_observes_embedding,
                                    prev_sample_embedding[b],
                                    prev_distribution_type_embedding,
                                    prev_addres_embedding,
@@ -597,56 +602,58 @@ class InferenceNetwork(nn.Module):
 
         return True, float(loss)
 
-    def optimize(self, new_batch_func, optimizer, num_traces=-1):
+    def optimize(self, new_batch_func, optimizer_type, num_traces=-1, learning_rate=0.001, momentum=0.9, weight_decay=1e-4):
         prev_total_training_seconds = self._total_training_seconds
         time_start = time.time()
         time_loss_min = time.time()
         time_last_batch = time.time()
         iteration = 0
         trace = 0
-        loss_initial = None
-        loss_min = float('inf')
-        loss_max = None
-        loss_prev = float('inf')
         stop = False
         print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
         max_print_line_len = 0
+
         while not stop:
             iteration += 1
             batch = new_batch_func()
-            self.polymorph(batch)
+            layers_changed = self.polymorph(batch)
+            if iteration == 1 or layers_changed:
+                if optimizer_type == Optimizer.ADAM:
+                    optimizer = optim.Adam(self.parameters(), lr=learning_rate, weight_decay=weight_decay)
+                else:  # optimizer_type == Optimizer.SGD:
+                    optimizer = optim.SGD(self.parameters(), lr=learning_rate, momentum=momentum, nesterov=True, weight_decay=weight_decay)
             success, loss = self.loss(batch, optimizer)
             if not success:
                 print('Cannot compute loss, stopping. Loss: {}'.format(loss))
                 stop = True
             else:
-                if loss_initial is None:
-                    loss_initial = loss
-                    loss_initial_str = '{:+.2e}'.format(loss_initial)
-                    loss_max = loss
-                    # loss_max_str = '{:+.3e}'.format(loss_max)
-                if loss < loss_min:
-                    loss_min = loss
+                if self.loss_initial is None:
+                    self.loss_initial = loss
+                    self.loss_max = loss
+                loss_initial_str = '{:+.2e}'.format(self.loss_initial)
+                # loss_max_str = '{:+.3e}'.format(self.loss_max)
+                if loss < self.loss_min:
+                    self.loss_min = loss
                     loss_str = colored('{:+.2e}'.format(loss), 'green', attrs=['bold'])
-                    loss_min_str = colored('{:+.2e}'.format(loss_min), 'green', attrs=['bold'])
+                    loss_min_str = colored('{:+.2e}'.format(self.loss_min), 'green', attrs=['bold'])
                     time_loss_min = time.time()
                     time_since_loss_min_str = colored(util.days_hours_mins_secs_str(0), 'green', attrs=['bold'])
-                elif loss > loss_max:
-                    loss_max = loss
+                elif loss > self.loss_max:
+                    self.loss_max = loss
                     loss_str = colored('{:+.2e}'.format(loss), 'red', attrs=['bold'])
-                    # loss_max_str = colored('{:+.3e}'.format(loss_max), 'red', attrs=['bold'])
+                    # loss_max_str = colored('{:+.3e}'.format(self.loss_max), 'red', attrs=['bold'])
                 else:
-                    if loss < loss_prev:
+                    if loss < self.loss_previous:
                         loss_str = colored('{:+.2e}'.format(loss), 'green')
-                    elif loss > loss_prev:
+                    elif loss > self.loss_previous:
                         loss_str = colored('{:+.2e}'.format(loss), 'red')
                     else:
                         loss_str = '{:+.2e}'.format(loss)
-                    loss_min_str = '{:+.2e}'.format(loss_min)
-                    # loss_max_str = '{:+.3e}'.format(loss_max)
+                    loss_min_str = '{:+.2e}'.format(self.loss_min)
+                    # loss_max_str = '{:+.3e}'.format(self.loss_max)
                     time_since_loss_min_str = util.days_hours_mins_secs_str(time.time() - time_loss_min)
 
-                loss_prev = loss
+                self.loss_previous = loss
                 trace += batch.length
                 self._total_training_traces += batch.length
                 total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_training_traces))
