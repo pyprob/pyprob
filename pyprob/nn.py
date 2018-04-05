@@ -4,6 +4,7 @@ import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn import Parameter
 import torch.optim as optim
 from termcolor import colored
 from threading import Thread
@@ -289,7 +290,7 @@ class ProposalUniformMixture(nn.Module):
 
 
 class InferenceNetwork(nn.Module):
-    def __init__(self, model_name='Unnamed model', lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=64, valid_batch=None, cuda=False, device=None):
+    def __init__(self, model_name='Unnamed model', lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=256, valid_batch=None, cuda=False, device=None):
         super().__init__()
         self._model_name = model_name
         self._lstm_dim = lstm_dim
@@ -368,13 +369,9 @@ class InferenceNetwork(nn.Module):
     def _add_address(self, address):
         if address not in self._address_embeddings:
             # print('Polymorphing, new address: {}'.format(address))
-            i = len(self._address_embeddings)
-            if i < self._address_embedding_dim:
-                t = util.one_hot(self._address_embedding_dim, i)
-                self._address_embeddings[address] = t
-            else:
-                print('Warning: overflow (collision) in address embeddings. Allowed: {}; Encountered: {}'.format(self._address_embedding_dim, i + 1))
-                self._address_embeddings[address] = random.choice(list(self._address_embeddings.values()))
+            t = Parameter(util.Tensor(self._address_embedding_dim).normal_())
+            self._address_embeddings[address] = t
+            self.register_parameter('address_embedding_' + address, t)
 
     def _add_distribution_type(self, distribution_type):
         if distribution_type not in self._distribution_type_embeddings:
