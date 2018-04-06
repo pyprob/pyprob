@@ -90,9 +90,7 @@ class Model(nn.Module):
 
     def posterior_distribution(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, burn_in=None, *args, **kwargs):
         if (inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (self._inference_network is None):
-            print('Warning: Cannot run inference with inference network because there is none available. Use learn_inference_network first.')
-            print('Warning: Running with InferenceEngine.IMPORTANCE_SAMPLING')
-            inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
+            raise RuntimeError('Cannot run inference with inference network because there is none available. Use learn_inference_network first.')
         if burn_in is not None:
             if burn_in >= num_traces:
                 raise ValueError('burn_in must be less than num_traces')
@@ -148,7 +146,7 @@ class Model(nn.Module):
 
         return Empirical(results, log_weights)
 
-    def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=256, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=1e-4, num_traces=-1, use_trace_cache=False, auto_save=True, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
+    def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=256, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=1e-4, num_traces=-1, use_trace_cache=False, auto_save=False, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
         if use_trace_cache and self._trace_cache_path is None:
             print('Warning: There is no trace cache assigned, training with online trace generation.')
             use_trace_cache = False

@@ -47,13 +47,13 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_min, dist_min_correct, places=1)
         self.assertAlmostEqual(dist_max, dist_max_correct, places=1)
 
-    def test_dist_empirical_subsample(self):
+    def test_dist_empirical_resample(self):
         dist_means_correct = [2]
         dist_stddevs_correct = [5]
 
         dist = Normal(dist_means_correct, dist_stddevs_correct)
         dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
-        dist_empirical = dist_empirical.subsample(int(empirical_samples/2))
+        dist_empirical = dist_empirical.resample(int(empirical_samples/2))
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
 

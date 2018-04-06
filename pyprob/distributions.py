@@ -169,9 +169,7 @@ class Empirical(Distribution):
         #     except:
         #         self.values_numpy = None
         self._mean = None
-        self._mean_unweighted = None
         self._variance = None
-        self._variance_unweighted = None
         self._min = None
         self._max = None
         self._mean = None
@@ -195,17 +193,20 @@ class Empirical(Distribution):
 
     def expectation(self, func):
         ret = 0.
-        for i in range(self.length):
-            ret += func(self.values[i]) * self.weights[i]
+        if self._uniform_weights:
+            for i in range(self.length):
+                ret += func(self.values[i])
+            ret /= self.length
+        else:
+            for i in range(self.length):
+                ret += func(self.values[i]) * self.weights[i]
         return ret
 
     def map(self, func):
         ret = copy.copy(self)
         ret.values = list(map(func, self.values))
         ret._mean = None
-        ret._mean_unweighted = None
         ret._variance = None
-        ret._variance_unweighted = None
         ret._min = None
         ret._max = None
         ret._mean = None
@@ -247,35 +248,10 @@ class Empirical(Distribution):
             self._variance = self.expectation(lambda x: (x - mean)**2)
         return self._variance
 
-    @property
-    def mean_unweighted(self):
-        if self._mean_unweighted is None:
-            total = 0
-            for i in range(self.length):
-                total += self.values[i]
-            self._mean_unweighted = total / self.length
-        return self._mean_unweighted
-
-    @property
-    def variance_unweighted(self):
-        if self._variance_unweighted is None:
-            mean_unweighted = self.mean_unweighted
-            total = 0
-            for i in range(self.length):
-                total += (self.values[i] - mean_unweighted)**2
-            self._variance_unweighted = total / self.length
-        return self._variance_unweighted
-
-    @property
-    def stddev_unweighted(self):
-        return self.variance_unweighted.sqrt()
-
     def unweighted(self):
         return Empirical(self.values)
 
-    def subsample(self, samples):
-        if samples >= self.length:
-            raise ValueError('samples for subsampling must be less than the current number of samples.')
+    def resample(self, samples):
         return Empirical([self.sample() for i in range(samples)])
 
 

@@ -85,9 +85,9 @@ class ModelRemoteGaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
 
         posterior = self._model.posterior_distribution(samples, observation=observation)
         posterior_mean = float(posterior.mean)
-        posterior_mean_unweighted = float(posterior.mean_unweighted)
+        posterior_mean_unweighted = float(posterior.unweighted().mean)
         posterior_stddev = float(posterior.stddev)
-        posterior_stddev_unweighted = float(posterior.stddev_unweighted)
+        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
         kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
@@ -106,9 +106,9 @@ class ModelRemoteGaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self._model.learn_inference_network(observation=[1,1], num_traces=training_traces)
         posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
         posterior_mean = float(posterior.mean)
-        posterior_mean_unweighted = float(posterior.mean_unweighted)
+        posterior_mean_unweighted = float(posterior.unweighted().mean)
         posterior_stddev = float(posterior.stddev)
-        posterior_stddev_unweighted = float(posterior.stddev_unweighted)
+        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
         kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
 
         util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
@@ -187,7 +187,7 @@ class ModelRemoteHiddenMarkovModelTestCase(unittest.TestCase):
         posterior_mean_correct = self._posterior_mean_correct
 
         posterior = self._model.posterior_distribution(samples, observation=observation)
-        posterior_mean_unweighted = posterior.mean_unweighted
+        posterior_mean_unweighted = posterior.unweighted().mean
         posterior_mean = posterior.mean
 
         l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
@@ -205,7 +205,7 @@ class ModelRemoteHiddenMarkovModelTestCase(unittest.TestCase):
 
         self._model.learn_inference_network(observation=torch.zeros(16), num_traces=training_traces)
         posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
-        posterior_mean_unweighted = posterior.mean_unweighted
+        posterior_mean_unweighted = posterior.unweighted().mean
         posterior_mean = posterior.mean
 
         l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
@@ -221,7 +221,7 @@ class ModelRemoteHiddenMarkovModelTestCase(unittest.TestCase):
         posterior_mean_correct = self._posterior_mean_correct
 
         posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observation=observation)
-        posterior_mean_unweighted = posterior.mean_unweighted
+        posterior_mean_unweighted = posterior.unweighted().mean
         posterior_mean = posterior.mean
 
         l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
