@@ -126,11 +126,9 @@ class Empirical(Distribution):
             # assume uniform distribution if no weights are given
             # log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length))
             weights = util.to_variable(torch.zeros(length).fill_(1./length))
-            self._uniform_weights = True
         else:
             log_weights = util.to_variable(log_weights).view(-1)
             weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
-            self._uniform_weights = False
 
         if isinstance(values, Variable) or torch.is_tensor(values):
             values = util.to_variable(values)
@@ -161,6 +159,7 @@ class Empirical(Distribution):
         self.weights, indices = torch.sort(weights, descending=True)
         self.values = [values[int(i)] for i in indices]
         self.weights_numpy = self.weights.data.cpu().numpy()
+        self.weights_numpy_cumsum = (self.weights_numpy / self.weights_numpy.sum()).cumsum()
         # try:  # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
         #     self.values_numpy = torch.stack(self.values).data.cpu().numpy()
         # except:
@@ -186,20 +185,12 @@ class Empirical(Distribution):
             return 'Empirical(length:{})'.format(self.length)
 
     def sample(self):
-        if self._uniform_weights:
-            return random.choice(self.values)
-        else:
-            return util.fast_np_random_choice(self.values, self.weights_numpy)
+        return util.fast_np_random_choice(self.values, self.weights_numpy_cumsum)
 
     def expectation(self, func):
         ret = 0.
-        if self._uniform_weights:
-            for i in range(self.length):
-                ret += func(self.values[i])
-            ret /= self.length
-        else:
-            for i in range(self.length):
-                ret += func(self.values[i]) * self.weights[i]
+        for i in range(self.length):
+            ret += func(self.values[i]) * self.weights[i]
         return ret
 
     def map(self, func):

@@ -106,10 +106,9 @@ def log_sum_exp(tensor, keepdim=True):
     return max_val + (tensor - max_val).exp().sum(dim=-1, keepdim=keepdim).log()
 
 
-def fast_np_random_choice(values, probs):
+def fast_np_random_choice(values, probs_cumsum):
     # See https://mobile.twitter.com/RadimRehurek/status/928671225861296128
-    probs /= probs.sum()
-    return values[min(np.searchsorted(probs.cumsum(), random.random()), len(values) - 1)]
+    return values[min(np.searchsorted(probs_cumsum, random.random()), len(values) - 1)]
 
 
 def debug(*expressions):
