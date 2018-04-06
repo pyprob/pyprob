@@ -5,6 +5,7 @@ import numpy as np
 import random
 import datetime
 import inspect
+import time
 from termcolor import colored
 
 
@@ -169,6 +170,10 @@ def days_hours_mins_secs_str(total_seconds):
 
 def get_time_str():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def get_time_stamp():
+    return datetime.datetime.fromtimestamp(time.time()).strftime('_%Y%m%d_%H%M%S')
 
 
 def progress_bar(i, len):

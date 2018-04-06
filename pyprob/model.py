@@ -148,7 +148,7 @@ class Model(nn.Module):
 
         return Empirical(results, log_weights)
 
-    def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=256, batch_size=64, valid_size=256, valid_interval=2048, learning_rate=0.001, weight_decay=1e-4, num_traces=-1, use_trace_cache=False, optimizer_type=Optimizer.ADAM, *args, **kwargs):
+    def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=256, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=1e-4, num_traces=-1, use_trace_cache=False, auto_save=True, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
         if use_trace_cache and self._trace_cache_path is None:
             print('Warning: There is no trace cache assigned, training with online trace generation.')
             use_trace_cache = False
@@ -201,15 +201,15 @@ class Model(nn.Module):
             print('Continuing to train existing inference network...')
 
         self._inference_network.train()
-        self._inference_network.optimize(new_batch_func, optimizer_type, num_traces, learning_rate, weight_decay)
+        self._inference_network.optimize(new_batch_func, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name)
 
     def save_inference_network(self, file_name):
         if self._inference_network is None:
             raise RuntimeError('The model has no trained inference network.')
-        self._inference_network.save(file_name)
+        self._inference_network._save(file_name)
 
     def load_inference_network(self, file_name):
-        self._inference_network = InferenceNetwork.load(file_name, util._cuda_enabled, util._cuda_device)
+        self._inference_network = InferenceNetwork._load(file_name, util._cuda_enabled, util._cuda_device)
 
     def trace_length_mean(self, num_traces=1000, *args, **kwargs):
         trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.DEFAULT, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)

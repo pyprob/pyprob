@@ -9,6 +9,11 @@ import torch.optim as optim
 from termcolor import colored
 from threading import Thread
 import time
+import tempfile
+import uuid
+import shutil
+import os
+import tarfile
 
 from . import util, __version__, ObserveEmbedding, SampleEmbedding, Optimizer
 from .distributions import Categorical, Mixture, Normal, TruncatedNormal, Uniform
@@ -307,10 +312,14 @@ class InferenceNetwork(nn.Module):
         self._cuda_device = device
         self._total_training_seconds = 0
         self._total_training_traces = 0
-        self.loss_initial = None
-        self.loss_min = float('inf')
-        self.loss_max = None
-        self.loss_prev = float('inf')
+        self._loss_initial = None
+        self._loss_min = float('inf')
+        self._loss_max = None
+        self._loss_previous = float('inf')
+        self._loss_history_training_loss = []
+        self._loss_history_training_traces = []
+        self._loss_history_validation_loss = []
+        self._loss_history_validation_traces = []
         self._modified = util.get_time_str()
         self._updates = 0
         self._pyprob_version = __version__
@@ -503,7 +512,7 @@ class InferenceNetwork(nn.Module):
             print('Warning: no proposal could be made, prior will be used')
             return current_distribution
 
-    def loss(self, batch, optimizer):
+    def loss(self, batch, optimizer=None):
         gc.collect()
 
         obs = torch.stack([b._inference_network_training_observes_variable for b in batch])
@@ -599,13 +608,14 @@ class InferenceNetwork(nn.Module):
 
         return True, float(loss)
 
-    def optimize(self, new_batch_func, optimizer_type, num_traces=-1, learning_rate=0.001, momentum=0.9, weight_decay=1e-4):
+    def optimize(self, new_batch_func, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name):
         prev_total_training_seconds = self._total_training_seconds
         time_start = time.time()
         time_loss_min = time.time()
         time_last_batch = time.time()
         iteration = 0
         trace = 0
+        last_validation_trace = -valid_interval + 1
         stop = False
         print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
         max_print_line_len = 0
@@ -624,33 +634,33 @@ class InferenceNetwork(nn.Module):
                 print('Cannot compute loss, stopping. Loss: {}'.format(loss))
                 stop = True
             else:
-                if self.loss_initial is None:
-                    self.loss_initial = loss
-                    self.loss_max = loss
-                loss_initial_str = '{:+.2e}'.format(self.loss_initial)
-                # loss_max_str = '{:+.3e}'.format(self.loss_max)
-                if loss < self.loss_min:
-                    self.loss_min = loss
+                if self._loss_initial is None:
+                    self._loss_initial = loss
+                    self._loss_max = loss
+                loss_initial_str = '{:+.2e}'.format(self._loss_initial)
+                # loss_max_str = '{:+.3e}'.format(self._loss_max)
+                if loss < self._loss_min:
+                    self._loss_min = loss
                     loss_str = colored('{:+.2e}'.format(loss), 'green', attrs=['bold'])
-                    loss_min_str = colored('{:+.2e}'.format(self.loss_min), 'green', attrs=['bold'])
+                    loss_min_str = colored('{:+.2e}'.format(self._loss_min), 'green', attrs=['bold'])
                     time_loss_min = time.time()
                     time_since_loss_min_str = colored(util.days_hours_mins_secs_str(0), 'green', attrs=['bold'])
-                elif loss > self.loss_max:
-                    self.loss_max = loss
+                elif loss > self._loss_max:
+                    self._loss_max = loss
                     loss_str = colored('{:+.2e}'.format(loss), 'red', attrs=['bold'])
-                    # loss_max_str = colored('{:+.3e}'.format(self.loss_max), 'red', attrs=['bold'])
+                    # loss_max_str = colored('{:+.3e}'.format(self._loss_max), 'red', attrs=['bold'])
                 else:
-                    if loss < self.loss_previous:
+                    if loss < self._loss_previous:
                         loss_str = colored('{:+.2e}'.format(loss), 'green')
-                    elif loss > self.loss_previous:
+                    elif loss > self._loss_previous:
                         loss_str = colored('{:+.2e}'.format(loss), 'red')
                     else:
                         loss_str = '{:+.2e}'.format(loss)
-                    loss_min_str = '{:+.2e}'.format(self.loss_min)
-                    # loss_max_str = '{:+.3e}'.format(self.loss_max)
+                    loss_min_str = '{:+.2e}'.format(self._loss_min)
+                    # loss_max_str = '{:+.3e}'.format(self._loss_max)
                     time_since_loss_min_str = util.days_hours_mins_secs_str(time.time() - time_loss_min)
 
-                self.loss_previous = loss
+                self._loss_previous = loss
                 trace += batch.length
                 self._total_training_traces += batch.length
                 total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_training_traces))
@@ -662,40 +672,69 @@ class InferenceNetwork(nn.Module):
                     if trace >= num_traces:
                         stop = True
 
+                self._loss_history_training_loss.append(loss)
+                self._loss_history_training_traces.append(self._total_training_traces)
+                if trace - last_validation_trace > valid_interval:
+                    print('\rComputing validation loss...', end='\r')
+                    valid_loss = self.loss(self._valid_batch)
+                    self._loss_history_validation_loss.append(valid_loss)
+                    self._loss_history_validation_traces.append(self._total_training_traces)
+                    last_validation_trace = trace - 1
+                    if auto_save:
+                        file_name = auto_save_file_name + util.get_time_stamp()
+                        print('\rSaving to disk...', end='\r')
+                        self._save(file_name)
+
                 print_line = '{} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
                 max_print_line_len = max(len(print_line), max_print_line_len)
                 print(print_line.ljust(max_print_line_len), end='\r')
                 sys.stdout.flush()
         print()
 
-    def save(self, file_name):
+    def _save(self, file_name):
         self._modified = util.get_time_str()
         self._updates += 1
         self._trained_on = 'CUDA' if util._cuda_enabled else 'CPU'
-        self._pyprob_version = __version__
-        self._torch_version = torch.__version__
+
+        data = {}
+        data['pyprob_version'] = __version__
+        data['torch_version'] = torch.__version__
+        data['inference_network'] = self
 
         def thread_save():
-            torch.save(self, file_name)
+            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+            tmp_file_name = os.path.join(tmp_dir, 'pyprob_inference_network')
+            torch.save(data, tmp_file_name)
+            tar = tarfile.open(file_name, 'w:gz', compresslevel=2)
+            tar.add(tmp_file_name, arcname='pyprob_inference_network')
+            tar.close()
+            shutil.rmtree(tmp_dir)
         t = Thread(target=thread_save)
         t.start()
         t.join()
 
     @staticmethod
-    def load(file_name, cuda=False, device=None):
+    def _load(file_name, cuda=False, device=None):
         try:
+            tar = tarfile.open(file_name, 'r:gz')
+            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+            tmp_file = os.path.join(tmp_dir, 'pyprob_inference_network')
+            tar.extract('pyprob_inference_network', tmp_dir)
+            tar.close()
             if cuda:
-                ret = torch.load(file_name)
+                data = torch.load(tmp_file)
             else:
-                ret = torch.load(file_name, map_location=lambda storage, loc: storage)
+                data = torch.load(tmp_file, map_location=lambda storage, loc: storage)
+                shutil.rmtree(tmp_dir)
         except:
-            raise RuntimeError('Cannot load the inference network.')
+            raise RuntimeError('Cannot load inference network.')
 
-        if ret._pyprob_version != __version__:
-            print(colored('Warning: different pyprob versions (loaded network: {}, current system: {})'.format(ret._pyprob_version, __version__), 'red', attrs=['bold']))
-        if ret._torch_version != torch.__version__:
-            print(colored('Warning: different PyTorch versions (loaded network: {}, current system: {})'.format(ret._torch_version, torch.__version__), 'red', attrs=['bold']))
+        if data['pyprob_version'] != __version__:
+            print(colored('Warning: different pyprob versions (loaded network: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
+        if data['torch_version'] != torch.__version__:
+            print(colored('Warning: different PyTorch versions (loaded network: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
 
+        ret = data['inference_network']
         if cuda:
             if ret._on_cuda:
                 if ret._cuda_device != device:
