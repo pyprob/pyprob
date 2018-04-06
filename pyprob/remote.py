@@ -4,13 +4,14 @@ import flatbuffers
 from termcolor import colored
 
 from . import util, state, __version__
-from .distributions import Uniform, Normal
+from .distributions import Uniform, Normal, Categorical
 from .PPLProtocol import Message as PPLProtocol_Message
 from .PPLProtocol import MessageBody as PPLProtocol_MessageBody
 from .PPLProtocol import ProtocolTensor as PPLProtocol_ProtocolTensor
 from .PPLProtocol import Distribution as PPLProtocol_Distribution
 from .PPLProtocol import Uniform as PPLProtocol_Uniform
 from .PPLProtocol import Normal as PPLProtocol_Normal
+from .PPLProtocol import Categorical as PPLProtocol_Categorical
 from .PPLProtocol import Handshake as PPLProtocol_Handshake
 from .PPLProtocol import HandshakeResult as PPLProtocol_HandshakeResult
 from .PPLProtocol import Run as PPLProtocol_Run
@@ -200,6 +201,11 @@ class ModelServer(object):
                     mean = self._protocol_tensor_to_variable(normal.Mean())
                     stddev = self._protocol_tensor_to_variable(normal.Stddev())
                     dist = Normal(mean, stddev)
+                elif distribution_type == PPLProtocol_Distribution.Distribution().Categorical:
+                    categorical = PPLProtocol_Categorical.Categorical()
+                    categorical.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    probs = self._protocol_tensor_to_variable(categorical.Probs())
+                    dist = Categorical(probs)
                 else:
                     raise RuntimeError('PPLProtocol (Python): Sample from an unexpected distribution requested.')
                 result = state.sample(dist, control, replace, address)
@@ -234,6 +240,11 @@ class ModelServer(object):
                     mean = self._protocol_tensor_to_variable(normal.Mean())
                     stddev = self._protocol_tensor_to_variable(normal.Stddev())
                     dist = Normal(mean, stddev)
+                elif distribution_type == PPLProtocol_Distribution.Distribution().Categorical:
+                    categorical = PPLProtocol_Categorical.Categorical()
+                    categorical.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    probs = self._protocol_tensor_to_variable(categorical.Probs())
+                    dist = Categorical(probs)
                 else:
                     raise RuntimeError('PPLProtocol (Python): Sample from an unexpected distribution requested.')
                 if value is None:

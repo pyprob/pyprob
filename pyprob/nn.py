@@ -425,7 +425,7 @@ class InferenceNetwork(nn.Module):
                     self._proposal_layers[address] = proposal_layer
                     self.add_module('sample_embedding_layer({})'.format(address), sample_embedding_layer)
                     self.add_module('proposal_layer({})'.format(address), proposal_layer)
-                    print('Polymorphing, new layers for address: {}'.format(util.truncate_str(address)))
+                    print('Polymorphing, new layers for address ({}): {}'.format(len(self._address_embeddings), util.truncate_str(address)))
                     layers_changed = True
 
         if self._on_cuda:

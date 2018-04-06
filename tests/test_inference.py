@@ -346,7 +346,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         observation = self._observation
         posterior_mean_correct = self._posterior_mean_correct
 
-        self._model.learn_inference_network(observation=torch.zeros(16,3), num_traces=training_traces)
+        self._model.learn_inference_network(observation=torch.zeros(16), num_traces=training_traces)
         posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
         posterior_mean_unweighted = posterior.mean_unweighted
         posterior_mean = posterior.mean

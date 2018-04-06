@@ -4,6 +4,8 @@ import uuid
 import tempfile
 import os
 import docker
+import torch
+import torch.nn.functional as F
 
 import pyprob
 from pyprob import ModelRemote
@@ -21,16 +23,19 @@ GaussianWithUnknownMeanMarsagliaCPP = ModelRemote('tcp://127.0.0.1:5555')
 docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_gum_marsaglia_replacement tcp://*:5556', network='host', detach=True)
 GaussianWithUnknownMeanMarsagliaWithReplacementCPP = ModelRemote('tcp://127.0.0.1:5556')
 
-docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_set_defaults_and_addresses tcp://*:5557', network='host', detach=True)
-SetDefaultsAndAddressesCPP = ModelRemote('tcp://127.0.0.1:5557')
+docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_hmm tcp://*:5557', network='host', detach=True)
+HiddenMarkovModelCPP = ModelRemote('tcp://127.0.0.1:5557')
+
+docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_set_defaults_and_addresses tcp://*:5558', network='host', detach=True)
+SetDefaultsAndAddressesCPP = ModelRemote('tcp://127.0.0.1:5558')
 
 
-class ModelRemoteTestCase(unittest.TestCase):
+class ModelRemoteGaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self._model = GaussianWithUnknownMeanMarsagliaCPP
         super().__init__(*args, **kwargs)
 
-    def test_model_remote_prior(self):
+    def test_model_remote_gum_marsaglia_prior(self):
         samples = 5000
         prior_mean_correct = 1
         prior_stddev_correct = math.sqrt(5)
@@ -42,7 +47,7 @@ class ModelRemoteTestCase(unittest.TestCase):
         self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
 
-    def test_model_remote_trace_length_statistics(self):
+    def test_model_remote_gum_marsaglia_trace_length_statistics(self):
         samples = 2000
         trace_length_mean_correct = 2.5630438327789307
         trace_length_stddev_correct = 1.2081329822540283
@@ -59,7 +64,7 @@ class ModelRemoteTestCase(unittest.TestCase):
         self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)
         self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
 
-    def test_model_remote_train_save_load(self):
+    def test_model_remote_gum_marsaglia_train_save_load(self):
         training_traces = 128
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
 
@@ -72,7 +77,7 @@ class ModelRemoteTestCase(unittest.TestCase):
 
         self.assertTrue(True)
 
-    def test_model_remote_inference_gum_posterior_importance_sampling(self):
+    def test_model_remote_gum_marsaglia_inference_gum_posterior_importance_sampling(self):
         samples = 2000
         observation = [8,9]
         posterior_mean_correct = 7.25
@@ -91,7 +96,7 @@ class ModelRemoteTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_model_remote_inference_gum_posterior_inference_compilation(self):
+    def test_model_remote_gum_marsaglia_inference_gum_posterior_inference_compilation(self):
         training_traces = 2000
         samples = 2000
         observation = [8,9]
@@ -149,6 +154,81 @@ class ModelRemoteWithReplacementTestCase(unittest.TestCase):
         self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)
         self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
         self.assertAlmostEqual(trace_length_max, trace_length_max_correct, places=0)
+
+
+class ModelRemoteHiddenMarkovModelTestCase(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        self._model = HiddenMarkovModelCPP
+
+        self._observation = [0.9, 0.8, 0.7, 0.0, -0.025, -5.0, -2.0, -0.1, 0.0, 0.13, 0.45, 6, 0.2, 0.3, -1, -1]
+        self._posterior_mean_correct = util.to_variable([[0.3775, 0.3092, 0.3133],
+                                                         [0.0416, 0.4045, 0.5539],
+                                                         [0.0541, 0.2552, 0.6907],
+                                                         [0.0455, 0.2301, 0.7244],
+                                                         [0.1062, 0.1217, 0.7721],
+                                                         [0.0714, 0.1732, 0.7554],
+                                                         [0.9300, 0.0001, 0.0699],
+                                                         [0.4577, 0.0452, 0.4971],
+                                                         [0.0926, 0.2169, 0.6905],
+                                                         [0.1014, 0.1359, 0.7626],
+                                                         [0.0985, 0.1575, 0.7440],
+                                                         [0.1781, 0.2198, 0.6022],
+                                                         [0.0000, 0.9848, 0.0152],
+                                                         [0.1130, 0.1674, 0.7195],
+                                                         [0.0557, 0.1848, 0.7595],
+                                                         [0.2017, 0.0472, 0.7511],
+                                                         [0.2545, 0.0611, 0.6844]])
+        super().__init__(*args, **kwargs)
+
+    def test_model_remote_hmm_posterior_importance_sampling(self):
+        samples = 500
+
+        observation = self._observation
+        posterior_mean_correct = self._posterior_mean_correct
+
+        posterior = self._model.posterior_distribution(samples, observation=observation)
+        posterior_mean_unweighted = posterior.mean_unweighted
+        posterior_mean = posterior.mean
+
+        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
+
+        self.assertLess(l2_distance, 10)
+
+    def test_model_remote_hmm_posterior_inference_compilation(self):
+        training_traces = 500
+        samples = 500
+
+        observation = self._observation
+        posterior_mean_correct = self._posterior_mean_correct
+
+        self._model.learn_inference_network(observation=torch.zeros(16), num_traces=training_traces)
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
+        posterior_mean_unweighted = posterior.mean_unweighted
+        posterior_mean = posterior.mean
+
+        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+
+        util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
+
+        self.assertLess(l2_distance, 10)
+
+    def test_model_remote_hmm_posterior_metropolis_hastings(self):
+        samples = 1000
+
+        observation = self._observation
+        posterior_mean_correct = self._posterior_mean_correct
+
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observation=observation)
+        posterior_mean_unweighted = posterior.mean_unweighted
+        posterior_mean = posterior.mean
+
+        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
+
+        self.assertLess(l2_distance, 10)
 
 
 class ModelRemoteSetDefaultsAndAddressesTestCase(unittest.TestCase):
