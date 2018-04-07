@@ -83,7 +83,10 @@ class Trace(object):
         self.log_prob_observed = util.to_variable(sum([torch.sum(s.log_prob) for s in self.samples_observed])).view(-1)
 
         self.log_prob = util.to_variable(sum([torch.sum(s.log_prob) for s in self._samples_all if s.control or s.observed])).view(-1)
-        self._inference_network_training_observes_variable = util.pack_observes_to_variable([s.distribution.sample() for s in self.samples_observed])
+        if util.inference_network_training_mode == util.InferenceNetworkTrainingMode.USE_OBSERVE_DIST_SAMPLE:
+            self._inference_network_training_observes_variable = util.pack_observes_to_variable([s.distribution.sample() for s in self.samples_observed])
+        else:  # util.inference_network_training_mode == util.InferenceNetworkTrainingMode.USE_OBSERVE_DIST_MEAN
+            self._inference_network_training_observes_variable = util.pack_observes_to_variable([s.distribution.mean for s in self.samples_observed])
         self.length = len(self.samples)
 
     def last_instance(self, address_base):
