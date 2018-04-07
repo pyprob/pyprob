@@ -6,11 +6,13 @@ import random
 import datetime
 import inspect
 import time
+import math
 from termcolor import colored
 
 
 _random_seed = 0
 _epsilon = 1e-8
+_log_epsilon = math.log(_epsilon)
 
 
 def set_random_seed(seed=123):
@@ -193,3 +195,7 @@ def is_hashable(v):
     except TypeError:
         return False
     return True
+
+
+def clamp_log_prob(log_prob):
+    return torch.clamp(log_prob, min=_log_epsilon)

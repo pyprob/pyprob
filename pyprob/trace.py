@@ -3,7 +3,7 @@ from . import util
 
 
 class Sample(object):
-    def __init__(self, distribution, value, address_base, address, instance, log_prob=None, control=False, replace=False, observed=False, reused=False):
+    def __init__(self, distribution, value, address_base, address, instance, log_prob=None, control=False, replace=False, observed=False, reused=False, clamp_log_prob=True):
         self.address_base = address_base
         self.address = address
         self.distribution = distribution
@@ -17,6 +17,8 @@ class Sample(object):
             self.log_prob = distribution.log_prob(value)
         else:
             self.log_prob = util.to_variable(log_prob)
+        if clamp_log_prob:
+            self.log_prob = util.clamp_log_prob(self.log_prob)
         self.lstm_input = None
         self.lstm_output = None
 
