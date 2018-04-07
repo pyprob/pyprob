@@ -9,7 +9,7 @@ import tempfile
 import shutil
 import os
 import uuid
-import random
+import numpy as np
 from threading import Thread
 from termcolor import colored
 
@@ -485,7 +485,7 @@ class TruncatedNormal(Distribution):
         return ret
 
 
-# Temporary: this needs to be replaced by torch.distributions.Uniform when the new PyTorch version is released
+# Temporary: this needs to be based on torch.distributions.Uniform when the new PyTorch version is released
 class Uniform(Distribution):
     def __init__(self, low, high):
         self._low = util.to_variable(low)
@@ -536,3 +536,46 @@ class Uniform(Distribution):
     @property
     def high(self):
         return self._high
+
+
+# Temporary: this needs to be based on torch.distributions.Poisson when the new PyTorch version is released
+class Poisson(Distribution):
+    def __init__(self, rate):
+        self._rate = util.to_variable(rate)
+        self._rate_numpy = self._rate.data.cpu().numpy()
+        if self._rate.dim() == 1:
+            self.length_variates = self._rate.size(0)
+            self.length_batch = 1
+        elif self._rate.dim() == 2:
+            self.length_variates = self._rate.size(1)
+            self.length_batch = self._rate.size(0)
+        super().__init__('Poisson', 'Poisson')
+
+    def __repr__(self):
+        return 'Poisson(rate: {}, length_variates:{}, length_batch:{})'.format(self._rate, self.length_variates, self.length_batch)
+
+    def sample(self):
+        ret = util.to_variable(np.random.poisson(self._rate_numpy))
+        if self.length_batch == 1:
+            ret = ret.squeeze(0)
+        return ret
+
+    def log_prob(self, value):
+        value = util.to_variable(value)
+        value = value.view(self.length_batch, self.length_variates)
+        ret = (self._rate.log() * value) - self._rate - (value + 1).lgamma()
+        if self.length_batch == 1:
+            ret = ret.squeeze(0)
+        return ret
+
+    @property
+    def mean(self):
+        return self._rate
+
+    @property
+    def variance(self):
+        return self._rate
+
+    @property
+    def rate(self):
+        return self._rate

@@ -5,10 +5,11 @@ import numpy as np
 import uuid
 import tempfile
 import os
+import math
 
 import pyprob
 from pyprob import util
-from pyprob.distributions import Distribution, Categorical, Empirical, Mixture, Normal, TruncatedNormal, Uniform
+from pyprob.distributions import Distribution, Categorical, Empirical, Mixture, Normal, TruncatedNormal, Uniform, Poisson
 
 
 empirical_samples = 10000
@@ -415,6 +416,62 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_lows, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+
+    def test_dist_poisson(self):
+        dist_sample_shape_correct = [1]
+        dist_means_correct = [4]
+        dist_stddevs_correct = [math.sqrt(4)]
+        dist_rates_correct = [4]
+        dist_log_probs_correct = [-1.63288]
+
+        dist = Poisson(dist_rates_correct)
+        dist_sample_shape = list(dist.sample().size())
+        dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
+        dist_rates = util.to_numpy(dist.rate)
+        dist_means = util.to_numpy(dist.mean)
+        dist_means_empirical = util.to_numpy(dist_empirical.mean)
+        dist_stddevs = util.to_numpy(dist.stddev)
+        dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
+
+        dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
+
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+
+        self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
+        self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_rates, dist_rates_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+
+    def test_dist_poisson_batched(self):
+        dist_sample_shape_correct = [2, 1]
+        dist_means_correct = [[4], [100]]
+        dist_stddevs_correct = [[math.sqrt(4)], [math.sqrt(100)]]
+        dist_rates_correct = [[4], [100]]
+        dist_log_probs_correct = [[-1.63288], [-3.22236]]
+
+        dist = Poisson(dist_rates_correct)
+        dist_sample_shape = list(dist.sample().size())
+        dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
+        dist_rates = util.to_numpy(dist.rate)
+        dist_means = util.to_numpy(dist.mean)
+        dist_means_empirical = util.to_numpy(dist_empirical.mean)
+        dist_stddevs = util.to_numpy(dist.stddev)
+        dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
+
+        dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
+
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+
+        self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
+        self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_rates, dist_rates_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
 
     def test_dist_empirical_save_load(self):

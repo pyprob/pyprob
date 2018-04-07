@@ -24,7 +24,8 @@ table ProtocolTensor {
 union Distribution {
   Normal,
   Uniform,
-  Categorical
+  Categorical,
+  Poisson
 }
 
 table Handshake {
@@ -65,10 +66,6 @@ table ObserveResult {}
 
 table Reset {}
 
-table Categorical {
-  probs: ProtocolTensor;
-}
-
 table Normal {
   mean: ProtocolTensor;
   stddev: ProtocolTensor;
@@ -77,6 +74,14 @@ table Normal {
 table Uniform {
   low: double;
   high: double;
+}
+
+table Categorical {
+  probs: ProtocolTensor;
+}
+
+table Poisson {
+  rate: double;
 }
 
 root_type Message;

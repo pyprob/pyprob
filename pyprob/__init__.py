@@ -1,4 +1,4 @@
-__version__ = '0.10.0.dev12'
+__version__ = '0.10.0.dev13'
 
 from .util import ObserveEmbedding, SampleEmbedding, TraceMode, InferenceEngine, Optimizer, InferenceNetworkTrainingMode, set_random_seed, set_cuda, set_verbosity, set_inference_network_training_mode
 from .model import Model, ModelRemote

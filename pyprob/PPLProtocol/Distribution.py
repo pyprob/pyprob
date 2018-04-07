@@ -7,3 +7,5 @@ class Distribution(object):
     Normal = 1
     Uniform = 2
     Categorical = 3
+    Poisson = 4
+
