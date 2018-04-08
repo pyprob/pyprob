@@ -14,6 +14,7 @@ import enum
 _random_seed = 0
 _epsilon = 1e-8
 _log_epsilon = math.log(_epsilon)
+_print_refresh_rate = 0.2  # seconds
 
 
 class ObserveEmbedding(enum.Enum):
