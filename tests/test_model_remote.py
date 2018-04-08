@@ -9,6 +9,7 @@ import torch.nn.functional as F
 
 import pyprob
 from pyprob import ModelRemote
+from pyprob.distributions import Normal
 from pyprob import util
 
 
@@ -88,7 +89,7 @@ class ModelRemoteGaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_mean_unweighted = float(posterior.unweighted().mean)
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
-        kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+        kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
 
@@ -109,7 +110,7 @@ class ModelRemoteGaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_mean_unweighted = float(posterior.unweighted().mean)
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
-        kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+        kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
 
         util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
 

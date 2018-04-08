@@ -143,7 +143,7 @@ class Empirical(Distribution):
                 for i in range(length):
                     found = False
                     for key, value in distribution.items():
-                        if torch.equal(key, values[i]):
+                        if torch.equal(util.to_variable(key), util.to_variable(values[i])):
                             # Differentiability warning: values[i] is discarded here. If we need to differentiate through all values, the gradients of values[i] and key should be tied here.
                             distribution[key] = value + weights[i]
                             found = True
@@ -254,14 +254,13 @@ class Categorical(Distribution):
             self.length_batch = 1
             self.length_categories = self._probs.size(0)
             self._probs = self._probs.unsqueeze(0)
-            self._probs = self._probs / self._probs.sum(-1, keepdim=True)
         elif self._probs.dim() == 2:
             self.length_variates = 1
             self.length_batch = self._probs.size(0)
             self.length_categories = self._probs.size(1)
-            self._probs = self._probs / self._probs.sum(-1, keepdim=True)
         else:
             raise ValueError('Expecting 1d or 2d (batched) probabilities.')
+        self._probs = self._probs / self._probs.sum(-1, keepdim=True)
         super().__init__('Categorical', 'Categorical(length_categories:{})'.format(self.length_categories), torch.distributions.Categorical(probs=self._probs))
 
     def __repr__(self):

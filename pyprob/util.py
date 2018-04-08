@@ -10,6 +10,8 @@ import math
 from termcolor import colored
 import enum
 
+from .distributions import Empirical, Categorical
+
 
 _random_seed = 0
 _epsilon = 1e-8
@@ -178,7 +180,10 @@ def pack_observes_to_variable(observes):
         try:
             return torch.cat([to_variable(o).view(-1) for o in observes])
         except:
-            return to_variable(Tensor())
+            try:
+                return to_variable(observes)
+            except:
+                return to_variable(Tensor())
 
 
 def one_hot(dim, i):
@@ -187,12 +192,24 @@ def one_hot(dim, i):
     return to_variable(t)
 
 
-def kl_divergence_normal(p_mean, p_stddev, q_mean, q_stddev):
-    p_mean = to_variable(p_mean)
-    p_stddev = to_variable(p_stddev)
-    q_mean = to_variable(q_mean)
-    q_stddev = to_variable(q_stddev)
-    return torch.log(q_stddev) - torch.log(p_stddev) + (p_stddev.pow(2) + (p_mean - q_mean).pow(2)) / (2 * q_stddev.pow(2)) - 0.5
+def kl_divergence_normal(p, q):
+    return torch.log(q.stddev) - torch.log(p.stddev) + (p.stddev.pow(2) + (p.mean - q.mean).pow(2)) / (2 * q.stddev.pow(2)) - 0.5
+
+
+def kl_divergence_categorical(p, q):
+    return torch.sum(clamp_prob(p._probs) * torch.log(clamp_prob(p._probs) / clamp_prob(q._probs)))
+
+
+def empirical_to_categorical(empirical_dist, max_val=None):
+    empirical_dist = Empirical(empirical_dist.values, clamp_log_prob(torch.log(empirical_dist.weights)), combine_duplicates=True).map(int)
+    if max_val is None:
+        max_val = int(empirical_dist.max)
+    probs = torch.Tensor(max_val + 1).zero_()
+    for i in range(empirical_dist.length):
+        val = empirical_dist.values[i]
+        if val <= max_val:
+            probs[val] = float(empirical_dist.weights[i])
+    return Categorical(probs)
 
 
 def has_nan_or_inf(value):
@@ -239,6 +256,10 @@ def is_hashable(v):
     except TypeError:
         return False
     return True
+
+
+def clamp_prob(prob):
+    return torch.clamp(prob, min=_epsilon, max=1)
 
 
 def clamp_log_prob(log_prob):

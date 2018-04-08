@@ -6,11 +6,12 @@ import torch.nn.functional as F
 from termcolor import colored
 import time
 import numpy as np
+import functools
 
 import pyprob
 from pyprob import util
 from pyprob import Model
-from pyprob.distributions import Categorical, Normal, Uniform
+from pyprob.distributions import Categorical, Normal, Uniform, Empirical, Poisson
 
 
 samples = 5000
@@ -66,7 +67,7 @@ def add_perf_score_metropolis_hastings(score):
 #         posterior_mean_unweighted = util.to_numpy(posterior.unweighted().mean)
 #         posterior_stddev = util.to_numpy(posterior.stddev)
 #         posterior_stddev_unweighted = util.to_numpy(posterior.unweighted().stddev)
-#         # kl_divergence = util.to_numpy(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+#         # kl_divergence = util.to_numpy(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
 #         # add_perf_score_importance_sampling(kl_divergence)
 #
 #         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct')
@@ -86,7 +87,7 @@ def add_perf_score_metropolis_hastings(score):
 #         posterior_mean_unweighted = util.to_numpy(posterior.unweighted().mean)
 #         posterior_stddev = util.to_numpy(posterior.stddev)
 #         posterior_stddev_unweighted = util.to_numpy(posterior.unweighted().stddev)
-#         # kl_divergence = util.to_numpy(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+#         # kl_divergence = util.to_numpy(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
 #         # add_perf_score_importance_sampling(kl_divergence)
 #
 #         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct')
@@ -105,7 +106,7 @@ def add_perf_score_metropolis_hastings(score):
     #     posterior_mean_unweighted = util.to_numpy(posterior.unweighted().mean)
     #     posterior_stddev = util.to_numpy(posterior.stddev)
     #     posterior_stddev_unweighted = util.to_numpy(posterior.unweighted().stddev)
-    #     # kl_divergence = util.to_numpy(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+    #     # kl_divergence = util.to_numpy(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
     #     # add_perf_score_importance_sampling(kl_divergence)
     #
     #     util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct')
@@ -143,7 +144,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_mean_unweighted = float(posterior.unweighted().mean)
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
-        kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+        kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
         add_perf_score_importance_sampling(kl_divergence)
@@ -163,7 +164,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_mean_unweighted = float(posterior.unweighted().mean)
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
-        kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+        kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
 
         util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
         add_perf_score_inference_compilation(kl_divergence)
@@ -182,7 +183,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_mean_unweighted = float(posterior.unweighted().mean)
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
-        kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+        kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
         add_perf_score_metropolis_hastings(kl_divergence)
@@ -231,7 +232,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_mean_unweighted = float(posterior.unweighted().mean)
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
-        kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+        kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
         add_perf_score_importance_sampling(kl_divergence)
@@ -251,7 +252,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_mean_unweighted = float(posterior.unweighted().mean)
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
-        kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+        kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
 
         util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
         add_perf_score_inference_compilation(kl_divergence)
@@ -270,7 +271,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_mean_unweighted = float(posterior.unweighted().mean)
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
-        kl_divergence = float(util.kl_divergence_normal(posterior_mean_correct, posterior_stddev_correct, posterior.mean, posterior_stddev))
+        kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
         add_perf_score_metropolis_hastings(kl_divergence)
@@ -374,6 +375,99 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         self.assertLess(l2_distance, 6)
 
 
+class BranchingTestCase(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        class Branching(Model):
+            def __init__(self):
+                super().__init__('Branching')
+
+            @functools.lru_cache(maxsize=None)  # 128 by default
+            def fibonacci(self, n):
+                if n < 2:
+                    return 1
+
+                a = 1
+                fib = 1
+                for i in range(n-2):
+                    a, fib = fib, a + fib
+                return fib
+
+            def forward(self, observation=0):
+                count_prior = Poisson(4)
+                r = pyprob.sample(count_prior)
+                if 4 < float(r):
+                    l = 6
+                else:
+                    l = 1 + self.fibonacci(3 * int(r)) + pyprob.sample(count_prior)
+
+                pyprob.observe(Poisson(l), observation)
+                return r
+
+            def true_posterior(self, observation=6):
+                count_prior = Poisson(4)
+                vals = []
+                log_weights = []
+                for r in range(40):
+                    for s in range(40):
+                        if 4 < float(r):
+                            l = 6
+                        else:
+                            f = self.fibonacci(3 * r)
+                            l = 1 + f + pyprob.sample(count_prior)
+                        vals.append(r)
+                        log_weights.append(Poisson(l).log_prob(observation) + count_prior.log_prob(r) + count_prior.log_prob(s))
+                return Empirical(vals, log_weights)
+
+        self._model = Branching()
+        super().__init__(*args, **kwargs)
+
+    def test_inference_branching_importance_sampling(self):
+        observation = 6
+        posterior_correct = util.empirical_to_categorical(self._model.true_posterior(observation), max_val=40)
+
+        posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, observation=observation), max_val=40)
+        posterior_probs = util.to_numpy(posterior._probs[0])
+        posterior_probs_correct = util.to_numpy(posterior_correct._probs[0])
+
+        kl_divergence = float(util.kl_divergence_categorical(posterior_correct, posterior))
+
+        util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+        # add_perf_score_importance_sampling(kl_divergence)
+
+        self.assertLess(kl_divergence, 0.25)
+
+    # def test_inference_branching_inference_compilation(self):
+    #     observation = 6
+    #     posterior_correct = util.empirical_to_categorical(self._model.true_posterior(observation), max_val=40)
+    #
+    #     self._model.learn_inference_network(observation=1, num_traces=10000)
+    #     posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, observation=observation, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK), max_val=40)
+    #     posterior_probs = util.to_numpy(posterior._probs[0])
+    #     posterior_probs_correct = util.to_numpy(posterior_correct._probs[0])
+    #
+    #     kl_divergence = float(util.kl_divergence_categorical(posterior_correct, posterior))
+    #
+    #     util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+    #     add_perf_score_importance_sampling(kl_divergence)
+    #
+    #     self.assertLess(kl_divergence, 0.25)
+
+    def test_inference_branching_metropolis_hastings(self):
+        observation = 6
+        posterior_correct = util.empirical_to_categorical(self._model.true_posterior(observation), max_val=40)
+
+        posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, observation=observation, inference_engine=pyprob.InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS), max_val=40)
+        posterior_probs = util.to_numpy(posterior._probs[0])
+        posterior_probs_correct = util.to_numpy(posterior_correct._probs[0])
+
+        kl_divergence = float(util.kl_divergence_categorical(posterior_correct, posterior))
+
+        util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+        # add_perf_score_importance_sampling(kl_divergence)
+
+        self.assertLess(kl_divergence, 0.25)
+
+
 if __name__ == '__main__':
     # if torch.cuda.is_available():
         # pyprob.set_cuda(True)
@@ -383,6 +477,7 @@ if __name__ == '__main__':
     tests.append('GaussianWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
     # tests.append('HiddenMarkovModelTestCase')
+    tests.append('BranchingTestCase')
 
     time_start = time.time()
     success = unittest.main(defaultTest=tests, verbosity=2, exit=False).result.wasSuccessful()
