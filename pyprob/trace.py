@@ -1,9 +1,8 @@
-import torch
 from . import util
 
 
 class Sample(object):
-    def __init__(self, distribution, value, address_base, address, instance, log_prob=None, control=False, replace=False, observed=False, reused=False, clamp_log_prob=True):
+    def __init__(self, distribution, value, address_base, address, instance, log_prob=None, control=False, replace=False, observed=False, reused=False):
         self.address_base = address_base
         self.address = address
         self.distribution = distribution
@@ -17,8 +16,6 @@ class Sample(object):
             self.log_prob = distribution.log_prob(value)
         else:
             self.log_prob = util.to_variable(log_prob)
-        if clamp_log_prob:
-            self.log_prob = util.clamp_log_prob(self.log_prob)
         self.lstm_input = None
         self.lstm_output = None
 
@@ -80,9 +77,9 @@ class Trace(object):
                 self.samples.append(sample)
         self.samples_uncontrolled = [s for s in self._samples_all if (not s.control) and (not s.observed)]
         self.samples_observed = [s for s in self._samples_all if s.observed]
-        self.log_prob_observed = util.to_variable(sum([torch.sum(s.log_prob) for s in self.samples_observed])).view(-1)
+        self.log_prob_observed = util.to_variable(sum([util.safe_torch_sum(s.log_prob) for s in self.samples_observed])).view(-1)
 
-        self.log_prob = util.to_variable(sum([torch.sum(s.log_prob) for s in self._samples_all if s.control or s.observed])).view(-1)
+        self.log_prob = util.to_variable(sum([util.safe_torch_sum(s.log_prob) for s in self._samples_all if s.control or s.observed])).view(-1)
         if util.inference_network_training_mode == util.InferenceNetworkTrainingMode.USE_OBSERVE_DIST_SAMPLE:
             self._inference_network_training_observes_variable = util.pack_observes_to_variable([s.distribution.sample() for s in self.samples_observed])
         else:  # util.inference_network_training_mode == util.InferenceNetworkTrainingMode.USE_OBSERVE_DIST_MEAN

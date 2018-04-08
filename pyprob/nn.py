@@ -622,7 +622,7 @@ class InferenceNetwork(nn.Module):
                 if util.has_nan_or_inf(l):
                     print('Warning: NaN or Inf encountered proposal log_prob.')
                     return False, 0
-                log_prob += torch.sum(l)
+                log_prob += util.safe_torch_sum(l)
 
         loss = -log_prob / batch.length
 

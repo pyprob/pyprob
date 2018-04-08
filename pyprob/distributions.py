@@ -10,6 +10,7 @@ import shutil
 import os
 import uuid
 import numpy as np
+import random
 from threading import Thread
 from termcolor import colored
 
@@ -36,7 +37,7 @@ class Distribution(object):
             value = util.to_variable(value)
             lp = self._torch_dist.log_prob(value)
             if lp.dim() == 2 and self.length_variates > 1:
-                lp = torch.sum(lp, dim=1)
+                lp = util.safe_torch_sum(lp, dim=1)
             if self.length_batch > 1 and self.length_variates > 1:
                 lp = lp.unsqueeze(1)
             return lp
@@ -126,9 +127,11 @@ class Empirical(Distribution):
             # assume uniform distribution if no weights are given
             # log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length))
             weights = util.to_variable(torch.zeros(length).fill_(1./length))
+            self._uniform_weights = True
         else:
             log_weights = util.to_variable(log_weights).view(-1)
             weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
+            self._uniform_weights = False
 
         if isinstance(values, Variable) or torch.is_tensor(values):
             values = util.to_variable(values)
@@ -185,7 +188,10 @@ class Empirical(Distribution):
             return 'Empirical(length:{})'.format(self.length)
 
     def sample(self):
-        return util.fast_np_random_choice(self.values, self.weights_numpy_cumsum)
+        if self._uniform_weights:
+            return random.choice(self.values)
+        else:
+            return util.fast_np_random_choice(self.values, self.weights_numpy_cumsum)
 
     def expectation(self, func):
         ret = 0.

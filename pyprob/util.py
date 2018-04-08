@@ -197,7 +197,7 @@ def kl_divergence_normal(p, q):
 
 
 def kl_divergence_categorical(p, q):
-    return torch.sum(clamp_prob(p._probs) * torch.log(clamp_prob(p._probs) / clamp_prob(q._probs)))
+    return safe_torch_sum(clamp_prob(p._probs) * torch.log(clamp_prob(p._probs) / clamp_prob(q._probs)))
 
 
 def empirical_to_categorical(empirical_dist, max_val=None):
@@ -264,3 +264,14 @@ def clamp_prob(prob):
 
 def clamp_log_prob(log_prob):
     return torch.clamp(log_prob, min=_log_epsilon)
+
+
+def safe_torch_sum(t, *args, **kwargs):
+    try:
+        return torch.sum(t, *args, **kwargs)
+    except RuntimeError:
+        print('Warning: torch.sum error (RuntimeError: value cannot be converted to type double without overflow) encountered, using tensor sum. Gradient information will be lost.')
+        if isinstance(t, Variable):
+            return Variable(torch.Tensor([t.data.sum(*args, **kwargs)]))
+        else:
+            raise RuntimeError('Expecting a Variable.')

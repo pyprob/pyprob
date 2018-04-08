@@ -138,8 +138,8 @@ class Model(nn.Module):
                 log_acceptance_ratio = math.log(current_trace.length) - math.log(candidate_trace.length) + candidate_trace.log_prob_observed - current_trace.log_prob_observed
                 for sample in candidate_trace.samples:
                     if sample.reused:
-                        log_acceptance_ratio += torch.sum(sample.log_prob)
-                        log_acceptance_ratio -= torch.sum(current_trace._samples_all_dict_address[sample.address].log_prob)
+                        log_acceptance_ratio += util.safe_torch_sum(sample.log_prob)
+                        log_acceptance_ratio -= util.safe_torch_sum(current_trace._samples_all_dict_address[sample.address].log_prob)
                         samples_reused += 1
                 samples_all += candidate_trace.length
 
