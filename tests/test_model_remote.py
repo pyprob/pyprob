@@ -6,12 +6,16 @@ import os
 import docker
 import torch
 import torch.nn.functional as F
+import functools
 
 import pyprob
 from pyprob import ModelRemote
-from pyprob.distributions import Normal
+from pyprob.distributions import Empirical, Normal, Poisson
 from pyprob import util
 
+
+samples = 1000
+training_traces = 1000
 
 docker_client = docker.from_env()
 print('Pulling latest Docker image: probprog/cpproblight')
@@ -27,8 +31,11 @@ GaussianWithUnknownMeanMarsagliaWithReplacementCPP = ModelRemote('tcp://127.0.0.
 docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_hmm tcp://*:5557', network='host', detach=True)
 HiddenMarkovModelCPP = ModelRemote('tcp://127.0.0.1:5557')
 
-docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_set_defaults_and_addresses tcp://*:5558', network='host', detach=True)
-SetDefaultsAndAddressesCPP = ModelRemote('tcp://127.0.0.1:5558')
+docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_branching tcp://*:5558', network='host', detach=True)
+BranchingCPP = ModelRemote('tcp://127.0.0.1:5558')
+
+docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_set_defaults_and_addresses tcp://*:5559', network='host', detach=True)
+SetDefaultsAndAddressesCPP = ModelRemote('tcp://127.0.0.1:5559')
 
 
 class ModelRemoteGaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
@@ -37,7 +44,6 @@ class ModelRemoteGaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         super().__init__(*args, **kwargs)
 
     def test_model_remote_gum_marsaglia_prior(self):
-        samples = 5000
         prior_mean_correct = 1
         prior_stddev_correct = math.sqrt(5)
 
@@ -49,7 +55,6 @@ class ModelRemoteGaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
 
     def test_model_remote_gum_marsaglia_trace_length_statistics(self):
-        samples = 2000
         trace_length_mean_correct = 2.5630438327789307
         trace_length_stddev_correct = 1.2081329822540283
         trace_length_min_correct = 2
@@ -66,7 +71,6 @@ class ModelRemoteGaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
 
     def test_model_remote_gum_marsaglia_train_save_load(self):
-        training_traces = 128
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
 
         self._model.learn_inference_network(observation=[1, 1], num_traces=training_traces)
@@ -79,8 +83,7 @@ class ModelRemoteGaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self.assertTrue(True)
 
     def test_model_remote_gum_marsaglia_inference_gum_posterior_importance_sampling(self):
-        samples = 2000
-        observation = [8,9]
+        observation = [8, 9]
         posterior_mean_correct = 7.25
         posterior_stddev_correct = math.sqrt(1/1.2)
 
@@ -98,9 +101,7 @@ class ModelRemoteGaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self.assertLess(kl_divergence, 0.25)
 
     def test_model_remote_gum_marsaglia_inference_gum_posterior_inference_compilation(self):
-        training_traces = 2000
-        samples = 2000
-        observation = [8,9]
+        observation = [8, 9]
         posterior_mean_correct = 7.25
         posterior_stddev_correct = math.sqrt(1/1.2)
 
@@ -125,7 +126,6 @@ class ModelRemoteWithReplacementTestCase(unittest.TestCase):
         super().__init__(*args, **kwargs)
 
     def test_model_remote_with_replacement_prior(self):
-        samples = 5000
         prior_mean_correct = 1
         prior_stddev_correct = math.sqrt(5)
 
@@ -138,7 +138,6 @@ class ModelRemoteWithReplacementTestCase(unittest.TestCase):
         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
 
     def test_model_remote_with_replacement_trace_length_statistics(self):
-        samples = 2000
         trace_length_mean_correct = 2
         trace_length_stddev_correct = 0
         trace_length_min_correct = 2
@@ -182,8 +181,6 @@ class ModelRemoteHiddenMarkovModelTestCase(unittest.TestCase):
         super().__init__(*args, **kwargs)
 
     def test_model_remote_hmm_posterior_importance_sampling(self):
-        samples = 500
-
         observation = self._observation
         posterior_mean_correct = self._posterior_mean_correct
 
@@ -198,9 +195,6 @@ class ModelRemoteHiddenMarkovModelTestCase(unittest.TestCase):
         self.assertLess(l2_distance, 10)
 
     def test_model_remote_hmm_posterior_inference_compilation(self):
-        training_traces = 500
-        samples = 500
-
         observation = self._observation
         posterior_mean_correct = self._posterior_mean_correct
 
@@ -216,8 +210,6 @@ class ModelRemoteHiddenMarkovModelTestCase(unittest.TestCase):
         self.assertLess(l2_distance, 10)
 
     def test_model_remote_hmm_posterior_metropolis_hastings(self):
-        samples = 1000
-
         observation = self._observation
         posterior_mean_correct = self._posterior_mean_correct
 
@@ -232,36 +224,113 @@ class ModelRemoteHiddenMarkovModelTestCase(unittest.TestCase):
         self.assertLess(l2_distance, 10)
 
 
-class ModelRemoteSetDefaultsAndAddressesTestCase(unittest.TestCase):
+class BranchingTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self._model = SetDefaultsAndAddressesCPP
+        self._model = BranchingCPP
         super().__init__(*args, **kwargs)
 
-    def test_model_remote_set_defaults_and_addresses_prior(self):
-        samples = 2000
-        prior_mean_correct = 1
-        prior_stddev_correct = 3.882074  # Estimate from 100k samples
+    @functools.lru_cache(maxsize=None)  # 128 by default
+    def fibonacci(self, n):
+        if n < 2:
+            return 1
 
-        prior = self._model.prior_distribution(samples)
-        prior_mean = float(prior.mean)
-        prior_stddev = float(prior.stddev)
-        util.debug('samples', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
+        a = 1
+        fib = 1
+        for i in range(n-2):
+            a, fib = fib, a + fib
+        return fib
 
-        self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
-        self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
+    def true_posterior(self, observation=6):
+        count_prior = Poisson(4)
+        vals = []
+        log_weights = []
+        for r in range(40):
+            for s in range(40):
+                if 4 < float(r):
+                    l = 6
+                else:
+                    f = self.fibonacci(3 * r)
+                    l = 1 + f + pyprob.sample(count_prior)
+                vals.append(r)
+                log_weights.append(Poisson(l).log_prob(observation) + count_prior.log_prob(r) + count_prior.log_prob(s))
+        return Empirical(vals, log_weights)
 
-    def test_model_remote_set_defaults_and_addresses_addresses(self):
-        addresses_correct = ['normal1_Normal_1', 'normal1_Normal_2', 'normal2_Normal_replaced']
-        addresses_all_correct = ['normal1_Normal_1', 'normal1_Normal_2', 'normal2_Normal_replaced', 'normal2_Normal_replaced', 'normal3_Normal_1', 'normal3_Normal_2', 'likelihood_Normal_1']
+    def test_inference_branching_importance_sampling(self):
+        observation = 6
+        posterior_correct = util.empirical_to_categorical(self.true_posterior(observation), max_val=40)
 
-        trace = next(self._model._prior_trace_generator(observation=[0]))
-        addresses = [s.address for s in trace.samples]
-        addresses_all = [s.address for s in trace._samples_all]
+        posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, observation=observation), max_val=40)
+        posterior_probs = util.to_numpy(posterior._probs[0])
+        posterior_probs_correct = util.to_numpy(posterior_correct._probs[0])
 
-        util.debug('addresses', 'addresses_correct', 'addresses_all', 'addresses_all_correct')
+        kl_divergence = float(util.kl_divergence_categorical(posterior_correct, posterior))
 
-        self.assertEqual(addresses, addresses_correct)
-        self.assertEqual(addresses_all, addresses_all_correct)
+        util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+        # add_perf_score_importance_sampling(kl_divergence)
+
+        self.assertLess(kl_divergence, 0.25)
+
+    # def test_inference_branching_inference_compilation(self):
+    #     observation = 6
+    #     posterior_correct = util.empirical_to_categorical(self._model.true_posterior(observation), max_val=40)
+    #
+    #     self._model.learn_inference_network(observation=1, num_traces=10000)
+    #     posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, observation=observation, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK), max_val=40)
+    #     posterior_probs = util.to_numpy(posterior._probs[0])
+    #     posterior_probs_correct = util.to_numpy(posterior_correct._probs[0])
+    #
+    #     kl_divergence = float(util.kl_divergence_categorical(posterior_correct, posterior))
+    #
+    #     util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+    #     add_perf_score_importance_sampling(kl_divergence)
+    #
+    #     self.assertLess(kl_divergence, 0.25)
+
+    def test_inference_branching_metropolis_hastings(self):
+        observation = 6
+        posterior_correct = util.empirical_to_categorical(self.true_posterior(observation), max_val=40)
+
+        posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, observation=observation, inference_engine=pyprob.InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS), max_val=40)
+        posterior_probs = util.to_numpy(posterior._probs[0])
+        posterior_probs_correct = util.to_numpy(posterior_correct._probs[0])
+
+        kl_divergence = float(util.kl_divergence_categorical(posterior_correct, posterior))
+
+        util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+        # add_perf_score_importance_sampling(kl_divergence)
+
+        self.assertLess(kl_divergence, 0.25)
+
+
+# class ModelRemoteSetDefaultsAndAddressesTestCase(unittest.TestCase):
+#     def __init__(self, *args, **kwargs):
+#         self._model = SetDefaultsAndAddressesCPP
+#         super().__init__(*args, **kwargs)
+#
+#     def test_model_remote_set_defaults_and_addresses_prior(self):
+#         prior_mean_correct = 1
+#         prior_stddev_correct = 3.882074  # Estimate from 100k samples
+#
+#         prior = self._model.prior_distribution(samples)
+#         prior_mean = float(prior.mean)
+#         prior_stddev = float(prior.stddev)
+#         util.debug('samples', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
+#
+#         self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
+#         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
+#
+#     def test_model_remote_set_defaults_and_addresses_addresses(self):
+#         addresses_correct = ['normal1_Normal_1', 'normal1_Normal_2', 'normal2_Normal_replaced']
+#         addresses_all_correct = ['normal1_Normal_1', 'normal1_Normal_2', 'normal2_Normal_replaced', 'normal2_Normal_replaced', 'normal3_Normal_1', 'normal3_Normal_2', 'likelihood_Normal_1']
+#
+#         trace = next(self._model._prior_trace_generator(observation=[0]))
+#         addresses = [s.address for s in trace.samples]
+#         addresses_all = [s.address for s in trace._samples_all]
+#
+#         util.debug('addresses', 'addresses_correct', 'addresses_all', 'addresses_all_correct')
+#
+#         self.assertEqual(addresses, addresses_correct)
+#         self.assertEqual(addresses_all, addresses_all_correct)
 
 
 if __name__ == '__main__':
