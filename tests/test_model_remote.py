@@ -266,7 +266,6 @@ class BranchingTestCase(unittest.TestCase):
         kl_divergence = float(util.kl_divergence_categorical(posterior_correct, posterior))
 
         util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
-        # add_perf_score_importance_sampling(kl_divergence)
 
         self.assertLess(kl_divergence, 0.25)
 
@@ -282,7 +281,6 @@ class BranchingTestCase(unittest.TestCase):
     #     kl_divergence = float(util.kl_divergence_categorical(posterior_correct, posterior))
     #
     #     util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
-    #     add_perf_score_importance_sampling(kl_divergence)
     #
     #     self.assertLess(kl_divergence, 0.25)
 
@@ -297,40 +295,39 @@ class BranchingTestCase(unittest.TestCase):
         kl_divergence = float(util.kl_divergence_categorical(posterior_correct, posterior))
 
         util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
-        # add_perf_score_importance_sampling(kl_divergence)
 
         self.assertLess(kl_divergence, 0.25)
 
 
-# class ModelRemoteSetDefaultsAndAddressesTestCase(unittest.TestCase):
-#     def __init__(self, *args, **kwargs):
-#         self._model = SetDefaultsAndAddressesCPP
-#         super().__init__(*args, **kwargs)
-#
-#     def test_model_remote_set_defaults_and_addresses_prior(self):
-#         prior_mean_correct = 1
-#         prior_stddev_correct = 3.882074  # Estimate from 100k samples
-#
-#         prior = self._model.prior_distribution(samples)
-#         prior_mean = float(prior.mean)
-#         prior_stddev = float(prior.stddev)
-#         util.debug('samples', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
-#
-#         self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
-#         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
-#
-#     def test_model_remote_set_defaults_and_addresses_addresses(self):
-#         addresses_correct = ['normal1_Normal_1', 'normal1_Normal_2', 'normal2_Normal_replaced']
-#         addresses_all_correct = ['normal1_Normal_1', 'normal1_Normal_2', 'normal2_Normal_replaced', 'normal2_Normal_replaced', 'normal3_Normal_1', 'normal3_Normal_2', 'likelihood_Normal_1']
-#
-#         trace = next(self._model._prior_trace_generator(observation=[0]))
-#         addresses = [s.address for s in trace.samples]
-#         addresses_all = [s.address for s in trace._samples_all]
-#
-#         util.debug('addresses', 'addresses_correct', 'addresses_all', 'addresses_all_correct')
-#
-#         self.assertEqual(addresses, addresses_correct)
-#         self.assertEqual(addresses_all, addresses_all_correct)
+class ModelRemoteSetDefaultsAndAddressesTestCase(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        self._model = SetDefaultsAndAddressesCPP
+        super().__init__(*args, **kwargs)
+
+    def test_model_remote_set_defaults_and_addresses_prior(self):
+        prior_mean_correct = 1
+        prior_stddev_correct = 3.882074  # Estimate from 100k samples
+
+        prior = self._model.prior_distribution(samples)
+        prior_mean = float(prior.mean)
+        prior_stddev = float(prior.stddev)
+        util.debug('samples', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
+
+        self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
+        self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
+
+    def test_model_remote_set_defaults_and_addresses_addresses(self):
+        addresses_correct = ['normal1_Normal_1', 'normal1_Normal_2', 'normal2_Normal_replaced']
+        addresses_all_correct = ['normal1_Normal_1', 'normal1_Normal_2', 'normal2_Normal_replaced', 'normal2_Normal_replaced', 'normal3_Normal_1', 'normal3_Normal_2', 'likelihood_Normal_1']
+
+        trace = next(self._model._prior_trace_generator(observation=[0]))
+        addresses = [s.address for s in trace.samples]
+        addresses_all = [s.address for s in trace._samples_all]
+
+        util.debug('addresses', 'addresses_correct', 'addresses_all', 'addresses_all_correct')
+
+        self.assertEqual(addresses, addresses_correct)
+        self.assertEqual(addresses_all, addresses_all_correct)
 
 
 if __name__ == '__main__':
