@@ -292,57 +292,29 @@ class ProposalUniformMixture(nn.Module):
         stddevs = stddevs * prior_stddevs
         distributions = [TruncatedNormal(means[:, i:i+1], stddevs[:, i:i+1], prior_lows, prior_highs) for i in range(self._mixture_components)]
         return Mixture(distributions, coeffs)
-#
-#
-# class ProposalPoisson(nn.Module):
-#     def __init__(self, input_dim):
-#         super().__init__()
-#         self._input_dim = input_dim
-#         self._lin1 = nn.Linear(input_dim, input_dim)
-#         self._lin2 = nn.Linear(input_dim, 2)
-#         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-#         nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
-#
-#     # TODO: implement a better proposal for Poisson
-#     def forward(self, x, samples):
-#         x = F.relu(self._lin1(x))
-#         x = self._lin2(x)
-#         means = x[:, 0].unsqueeze(1)
-#         stddevs = x[:, 1].unsqueeze(1)
-#         stddevs = F.softplus(stddevs)
-#         prior_means = torch.stack([s.distribution.mean[0] for s in samples])
-#         prior_stddevs = torch.stack([s.distribution.stddev[0] for s in samples])
-#         means = prior_means + (means * prior_stddevs)
-#         stddevs = stddevs * prior_stddevs
-#         return TruncatedNormal(means, stddevs, 0, 40, clamp_mean_between_low_high=True)
 
 
 class ProposalPoisson(nn.Module):
-    def __init__(self, input_dim, mixture_components=5):
+    def __init__(self, input_dim):
         super().__init__()
-        self._mixture_components = mixture_components
+        self._input_dim = input_dim
         self._lin1 = nn.Linear(input_dim, input_dim)
-        self._lin2 = nn.Linear(input_dim, 3 * self._mixture_components)
+        self._lin2 = nn.Linear(input_dim, 2)
         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
+    # TODO: implement a better proposal for Poisson
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
         x = self._lin2(x)
-        means = x[:, 0:self._mixture_components]
-        stddevs = x[:, self._mixture_components:2*self._mixture_components]
-        coeffs = x[:, 2*self._mixture_components:3*self._mixture_components]
+        means = x[:, 0].unsqueeze(1)
+        stddevs = x[:, 1].unsqueeze(1)
         stddevs = F.softplus(stddevs)
-        coeffs = F.softmax(coeffs, dim=1)
         prior_means = torch.stack([s.distribution.mean[0] for s in samples])
         prior_stddevs = torch.stack([s.distribution.stddev[0] for s in samples])
-        prior_means = prior_means.expand_as(means)
-        prior_stddevs = prior_stddevs.expand_as(means)
-
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
-        distributions = [TruncatedNormal(means[:, i:i+1], stddevs[:, i:i+1], 0, 40, clamp_mean_between_low_high=True) for i in range(self._mixture_components)]
-        return Mixture(distributions, coeffs)
+        return TruncatedNormal(means, stddevs, 0, 40, clamp_mean_between_low_high=True)
 
 
 class InferenceNetwork(nn.Module):
