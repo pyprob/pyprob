@@ -123,7 +123,7 @@ def to_variable(value, requires_grad=False):
         elif (type(value[0]) is float) or (type(value[0]) is int):
             ret = torch.stack(list(map(lambda x: Variable(Tensor([x]), requires_grad=requires_grad), value))).float().view(-1)
         else:
-            ret = Variable(torch.Tensor(value)).float()
+            ret = Variable(Tensor(value)).float()
     else:
         ret = Variable(Tensor([float(value)]), requires_grad=requires_grad)
     if _cuda_enabled:
@@ -208,7 +208,7 @@ def empirical_to_categorical(empirical_dist, max_val=None):
     empirical_dist = Empirical(empirical_dist.values, clamp_log_prob(torch.log(empirical_dist.weights)), combine_duplicates=True).map(int)
     if max_val is None:
         max_val = int(empirical_dist.max)
-    probs = torch.Tensor(max_val + 1).zero_()
+    probs = Tensor(max_val + 1).zero_()
     for i in range(empirical_dist.length):
         val = empirical_dist.values[i]
         if val <= max_val:

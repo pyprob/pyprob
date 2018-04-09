@@ -133,7 +133,7 @@ def save_report(model, file_name):
 
             for m_name, m in inference_network.named_modules():
                 if (m_name != ''):
-                    regex = r'(sample_embedding_layer\(\S*\)._)|(proposal_layer\(\S*\)._)|(_lstm)'
+                    regex = r'(sample_embedding_layer\(\S*\)._)|(proposal_layer\(\S*\)._)|(_observe_embedding_layer.)|(_lstm)'
                     if len(list(re.finditer(regex, m_name))) > 0:
                     # if ('_observe_embedding_layer.' in m_name) or ('sample_embedding_layer.' in m_name) or ('proposal_layer.' in m_name):
                         doc.append(NoEscape(r'\newpage'))

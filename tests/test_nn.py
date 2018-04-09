@@ -17,8 +17,8 @@ class NNTestCase(unittest.TestCase):
         input_non_batch_shape = [channels, 20, 20]
         output_non_batch_shape_correct = [1, output_dim]
 
-        input_batch = Variable(torch.Tensor(torch.Size(input_batch_shape)))
-        input_non_batch = Variable(torch.Tensor(torch.Size(input_non_batch_shape)))
+        input_batch = Variable(util.Tensor(torch.Size(input_batch_shape)))
+        input_non_batch = Variable(util.Tensor(torch.Size(input_non_batch_shape)))
         nn = ObserveEmbeddingConvNet2D5C(input_example_non_batch=input_non_batch, output_dim=output_dim)
         nn.configure()
         output_batch_shape = list(nn.forward(input_batch).size())
@@ -38,8 +38,8 @@ class NNTestCase(unittest.TestCase):
         input_non_batch_shape = [channels, 16, 16, 16]
         output_non_batch_shape_correct = [1, output_dim]
 
-        input_batch = Variable(torch.Tensor(torch.Size(input_batch_shape)))
-        input_non_batch = Variable(torch.Tensor(torch.Size(input_non_batch_shape)))
+        input_batch = Variable(util.Tensor(torch.Size(input_batch_shape)))
+        input_non_batch = Variable(util.Tensor(torch.Size(input_non_batch_shape)))
         nn = ObserveEmbeddingConvNet3D4C(input_example_non_batch=input_non_batch, output_dim=output_dim)
         nn.configure()
         output_batch_shape = list(nn.forward(input_batch).size())
