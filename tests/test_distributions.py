@@ -74,9 +74,11 @@ class DistributionsTestCase(unittest.TestCase):
         dist_support = dist.support
 
         util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
+
         self.assertEqual(dist_support, constraints.integer_interval)
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertIsInstance(dist_support, constraints.integer_interval)
 
     def test_dist_categorical_batched(self):
         dist_sample_shape_correct = [2]
@@ -91,7 +93,7 @@ class DistributionsTestCase(unittest.TestCase):
 
         util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
 
-        self.assertEqual(dist_support, constraints.integer_interval)
+        self.assertIsInstance(dist_support, constraints.integer_interval)
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
 
@@ -400,7 +402,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_lows, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertEqual(dist_support, constraints.integer_interval)
+        self.assertIsInstance(dist_support, constraints.interval)
 
     def test_dist_uniform_batched(self):
         dist_sample_shape_correct = [2, 1]
@@ -433,7 +435,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_lows, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertEqual(dist_support, constraints.integer_interval)
+        self.assertIsInstance(dist_support, constraints.interval)
 
     def test_dist_poisson(self):
         dist_sample_shape_correct = [1]
