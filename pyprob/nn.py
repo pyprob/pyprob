@@ -186,12 +186,10 @@ class SampleEmbeddingFC(nn.Module):
             if input_dim != 1:
                 raise ValueError('If input_is_one_hot_index=True, input_dim should be 1 (the index of one-hot value in a vector of length input_one_hot_dim)')
             input_dim = input_one_hot_dim
-        self._lin1 = nn.Linear(input_dim, input_dim)
-        self._lin2 = nn.Linear(input_dim, output_dim)
-        self._lin3 = nn.Linear(output_dim, output_dim)
+        self._lin1 = nn.Linear(input_dim, int(output_dim/2))
+        self._lin2 = nn.Linear(int(output_dim/2), output_dim)
         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform(self._lin3.weight, gain=nn.init.calculate_gain('relu'))
 
     def forward(self, x):
         if self._input_is_one_hot_index:
@@ -200,15 +198,14 @@ class SampleEmbeddingFC(nn.Module):
             x = x.view(-1, self._input_dim)
         x = F.relu(self._lin1(x))
         x = F.relu(self._lin2(x))
-        x = F.relu(self._lin3(x))
         return x
 
 
 class ProposalCategorical(nn.Module):
     def __init__(self, input_dim, output_dim):
         super().__init__()
-        self._lin1 = nn.Linear(input_dim, input_dim)
-        self._lin2 = nn.Linear(input_dim, output_dim)
+        self._lin1 = nn.Linear(input_dim, int(input_dim/2))
+        self._lin2 = nn.Linear(int(input_dim/2), output_dim)
         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
@@ -244,8 +241,8 @@ class ProposalUniform(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
         self._input_dim = input_dim
-        self._lin1 = nn.Linear(input_dim, input_dim)
-        self._lin2 = nn.Linear(input_dim, 2)
+        self._lin1 = nn.Linear(input_dim, int(input_dim/2))
+        self._lin2 = nn.Linear(int(input_dim/2), 2)
         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
@@ -333,20 +330,26 @@ class InferenceNetwork(nn.Module):
         self._valid_batch = valid_batch
         self._on_cuda = cuda
         self._cuda_device = device
-        self._total_training_seconds = 0
-        self._total_training_traces = 0
+        self._trained_on = 'CPU'
+        self._total_train_seconds = 0
+        self._total_train_traces = 0
+        self._total_train_iterations = 0
         self._loss_initial = None
         self._loss_min = float('inf')
         self._loss_max = None
         self._loss_previous = float('inf')
-        self._loss_history_training_loss = []
-        self._loss_history_training_traces = []
-        self._loss_history_validation_loss = []
-        self._loss_history_validation_traces = []
+        self._history_train_loss = []
+        self._history_train_loss_trace = []
+        self._history_valid_loss = []
+        self._history_valid_loss_trace = []
+        self._history_num_params = []
+        self._history_num_params_trace = []
+        self._created = util.get_time_str()
         self._modified = util.get_time_str()
         self._updates = 0
         self._pyprob_version = __version__
         self._torch_version = torch.__version__
+        self._optimizer_type = ''
 
         self._state_new_trace = True
         self._state_observes = None
@@ -461,6 +464,14 @@ class InferenceNetwork(nn.Module):
                     self.add_module('proposal_layer({})'.format(address), proposal_layer)
                     print('Polymorphing, new layers for address ({}): {}'.format(len(self._address_embeddings), util.truncate_str(address)))
                     layers_changed = True
+
+        if layers_changed:
+            num_params = 0
+            for p in self.parameters():
+                num_params += p.nelement()
+            print('Polymorphing, new trainable params: {:,}'.format(num_params))
+            self._history_num_params.append(num_params)
+            self._history_num_params_trace.append(self._total_train_traces)
 
         if self._on_cuda:
             self._move_to_cuda(self._cuda_device)
@@ -634,7 +645,9 @@ class InferenceNetwork(nn.Module):
         return True, float(loss)
 
     def optimize(self, new_batch_func, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name):
-        prev_total_training_seconds = self._total_training_seconds
+        self._trained_on = 'CUDA' if util._cuda_enabled else 'CPU'
+        self._optimizer_type = optimizer_type
+        prev_total_train_seconds = self._total_train_seconds
         time_start = time.time()
         time_loss_min = time.time()
         time_last_batch = time.time()
@@ -686,24 +699,25 @@ class InferenceNetwork(nn.Module):
                     time_since_loss_min_str = util.days_hours_mins_secs_str(time.time() - time_loss_min)
 
                 self._loss_previous = loss
+                self._total_train_iterations += 1
                 trace += batch.length
-                self._total_training_traces += batch.length
-                total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_training_traces))
-                self._total_training_seconds = prev_total_training_seconds + (time.time() - time_start)
-                total_training_seconds_str = util.days_hours_mins_secs_str(self._total_training_seconds)
+                self._total_train_traces += batch.length
+                total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
+                self._total_train_seconds = prev_total_train_seconds + (time.time() - time_start)
+                total_training_seconds_str = util.days_hours_mins_secs_str(self._total_train_seconds)
                 traces_per_second_str = '{:,.1f}'.format(int(batch.length / (time.time() - time_last_batch)))
                 time_last_batch = time.time()
                 if num_traces != -1:
                     if trace >= num_traces:
                         stop = True
 
-                self._loss_history_training_loss.append(loss)
-                self._loss_history_training_traces.append(self._total_training_traces)
+                self._history_train_loss.append(loss)
+                self._history_train_loss_trace.append(self._total_train_traces)
                 if trace - last_validation_trace > valid_interval:
                     print('\rComputing validation loss...', end='\r')
-                    valid_loss = self.loss(self._valid_batch)
-                    self._loss_history_validation_loss.append(valid_loss)
-                    self._loss_history_validation_traces.append(self._total_training_traces)
+                    _, valid_loss = self.loss(self._valid_batch)
+                    self._history_valid_loss.append(valid_loss)
+                    self._history_valid_loss_trace.append(self._total_train_traces)
                     last_validation_trace = trace - 1
                     if auto_save:
                         file_name = auto_save_file_name + util.get_time_stamp()
@@ -719,7 +733,6 @@ class InferenceNetwork(nn.Module):
     def _save(self, file_name):
         self._modified = util.get_time_str()
         self._updates += 1
-        self._trained_on = 'CUDA' if util._cuda_enabled else 'CPU'
 
         data = {}
         data['pyprob_version'] = __version__

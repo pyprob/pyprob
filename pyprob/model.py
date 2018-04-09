@@ -17,6 +17,7 @@ from .distributions import Empirical
 from . import state, util, __version__, TraceMode, InferenceEngine, Optimizer
 from .nn import ObserveEmbedding, SampleEmbedding, Batch, InferenceNetwork
 from .remote import ModelServer
+from .analytics import save_report
 
 
 class Model(nn.Module):
@@ -155,7 +156,7 @@ class Model(nn.Module):
 
         return Empirical(results, log_weights)
 
-    def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=256, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=1e-4, num_traces=-1, use_trace_cache=False, auto_save=False, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
+    def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=256, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-4, num_traces=-1, use_trace_cache=False, auto_save=False, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
         if use_trace_cache and self._trace_cache_path is None:
             print('Warning: There is no trace cache assigned, training with online trace generation.')
             use_trace_cache = False
@@ -306,6 +307,11 @@ class Model(nn.Module):
             print(colored('Warning: different PyTorch versions (loaded traces: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
 
         return data['traces']
+
+    def save_analytics(self, file_name):
+        if self._inference_network is None:
+            raise RuntimeError('Analytics is currently available only with a trained inference network. Use learn_inference_network first.')
+        save_report(self, file_name)
 
 
 class ModelRemote(Model):

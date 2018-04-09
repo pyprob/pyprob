@@ -10,6 +10,10 @@ import math
 from termcolor import colored
 import enum
 
+import matplotlib
+matplotlib.use('Agg') # Do not use X server
+import matplotlib.pyplot as plt
+
 from .distributions import Empirical, Categorical
 
 
@@ -275,3 +279,22 @@ def safe_torch_sum(t, *args, **kwargs):
             return Variable(torch.Tensor([t.data.sum(*args, **kwargs)]))
         else:
             raise TypeError('Expecting a Variable.')
+
+
+def weights_to_image(w):
+    if not isinstance(w, np.ndarray):
+        w = w.data.cpu().numpy()
+    if w.ndim == 1:
+        w = np.expand_dims(w, 1)
+    if w.ndim > 2:
+        c = w.shape[0]
+        w = np.reshape(w, (c,-1))
+    w_min = w.min()
+    w_max = w.max()
+    w -= w_min
+    w *= (1/(w_max - w_min + _epsilon))
+    cmap = plt.get_cmap('jet')
+    rgba_img = cmap(w)
+    rgb_img = np.delete(rgba_img, 3,2)
+    rgb_img = np.transpose(rgb_img,(2,0,1))
+    return rgb_img
