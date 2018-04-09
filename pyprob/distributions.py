@@ -13,7 +13,7 @@ import numpy as np
 import random
 from threading import Thread
 from termcolor import colored
-
+from pyprob import constraints
 from . import util, __version__
 
 
@@ -255,6 +255,8 @@ class Empirical(Distribution):
 
 
 class Categorical(Distribution):
+    arg_constraints = {'probs': constraints.simplex}
+
     def __init__(self, probs):
         self._probs = util.to_variable(probs)
         if self._probs.dim() == 1:
@@ -270,6 +272,10 @@ class Categorical(Distribution):
             raise ValueError('Expecting 1d or 2d (batched) probabilities.')
         self._probs = self._probs / self._probs.sum(-1, keepdim=True)
         super().__init__('Categorical', 'Categorical(length_categories:{})'.format(self.length_categories), torch.distributions.Categorical(probs=self._probs))
+
+    @constraints.dependent_property
+    def support(self):
+        return constraints.integer_interval(0, self.length_categories - 1)
 
     def __repr__(self):
         return 'Categorical(probs:{}, length_variates:{}, length_batch:{})'.format(self._probs, self.length_variates, self.length_batch)
@@ -362,9 +368,12 @@ class Mixture(Distribution):
 
 
 class Normal(Distribution):
+    arg_constraints = {'loc': constraints.real, 'scale': constraints.positive}
+    support = constraints.real
     def __init__(self, mean, stddev):
         self._mean = util.to_variable(mean)
         self._stddev = util.to_variable(stddev)
+
         if self._mean.dim() == 1:
             self.length_variates = self._mean.size(0)
             self.length_batch = 1
@@ -494,6 +503,7 @@ class TruncatedNormal(Distribution):
 
 # Temporary: this needs to be based on torch.distributions.Uniform when the new PyTorch version is released
 class Uniform(Distribution):
+    arg_constraints = {'low': constraints.dependent, 'high': constraints.dependent}
     def __init__(self, low, high):
         self._low = util.to_variable(low)
         self._high = util.to_variable(high)
@@ -506,6 +516,10 @@ class Uniform(Distribution):
         self._mean = (self._high + self._low) / 2
         self._variance = (self._high - self._low).pow(2) / 12
         super().__init__('Uniform', 'Uniform')
+
+    @constraints.dependent_property
+    def support(self):
+        return constraints.interval(self._low, self._high)
 
     def __repr__(self):
         return 'Uniform(low: {}, high:{}, length_variates:{}, length_batch:{})'.format(self._low, self._high, self.length_variates, self.length_batch)
@@ -547,6 +561,8 @@ class Uniform(Distribution):
 
 # Temporary: this needs to be based on torch.distributions.Poisson when the new PyTorch version is released
 class Poisson(Distribution):
+    arg_constraints = {'rate': constraints.positive}
+    support = constraints.nonnegative_integer
     def __init__(self, rate):
         self._rate = util.to_variable(rate)
         if self._rate.dim() == 1:
