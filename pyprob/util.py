@@ -276,7 +276,7 @@ def safe_torch_sum(t, *args, **kwargs):
     except RuntimeError:
         print('Warning: torch.sum error (RuntimeError: value cannot be converted to type double without overflow) encountered, using tensor sum. Any gradient information through this variable will be lost.')
         if isinstance(t, Variable):
-            return Variable(torch.Tensor([t.data.sum(*args, **kwargs)]))
+            return Variable(Tensor([t.data.sum(*args, **kwargs)]))
         else:
             raise TypeError('Expecting a Variable.')
 
