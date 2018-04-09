@@ -160,6 +160,8 @@ class Empirical(Distribution):
             weights = torch.cat(weights)
         self.length = len(values)
         self.weights, indices = torch.sort(weights, descending=True)
+        # print(weights)
+        # print(indices)
         self.values = [values[int(i)] for i in indices]
         self.weights_numpy = self.weights.data.cpu().numpy()
         self.weights_numpy_cumsum = (self.weights_numpy / self.weights_numpy.sum()).cumsum()
@@ -547,13 +549,18 @@ class Uniform(Distribution):
 class Poisson(Distribution):
     def __init__(self, rate):
         self._rate = util.to_variable(rate)
-        self._rate_numpy = self._rate.data.cpu().numpy()
         if self._rate.dim() == 1:
             self.length_variates = self._rate.size(0)
             self.length_batch = 1
+            if self._rate.size(0) > 1:
+                self._rate = self._rate.unsqueeze(0)
         elif self._rate.dim() == 2:
             self.length_variates = self._rate.size(1)
             self.length_batch = self._rate.size(0)
+        else:
+            print(self._rate.size())
+            raise RuntimeError('Expecting 1d or 2d (batched) probabilities.')
+        self._rate_numpy = self._rate.data.cpu().numpy()
         super().__init__('Poisson', 'Poisson')
 
     def __repr__(self):
@@ -561,17 +568,22 @@ class Poisson(Distribution):
 
     def sample(self):
         ret = util.to_variable(np.random.poisson(self._rate_numpy))
-        if self.length_batch == 1:
-            ret = ret.squeeze(0)
+        # if self.length_batch == 1:
+        #     ret = ret.squeeze(0)
+        # elif self.length_batch > 1 and ret.dim() == 1 and self.length_variates == 1:
+        #     ret = ret.unsqueeze(1)
         return ret
 
     def log_prob(self, value):
         value = util.to_variable(value)
         value = value.view(self.length_batch, self.length_variates)
-        ret = (self._rate.log() * value) - self._rate - (value + 1).lgamma()
-        if self.length_batch == 1:
-            ret = ret.squeeze(0)
-        return ret
+        print('valuesize', value.size())
+        lp = (self._rate.log() * value) - self._rate - (value + 1).lgamma()
+        if lp.dim() == 2 and self.length_variates > 1:
+            lp = util.safe_torch_sum(lp, dim=1)
+        if self.length_batch > 1 and self.length_variates > 1:
+            lp = lp.unsqueeze(1)
+        return lp
 
     @property
     def mean(self):
