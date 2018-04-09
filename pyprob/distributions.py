@@ -577,7 +577,6 @@ class Poisson(Distribution):
     def log_prob(self, value):
         value = util.to_variable(value)
         value = value.view(self.length_batch, self.length_variates)
-        print('valuesize', value.size())
         lp = (self._rate.log() * value) - self._rate - (value + 1).lgamma()
         if lp.dim() == 2 and self.length_variates > 1:
             lp = util.safe_torch_sum(lp, dim=1)
