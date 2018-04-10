@@ -298,3 +298,81 @@ def weights_to_image(w):
     rgb_img = np.delete(rgba_img, 3,2)
     rgb_img = np.transpose(rgb_img,(2,0,1))
     return rgb_img
+
+def _broadcast_shape(shapes):
+    r"""
+    Given a list of tensor sizes, returns the size of the resulting broadcasted
+    tensor.
+    Args:
+        shapes (list of torch.Size): list of tensor sizes
+    """
+    shape = torch.Size()
+    for s in shapes:
+        shape = torch._C._infer_size(s, shape)
+    return shape
+
+def broadcast_all(*values):
+    r"""
+    Given a list of values (possibly containing numbers), returns a list where each
+    value is broadcasted based on the following rules:
+      - `torch.Tensor` and `torch.autograd.Variable` instances are broadcasted as
+        per the `broadcasting rules
+        <http://pytorch.org/docs/master/notes/broadcasting.html>`_
+      - numbers.Number instances (scalars) are upcast to Variables having
+        the same size and type as the first tensor passed to `values`.  If all the
+        values are scalars, then they are upcasted to Variables having size
+        `(1,)`.
+    Args:
+        values (list of `numbers.Number` or `torch.Tensor`)
+    Raises:
+        ValueError: if any of the values is not a `numbers.Number`, `torch.Tensor`
+            or `torch.autograd.Variable` instance
+    """
+    values = list(values)
+    scalar_idxs = [i for i in range(len(values)) if isinstance(values[i], Number)]
+    tensor_idxs = [i for i in range(len(values)) if isinstance(values[i], torch.Tensor)]
+    if len(scalar_idxs) + len(tensor_idxs) != len(values):
+        raise ValueError('Input arguments must all be instances of numbers.Number or torch.Tensor.')
+    if tensor_idxs:
+        broadcast_shape = _broadcast_shape([values[i].size() for i in tensor_idxs])
+        for idx in tensor_idxs:
+            values[idx] = values[idx].expand(broadcast_shape)
+        template = values[tensor_idxs[0]]
+        if len(scalar_idxs) > 0 and not isinstance(template, torch.autograd.Variable):
+            raise ValueError(('Input arguments containing instances of numbers.Number and torch.Tensor '
+                              'are not currently supported.  Use torch.autograd.Variable instead of torch.Tensor'))
+        for idx in scalar_idxs:
+            values[idx] = template.new(template.size()).fill_(values[idx])
+    else:
+        for idx in scalar_idxs:
+            values[idx] = torch.tensor(float(values[idx]))
+    return values
+
+class lazy_property(object):
+    r"""
+    Used as a decorator for lazy loading of class attributes. This uses a
+    non-data descriptor that calls the wrapped method to compute the property on
+    first call; thereafter replacing the wrapped method into an instance
+    attribute.
+    """
+    def __init__(self, wrapped):
+        self.wrapped = wrapped
+        update_wrapper(self, wrapped)
+
+    def __get__(self, instance, obj_type=None):
+        if instance is None:
+            return self
+        value = self.wrapped(instance)
+        setattr(instance, self.wrapped.__name__, value)
+        return value
+
+def _sum_rightmost(value, dim):
+    r"""
+    Sum out ``dim`` many rightmost dimensions of a given tensor.
+    Args:
+        value (Tensor): A tensor of ``.dim()`` at least ``dim``.
+        dim (int): The number of rightmost dims to sum out.
+    """
+    if dim == 0:
+        return value
+    return value.contiguous().view(value.shape[:-dim] + (-1,)).sum(-1)

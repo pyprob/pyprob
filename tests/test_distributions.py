@@ -10,7 +10,7 @@ import math
 import pyprob
 from pyprob import util
 from pyprob.distributions import Distribution, Categorical, Empirical, Mixture, Normal, TruncatedNormal, Uniform, Poisson
-
+from pyprob import constraints
 
 empirical_samples = 10000
 
@@ -66,29 +66,34 @@ class DistributionsTestCase(unittest.TestCase):
     def test_dist_categorical(self):
         dist_sample_shape_correct = [1]
         dist_log_probs_correct = [-2.30259]
-
-        dist = Categorical([0.1, 0.2, 0.7])
+        probs = [0.1,0.2,0.7]
+        dist = Categorical(probs=probs)
 
         dist_sample_shape = list(dist.sample().size())
         dist_log_probs = util.to_numpy(dist.log_prob(0))
+        dist_support = dist.support
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
 
+        # self.assertEqual(dist_support, constraints.integer_interval)
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        # self.assertIsInstance(dist_support, constraints.integer_interval)
 
     def test_dist_categorical_batched(self):
         dist_sample_shape_correct = [2]
         dist_log_probs_correct = [[-2.30259], [-0.693147]]
-
-        dist = Categorical([[0.1, 0.2, 0.7],
-                            [0.2, 0.5, 0.3]])
+        probs = [[0.1, 0.2, 0.7],
+                [0.2, 0.5, 0.3]]
+        dist = Categorical(probs=probs)
 
         dist_sample_shape = list(dist.sample().size())
         dist_log_probs = util.to_numpy(dist.log_prob([[0, 1]]))
+        dist_support = dist.support
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
 
+        self.assertIsInstance(dist_support, constraints.integer_interval)
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
 
@@ -163,8 +168,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
+        dist_support = dist.support
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_support')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
@@ -172,6 +178,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertEqual(dist_support, constraints.real)
 
     def test_dist_normal_batched(self):
         dist_sample_shape_correct = [2, 1]
@@ -187,8 +194,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
+        dist_support = dist.support
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_support')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
@@ -196,6 +204,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertEqual(dist_support, constraints.real)
 
     def test_dist_normal_multivariate(self):
         dist_sample_shape_correct = [1, 3]
@@ -211,8 +220,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
+        dist_support = dist.support
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
@@ -220,6 +230,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertEqual(dist_support, constraints.real)
 
     def test_dist_normal_multivariate_from_flat_params(self):
         dist_sample_shape_correct = [1, 3]
@@ -235,8 +246,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct[0]))
+        dist_support = dist.support
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
@@ -244,6 +256,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertEqual(dist_support, constraints.real)
 
     def test_dist_normal_multivariate_batched(self):
         dist_sample_shape_correct = [2, 3]
@@ -259,8 +272,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
+        dist_support = dist.support
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_support')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
@@ -268,6 +282,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertEqual(dist_support, constraints.real)
 
     def test_dist_truncated_normal(self):
         dist_sample_shape_correct = [1]
@@ -374,10 +389,10 @@ class DistributionsTestCase(unittest.TestCase):
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
-
+        dist_support = dist.support
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_lows', 'dist_lows_correct', 'dist_highs', 'dist_highs_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_lows', 'dist_lows_correct', 'dist_highs', 'dist_highs_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_support')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
@@ -387,6 +402,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_lows, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertIsInstance(dist_support, constraints.interval)
 
     def test_dist_uniform_batched(self):
         dist_sample_shape_correct = [2, 1]
@@ -406,8 +422,10 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
+        dist_support = dist.support
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_lows', 'dist_lows_correct', 'dist_highs', 'dist_highs_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_lows', 'dist_lows_correct', 'dist_highs', 'dist_highs_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_support')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
@@ -417,6 +435,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_lows, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertIsInstance(dist_support, constraints.interval)
 
     def test_dist_poisson(self):
         dist_sample_shape_correct = [1]
@@ -433,10 +452,11 @@ class DistributionsTestCase(unittest.TestCase):
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
+        dist_support = dist.support
 
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_support')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
@@ -445,6 +465,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_rates, dist_rates_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertEqual(dist_support, constraints.nonnegative_integer)
 
     def test_dist_poisson_batched(self):
         dist_sample_shape_correct = [2, 1]
@@ -464,7 +485,8 @@ class DistributionsTestCase(unittest.TestCase):
 
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        dist_support = dist.support
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
@@ -473,6 +495,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_rates, dist_rates_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertEqual(dist_support, constraints.nonnegative_integer)
 
     def test_dist_poisson_multivariate(self):
         dist_sample_shape_correct = [1, 3]
@@ -492,7 +515,9 @@ class DistributionsTestCase(unittest.TestCase):
 
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        dist_support = dist.support
+
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
@@ -501,6 +526,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_rates, dist_rates_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertEqual(dist_support, constraints.nonnegative_integer)
 
     def test_dist_poisson_multivariate_from_flat_params(self):
         dist_sample_shape_correct = [1, 3]
@@ -517,10 +543,11 @@ class DistributionsTestCase(unittest.TestCase):
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
+        dist_support = dist.support
 
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_support', 'dist_log_probs_correct')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
@@ -529,6 +556,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_rates, dist_rates_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertEqual(dist_support, constraints.nonnegative_integer)
 
     def test_dist_poisson_multivariate_batched(self):
         dist_sample_shape_correct = [2, 3]
@@ -545,10 +573,11 @@ class DistributionsTestCase(unittest.TestCase):
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
+        dist_support = dist.support
 
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_support','dist_log_probs', 'dist_log_probs_correct')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
@@ -557,6 +586,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_rates, dist_rates_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertEqual(dist_support, constraints.nonnegative_integer)
 
     def test_dist_empirical_save_load(self):
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
