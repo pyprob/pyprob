@@ -93,7 +93,7 @@ class Model(nn.Module):
             ret.append(next(generator))
         if util.verbosity > 1:
             print()
-        return Empirical(ret)
+        return Empirical(ret, name='Prior, num_traces={}'.format(num_traces))
 
     def posterior_distribution(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, burn_in=None, *args, **kwargs):
         if (inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (self._inference_network is None):
@@ -110,12 +110,14 @@ class Model(nn.Module):
             ret = [list(t) for t in zip(*ret)]
             log_weights = ret[0]
             results = ret[1]
+            name = 'Posterior, importance sampling (with prior), num_traces={}'.format(num_traces)
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             self._inference_network.eval()
             ret = self._prior_traces(num_traces, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, inference_network=self._inference_network, map_func=lambda trace: (trace.log_importance_weight, trace.result), *args, **kwargs)
             ret = [list(t) for t in zip(*ret)]
             log_weights = ret[0]
             results = ret[1]
+            name = 'Posterior, importance sampling (with learned proposal), num_traces={}'.format(num_traces)
         else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS
             results = []
             current_trace = next(self._prior_trace_generator(trace_mode=TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS, *args, **kwargs))
@@ -153,8 +155,9 @@ class Model(nn.Module):
             if burn_in is not None:
                 results = results[burn_in:]
             log_weights = None
+            name = 'Posterior, Metropolis Hastings, num_traces={}, burn_in={}, accepted={:,.2f}%, sample_reuse={:,.2f}%'.format(num_traces, burn_in, 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all)
 
-        return Empirical(results, log_weights)
+        return Empirical(results, log_weights, name=name)
 
     def learn_inference_network(self, lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=256, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-4, num_traces=-1, use_trace_cache=False, auto_save=False, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
         if use_trace_cache and self._trace_cache_path is None:

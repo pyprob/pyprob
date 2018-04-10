@@ -121,7 +121,7 @@ class Distribution(object):
 
 
 class Empirical(Distribution):
-    def __init__(self, values, log_weights=None, combine_duplicates=False):
+    def __init__(self, values, log_weights=None, combine_duplicates=False, name='Empirical'):
         length = len(values)
         if log_weights is None:
             # assume uniform distribution if no weights are given
@@ -178,16 +178,16 @@ class Empirical(Distribution):
         self._max = None
         self._mean = None
         self._variance = None
-        super().__init__('Empirical')
+        super().__init__(name)
 
     def __len__(self):
         return self.length
 
     def __repr__(self):
         try:
-            return 'Empirical(length:{}, mean:{}, stddev:{})'.format(self.length, self.mean, self.stddev)
+            return 'Empirical(name:{}, length:{}, mean:{}, stddev:{})'.format(self.name, self.length, self.mean, self.stddev)
         except RuntimeError:
-            return 'Empirical(length:{})'.format(self.length)
+            return 'Empirical(name:{}, length:{})'.format(self.name, self.length)
 
     def sample(self):
         if self._uniform_weights:
