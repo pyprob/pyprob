@@ -492,7 +492,7 @@ class InferenceNetwork(nn.Module):
             prev_sample_embedding = util.to_variable(torch.zeros(1, self._sample_embedding_dim))
             prev_addres_embedding = self._address_embedding_empty
             prev_distribution_type_embedding = self._distribution_type_embedding_empty
-            h0 = util.to_variable(torch.zeros(self._lstm_depth, 1, self._lstm_dim))
+            h0 = util.to_variable(torch.zeros(self._lstm_depth, 1, self._lstm_dim), volatile=True)
             self._state_lstm_hidden_state = (h0, h0)
             self._state_new_trace = False
         else:

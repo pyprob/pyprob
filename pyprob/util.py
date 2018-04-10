@@ -105,27 +105,27 @@ def set_inference_network_training_mode(mode=InferenceNetworkTrainingMode.USE_OB
     inference_network_training_mode = mode
 
 
-def to_variable(value, requires_grad=False):
+def to_variable(value, *args, **kwargs):
     ret = None
     if isinstance(value, Variable):
         ret = value
     elif torch.is_tensor(value):
-        ret = Variable(value.float(), requires_grad=requires_grad)
+        ret = Variable(value.float(), *args, **kwargs)
     elif isinstance(value, np.ndarray):
-        ret = Variable(torch.from_numpy(value.astype(float)).float(), requires_grad=requires_grad)
+        ret = Variable(torch.from_numpy(value.astype(float)).float(), *args, **kwargs)
     elif value is None:
         ret = None
     elif isinstance(value, (list, tuple)):
         if isinstance(value[0], Variable):
             ret = torch.stack(value).float()
         elif torch.is_tensor(value[0]):
-            ret = torch.stack(list(map(lambda x: Variable(x, requires_grad=requires_grad), value))).float()
+            ret = torch.stack(list(map(lambda x: Variable(x, *args, **kwargs), value))).float()
         elif (type(value[0]) is float) or (type(value[0]) is int):
-            ret = torch.stack(list(map(lambda x: Variable(Tensor([x]), requires_grad=requires_grad), value))).float().view(-1)
+            ret = torch.stack(list(map(lambda x: Variable(Tensor([x]), *args, **kwargs), value))).float().view(-1)
         else:
             ret = Variable(Tensor(value)).float()
     else:
-        ret = Variable(Tensor([float(value)]), requires_grad=requires_grad)
+        ret = Variable(Tensor([float(value)]), *args, **kwargs)
     if _cuda_enabled:
         return ret.cuda()
     else:
