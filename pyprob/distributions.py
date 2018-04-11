@@ -491,7 +491,7 @@ class TruncatedNormal(Distribution):
             ret = self._standard_normal_dist.icdf(self._standard_normal_cdf_alpha + rand * (self._standard_normal_cdf_beta - self._standard_normal_cdf_alpha)) * self._stddev_non_truncated + self._mean_non_truncated
             lb = ret.ge(self._low).type_as(self._low)
             ub = ret.lt(self._high).type_as(self._low)
-            outside_domain = (float(lb.mul(ub)) == 0.)
+            outside_domain = (float(util.safe_torch_sum(lb.mul(ub))) == 0.)
 
         if self.length_batch == 1:
             ret = ret.squeeze(0)
