@@ -479,16 +479,19 @@ class TruncatedNormal(Distribution):
 
     def sample(self):
         shape = self._low.size()
-
         attempt_count = 0
         ret = torch.zeros(shape).fill_(float('NaN'))
-        while util.has_nan_or_inf(ret):
+        outside_domain = True
+        while util.has_nan_or_inf(ret) or outside_domain:
             attempt_count += 1
             if (attempt_count == 10000):
                 print('Warning: trying to sample from the tail of a truncated normal distribution, which can take a long time. A more efficient implementation is pending.')
-
             rand = util.to_variable(torch.zeros(shape).uniform_())
             ret = self._standard_normal_dist.icdf(self._standard_normal_cdf_alpha + rand * (self._standard_normal_cdf_beta - self._standard_normal_cdf_alpha)) * self._stddev_non_truncated + self._mean_non_truncated
+            lb = ret.ge(self._low).type_as(self._low)
+            ub = ret.lt(self._high).type_as(self._low)
+            outside_domain = (float(lb.mul(ub)) == 0.)
+
         if self.length_batch == 1:
             ret = ret.squeeze(0)
         return ret
