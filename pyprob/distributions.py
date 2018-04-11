@@ -394,6 +394,7 @@ class Normal(Distribution):
         return self._mean + self._stddev * torch.erfinv(2 * value - 1) * math.sqrt(2)
 
 
+# Beware: clamp_mean_between_low_high=True prevents derivatives with respect to mean when it's outside [low, high]
 class TruncatedNormal(Distribution):
     def __init__(self, mean_non_truncated, stddev_non_truncated, low, high, clamp_mean_between_low_high=False):
         self._mean_non_truncated = util.to_variable(mean_non_truncated)
