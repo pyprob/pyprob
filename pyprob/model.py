@@ -117,7 +117,7 @@ class Model(nn.Module):
             ret = [list(t) for t in zip(*ret)]
             log_weights = ret[0]
             results = ret[1]
-            name = 'Posterior, importance sampling (with learned proposal), num_traces={}'.format(num_traces)
+            name = 'Posterior, importance sampling (with learned proposal, training_traces={}), num_traces={}'.format(self._inference_network._total_train_traces, num_traces)
         else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS
             results = []
             current_trace = next(self._prior_trace_generator(trace_mode=TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS, *args, **kwargs))
