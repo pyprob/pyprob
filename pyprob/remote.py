@@ -193,8 +193,8 @@ class ModelServer(object):
                 if distribution_type == PPLProtocol_Distribution.Distribution().Uniform:
                     uniform = PPLProtocol_Uniform.Uniform()
                     uniform.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
-                    low = uniform.Low()
-                    high = uniform.High()
+                    low = self._protocol_tensor_to_variable(uniform.Low())
+                    high = self._protocol_tensor_to_variable(uniform.High())
                     dist = Uniform(low, high)
                 elif distribution_type == PPLProtocol_Distribution.Distribution().Normal:
                     normal = PPLProtocol_Normal.Normal()
@@ -210,7 +210,7 @@ class ModelServer(object):
                 elif distribution_type == PPLProtocol_Distribution.Distribution().Poisson:
                     poisson = PPLProtocol_Poisson.Poisson()
                     poisson.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
-                    rate = poisson.Rate()
+                    rate = self._protocol_tensor_to_variable(poisson.Rate())
                     dist = Poisson(rate)
                 else:
                     raise RuntimeError('PPLProtocol (Python): Sample from an unexpected distribution requested.')
@@ -237,8 +237,8 @@ class ModelServer(object):
                 if distribution_type == PPLProtocol_Distribution.Distribution().Uniform:
                     uniform = PPLProtocol_Uniform.Uniform()
                     uniform.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
-                    low = uniform.Low()
-                    high = uniform.High()
+                    low = self._protocol_tensor_to_variable(uniform.Low())
+                    high = self._protocol_tensor_to_variable(uniform.High())
                     dist = Uniform(low, high)
                 elif distribution_type == PPLProtocol_Distribution.Distribution().Normal:
                     normal = PPLProtocol_Normal.Normal()
@@ -254,7 +254,7 @@ class ModelServer(object):
                 elif distribution_type == PPLProtocol_Distribution.Distribution().Poisson:
                     poisson = PPLProtocol_Poisson.Poisson()
                     poisson.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
-                    rate = poisson.Rate()
+                    rate = self._protocol_tensor_to_variable(poisson.Rate())
                     dist = Poisson(rate)
                 else:
                     raise RuntimeError('PPLProtocol (Python): Sample from an unexpected distribution requested.')

@@ -15,7 +15,7 @@ import shutil
 import os
 import tarfile
 
-from . import util, __version__, ObserveEmbedding, SampleEmbedding, Optimizer
+from . import util, __version__, ObserveEmbedding, SampleEmbedding, Optimizer, TrainingObservation
 from .distributions import Categorical, Mixture, Normal, TruncatedNormal, Uniform, Poisson
 
 
@@ -25,15 +25,12 @@ class Batch(object):
         self.length = len(traces)
         self.traces_lengths = []
         self.traces_max_length = 0
-        self.observes_max_length = 0
         sb = {}
         for trace in traces:
             if trace.length == 0:
                 raise ValueError('Trace of length zero')
             if trace.length > self.traces_max_length:
                 self.traces_max_length = trace.length
-            if trace._inference_network_training_observes_variable.size(0) > self.observes_max_length:
-                self.observes_max_length = trace._inference_network_training_observes_variable.size(0)
             h = hash(trace.addresses())
             if h not in sb:
                 sb[h] = []
@@ -364,7 +361,7 @@ class InferenceNetwork(nn.Module):
 
         self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
         self._lstm = nn.LSTM(self._lstm_input_dim, self._lstm_dim, self._lstm_depth)
-        example_observes = self._valid_batch[0]._inference_network_training_observes_variable  # To do: we need to check all the observes in the batch, to be more intelligent
+        example_observes = self._valid_batch[0].pack_observes()  # To do: we need to check all the observes in the batch, to be more intelligent
         if self._observe_embedding == ObserveEmbedding.FULLY_CONNECTED:
             self._observe_embedding_layer = ObserveEmbeddingFC(example_observes, self._observe_embedding_dim)
         elif self._observe_embedding == ObserveEmbedding.CONVNET_2D_5C:
@@ -493,7 +490,8 @@ class InferenceNetwork(nn.Module):
             prev_addres_embedding = self._address_embedding_empty
             prev_distribution_type_embedding = self._distribution_type_embedding_empty
             h0 = util.to_variable(torch.zeros(self._lstm_depth, 1, self._lstm_dim), volatile=True)
-            self._state_lstm_hidden_state = (h0, h0)
+            c0 = util.to_variable(torch.zeros(self._lstm_depth, 1, self._lstm_dim), volatile=True)
+            self._state_lstm_hidden_state = (h0, c0)
             self._state_new_trace = False
         else:
             prev_address = previous_sample.address
@@ -548,18 +546,18 @@ class InferenceNetwork(nn.Module):
             print('Warning: no proposal could be made, prior will be used')
             return current_distribution
 
-    def loss(self, batch, optimizer=None):
+    def loss(self, batch, optimizer=None, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE):
         gc.collect()
 
-        obs = torch.stack([b._inference_network_training_observes_variable for b in batch])
-        obs_emb = self._observe_embedding_layer(obs)
-        for b in range(batch.length):
-            batch[b]._inference_network_training_observes_embedding = obs_emb[b]
-
+        batch_loss = 0
         for sub_batch in batch.sub_batches:
+            obs = torch.stack([trace.pack_observes() for trace in sub_batch])
+            obs_emb = self._observe_embedding_layer(obs)
+
             sub_batch_length = len(sub_batch)
             example_trace = sub_batch[0]
 
+            lstm_input = []
             for time_step in range(example_trace.length):
                 current_sample = example_trace.samples[time_step]
                 current_address = current_sample.address
@@ -580,71 +578,50 @@ class InferenceNetwork(nn.Module):
                     prev_addres_embedding = self._address_embeddings[prev_address]
                     prev_distribution_type_embedding = self._distribution_type_embeddings[prev_distribution.name]
 
+                lstm_input_time_step = []
                 for b in range(sub_batch_length):
-                    t = torch.cat([sub_batch[b]._inference_network_training_observes_embedding,
+                    t = torch.cat([obs_emb[b],
                                    prev_sample_embedding[b],
                                    prev_distribution_type_embedding,
                                    prev_addres_embedding,
                                    current_distribution_type_embedding,
                                    current_addres_embedding])
-                    sub_batch[b].samples[time_step].lstm_input = t
+                    lstm_input_time_step.append(t)
+                lstm_input.append(torch.stack(lstm_input_time_step))
 
-        lstm_input = []
-        for time_step in range(batch.traces_max_length):
-            t = []
-            for b in range(batch.length):
-                trace = batch[b]
-                if time_step < trace.length:
-                    t.append(trace.samples[time_step].lstm_input)
-                else:
-                    t.append(util.to_variable(torch.zeros(self._lstm_input_dim)))
-            t = torch.cat(t).view(batch.length, -1)
-            lstm_input.append(t)
-        lstm_input = torch.cat(lstm_input).view(batch.traces_max_length, batch.length, -1)
-        lstm_input = nn.utils.rnn.pack_padded_sequence(lstm_input, batch.traces_lengths)
+            lstm_input = torch.stack(lstm_input)
 
-        h0 = util.to_variable(torch.zeros(self._lstm_depth, batch.length, self._lstm_dim))
-        lstm_output, _ = self._lstm(lstm_input, (h0, h0))
-        lstm_output, _ = nn.utils.rnn.pad_packed_sequence(lstm_output)
+            h0 = util.to_variable(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
+            c0 = util.to_variable(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
+            lstm_output, _ = self._lstm(lstm_input, (h0, c0))
 
-        for b in range(batch.length):
-            trace = batch[b]
-            for time_step in range(trace.length):
-                trace.samples[time_step].lstm_output = lstm_output[time_step, b]
-
-        log_prob = 0
-        for sub_batch in batch.sub_batches:
-            sub_batch_length = len(sub_batch)
-            example_trace = sub_batch[0]
-
+            log_prob = 0
             for time_step in range(example_trace.length):
                 current_sample = example_trace.samples[time_step]
                 current_address = current_sample.address
 
-                p = []
-                for b in range(sub_batch_length):
-                    p.append(sub_batch[b].samples[time_step].lstm_output)
-                proposal_input = torch.cat(p).view(sub_batch_length, -1)
+                proposal_input = lstm_output[time_step]
 
                 current_samples = [trace.samples[time_step] for trace in sub_batch]
                 current_samples_values = torch.stack([s.value for s in current_samples])
                 proposal_distribution = self._proposal_layers[current_address](proposal_input, current_samples)
                 l = proposal_distribution.log_prob(current_samples_values)
                 if util.has_nan_or_inf(l):
-                    print('Warning: NaN or Inf encountered proposal log_prob.')
+                    print('Warning: NaN or Inf encountered in proposal log_prob.')
                     return False, 0
                 log_prob += util.safe_torch_sum(l)
 
-        loss = -log_prob / batch.length
+            sub_batch_loss = -log_prob / sub_batch_length
+            batch_loss += float(sub_batch_loss * sub_batch_length)
 
-        if optimizer is not None:
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            if optimizer is not None:
+                optimizer.zero_grad()
+                sub_batch_loss.backward()
+                optimizer.step()
 
-        return True, float(loss)
+        return True, batch_loss / batch.length
 
-    def optimize(self, new_batch_func, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name):
+    def optimize(self, new_batch_func, training_observation, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name):
         self._trained_on = 'CUDA' if util._cuda_enabled else 'CPU'
         self._optimizer_type = optimizer_type
         prev_total_train_seconds = self._total_train_seconds

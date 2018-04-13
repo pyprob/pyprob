@@ -52,9 +52,9 @@ class Optimizer(enum.Enum):
     SGD = 1
 
 
-class InferenceNetworkTrainingMode(enum.Enum):
-    USE_OBSERVE_DIST_SAMPLE = 0
-    USE_OBSERVE_DIST_MEAN = 1
+class TrainingObservation(enum.Enum):
+    OBSERVE_DIST_SAMPLE = 0
+    OBSERVE_DIST_MEAN = 1
 
 
 def set_random_seed(seed=123):
@@ -95,14 +95,6 @@ verbosity = 2
 def set_verbosity(v=2):
     global verbosity
     verbosity = v
-
-
-inference_network_training_mode = InferenceNetworkTrainingMode.USE_OBSERVE_DIST_SAMPLE
-
-
-def set_inference_network_training_mode(mode=InferenceNetworkTrainingMode.USE_OBSERVE_DIST_SAMPLE):
-    global inference_network_training_mode
-    inference_network_training_mode = mode
 
 
 def to_variable(value, *args, **kwargs):

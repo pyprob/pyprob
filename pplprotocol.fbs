@@ -72,8 +72,8 @@ table Normal {
 }
 
 table Uniform {
-  low: double;
-  high: double;
+  low: ProtocolTensor;
+  high: ProtocolTensor;
 }
 
 table Categorical {
@@ -81,7 +81,7 @@ table Categorical {
 }
 
 table Poisson {
-  rate: double;
+  rate: ProtocolTensor;
 }
 
 root_type Message;

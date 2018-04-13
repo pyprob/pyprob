@@ -22,17 +22,25 @@ class Uniform(object):
     def Low(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from .ProtocolTensor import ProtocolTensor
+            obj = ProtocolTensor()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
     # Uniform
     def High(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from .ProtocolTensor import ProtocolTensor
+            obj = ProtocolTensor()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
 
 def UniformStart(builder): builder.StartObject(2)
-def UniformAddLow(builder, low): builder.PrependFloat64Slot(0, low, 0.0)
-def UniformAddHigh(builder, high): builder.PrependFloat64Slot(1, high, 0.0)
+def UniformAddLow(builder, low): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(low), 0)
+def UniformAddHigh(builder, high): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(high), 0)
 def UniformEnd(builder): return builder.EndObject()

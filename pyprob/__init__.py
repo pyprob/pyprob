@@ -1,6 +1,6 @@
 __version__ = '0.10.0.dev14'
 
-from .util import ObserveEmbedding, SampleEmbedding, TraceMode, InferenceEngine, Optimizer, InferenceNetworkTrainingMode, set_random_seed, set_cuda, set_verbosity, set_inference_network_training_mode
+from .util import ObserveEmbedding, SampleEmbedding, TraceMode, InferenceEngine, Optimizer, TrainingObservation, set_random_seed, set_cuda, set_verbosity
 from .model import Model, ModelRemote
 from .state import sample, observe
 

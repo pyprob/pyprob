@@ -1,4 +1,4 @@
-from . import util
+from . import util, TrainingObservation
 
 
 class Sample(object):
@@ -53,8 +53,6 @@ class Trace(object):
         self.log_prob_observed = 0.
         self.log_importance_weight = 0.
         self.length = 0
-        self._inference_network_training_observes_variable = None
-        self._inference_network_training_observes_embedding = None
 
     def __repr__(self):
         return 'Trace(controlled:{}, uncontrolled:{}, observed:{}, log_prob:{})'.format(len(self.samples), len(self.samples_uncontrolled), len(self.samples_observed), float(self.log_prob))
@@ -80,11 +78,13 @@ class Trace(object):
         self.log_prob_observed = util.to_variable(sum([util.safe_torch_sum(s.log_prob) for s in self.samples_observed])).view(-1)
 
         self.log_prob = util.to_variable(sum([util.safe_torch_sum(s.log_prob) for s in self._samples_all if s.control or s.observed])).view(-1)
-        if util.inference_network_training_mode == util.InferenceNetworkTrainingMode.USE_OBSERVE_DIST_SAMPLE:
-            self._inference_network_training_observes_variable = util.pack_observes_to_variable([s.distribution.sample() for s in self.samples_observed])
-        else:  # util.inference_network_training_mode == util.InferenceNetworkTrainingMode.USE_OBSERVE_DIST_MEAN
-            self._inference_network_training_observes_variable = util.pack_observes_to_variable([s.distribution.mean for s in self.samples_observed])
         self.length = len(self.samples)
+
+    def pack_observes(self, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE):
+        if training_observation == TrainingObservation.OBSERVE_DIST_SAMPLE:
+            return util.pack_observes_to_variable([s.distribution.sample() for s in self.samples_observed])
+        else:  # training_observation == TrainingObservation.OBSERVE_DIST_MEAN
+            return util.pack_observes_to_variable([s.distribution.mean for s in self.samples_observed])
 
     def last_instance(self, address_base):
         if address_base in self._samples_all_dict_adddress_base:
