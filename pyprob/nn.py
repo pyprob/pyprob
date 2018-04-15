@@ -249,10 +249,10 @@ class ProposalUniform(nn.Module):
         means = x[:, 0].unsqueeze(1)
         stddevs = x[:, 1].unsqueeze(1)
         stddevs = F.softplus(stddevs)
-        prior_means = torch.stack([s.distribution.mean[0] for s in samples])
-        prior_stddevs = torch.stack([s.distribution.stddev[0] for s in samples])
-        prior_lows = torch.stack([s.distribution.low for s in samples])
-        prior_highs = torch.stack([s.distribution.high for s in samples])
+        prior_means = util.to_variable(torch.stack([s.distribution.mean[0] for s in samples]))
+        prior_stddevs = util.to_variable(torch.stack([s.distribution.stddev[0] for s in samples]))
+        prior_lows = util.to_variable(torch.stack([s.distribution.low for s in samples]))
+        prior_highs = util.to_variable(torch.stack([s.distribution.high for s in samples]))
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
         return TruncatedNormal(means, stddevs, prior_lows, prior_highs)
@@ -275,10 +275,10 @@ class ProposalUniformMixture(nn.Module):
         coeffs = x[:, 2*self._mixture_components:3*self._mixture_components]
         stddevs = F.softplus(stddevs)
         coeffs = F.softmax(coeffs, dim=1)
-        prior_means = torch.stack([s.distribution.mean[0] for s in samples])
-        prior_stddevs = torch.stack([s.distribution.stddev[0] for s in samples])
-        prior_lows = torch.stack([s.distribution.low[0] for s in samples])
-        prior_highs = torch.stack([s.distribution.high[0] for s in samples])
+        prior_means = util.to_variable(torch.stack([s.distribution.mean[0] for s in samples]))
+        prior_stddevs = util.to_variable(torch.stack([s.distribution.stddev[0] for s in samples]))
+        prior_lows = util.to_variable(torch.stack([s.distribution.low[0] for s in samples]))
+        prior_highs = util.to_variable(torch.stack([s.distribution.high[0] for s in samples]))
         prior_means = prior_means.expand_as(means)
         prior_stddevs = prior_stddevs.expand_as(means)
 
@@ -304,8 +304,8 @@ class ProposalPoisson(nn.Module):
         means = x[:, 0].unsqueeze(1)
         stddevs = x[:, 1].unsqueeze(1)
         stddevs = F.softplus(stddevs)
-        prior_means = torch.stack([s.distribution.mean[0] for s in samples])
-        prior_stddevs = torch.stack([s.distribution.stddev[0] for s in samples])
+        prior_means = util.to_variable(torch.stack([s.distribution.mean[0] for s in samples]))
+        prior_stddevs = util.to_variable(torch.stack([s.distribution.stddev[0] for s in samples]))
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
         return TruncatedNormal(means, stddevs, 0, 40)
@@ -375,10 +375,10 @@ class InferenceNetwork(nn.Module):
         self._sample_embedding_layers = {}
         self._proposal_layers = {}
 
-    def _move_to_cuda(self, device=None):
+    def cuda(self, device=None):
         self._on_cuda = True
         self._cuda_device = device
-        self.cuda(device)
+        super().cuda(device)
         self._address_embedding_empty = self._address_embedding_empty.cuda(device)
         self._distribution_type_embedding_empty = self._distribution_type_embedding_empty.cuda(device)
         for k, t in self._address_embeddings.items():
@@ -386,10 +386,11 @@ class InferenceNetwork(nn.Module):
         for k, t in self._distribution_type_embeddings.items():
             self._distribution_type_embeddings[k] = t.cuda(device)
         self._valid_batch.cuda(device)
+        return self
 
-    def _move_to_cpu(self):
+    def cpu(self):
         self._on_cuda = False
-        self.cpu()
+        super().cpu()
         self._address_embedding_empty = self._address_embedding_empty.cpu()
         self._distribution_type_embedding_empty = self._distribution_type_embedding_empty.cpu()
         for k, t in self._address_embeddings.items():
@@ -397,6 +398,7 @@ class InferenceNetwork(nn.Module):
         for k, t in self._distribution_type_embeddings.items():
             self._distribution_type_embeddings[k] = t.cpu()
         self._valid_batch.cpu()
+        return self
 
     def _add_address(self, address):
         if address not in self._address_embeddings:
@@ -471,7 +473,7 @@ class InferenceNetwork(nn.Module):
             self._history_num_params_trace.append(self._total_train_traces)
 
         if self._on_cuda:
-            self._move_to_cuda(self._cuda_device)
+            self.cuda(self._cuda_device)
 
         return layers_changed
 
@@ -754,12 +756,12 @@ class InferenceNetwork(nn.Module):
             if ret._on_cuda:
                 if ret._cuda_device != device:
                     print(colored('Warning: loading CUDA (device {}) network to CUDA (device {})'.format(ret._cuda_device, device), 'red', attrs=['bold']))
-                    ret._move_to_cuda(device)
+                    ret.cuda(device)
             else:
                 print(colored('Warning: loading CPU network to CUDA (device {})'.format(device), 'red', attrs=['bold']))
-                ret._move_to_cuda(device)
+                ret.cuda(device)
         else:
             if ret._on_cuda:
                 print(colored('Warning: loading CUDA (device {}) network to CPU'.format(ret._cuda_device), 'red', attrs=['bold']))
-                ret._move_to_cpu()
+                ret.cpu()
         return ret

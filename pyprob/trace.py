@@ -33,11 +33,13 @@ class Sample(object):
         if self.value is not None:
             self.value = self.value.cuda(device)
         # self.distribution.cuda(device)
+        return self
 
     def cpu(self):
         if self.value is not None:
             self.value = self.value.cpu()
         # self.distribution.cpu()
+        return self
 
 
 class Trace(object):
@@ -98,17 +100,9 @@ class Trace(object):
         self._samples_all_dict_adddress_base[sample.address_base] = sample
 
     def cuda(self, device=None):
-        if self._inference_network_training_observes_variable is not None:
-            self._inference_network_training_observes_variable = self._inference_network_training_observes_variable.cuda(device)
-        if self._inference_network_training_observes_embedding is not None:
-            self._inference_network_training_observes_embedding = self._inference_network_training_observes_embedding.cuda(device)
         for sample in self._samples_all:
             sample.cuda(device)
 
     def cpu(self):
-        if self._inference_network_training_observes_variable is not None:
-            self._inference_network_training_observes_variable = self._inference_network_training_observes_variable.cpu()
-        if self._inference_network_training_observes_embedding is not None:
-            self._inference_network_training_observes_embedding = self._inference_network_training_observes_embedding.cpu()
         for sample in self._samples_all:
             sample.cpu()

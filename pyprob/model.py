@@ -168,26 +168,27 @@ class Model(nn.Module):
             print('Using trace cache to train...')
 
             def new_batch_func(size=batch_size, discard_source=False):
-                current_files = self._trace_cache_current_files()
                 if discard_source:
                     self._trace_cache = []
-                if (len(self._trace_cache) == 0) and (len(current_files) == 0):
-                    cache_is_empty = True
-                    cache_was_empty = False
-                    while cache_is_empty:
-                        num_files = len(self._trace_cache_current_files())
-                        if num_files > 0:
-                            cache_is_empty = False
-                            if cache_was_empty:
-                                print('Resuming, new data appeared in trace cache (currently with {} files) at {}'.format(num_files, self._trace_cache_path))
-                        else:
-                            if not cache_was_empty:
-                                print('Waiting for new data, empty trace cache at {}'.format(self._trace_cache_path))
-                                cache_was_empty = True
-                            time.sleep(0.5)
 
                 while len(self._trace_cache) < size:
                     current_files = self._trace_cache_current_files()
+                    if len(current_files) == 0:
+                        cache_is_empty = True
+                        cache_was_empty = False
+                        while cache_is_empty:
+                            current_files = self._trace_cache_current_files()
+                            num_files = len(current_files)
+                            if num_files > 0:
+                                cache_is_empty = False
+                                if cache_was_empty:
+                                    print('Resuming, new data appeared in trace cache (currently with {} files) at {}'.format(num_files, self._trace_cache_path))
+                            else:
+                                if not cache_was_empty:
+                                    print('Waiting for new data, empty (or fully discarded) trace cache at {}'.format(self._trace_cache_path))
+                                    cache_was_empty = True
+                                time.sleep(0.5)
+
                     current_file = random.choice(current_files)
                     if discard_source:
                         self._trace_cache_discarded_file_names.append(current_file)
@@ -309,6 +310,10 @@ class Model(nn.Module):
         if data['torch_version'] != torch.__version__:
             print(colored('Warning: different PyTorch versions (loaded traces: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
 
+        traces = data['traces']
+        if util._cuda_enabled:
+            for trace in traces:
+                trace.cuda()
         return data['traces']
 
     def save_analytics(self, file_name):
