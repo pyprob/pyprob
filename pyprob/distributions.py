@@ -294,7 +294,7 @@ class Mixture(Distribution):
         self._distributions = distributions
         self.length_distributions = len(distributions)
         if probs is None:
-            self._probs = util.to_variable(torch.zeros(self.length).fill_(1/self.length))
+            self._probs = util.to_variable(torch.zeros(self.length_distributions).fill_(1/self.length_distributions))
         else:
             self._probs = util.to_variable(probs)
             self._probs = self._probs / self._probs.sum(-1, keepdim=True)

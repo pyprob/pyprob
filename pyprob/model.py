@@ -248,7 +248,7 @@ class Model(nn.Module):
         done = False
         while not done:
             traces = self._prior_traces(traces_per_file, trace_mode=TraceMode.DEFAULT, inference_network=None, *args, **kwargs)
-            file_name = os.path.join(trace_cache_path, str(uuid.uuid4()))
+            file_name = os.path.join(trace_cache_path, 'pyprob_traces_{}_{}'.format(traces_per_file, str(uuid.uuid4())))
             self._save_traces(traces, file_name)
             f += 1
             if (files != -1) and (f >= files):

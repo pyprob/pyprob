@@ -9,7 +9,6 @@ class UtilTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-
     def test_random_seed(self):
         samples = 10
 
@@ -26,7 +25,6 @@ class UtilTestCase(unittest.TestCase):
             dist = pyprob.distributions.Normal(0, 1)
             sample = dist.sample()
             deterministic_samples.append(float(sample))
-
 
         util.debug('samples', 'stochastic_samples', 'deterministic_samples')
         self.assertTrue(not all(sample == stochastic_samples[0] for sample in stochastic_samples))
