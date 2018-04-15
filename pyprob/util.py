@@ -58,6 +58,8 @@ class TrainingObservation(enum.Enum):
 
 
 def set_random_seed(seed=123):
+    if seed is None:
+        seed = int((time.time()*1e6) % 1e8)
     global _random_seed
     _random_seed = seed
     random.seed(seed)

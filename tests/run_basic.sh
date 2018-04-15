@@ -18,3 +18,6 @@ python test_model_remote.py
 
 echo "Running neural network tests"
 python test_nn.py
+
+echo "Running util tests"
+python test_util.py

@@ -255,7 +255,7 @@ class BranchingTestCase(unittest.TestCase):
                 log_weights.append(Poisson(l).log_prob(observation) + count_prior.log_prob(r) + count_prior.log_prob(s))
         return Empirical(vals, log_weights)
 
-    def test_inference_branching_importance_sampling(self):
+    def test_model_remote_branching_importance_sampling(self):
         observation = 6
         posterior_correct = util.empirical_to_categorical(self.true_posterior(observation), max_val=40)
 
@@ -269,7 +269,7 @@ class BranchingTestCase(unittest.TestCase):
 
         self.assertLess(kl_divergence, 0.25)
 
-    # def test_inference_branching_inference_compilation(self):
+    # def test_model_remote_branching_inference_compilation(self):
     #     observation = 6
     #     posterior_correct = util.empirical_to_categorical(self._model.true_posterior(observation), max_val=40)
     #
@@ -284,7 +284,7 @@ class BranchingTestCase(unittest.TestCase):
     #
     #     self.assertLess(kl_divergence, 0.25)
 
-    def test_inference_branching_metropolis_hastings(self):
+    def test_model_remote_branching_metropolis_hastings(self):
         observation = 6
         posterior_correct = util.empirical_to_categorical(self.true_posterior(observation), max_val=40)
 
