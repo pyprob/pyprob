@@ -121,7 +121,7 @@ def sample(distribution, control=True, replace=False, address=None):
                 _current_trace.log_importance_weight += log_prob - proposal_distribution.log_prob(value)
             else:
                 value = distribution.sample()
-                log_prob = 0
+                log_prob = distribution.log_prob(value)
         else:  # _trace_mode == TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS:
             control = True
             replace = False

@@ -95,7 +95,7 @@ class Model(nn.Module):
             print()
         return Empirical(ret, name='Prior, num_traces={}'.format(num_traces))
 
-    def posterior_distribution(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, burn_in=None, *args, **kwargs):
+    def posterior_distribution(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, burn_in=None, initial_trace=None, *args, **kwargs):
         if (inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (self._inference_network is None):
             raise RuntimeError('Cannot run inference with inference network because there is none available. Use learn_inference_network first.')
         if burn_in is not None:
@@ -120,7 +120,10 @@ class Model(nn.Module):
             name = 'Posterior, importance sampling (with learned proposal, training_traces={}), num_traces={}'.format(self._inference_network._total_train_traces, num_traces)
         else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS
             results = []
-            current_trace = next(self._prior_trace_generator(trace_mode=TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS, *args, **kwargs))
+            if initial_trace is None:
+                current_trace = next(self._prior_trace_generator(trace_mode=TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS, *args, **kwargs))
+            else:
+                current_trace = initial_trace
             time_start = time.time()
             traces_accepted = 1
             samples_reused = 1

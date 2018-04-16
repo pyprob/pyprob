@@ -6,8 +6,7 @@ import tempfile
 import os
 
 import pyprob
-from pyprob import util
-from pyprob import Model
+from pyprob import util, Model, InferenceEngine
 from pyprob.distributions import Normal, Uniform
 
 
@@ -84,6 +83,13 @@ class ModelTestCase(unittest.TestCase):
 
         self.assertTrue(True)
 
+    def test_model_lmh_posterior_with_initial_trace(self):
+        num_traces = 256
+
+        trace = next(self._model._prior_trace_generator())
+        self._model.posterior_distribution(num_traces=num_traces, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, initial_trace=trace)
+
+        self.assertTrue(True)
 
 class ModelWithReplacementTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
