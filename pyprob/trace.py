@@ -1,3 +1,5 @@
+import copy
+
 from . import util, TrainingObservation
 
 
@@ -46,6 +48,7 @@ class Trace(object):
     def __init__(self):
         self.samples = []  # controlled
         self.samples_uncontrolled = []
+        self.samples_replaced = []
         self.samples_observed = []
         self._samples_all = []
         self._samples_all_dict_address = {}
@@ -57,7 +60,7 @@ class Trace(object):
         self.length = 0
 
     def __repr__(self):
-        return 'Trace(controlled:{}, uncontrolled:{}, observed:{}, log_prob:{})'.format(len(self.samples), len(self.samples_uncontrolled), len(self.samples_observed), float(self.log_prob))
+        return 'Trace(all:{}, controlled:{}, replaced:{}, uncontrolled:{}, observed:{}, log_prob:{})'.format(len(self._samples_all), len(self.samples), len(self.samples_replaced), len(self.samples_uncontrolled), len(self.samples_observed), float(self.log_prob))
 
     def addresses(self):
         return '; '.join([sample.address for sample in self.samples])
@@ -65,6 +68,7 @@ class Trace(object):
     def end(self, result):
         self.result = result
         self.samples = []
+        self.samples_replaced = []
         replaced_indices = []
         for i in range(len(self._samples_all)):
             sample = self._samples_all[i]
@@ -72,6 +76,7 @@ class Trace(object):
                 if sample.replace:
                     for j in range(i + 1, len(self._samples_all)):
                         if self._samples_all[j].address_base == sample.address_base:
+                            self.samples_replaced.append(sample)
                             sample = self._samples_all[j]
                             replaced_indices.append(j)
                 self.samples.append(sample)

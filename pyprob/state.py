@@ -1,7 +1,6 @@
 import sys
 import opcode
 import random
-import math
 
 from .trace import Sample, Trace
 from . import TraceMode
@@ -85,6 +84,10 @@ def sample(distribution, control=True, replace=False, address=None):
     else:
         global _current_trace
 
+        if _trace_mode == TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS:
+            control = True
+            replace = False
+
         if address is None:
             address_base = extract_address(_current_trace_root_function_name)
         else:
@@ -123,8 +126,6 @@ def sample(distribution, control=True, replace=False, address=None):
                 value = distribution.sample()
                 log_prob = distribution.log_prob(value)
         else:  # _trace_mode == TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS:
-            control = True
-            replace = False
             if _metropolis_hastings_trace is None:
                 value = distribution.sample()
                 log_prob = distribution.log_prob(value)
