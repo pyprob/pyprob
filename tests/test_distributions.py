@@ -63,6 +63,44 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.25))
 
+    def test_dist_empirical_combine(self):
+        dist1_mean_correct = 1
+        dist1_stddev_correct = 3
+        dist2_mean_correct = 5
+        dist2_stddev_correct = 2
+        dist3_mean_correct = -2.5
+        dist3_stddev_correct = 1.2
+
+        dist1 = Normal(dist1_mean_correct, dist1_stddev_correct)
+        dist1_empirical = Empirical([dist1.sample() for i in range(empirical_samples)])
+        dist1_empirical_mean = float(dist1_empirical.mean)
+        dist1_empirical_stddev = float(dist1_empirical.stddev)
+        dist2 = Normal(dist2_mean_correct, dist2_stddev_correct)
+        dist2_empirical = Empirical([dist2.sample() for i in range(empirical_samples)])
+        dist2_empirical_mean = float(dist2_empirical.mean)
+        dist2_empirical_stddev = float(dist2_empirical.stddev)
+        dist3 = Normal(dist3_mean_correct, dist3_stddev_correct)
+        dist3_empirical = Empirical([dist3.sample() for i in range(empirical_samples)])
+        dist3_empirical_mean = float(dist3_empirical.mean)
+        dist3_empirical_stddev = float(dist3_empirical.stddev)
+        dist_combined = Mixture([dist1, dist2, dist3])
+        dist_combined_mean = float(dist_combined.mean)
+        dist_combined_stddev = float(dist_combined.stddev)
+        dist_combined_empirical = dist1_empirical.combine(dist2_empirical).combine(dist3_empirical)
+        dist_combined_empirical_mean = float(dist_combined_empirical.mean)
+        dist_combined_empirical_stddev = float(dist_combined_empirical.stddev)
+
+        util.debug('dist1_mean_correct', 'dist1_stddev_correct', 'dist1_empirical_mean', 'dist1_empirical_stddev', 'dist2_mean_correct', 'dist2_stddev_correct', 'dist2_empirical_mean', 'dist2_empirical_stddev', 'dist3_mean_correct', 'dist3_stddev_correct', 'dist3_empirical_mean', 'dist3_empirical_stddev', 'dist_combined_mean', 'dist_combined_stddev', 'dist_combined_empirical_mean', 'dist_combined_empirical_stddev')
+
+        self.assertAlmostEqual(dist1_empirical_mean, dist1_mean_correct, places=1)
+        self.assertAlmostEqual(dist1_empirical_stddev, dist1_stddev_correct, places=1)
+        self.assertAlmostEqual(dist2_empirical_mean, dist2_mean_correct, places=1)
+        self.assertAlmostEqual(dist2_empirical_stddev, dist2_stddev_correct, places=1)
+        self.assertAlmostEqual(dist3_empirical_mean, dist3_mean_correct, places=1)
+        self.assertAlmostEqual(dist3_empirical_stddev, dist3_stddev_correct, places=1)
+        self.assertAlmostEqual(dist_combined_empirical_mean, dist_combined_mean, places=1)
+        self.assertAlmostEqual(dist_combined_empirical_stddev, dist_combined_stddev, places=1)
+
     def test_dist_categorical(self):
         dist_sample_shape_correct = [1]
         dist_log_probs_correct = [-2.30259]
