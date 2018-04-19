@@ -121,17 +121,21 @@ class Distribution(object):
 
 
 class Empirical(Distribution):
-    def __init__(self, values, log_weights=None, combine_duplicates=False, name='Empirical'):
+    def __init__(self, values, log_weights=None, weights=None, combine_duplicates=False, name='Empirical'):
         length = len(values)
-        if log_weights is None:
-            # assume uniform distribution if no weights are given
-            # log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length))
-            weights = util.to_variable(torch.zeros(length).fill_(1./length))
-            self._uniform_weights = True
-        else:
+        if log_weights is not None:
             log_weights = util.to_variable(log_weights).view(-1)
             weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
             self._uniform_weights = False
+        elif weights is not None:
+            weights = util.to_variable(weights)
+            weights = weights / weights.sum(-1, keepdim=True)
+            self._uniform_weights = False
+        else:
+            # assume uniform distribution if no log_weights or weights are given
+            # log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length))
+            weights = util.to_variable(torch.zeros(length).fill_(1./length))
+            self._uniform_weights = True
 
         if isinstance(values, Variable) or torch.is_tensor(values):
             values = util.to_variable(values)
