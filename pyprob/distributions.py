@@ -254,14 +254,16 @@ class Empirical(Distribution):
         # TODO: improve this with a better resampling algorithm
         return Empirical([self.sample() for i in range(samples)])
 
-    def combine(self, other):
-        if not isinstance(other, Empirical):
-            raise TypeError('Combination is only supported with another Empirical distribution.')
-
-        if not (self._uniform_weights and other._uniform_weights):
-            raise ValueError('Combination is only supported between two Empirical distributions with uniform weights.')
-
-        return Empirical(self.values + other.values)
+    @staticmethod
+    def combine(empirical_distributions):
+        values = []
+        for dist in empirical_distributions:
+            if not isinstance(dist, Empirical):
+                raise TypeError('Combination is only supported between Empirical distributions.')
+            if not dist._uniform_weights:
+                raise ValueError('Combination is only supported between Empirical distributions with uniform weights.')
+            values += dist.values
+        return Empirical(values)
 
 
 class Categorical(Distribution):

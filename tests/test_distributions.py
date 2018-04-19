@@ -86,7 +86,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_combined = Mixture([dist1, dist2, dist3])
         dist_combined_mean = float(dist_combined.mean)
         dist_combined_stddev = float(dist_combined.stddev)
-        dist_combined_empirical = dist1_empirical.combine(dist2_empirical).combine(dist3_empirical)
+        dist_combined_empirical = Empirical.combine([dist1_empirical, dist2_empirical, dist3_empirical])
         dist_combined_empirical_mean = float(dist_combined_empirical.mean)
         dist_combined_empirical_stddev = float(dist_combined_empirical.stddev)
 
