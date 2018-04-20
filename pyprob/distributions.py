@@ -275,7 +275,7 @@ class Empirical(Distribution):
             #     raise ValueError('Combination is only supported between Empirical distributions with uniform weights.')
             values += dist.values
             weights.append(dist.weights * dist.length)
-        return Empirical(values, torch.cat(weights))
+        return Empirical(values, weights=torch.cat(weights))
 
 
 class Categorical(Distribution):
