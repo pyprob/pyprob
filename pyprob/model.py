@@ -13,7 +13,7 @@ import tempfile
 import shutil
 
 from .distributions import Empirical
-from . import state, util, __version__, TraceMode, InferenceEngine, Optimizer, TrainingObservation
+from . import state, util, __version__, InferenceEngine, Optimizer, TrainingObservation
 from .nn import ObserveEmbedding, SampleEmbedding, Batch, InferenceNetwork
 from .remote import ModelServer
 from .analytics import save_report
@@ -31,11 +31,11 @@ class Model(nn.Module):
     def forward(self):
         raise NotImplementedError()
 
-    def _prior_trace_generator(self, trace_mode=TraceMode.DEFAULT, inference_network=None, metropolis_hastings_trace=None, *args, **kwargs):
+    def _prior_trace_generator(self, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, metropolis_hastings_trace=None, *args, **kwargs):
         while True:
-            if trace_mode == TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+            if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
                 self._inference_network.new_trace(util.pack_observes_to_variable(kwargs['observation']).unsqueeze(0))
-            state.begin_trace(self.forward, trace_mode, inference_network, metropolis_hastings_trace)
+            state.begin_trace(self.forward, inference_engine, inference_network, metropolis_hastings_trace)
             result = self.forward(*args, **kwargs)
             trace = state.end_trace(result)
             yield trace
@@ -44,16 +44,16 @@ class Model(nn.Module):
         while True:
             yield self.forward(*args, **kwargs)
 
-    def _prior_traces(self, num_traces=10, trace_mode=TraceMode.DEFAULT, inference_network=None, map_func=None, *args, **kwargs):
-        generator = self._prior_trace_generator(trace_mode, inference_network, *args, **kwargs)
+    def _prior_traces(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=None, *args, **kwargs):
+        generator = self._prior_trace_generator(inference_engine, inference_network, *args, **kwargs)
         ret = []
         time_start = time.time()
-        if ((trace_mode != TraceMode.DEFAULT) and (util.verbosity > 1)) or (util.verbosity > 2):
+        if ((inference_engine != InferenceEngine.IMPORTANCE_SAMPLING) and (util.verbosity > 1)) or (util.verbosity > 2):
             len_str_num_traces = len(str(num_traces))
             print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
             prev_duration = 0
         for i in range(num_traces):
-            if ((trace_mode != TraceMode.DEFAULT) and (util.verbosity > 1)) or (util.verbosity > 2):
+            if ((inference_engine != InferenceEngine.IMPORTANCE_SAMPLING) and (util.verbosity > 1)) or (util.verbosity > 2):
                 duration = time.time() - time_start
                 if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
                     prev_duration = duration
@@ -65,7 +65,7 @@ class Model(nn.Module):
                 ret.append(map_func(trace))
             else:
                 ret.append(trace)
-        if ((trace_mode != TraceMode.DEFAULT) and (util.verbosity > 1)) or (util.verbosity > 2):
+        if ((inference_engine != InferenceEngine.IMPORTANCE_SAMPLING) and (util.verbosity > 1)) or (util.verbosity > 2):
             print()
         return ret
 
@@ -105,22 +105,22 @@ class Model(nn.Module):
             burn_in = int(min(num_traces / 10, 1000))
 
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
-            ret = self._prior_traces(num_traces, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_PRIOR, inference_network=None, map_func=lambda trace: (trace.log_importance_weight, trace.result), *args, **kwargs)
+            ret = self._prior_traces(num_traces, inference_engine, inference_network=None, map_func=lambda trace: (trace.log_importance_weight, trace.result), *args, **kwargs)
             ret = [list(t) for t in zip(*ret)]
             log_weights = ret[0]
             results = ret[1]
             name = 'Posterior, importance sampling (with prior), num_traces={}'.format(num_traces)
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             self._inference_network.eval()
-            ret = self._prior_traces(num_traces, trace_mode=TraceMode.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, inference_network=self._inference_network, map_func=lambda trace: (trace.log_importance_weight, trace.result), *args, **kwargs)
+            ret = self._prior_traces(num_traces, inference_engine, inference_network=self._inference_network, map_func=lambda trace: (trace.log_importance_weight, trace.result), *args, **kwargs)
             ret = [list(t) for t in zip(*ret)]
             log_weights = ret[0]
             results = ret[1]
             name = 'Posterior, importance sampling (with learned proposal, training_traces={}), num_traces={}'.format(self._inference_network._total_train_traces, num_traces)
-        else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS
+        else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
             results = []
             if initial_trace is None:
-                current_trace = next(self._prior_trace_generator(trace_mode=TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS, *args, **kwargs))
+                current_trace = next(self._prior_trace_generator(inference_engine, *args, **kwargs))
             else:
                 current_trace = initial_trace
 
@@ -140,7 +140,7 @@ class Model(nn.Module):
                         traces_per_second = (i + 1) / duration
                         print('{} | {} | {} | {}/{} | {} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:,.2f}%'.format(100 * (traces_accepted / (i + 1))).rjust(7), '{:,.2f}%'.format(100 * samples_reused / max(1, samples_all)).rjust(7), traces_per_second), end='\r')
                         sys.stdout.flush()
-                candidate_trace = next(self._prior_trace_generator(trace_mode=TraceMode.LIGHTWEIGHT_METROPOLIS_HASTINGS, metropolis_hastings_trace=current_trace, *args, **kwargs))
+                candidate_trace = next(self._prior_trace_generator(inference_engine=inference_engine, metropolis_hastings_trace=current_trace, *args, **kwargs))
                 log_acceptance_ratio = math.log(current_trace.length) - math.log(candidate_trace.length) + candidate_trace.log_prob_observed - current_trace.log_prob_observed
                 for sample in candidate_trace.samples:
                     if sample.reused:
@@ -149,6 +149,12 @@ class Model(nn.Module):
                         samples_reused += 1
                 samples_all += candidate_trace.length
 
+                if state._metropolis_hastings_site_transition_log_prob is None:
+                    print(colored('Warning: trace did not hit the metropolis hastings site, ensure that the model is deterministic except pyprob.sample calls', 'red', attrs=['bold']))
+                else:
+                    log_acceptance_ratio += util.safe_torch_sum(state._metropolis_hastings_site_transition_log_prob)
+
+                # print(log_acceptance_ratio)
                 if math.log(random.random()) < float(log_acceptance_ratio):
                     traces_accepted += 1
                     current_trace = candidate_trace
@@ -204,7 +210,7 @@ class Model(nn.Module):
                 return Batch(traces)
         else:
             def new_batch_func(size=batch_size, discard_source=False):
-                traces = self._prior_traces(size, trace_mode=TraceMode.DEFAULT, *args, **kwargs)
+                traces = self._prior_traces(size, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, *args, **kwargs)
                 return Batch(traces)
 
         if self._inference_network is None:
@@ -227,22 +233,22 @@ class Model(nn.Module):
         self._inference_network = InferenceNetwork._load(file_name, util._cuda_enabled, util._cuda_device)
 
     def trace_length_mean(self, num_traces=1000, *args, **kwargs):
-        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.DEFAULT, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
+        trace_lengths = self._prior_traces(num_traces, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
         trace_length_dist = Empirical(trace_lengths)
         return trace_length_dist.mean
 
     def trace_length_stddev(self, num_traces=1000, *args, **kwargs):
-        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.DEFAULT, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
+        trace_lengths = self._prior_traces(num_traces, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
         trace_length_dist = Empirical(trace_lengths)
         return trace_length_dist.stddev
 
     def trace_length_min(self, num_traces=1000, *args, **kwargs):
-        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.DEFAULT, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
+        trace_lengths = self._prior_traces(num_traces, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
         trace_length_dist = Empirical(trace_lengths)
         return trace_length_dist.min
 
     def trace_length_max(self, num_traces=1000, *args, **kwargs):
-        trace_lengths = self._prior_traces(num_traces, trace_mode=TraceMode.DEFAULT, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
+        trace_lengths = self._prior_traces(num_traces, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=lambda trace: trace.length, *args, **kwargs)
         trace_length_dist = Empirical(trace_lengths)
         return trace_length_dist.max
 
@@ -250,7 +256,7 @@ class Model(nn.Module):
         f = 0
         done = False
         while not done:
-            traces = self._prior_traces(traces_per_file, trace_mode=TraceMode.DEFAULT, inference_network=None, *args, **kwargs)
+            traces = self._prior_traces(traces_per_file, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, *args, **kwargs)
             file_name = os.path.join(trace_cache_path, 'pyprob_traces_{}_{}'.format(traces_per_file, str(uuid.uuid4())))
             self._save_traces(traces, file_name)
             f += 1

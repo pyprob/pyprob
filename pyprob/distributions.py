@@ -162,11 +162,14 @@ class Empirical(Distribution):
             values = list(distribution.keys())
             weights = list(distribution.values())
             weights = torch.cat(weights)
+            self._uniform_weights = False
         self.length = len(values)
-        self.weights, indices = torch.sort(weights, descending=True)
-        # print(weights)
-        # print(indices)
-        self.values = [values[int(i)] for i in indices]
+        if self._uniform_weights:
+            self.weights = weights
+            self.values = values
+        else:
+            self.weights, indices = torch.sort(weights, descending=True)
+            self.values = [values[int(i)] for i in indices]
         self.weights_numpy = self.weights.data.cpu().numpy()
         self.weights_numpy_cumsum = (self.weights_numpy / self.weights_numpy.sum()).cumsum()
         # try:  # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
@@ -200,10 +203,13 @@ class Empirical(Distribution):
             return util.fast_np_random_choice(self.values, self.weights_numpy_cumsum)
 
     def expectation(self, func):
-        ret = 0.
-        for i in range(self.length):
-            ret += func(self.values[i]) * self.weights[i]
-        return ret
+        if self._uniform_weights:
+            return util.to_variable(sum(map(func, self.values)) / self.length)
+        else:
+            ret = 0.
+            for i in range(self.length):
+                ret += func(self.values[i]) * self.weights[i]
+            return ret
 
     def map(self, func):
         ret = copy.copy(self)
@@ -261,13 +267,15 @@ class Empirical(Distribution):
     @staticmethod
     def combine(empirical_distributions):
         values = []
+        weights = []
         for dist in empirical_distributions:
             if not isinstance(dist, Empirical):
                 raise TypeError('Combination is only supported between Empirical distributions.')
-            if not dist._uniform_weights:
-                raise ValueError('Combination is only supported between Empirical distributions with uniform weights.')
+            # if not dist._uniform_weights:
+            #     raise ValueError('Combination is only supported between Empirical distributions with uniform weights.')
             values += dist.values
-        return Empirical(values)
+            weights.append(dist.weights * dist.length)
+        return Empirical(values, torch.cat(weights))
 
 
 class Categorical(Distribution):

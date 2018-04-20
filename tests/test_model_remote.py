@@ -10,7 +10,7 @@ import functools
 
 import pyprob
 from pyprob import ModelRemote
-from pyprob.distributions import Empirical, Normal, Poisson
+from pyprob.distributions import Empirical, Normal, Poisson, Categorical
 from pyprob import util
 
 
@@ -82,7 +82,7 @@ class ModelRemoteGaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
 
         self.assertTrue(True)
 
-    def test_model_remote_gum_marsaglia_inference_gum_posterior_importance_sampling(self):
+    def test_model_remote_gum_marsaglia_posterior_importance_sampling(self):
         observation = [8, 9]
         posterior_mean_correct = 7.25
         posterior_stddev_correct = math.sqrt(1/1.2)
@@ -100,20 +100,56 @@ class ModelRemoteGaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_model_remote_gum_marsaglia_inference_gum_posterior_inference_compilation(self):
+    # def test_model_remote_gum_marsaglia_posterior_inference_compilation(self):
+    #     observation = [8, 9]
+    #     posterior_mean_correct = 7.25
+    #     posterior_stddev_correct = math.sqrt(1/1.2)
+    #
+    #     self._model.learn_inference_network(observation=[1,1], num_traces=training_traces)
+    #     posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
+    #     posterior_mean = float(posterior.mean)
+    #     posterior_mean_unweighted = float(posterior.unweighted().mean)
+    #     posterior_stddev = float(posterior.stddev)
+    #     posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+    #     kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
+    #
+    #     util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+    #
+    #     self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+    #     self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+    #     self.assertLess(kl_divergence, 0.25)
+
+    def test_model_remote_gum_marsaglia_posterior_lightweight_metropolis_hastings(self):
         observation = [8, 9]
         posterior_mean_correct = 7.25
         posterior_stddev_correct = math.sqrt(1/1.2)
 
-        self._model.learn_inference_network(observation=[1,1], num_traces=training_traces)
-        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observation=observation)
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.unweighted().mean)
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
         kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
 
-        util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+        self.assertLess(kl_divergence, 0.25)
+
+    def test_model_remote_gum_marsaglia_posterior_random_walk_metropolis_hastings(self):
+        observation = [8, 9]
+        posterior_mean_correct = 7.25
+        posterior_stddev_correct = math.sqrt(1/1.2)
+
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observation=observation)
+        posterior_mean = float(posterior.mean)
+        posterior_mean_unweighted = float(posterior.unweighted().mean)
+        posterior_stddev = float(posterior.stddev)
+        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+        kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
+
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
@@ -189,27 +225,29 @@ class ModelRemoteHiddenMarkovModelTestCase(unittest.TestCase):
         posterior_mean = posterior.mean
 
         l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+        kl_divergence = float(sum([util.kl_divergence_categorical(Categorical(i), Categorical(j)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
 
-        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
-
-        self.assertLess(l2_distance, 10)
-
-    def test_model_remote_hmm_posterior_inference_compilation(self):
-        observation = self._observation
-        posterior_mean_correct = self._posterior_mean_correct
-
-        self._model.learn_inference_network(observation=torch.zeros(16), num_traces=training_traces)
-        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
-        posterior_mean_unweighted = posterior.unweighted().mean
-        posterior_mean = posterior.mean
-
-        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
-
-        util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance', 'kl_divergence')
 
         self.assertLess(l2_distance, 10)
 
-    def test_model_remote_hmm_posterior_metropolis_hastings(self):
+    # def test_model_remote_hmm_posterior_inference_compilation(self):
+    #     observation = self._observation
+    #     posterior_mean_correct = self._posterior_mean_correct
+    #
+    #     self._model.learn_inference_network(observation=torch.zeros(16), num_traces=training_traces)
+    #     posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
+    #     posterior_mean_unweighted = posterior.unweighted().mean
+    #     posterior_mean = posterior.mean
+    #
+    #     l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+    #     kl_divergence = float(sum([util.kl_divergence_categorical(Categorical(i), Categorical(j)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
+    #
+    #     util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance', 'kl_divergence')
+    #
+    #     self.assertLess(l2_distance, 10)
+
+    def test_model_remote_hmm_posterior_lightweight_metropolis_hastings(self):
         observation = self._observation
         posterior_mean_correct = self._posterior_mean_correct
 
@@ -218,8 +256,24 @@ class ModelRemoteHiddenMarkovModelTestCase(unittest.TestCase):
         posterior_mean = posterior.mean
 
         l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+        kl_divergence = float(sum([util.kl_divergence_categorical(Categorical(i), Categorical(j)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
 
-        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance', 'kl_divergence')
+
+        self.assertLess(l2_distance, 10)
+
+    def test_model_remote_hmm_posterior_random_walk_metropolis_hastings(self):
+        observation = self._observation
+        posterior_mean_correct = self._posterior_mean_correct
+
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observation=observation)
+        posterior_mean_unweighted = posterior.unweighted().mean
+        posterior_mean = posterior.mean
+
+        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+        kl_divergence = float(sum([util.kl_divergence_categorical(Categorical(i), Categorical(j)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
+
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance', 'kl_divergence')
 
         self.assertLess(l2_distance, 10)
 
@@ -284,11 +338,25 @@ class BranchingTestCase(unittest.TestCase):
     #
     #     self.assertLess(kl_divergence, 0.25)
 
-    def test_model_remote_branching_metropolis_hastings(self):
+    def test_model_remote_branching_lightweight_metropolis_hastings(self):
         observation = 6
         posterior_correct = util.empirical_to_categorical(self.true_posterior(observation), max_val=40)
 
         posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, observation=observation, inference_engine=pyprob.InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS), max_val=40)
+        posterior_probs = util.to_numpy(posterior._probs[0])
+        posterior_probs_correct = util.to_numpy(posterior_correct._probs[0])
+
+        kl_divergence = float(util.kl_divergence_categorical(posterior_correct, posterior))
+
+        util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+
+        self.assertLess(kl_divergence, 0.25)
+
+    def test_model_remote_branching_random_walk_metropolis_hastings(self):
+        observation = 6
+        posterior_correct = util.empirical_to_categorical(self.true_posterior(observation), max_val=40)
+
+        posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, observation=observation, inference_engine=pyprob.InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS), max_val=40)
         posterior_probs = util.to_numpy(posterior._probs[0])
         posterior_probs_correct = util.to_numpy(posterior_correct._probs[0])
 
