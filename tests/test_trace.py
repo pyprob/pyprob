@@ -35,7 +35,7 @@ class TraceTestCase(unittest.TestCase):
         uncontrolled_correct = 3
         observed_correct = 4
 
-        trace = self._model._prior_traces(1)[0]
+        trace = self._model._traces(1)[0]
         controlled = len(trace.samples)
         uncontrolled = len(trace.samples_uncontrolled)
         observed = len(trace.samples_observed)

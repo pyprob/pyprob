@@ -388,7 +388,7 @@ class ModelRemoteSetDefaultsAndAddressesTestCase(unittest.TestCase):
         addresses_correct = ['normal1_Normal_1', 'normal1_Normal_2', 'normal2_Normal_replaced']
         addresses_all_correct = ['normal1_Normal_1', 'normal1_Normal_2', 'normal2_Normal_replaced', 'normal2_Normal_replaced', 'normal3_Normal_1', 'normal3_Normal_2', 'likelihood_Normal_1']
 
-        trace = next(self._model._prior_trace_generator(observation=[0]))
+        trace = next(self._model._trace_generator(observation=[0]))
         addresses = [s.address for s in trace.samples]
         addresses_all = [s.address for s in trace._samples_all]
 

@@ -314,7 +314,7 @@ class Categorical(Distribution):
         return self.length_variates
 
     def sample(self):
-        return self._torch_dist.sample()
+        return self._torch_dist.sample().float()
 
     def log_prob(self, value):
         value = util.to_variable(value)
