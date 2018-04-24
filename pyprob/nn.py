@@ -14,6 +14,7 @@ import uuid
 import shutil
 import os
 import tarfile
+from collections import OrderedDict
 
 from . import util, __version__, ObserveEmbedding, SampleEmbedding, Optimizer, TrainingObservation
 from .distributions import Categorical, Mixture, Normal, TruncatedNormal, Uniform, Poisson
@@ -353,6 +354,9 @@ class InferenceNetwork(nn.Module):
         self._state_observes_embedding = None
         self._state_lstm_hidden_state = None
 
+        self._address_stats = OrderedDict()
+        self._trace_stats = OrderedDict()
+
         self._address_embeddings = {}
         self._distribution_type_embeddings = {}
 
@@ -400,16 +404,52 @@ class InferenceNetwork(nn.Module):
         self._valid_batch.cpu()
         return self
 
+    def _update_stats(self, batch):
+        for sub_batch in batch.sub_batches:
+            example_trace = sub_batch[0]
+            # Update address stats
+            for sample in example_trace._samples_all:
+                address = sample.address
+                if address not in self._address_stats:
+                    address_id = 'A' + str(len(self._address_stats) + 1)
+                    self._address_stats[address] = [len(sub_batch), address_id, sample.distribution.name, sample.control, sample.replace, sample.observed]
+                else:
+                    self._address_stats[address][0] += len(sub_batch)
+            # Update trace stats
+            trace_str = example_trace.addresses()
+            if trace_str not in self._trace_stats:
+                trace_id = 'T' + str(len(self._trace_stats) + 1)
+
+                # TODO: the following is not needed when the Trace code is updated to keep track of samples_controlled, samples_controlled_observed
+                samples_controlled_observed = []
+                replaced_indices = []
+                for i in range(len(example_trace._samples_all)):
+                    sample = example_trace._samples_all[i]
+                    if sample.control and i not in replaced_indices:
+                        if sample.replace:
+                            for j in range(i + 1, len(example_trace._samples_all)):
+                                if example_trace._samples_all[j].address_base == sample.address_base:
+                                    # example_trace.samples_replaced.append(sample)
+                                    sample = example_trace._samples_all[j]
+                                    replaced_indices.append(j)
+                        samples_controlled_observed.append(sample)
+                    elif sample.observed:
+                        samples_controlled_observed.append(sample)
+                trace_addresses = [self._address_stats[sample.address][1] for sample in samples_controlled_observed]
+                self._trace_stats[trace_str] = [len(sub_batch), trace_id, len(example_trace._samples_all),  len(example_trace.samples), trace_addresses]
+            else:
+                self._trace_stats[trace_str][0] += len(sub_batch)
+
     def _add_address(self, address):
         if address not in self._address_embeddings:
-            # print('Polymorphing, new address: {}'.format(address))
             t = Parameter(util.Tensor(self._address_embedding_dim).normal_())
             self._address_embeddings[address] = t
             self.register_parameter('address_embedding_' + address, t)
+            print('New layers for address (A{}): {}'.format(len(self._address_embeddings), util.truncate_str(address)))
 
     def _add_distribution_type(self, distribution_type):
         if distribution_type not in self._distribution_type_embeddings:
-            # print('Polymorphing, new distribution type: {}'.format(distribution_type))
+            print('New distribution type: {}'.format(distribution_type))
             i = len(self._distribution_type_embeddings)
             if i < self._distribution_type_embedding_dim:
                 t = util.one_hot(self._distribution_type_embedding_dim, i)
@@ -461,14 +501,13 @@ class InferenceNetwork(nn.Module):
                     self._proposal_layers[address] = proposal_layer
                     self.add_module('sample_embedding_layer({})'.format(address), sample_embedding_layer)
                     self.add_module('proposal_layer({})'.format(address), proposal_layer)
-                    print('Polymorphing, new layers for address ({}): {}'.format(len(self._address_embeddings), util.truncate_str(address)))
                     layers_changed = True
 
         if layers_changed:
             num_params = 0
             for p in self.parameters():
                 num_params += p.nelement()
-            print('Polymorphing, new trainable params: {:,}'.format(num_params))
+            print('New trainable params: {:,}'.format(num_params))
             self._history_num_params.append(num_params)
             self._history_num_params_trace.append(self._total_train_traces)
 
@@ -640,6 +679,7 @@ class InferenceNetwork(nn.Module):
         while not stop:
             iteration += 1
             batch = new_batch_func()
+            self._update_stats(batch)
             layers_changed = self.polymorph(batch)
             if iteration == 1 or layers_changed:
                 if optimizer_type == Optimizer.ADAM:

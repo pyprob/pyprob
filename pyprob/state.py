@@ -98,6 +98,10 @@ def sample(distribution, control=True, replace=False, address=None):
     else:  # _trace_mode == TraceMode.PRIOR or _trace_mode == TraceMode.POSTERIOR
         global _current_trace
 
+        # Only replace if controlled
+        if not control:
+            replace = False
+
         if _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
             control = True
             replace = False
