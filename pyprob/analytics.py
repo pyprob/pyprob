@@ -512,7 +512,7 @@ def save_report(model, file_name, detailed_traces=2):
                                 plt.imshow(util.crop_image(img), interpolation='bilinear')
                                 plt.axis('off')
                                 plot.add_plot(width=NoEscape(r'\textwidth'))
-                                plot.add_caption('Succession of unique address IDs (for one trace of type ' + trace_id + ').')
+                                plot.add_caption('Succession of controlled addresses (for one trace of type ' + trace_id + '). Red: controlled, green: replaced, blue: observed.')
 
                             with doc.create(Tabularx('lp{16cm}')) as table:
                                 table.add_row(FootnoteText('Trace'), FootnoteText(' '.join(trace_addresses)))

@@ -328,10 +328,10 @@ class Model(nn.Module):
                 trace.cuda()
         return data['traces']
 
-    def save_analytics(self, file_name):
+    def save_analytics(self, file_name, detailed_traces=2):
         if self._inference_network is None:
             raise RuntimeError('Analytics is currently available only with a trained inference network. Use learn_inference_network first.')
-        save_report(self, file_name)
+        save_report(self, file_name, detailed_traces=detailed_traces)
 
 
 class ModelRemote(Model):
