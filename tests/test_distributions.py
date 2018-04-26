@@ -9,7 +9,7 @@ import math
 
 import pyprob
 from pyprob import util
-from pyprob.distributions import Distribution, Categorical, Empirical, Mixture, Normal, TruncatedNormal, Uniform, Poisson
+from pyprob.distributions import Distribution, Categorical, Empirical, Mixture, Normal, TruncatedNormal, Uniform, Poisson, Kumaraswamy
 
 
 empirical_samples = 10000
@@ -595,6 +595,58 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_rates, dist_rates_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
 
+    def test_dist_kumaraswamy(self):
+        dist_sample_shape_correct = [1]
+        dist_shape1s_correct = [2]
+        dist_shape2s_correct = [5]
+        dist_means_correct = [0.369408]
+        dist_stddevs_correct = [0.173793]
+        dist_log_probs_correct = [0.719861]
+
+        dist = Kumaraswamy(dist_shape1s_correct, dist_shape2s_correct)
+        dist_sample_shape = list(dist.sample().size())
+        dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
+        dist_means = util.to_numpy(dist.mean)
+        dist_means_empirical = util.to_numpy(dist_empirical.mean)
+        dist_stddevs = util.to_numpy(dist.stddev)
+        dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
+        dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
+
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+
+        self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
+        self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+
+    def test_dist_kumaraswamy_batched(self):
+        dist_sample_shape_correct = [2, 1]
+        dist_shape1s_correct = [[0.5], [7.5]]
+        dist_shape2s_correct = [[0.75], [2.5]]
+        dist_means_correct = [[0.415584], [0.807999]]
+        dist_stddevs_correct = [[0.327509], [0.111605]]
+        dist_log_probs_correct = [[-0.283125], [1.20676]]
+
+        dist = Kumaraswamy(dist_shape1s_correct, dist_shape2s_correct)
+        dist_sample_shape = list(dist.sample().size())
+        dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
+        dist_means = util.to_numpy(dist.mean)
+        dist_means_empirical = util.to_numpy(dist_empirical.mean)
+        dist_stddevs = util.to_numpy(dist.stddev)
+        dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
+        dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
+
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+
+        self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
+        self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+
     def test_dist_empirical_save_load(self):
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
         values = Variable(util.Tensor([1, 2, 3]))
@@ -624,6 +676,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_stddev_empirical, dist_stddev_correct, places=1)
         self.assertAlmostEqual(dist_expectation_sin, dist_expectation_sin_correct, places=1)
         self.assertAlmostEqual(dist_map_sin_mean, dist_map_sin_mean_correct, places=1)
+
 
 
 if __name__ == '__main__':

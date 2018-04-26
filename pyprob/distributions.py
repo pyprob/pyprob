@@ -411,8 +411,6 @@ class Normal(Distribution):
             self.length_variates = self._mean.size(1)
             self.length_batch = self._mean.size(0)
         else:
-            print(self._mean.size())
-            print(self._stddev.size())
             raise RuntimeError('Expecting 1d or 2d (batched) probabilities.')
         super().__init__('Normal', 'Normal', torch.distributions.Normal(self._mean, self._stddev))
 
@@ -600,7 +598,6 @@ class Poisson(Distribution):
             self.length_variates = self._rate.size(1)
             self.length_batch = self._rate.size(0)
         else:
-            print(self._rate.size())
             raise RuntimeError('Expecting 1d or 2d (batched) probabilities.')
         self._rate_numpy = self._rate.data.cpu().numpy()
         super().__init__('Poisson', 'Poisson')
@@ -637,3 +634,57 @@ class Poisson(Distribution):
     @property
     def rate(self):
         return self._rate
+
+
+class Kumaraswamy(Distribution):
+    def __init__(self, shape1, shape2):
+        self._shape1 = util.to_variable(shape1)
+        self._shape2 = util.to_variable(shape2)
+        if self._shape1.dim() == 1:
+            self.length_variates = self._shape1.size(0)
+            self.length_batch = 1
+            if self._shape1.size(0) > 1:
+                self._shape1 = self._shape1.unsqueeze(0)
+                self._shape2 = self._shape2.unsqueeze(0)
+        elif self._shape1.dim() == 2:
+            self.length_variates = self._shape1.size(1)
+            self.length_batch = self._shape1.size(0)
+        else:
+            raise RuntimeError('Expecting 1d or 2d (batched) probabilities.')
+        self._shape1_recip = 1. / self._shape1
+        self._shape2_recip = 1. / self._shape2
+        self._standard_uniform = Uniform(torch.zeros(self.length_batch, self.length_variates), torch.ones(self.length_batch, self.length_variates))
+        self._mean = None
+        self._variance = None
+        super().__init__('Kumaraswamy', 'Kumaraswamy')
+
+    def __repr__(self):
+        return 'Kumaraswamy(shape1:{}, shape2:{}, length_variates:{}, length_batch:{})'.format(self._shape1, self._shape2, self.length_variates, self.length_batch)
+
+    def sample(self):
+        return (1. - ((1. - self._standard_uniform.sample()) ** self._shape2_recip)) ** self._shape1_recip
+
+    @property
+    def mean(self):
+        if self._mean is None:
+            self._mean = torch.exp(torch.log(self._shape2) + torch.lgamma(1. + 1./self._shape1) + torch.lgamma(self._shape2) - torch.lgamma(1. + self._shape2 + 1./self._shape1))
+        return self._mean
+
+    @property
+    def variance(self):
+        if self._variance is None:
+            self._variance = torch.exp(torch.log(self._shape2) + torch.lgamma(1. + 2./self._shape1) + torch.lgamma(self._shape2) - torch.lgamma(1. + self._shape2 + 2./self._shape1))
+            self._variance -= self.mean ** 2.
+        return self._variance
+
+    def log_prob(self, value):
+        value = util.to_variable(value)
+        value = value.view(self.length_batch, self.length_variates)
+        lp = torch.log(self._shape1) + torch.log(self._shape2) + (self._shape1 - 1.) * torch.log(value) + (self._shape2 - 1.) * torch.log(1. - value**self._shape1)
+        if lp.dim() == 2 and self.length_variates > 1:
+            lp = util.safe_torch_sum(lp, dim=1)
+        if self.length_batch == 1:
+            lp = lp.squeeze(0)
+        # if self.length_batch > 1 and self.length_variates > 1:
+        #     lp = lp.unsqueeze(1)
+        return lp
