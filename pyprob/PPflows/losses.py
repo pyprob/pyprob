@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from utils import safe_log
+from pyprob.PPflows.utils import safe_log
 
 
 class FreeEnergyBound(nn.Module):

@@ -3,13 +3,13 @@ import argparse
 import torch
 from torch.autograd import Variable
 from torch import optim
-from mag.experiment import Experiment
+from pyprob.PPflows.experiments import experiment
 
-from visualization import plot_density, scatter_points
-from utils import random_normal_samples
-from flow import NormalizingFlow
-from losses import FreeEnergyBound
-from densities import p_z
+from pyprob.PPflows.visualization import plot_density, scatter_points
+from pyprob.PPflows.utils import random_normal_samples
+from pyprob.PPflows.flow import NormalizingFlow
+from pyprob.PPflows.losses import FreeEnergyBound
+from pyprob.PPflows.densities import p_z
 
 
 parser = argparse.ArgumentParser(
@@ -34,7 +34,7 @@ args = parser.parse_args()
 torch.manual_seed(42)
 
 
-with Experiment({
+with experiment({
     "batch_size": 40,
     "iterations": 10000,
     "initial_lr": 0.01,
@@ -42,13 +42,13 @@ with Experiment({
     "flow_length": 16,
     "name": "planar"
 }) as experiment:
-
-    config = experiment.config
+    config = experiment
     experiment.register_directory("samples")
     experiment.register_directory("distributions")
 
     flow = NormalizingFlow(dim=2, flow_length=config.flow_length)
     bound = FreeEnergyBound(density=p_z)
+    print('Debug flow.parameters(), will call nn.NormalizingFlow.nn.parameters() : {0}'.format(flow.parameters()))
     optimizer = optim.RMSprop(flow.parameters(), lr=config.initial_lr)
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, config.lr_decay)
 
