@@ -13,7 +13,7 @@ import os
 
 class experiment(dict):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, dict):
         # {batch_size : int
         #  iterations : int
         #  initial_lr; float
@@ -21,8 +21,9 @@ class experiment(dict):
         #  flow_length: int
         #  name : str}
         # the following allows us to call the "keys" of the dict og the class as if they were attributes
-        super(experiment, self).__init__(*args, **kwargs)
-        self.__dict__ = self
+        for key in dict:
+            print(key)
+            self.__dict__[key] = dict[key]
 
     def register_directory(self,name):
         """ Creates a directory to save experiment data"""

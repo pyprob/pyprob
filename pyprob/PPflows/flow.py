@@ -3,7 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
 
-from pyprob.PPflows.utils import safe_log
+from PPflows.utils import safe_log
 
 
 class NormalizingFlow(nn.Module):
