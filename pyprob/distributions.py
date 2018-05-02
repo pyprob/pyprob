@@ -637,9 +637,13 @@ class Poisson(Distribution):
 
 
 class Kumaraswamy(Distribution):
-    def __init__(self, shape1, shape2):
+    def __init__(self, shape1, shape2, low=0, high=1):
         self._shape1 = util.to_variable(shape1)
         self._shape2 = util.to_variable(shape2)
+        self._low = util.to_variable(low)
+        self._high = util.to_variable(high)
+        self._range = self._high - self._low
+        self._log_range = torch.log(self._range)
         if self._shape1.dim() == 1:
             self.length_variates = self._shape1.size(0)
             self.length_batch = 1
@@ -662,25 +666,27 @@ class Kumaraswamy(Distribution):
         return 'Kumaraswamy(shape1:{}, shape2:{}, length_variates:{}, length_batch:{})'.format(self._shape1, self._shape2, self.length_variates, self.length_batch)
 
     def sample(self):
-        return (1. - ((1. - self._standard_uniform.sample()) ** self._shape2_recip)) ** self._shape1_recip
+        s = (1. - ((1. - self._standard_uniform.sample()) ** self._shape2_recip)) ** self._shape1_recip
+        return self._low + self._range * s
 
     @property
     def mean(self):
         if self._mean is None:
-            self._mean = torch.exp(torch.log(self._shape2) + torch.lgamma(1. + 1./self._shape1) + torch.lgamma(self._shape2) - torch.lgamma(1. + self._shape2 + 1./self._shape1))
+            self._mean = self._low + self._range * torch.exp(torch.log(self._shape2) + torch.lgamma(1. + 1./self._shape1) + torch.lgamma(self._shape2) - torch.lgamma(1. + self._shape2 + 1./self._shape1))
         return self._mean
 
     @property
     def variance(self):
         if self._variance is None:
-            self._variance = torch.exp(torch.log(self._shape2) + torch.lgamma(1. + 2./self._shape1) + torch.lgamma(self._shape2) - torch.lgamma(1. + self._shape2 + 2./self._shape1))
+            self._variance = self._range * self._range * torch.exp(torch.log(self._shape2) + torch.lgamma(1. + 2./self._shape1) + torch.lgamma(self._shape2) - torch.lgamma(1. + self._shape2 + 2./self._shape1))
             self._variance -= self.mean ** 2.
         return self._variance
 
     def log_prob(self, value):
         value = util.to_variable(value)
         value = value.view(self.length_batch, self.length_variates)
-        lp = torch.log(self._shape1) + torch.log(self._shape2) + (self._shape1 - 1.) * torch.log(value) + (self._shape2 - 1.) * torch.log(1. - value**self._shape1)
+        value = (value - self._low) / self._range
+        lp = -self._log_range + torch.log(self._shape1) + torch.log(self._shape2) + (self._shape1 - 1.) * torch.log(value) + (self._shape2 - 1.) * torch.log(1. - value**self._shape1)
         if lp.dim() == 2 and self.length_variates > 1:
             lp = util.safe_torch_sum(lp, dim=1)
         if self.length_batch == 1:

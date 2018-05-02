@@ -35,11 +35,4 @@ setup(
     classifiers=['Development Status :: 4 - Beta', 'License :: OSI Approved :: MIT License', 'Programming Language :: Python :: 3.5'],
     license='MIT',
     keywords='probabilistic programming deep learning inference compilation',
-    # entry_points={
-    #     'console_scripts': [
-    #         'pyprob-compile = pyprob.console.compile:main',
-    #         'pyprob-infer = pyprob.console.infer:main',
-    #         'pyprob-analytics = pyprob.console.analytics:main'
-    #     ]
-    # }
 )

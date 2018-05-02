@@ -17,7 +17,7 @@ import tarfile
 from collections import OrderedDict
 
 from . import util, __version__, ObserveEmbedding, SampleEmbedding, Optimizer, TrainingObservation
-from .distributions import Categorical, Mixture, Normal, TruncatedNormal, Uniform, Poisson
+from .distributions import Categorical, Mixture, Normal, TruncatedNormal, Uniform, Poisson, Kumaraswamy
 
 
 class Batch(object):
@@ -67,16 +67,18 @@ class ObserveEmbeddingFC(nn.Module):
         super().__init__()
         self._input_dim = input_example_non_batch.nelement()
         self._lin1 = nn.Linear(self._input_dim, self._input_dim)
+        # self._drop1 = nn.Dropout()
         self._lin2 = nn.Linear(self._input_dim, output_dim)
-        self._lin3 = nn.Linear(output_dim, output_dim)
+        # self._lin3 = nn.Linear(output_dim, output_dim)
         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform(self._lin3.weight, gain=nn.init.calculate_gain('relu'))
+        # nn.init.xavier_uniform(self._lin3.weight, gain=nn.init.calculate_gain('relu'))
 
     def forward(self, x):
         x = F.relu(self._lin1(x.view(-1, self._input_dim)))
+        # x = self._drop1(x)
         x = F.relu(self._lin2(x))
-        x = F.relu(self._lin3(x))
+        # x = F.relu(self._lin3(x))
         return x
 
 
@@ -202,14 +204,16 @@ class SampleEmbeddingFC(nn.Module):
 class ProposalCategorical(nn.Module):
     def __init__(self, input_dim, output_dim):
         super().__init__()
-        self._lin1 = nn.Linear(input_dim, int(input_dim/2))
-        self._lin2 = nn.Linear(int(input_dim/2), output_dim)
+        self._lin1 = nn.Linear(input_dim, input_dim)
+        self._drop1 = nn.Dropout()
+        self._lin2 = nn.Linear(input_dim, output_dim)
         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
-        x = F.softmax(self._lin2(x), dim=1)
+        x = self._drop1(x)
+        x = F.softmax(self._lin2(x), dim=1) + util._epsilon
         return Categorical(probs=x)
 
 
@@ -247,15 +251,14 @@ class ProposalUniform(nn.Module):
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
         x = self._lin2(x)
-        means = x[:, 0].unsqueeze(1)
-        stddevs = x[:, 1].unsqueeze(1)
-        stddevs = F.softplus(stddevs)
-        prior_means = util.to_variable(torch.stack([s.distribution.mean[0] for s in samples]))
+        # prior_means = util.to_variable(torch.stack([s.distribution.mean[0] for s in samples]))
         prior_stddevs = util.to_variable(torch.stack([s.distribution.stddev[0] for s in samples]))
         prior_lows = util.to_variable(torch.stack([s.distribution.low for s in samples]))
         prior_highs = util.to_variable(torch.stack([s.distribution.high for s in samples]))
-        means = prior_means + (means * prior_stddevs)
-        stddevs = stddevs * prior_stddevs
+        means = x[:, 0].unsqueeze(1)
+        means = prior_lows + F.sigmoid(means) * (prior_highs - prior_lows)
+        stddevs = x[:, 1].unsqueeze(1)
+        stddevs = util._epsilon + F.sigmoid(stddevs) * prior_stddevs
         return TruncatedNormal(means, stddevs, prior_lows, prior_highs)
 
 
@@ -289,6 +292,34 @@ class ProposalUniformMixture(nn.Module):
         return Mixture(distributions, coeffs)
 
 
+class ProposalUniformKumaraswamy(nn.Module):
+    def __init__(self, input_dim):
+        super().__init__()
+        self._input_dim = input_dim
+        self._lin1 = nn.Linear(input_dim, int(input_dim/2))
+        self._lin2 = nn.Linear(int(input_dim/2), 2)
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+
+    def forward(self, x, samples):
+        x = F.relu(self._lin1(x))
+        x = self._lin2(x)
+        shape1s = x[:, 0].unsqueeze(1)
+        shape1s = util._epsilon + F.relu(shape1s)
+        shape2s = x[:, 1].unsqueeze(1)
+        shape2s = util._epsilon + F.relu(shape2s)
+        # prior_means = util.to_variable(torch.stack([s.distribution.mean[0] for s in samples]))
+        # prior_stddevs = util.to_variable(torch.stack([s.distribution.stddev[0] for s in samples]))
+        prior_lows = util.to_variable(torch.stack([s.distribution.low for s in samples]))
+        prior_highs = util.to_variable(torch.stack([s.distribution.high for s in samples]))
+        # means = prior_means + (means * prior_stddevs)
+        # stddevs = stddevs * prior_stddevs
+        # return TruncatedNormal(means, stddevs, prior_lows, prior_highs)
+        dist = Kumaraswamy(shape1s, shape2s, low=prior_lows, high=prior_highs)
+        # print('dist', dist)
+        return dist
+
+
 class ProposalPoisson(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
@@ -312,8 +343,363 @@ class ProposalPoisson(nn.Module):
         return TruncatedNormal(means, stddevs, 0, 40)
 
 
-class InferenceNetwork(nn.Module):
-    def __init__(self, model_name='Unnamed model', lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=256, valid_batch=None, cuda=False, device=None):
+class InferenceNetworkSimple(nn.Module):
+    def __init__(self, model_name='Unnamed model', observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, valid_batch=None):
+        super().__init__()
+        self._model_name = model_name
+        self._observe_embedding = observe_embedding
+        self._observe_reshape = observe_reshape
+        self._observe_embedding_dim = observe_embedding_dim
+        self._valid_batch = valid_batch
+        self._on_cuda = util._cuda_enabled
+        self._cuda_device = util._cuda_device
+        self._trained_on = 'CPU'
+        self._total_train_seconds = 0
+        self._total_train_traces = 0
+        self._total_train_iterations = 0
+        self._loss_initial = None
+        self._loss_min = float('inf')
+        self._loss_max = None
+        self._loss_previous = float('inf')
+        self._history_train_loss = []
+        self._history_train_loss_trace = []
+        self._history_valid_loss = []
+        self._history_valid_loss_trace = []
+        self._history_num_params = []
+        self._history_num_params_trace = []
+        self._created = util.get_time_str()
+        self._modified = util.get_time_str()
+        self._updates = 0
+        self._pyprob_version = __version__
+        self._torch_version = torch.__version__
+        self._optimizer_type = ''
+
+        self._state_new_trace = True
+        self._state_observes = None
+        self._state_observes_embedding = None
+
+        self._address_stats = OrderedDict()
+        self._trace_stats = OrderedDict()
+
+        example_observes = self._valid_batch[0].pack_observes()  # To do: we need to check all the observes in the batch, to be more intelligent
+        if self._observe_embedding == ObserveEmbedding.FULLY_CONNECTED:
+            self._observe_embedding_layer = ObserveEmbeddingFC(example_observes, self._observe_embedding_dim)
+        elif self._observe_embedding == ObserveEmbedding.CONVNET_2D_5C:
+            self._observe_embedding_layer = ObserveEmbeddingConvNet2D5C(example_observes, self._observe_embedding_dim, self._observe_reshape)
+            self._observe_embedding_layer.configure()
+        elif self._observe_embedding == ObserveEmbedding.CONVNET_3D_4C:
+            self._observe_embedding_layer = ObserveEmbeddingConvNet3D4C(example_observes, self._observe_embedding_dim, self._observe_reshape)
+            self._observe_embedding_layer.configure()
+        else:
+            raise ValueError('Unknown observation embedding: {}'.format(self._observe_embedding))
+        # self._sample_embedding_layers = {}
+        self._proposal_layers = {}
+
+    def cuda(self, device=None):
+        self._on_cuda = True
+        self._cuda_device = device
+        super().cuda(device)
+        self._valid_batch.cuda(device)
+        return self
+
+    def cpu(self):
+        self._on_cuda = False
+        super().cpu()
+        self._valid_batch.cpu()
+        return self
+
+    def _update_stats(self, batch):
+        for sub_batch in batch.sub_batches:
+            example_trace = sub_batch[0]
+            # Update address stats
+            for sample in example_trace._samples_all:
+                address = sample.address
+                if address not in self._address_stats:
+                    address_id = 'A' + str(len(self._address_stats) + 1)
+                    self._address_stats[address] = [len(sub_batch), address_id, sample.distribution.name, sample.control, sample.replace, sample.observed]
+                else:
+                    self._address_stats[address][0] += len(sub_batch)
+            # Update trace stats
+            trace_str = example_trace.addresses()
+            if trace_str not in self._trace_stats:
+                trace_id = 'T' + str(len(self._trace_stats) + 1)
+
+                # TODO: the following is not needed when the Trace code is updated to keep track of samples_controlled, samples_controlled_observed
+                samples_controlled_observed = []
+                replaced_indices = []
+                for i in range(len(example_trace._samples_all)):
+                    sample = example_trace._samples_all[i]
+                    if sample.control and i not in replaced_indices:
+                        if sample.replace:
+                            for j in range(i + 1, len(example_trace._samples_all)):
+                                if example_trace._samples_all[j].address_base == sample.address_base:
+                                    # example_trace.samples_replaced.append(sample)
+                                    sample = example_trace._samples_all[j]
+                                    replaced_indices.append(j)
+                        samples_controlled_observed.append(sample)
+                    elif sample.observed:
+                        samples_controlled_observed.append(sample)
+                trace_addresses = [self._address_stats[sample.address][1] for sample in samples_controlled_observed]
+                self._trace_stats[trace_str] = [len(sub_batch), trace_id, len(example_trace._samples_all),  len(example_trace.samples), trace_addresses]
+            else:
+                self._trace_stats[trace_str][0] += len(sub_batch)
+
+    def polymorph(self, batch=None):
+        if batch is None:
+            if self._valid_batch is None:
+                return
+            else:
+                batch = self._valid_batch
+
+        self._update_stats(batch)
+
+        layers_changed = False
+        for sub_batch in batch.sub_batches:
+            example_trace = sub_batch[0]
+
+            for sample in example_trace.samples:
+                address = sample.address
+                distribution = sample.distribution
+
+                if address not in self._proposal_layers:
+                    print('New layers for address ({}): {}'.format(self._address_stats[address][1], util.truncate_str(address)))
+
+                    if isinstance(distribution, Categorical):
+                        proposal_layer = ProposalCategorical(self._observe_embedding_dim, distribution.length_categories)
+                    elif isinstance(distribution, Normal):
+                        proposal_layer = ProposalNormal(self._observe_embedding_dim, distribution.length_variates)
+                    elif isinstance(distribution, Uniform):
+                        proposal_layer = ProposalUniformKumaraswamy(self._observe_embedding_dim)
+                    elif isinstance(distribution, Poisson):
+                        proposal_layer = ProposalPoisson(self._observe_embedding_dim)
+                    else:
+                        raise ValueError('Unsupported distribution: {}'.format(distribution.name))
+
+                    self._proposal_layers[address] = proposal_layer
+                    self.add_module('proposal_layer({})'.format(address), proposal_layer)
+                    layers_changed = True
+
+        if layers_changed:
+            num_params = 0
+            for p in self.parameters():
+                num_params += p.nelement()
+            print('New trainable params: {:,}'.format(num_params))
+            self._history_num_params.append(num_params)
+            self._history_num_params_trace.append(self._total_train_traces)
+
+        if self._on_cuda:
+            self.cuda(self._cuda_device)
+
+        return layers_changed
+
+    def new_trace(self, observes=None):
+        self._state_new_trace = True
+        self._state_observes = observes
+        self._state_observes_embedding = self._observe_embedding_layer.forward(observes)
+
+    def forward_one_time_step(self, previous_sample, current_sample):
+        if self._state_observes is None:
+            raise RuntimeError('Cannot run the inference network without observations. Call new_trace and supply observations.')
+
+        success = True
+        current_address = current_sample.address
+        current_distribution = current_sample.distribution
+        if current_address not in self._proposal_layers:
+            print('Warning: no proposal layer for: {}'.format(current_address))
+            success = False
+
+        if success:
+            proposal_distribution = self._proposal_layers[current_address](self._state_observes_embedding, [current_sample])
+            return proposal_distribution
+        else:
+            print('Warning: no proposal could be made, prior will be used')
+            return current_distribution
+
+    def loss(self, batch, optimizer=None, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE):
+        gc.collect()
+
+        batch_loss = 0
+        for sub_batch in batch.sub_batches:
+            obs = torch.stack([trace.pack_observes(training_observation) for trace in sub_batch])
+            obs_emb = self._observe_embedding_layer(obs)
+
+            sub_batch_length = len(sub_batch)
+            example_trace = sub_batch[0]
+
+            log_prob = 0
+            for time_step in range(example_trace.length):
+                current_sample = example_trace.samples[time_step]
+                current_address = current_sample.address
+
+                current_samples = [trace.samples[time_step] for trace in sub_batch]
+                current_samples_values = torch.stack([s.value for s in current_samples])
+                proposal_distribution = self._proposal_layers[current_address](obs_emb, current_samples)
+                l = proposal_distribution.log_prob(current_samples_values)
+
+                if util.has_nan_or_inf(l):
+                    print('proposal_distribution', proposal_distribution)
+                    print('current_samples_values', current_samples_values)
+                    print('logprob', l)
+                    print('Warning: NaN or Inf encountered in proposal log_prob.')
+                    return False, 0
+                log_prob += util.safe_torch_sum(l)
+
+            sub_batch_loss = -log_prob / sub_batch_length
+            batch_loss += float(sub_batch_loss * sub_batch_length)
+
+            if optimizer is not None:
+                optimizer.zero_grad()
+                sub_batch_loss.backward()
+                optimizer.step()
+
+        return True, batch_loss / batch.length
+
+    def optimize(self, new_batch_func, training_observation, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name):
+        self._trained_on = 'CUDA' if util._cuda_enabled else 'CPU'
+        self._optimizer_type = optimizer_type
+        prev_total_train_seconds = self._total_train_seconds
+        time_start = time.time()
+        time_loss_min = time.time()
+        time_last_batch = time.time()
+        iteration = 0
+        trace = 0
+        last_validation_trace = -valid_interval + 1
+        stop = False
+        print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
+        max_print_line_len = 0
+
+        while not stop:
+            iteration += 1
+            batch = new_batch_func()
+            layers_changed = self.polymorph(batch)
+            if iteration == 1 or layers_changed:
+                if optimizer_type == Optimizer.ADAM:
+                    optimizer = optim.Adam(self.parameters(), lr=learning_rate, weight_decay=weight_decay)
+                else:  # optimizer_type == Optimizer.SGD:
+                    optimizer = optim.SGD(self.parameters(), lr=learning_rate, momentum=momentum, nesterov=True, weight_decay=weight_decay)
+            success, loss = self.loss(batch, optimizer, training_observation)
+            if not success:
+                print('Cannot compute loss, stopping. Loss: {}'.format(loss))
+                stop = True
+            else:
+                if self._loss_initial is None:
+                    self._loss_initial = loss
+                    self._loss_max = loss
+                loss_initial_str = '{:+.2e}'.format(self._loss_initial)
+                # loss_max_str = '{:+.3e}'.format(self._loss_max)
+                if loss < self._loss_min:
+                    self._loss_min = loss
+                    loss_str = colored('{:+.2e}'.format(loss), 'green', attrs=['bold'])
+                    loss_min_str = colored('{:+.2e}'.format(self._loss_min), 'green', attrs=['bold'])
+                    time_loss_min = time.time()
+                    time_since_loss_min_str = colored(util.days_hours_mins_secs_str(0), 'green', attrs=['bold'])
+                elif loss > self._loss_max:
+                    self._loss_max = loss
+                    loss_str = colored('{:+.2e}'.format(loss), 'red', attrs=['bold'])
+                    # loss_max_str = colored('{:+.3e}'.format(self._loss_max), 'red', attrs=['bold'])
+                else:
+                    if loss < self._loss_previous:
+                        loss_str = colored('{:+.2e}'.format(loss), 'green')
+                    elif loss > self._loss_previous:
+                        loss_str = colored('{:+.2e}'.format(loss), 'red')
+                    else:
+                        loss_str = '{:+.2e}'.format(loss)
+                    loss_min_str = '{:+.2e}'.format(self._loss_min)
+                    # loss_max_str = '{:+.3e}'.format(self._loss_max)
+                    time_since_loss_min_str = util.days_hours_mins_secs_str(time.time() - time_loss_min)
+
+                self._loss_previous = loss
+                self._total_train_iterations += 1
+                trace += batch.length
+                self._total_train_traces += batch.length
+                total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
+                self._total_train_seconds = prev_total_train_seconds + (time.time() - time_start)
+                total_training_seconds_str = util.days_hours_mins_secs_str(self._total_train_seconds)
+                traces_per_second_str = '{:,.1f}'.format(int(batch.length / (time.time() - time_last_batch)))
+                time_last_batch = time.time()
+                if num_traces != -1:
+                    if trace >= num_traces:
+                        stop = True
+
+                self._history_train_loss.append(loss)
+                self._history_train_loss_trace.append(self._total_train_traces)
+                if trace - last_validation_trace > valid_interval:
+                    print('\rComputing validation loss...', end='\r')
+                    _, valid_loss = self.loss(self._valid_batch)
+                    self._history_valid_loss.append(valid_loss)
+                    self._history_valid_loss_trace.append(self._total_train_traces)
+                    last_validation_trace = trace - 1
+                    if auto_save:
+                        file_name = auto_save_file_name + '_' + util.get_time_stamp()
+                        print('\rSaving to disk...', end='\r')
+                        self._save(file_name)
+
+                print_line = '{} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
+                max_print_line_len = max(len(print_line), max_print_line_len)
+                print(print_line.ljust(max_print_line_len), end='\r')
+                sys.stdout.flush()
+        print()
+
+    def _save(self, file_name):
+        self._modified = util.get_time_str()
+        self._updates += 1
+
+        data = {}
+        data['pyprob_version'] = __version__
+        data['torch_version'] = torch.__version__
+        data['inference_network'] = self
+
+        def thread_save():
+            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+            tmp_file_name = os.path.join(tmp_dir, 'pyprob_inference_network')
+            torch.save(data, tmp_file_name)
+            tar = tarfile.open(file_name, 'w:gz', compresslevel=2)
+            tar.add(tmp_file_name, arcname='pyprob_inference_network')
+            tar.close()
+            shutil.rmtree(tmp_dir)
+        t = Thread(target=thread_save)
+        t.start()
+        t.join()
+
+    @staticmethod
+    def _load(file_name, cuda=False, device=None):
+        try:
+            tar = tarfile.open(file_name, 'r:gz')
+            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+            tmp_file = os.path.join(tmp_dir, 'pyprob_inference_network')
+            tar.extract('pyprob_inference_network', tmp_dir)
+            tar.close()
+            if cuda:
+                data = torch.load(tmp_file)
+            else:
+                data = torch.load(tmp_file, map_location=lambda storage, loc: storage)
+                shutil.rmtree(tmp_dir)
+        except:
+            raise RuntimeError('Cannot load inference network.')
+
+        if data['pyprob_version'] != __version__:
+            print(colored('Warning: different pyprob versions (loaded network: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
+        if data['torch_version'] != torch.__version__:
+            print(colored('Warning: different PyTorch versions (loaded network: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
+
+        ret = data['inference_network']
+        if cuda:
+            if ret._on_cuda:
+                if ret._cuda_device != device:
+                    print(colored('Warning: loading CUDA (device {}) network to CUDA (device {})'.format(ret._cuda_device, device), 'red', attrs=['bold']))
+                    ret.cuda(device)
+            else:
+                print(colored('Warning: loading CPU network to CUDA (device {})'.format(device), 'red', attrs=['bold']))
+                ret.cuda(device)
+        else:
+            if ret._on_cuda:
+                print(colored('Warning: loading CUDA (device {}) network to CPU'.format(ret._cuda_device), 'red', attrs=['bold']))
+                ret.cpu()
+        return ret
+
+
+class InferenceNetworkLSTM(nn.Module):
+    def __init__(self, model_name='Unnamed model', lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=256, valid_batch=None):
         super().__init__()
         self._model_name = model_name
         self._lstm_dim = lstm_dim
@@ -324,10 +710,10 @@ class InferenceNetwork(nn.Module):
         self._sample_embedding = sample_embedding
         self._sample_embedding_dim = sample_embedding_dim
         self._address_embedding_dim = address_embedding_dim
-        self._distribution_type_embedding_dim = 3  # Needs to match the number of distribution types in pyprob (except Emprical)
+        self._distribution_type_embedding_dim = 4  # Needs to match the number of distribution types in pyprob (except Emprical)
         self._valid_batch = valid_batch
-        self._on_cuda = cuda
-        self._cuda_device = device
+        self._on_cuda = util._cuda_enabled
+        self._cuda_device = util._cuda_device
         self._trained_on = 'CPU'
         self._total_train_seconds = 0
         self._total_train_traces = 0
@@ -445,7 +831,7 @@ class InferenceNetwork(nn.Module):
             t = Parameter(util.Tensor(self._address_embedding_dim).normal_())
             self._address_embeddings[address] = t
             self.register_parameter('address_embedding_' + address, t)
-            print('New layers for address (A{}): {}'.format(len(self._address_embeddings), util.truncate_str(address)))
+            print('New layers for address ({}): {}'.format(self._address_stats[address][1], util.truncate_str(address)))
 
     def _add_distribution_type(self, distribution_type):
         if distribution_type not in self._distribution_type_embeddings:
@@ -464,6 +850,8 @@ class InferenceNetwork(nn.Module):
                 return
             else:
                 batch = self._valid_batch
+
+        self._update_stats(batch)
 
         layers_changed = False
         for sub_batch in batch.sub_batches:
@@ -491,7 +879,7 @@ class InferenceNetwork(nn.Module):
                     elif isinstance(distribution, Normal):
                         proposal_layer = ProposalNormal(self._lstm_dim, distribution.length_variates)
                     elif isinstance(distribution, Uniform):
-                        proposal_layer = ProposalUniform(self._lstm_dim)
+                        proposal_layer = ProposalUniformKumaraswamy(self._lstm_dim)
                     elif isinstance(distribution, Poisson):
                         proposal_layer = ProposalPoisson(self._lstm_dim)
                     else:
@@ -555,6 +943,7 @@ class InferenceNetwork(nn.Module):
                 success = False
 
         current_address = current_sample.address
+        # print(current_address)
         current_distribution = current_sample.distribution
         if current_address not in self._proposal_layers:
             print('Warning: no proposal layer for: {}'.format(current_address))
@@ -592,7 +981,7 @@ class InferenceNetwork(nn.Module):
 
         batch_loss = 0
         for sub_batch in batch.sub_batches:
-            obs = torch.stack([trace.pack_observes() for trace in sub_batch])
+            obs = torch.stack([trace.pack_observes(training_observation) for trace in sub_batch])
             obs_emb = self._observe_embedding_layer(obs)
 
             sub_batch_length = len(sub_batch)
@@ -679,14 +1068,13 @@ class InferenceNetwork(nn.Module):
         while not stop:
             iteration += 1
             batch = new_batch_func()
-            self._update_stats(batch)
             layers_changed = self.polymorph(batch)
             if iteration == 1 or layers_changed:
                 if optimizer_type == Optimizer.ADAM:
                     optimizer = optim.Adam(self.parameters(), lr=learning_rate, weight_decay=weight_decay)
                 else:  # optimizer_type == Optimizer.SGD:
                     optimizer = optim.SGD(self.parameters(), lr=learning_rate, momentum=momentum, nesterov=True, weight_decay=weight_decay)
-            success, loss = self.loss(batch, optimizer)
+            success, loss = self.loss(batch, optimizer, training_observation)
             if not success:
                 print('Cannot compute loss, stopping. Loss: {}'.format(loss))
                 stop = True
@@ -739,7 +1127,7 @@ class InferenceNetwork(nn.Module):
                     self._history_valid_loss_trace.append(self._total_train_traces)
                     last_validation_trace = trace - 1
                     if auto_save:
-                        file_name = auto_save_file_name + util.get_time_stamp()
+                        file_name = auto_save_file_name + '_' + util.get_time_stamp()
                         print('\rSaving to disk...', end='\r')
                         self._save(file_name)
 

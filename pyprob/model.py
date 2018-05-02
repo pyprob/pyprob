@@ -13,8 +13,8 @@ import tempfile
 import shutil
 
 from .distributions import Empirical
-from . import state, util, __version__, TraceMode, InferenceEngine, PriorInflation, Optimizer, TrainingObservation
-from .nn import ObserveEmbedding, SampleEmbedding, Batch, InferenceNetwork
+from . import state, util, __version__, TraceMode, InferenceEngine, InferenceNetwork, PriorInflation, Optimizer, TrainingObservation
+from .nn import ObserveEmbedding, SampleEmbedding, Batch, InferenceNetworkSimple, InferenceNetworkLSTM
 from .remote import ModelServer
 from .analytics import save_report
 
@@ -171,7 +171,7 @@ class Model(nn.Module):
 
         return Empirical(results, log_weights, name=name)
 
-    def learn_inference_network(self, lstm_dim=512, lstm_depth=2, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE, prior_inflation=PriorInflation.DISABLED, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=256, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-4, num_traces=-1, use_trace_cache=False, auto_save=False, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
+    def learn_inference_network(self, inference_network=InferenceNetwork.SIMPLE, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE, prior_inflation=PriorInflation.DISABLED, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=128, sample_embedding=SampleEmbedding.FULLY_CONNECTED, lstm_dim=128, lstm_depth=2, sample_embedding_dim=16, address_embedding_dim=128, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=1e-5, num_traces=-1, use_trace_cache=False, auto_save=False, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
         if use_trace_cache and self._trace_cache_path is None:
             print('Warning: There is no trace cache assigned, training with online trace generation.')
             use_trace_cache = False
@@ -219,7 +219,11 @@ class Model(nn.Module):
         if self._inference_network is None:
             print('Creating new inference network...')
             valid_batch = new_batch_func(valid_size, discard_source=True)
-            self._inference_network = InferenceNetwork(model_name=self.name, lstm_dim=lstm_dim, lstm_depth=lstm_depth, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, sample_embedding=sample_embedding, sample_embedding_dim=sample_embedding_dim, address_embedding_dim=address_embedding_dim, valid_batch=valid_batch, cuda=util._cuda_enabled)
+            if inference_network == InferenceNetwork.SIMPLE:
+                self._inference_network = InferenceNetworkSimple(model_name=self.name, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, valid_batch=valid_batch)
+            else:  # inference_network == InferenceNetwork.LSTM:
+                self._inference_network = InferenceNetworkLSTM(model_name=self.name, lstm_dim=lstm_dim, lstm_depth=lstm_depth, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, sample_embedding=sample_embedding, sample_embedding_dim=sample_embedding_dim, address_embedding_dim=address_embedding_dim, valid_batch=valid_batch)
+
             self._inference_network.polymorph()
         else:
             print('Continuing to train existing inference network...')
@@ -233,7 +237,7 @@ class Model(nn.Module):
         self._inference_network._save(file_name)
 
     def load_inference_network(self, file_name):
-        self._inference_network = InferenceNetwork._load(file_name, util._cuda_enabled, util._cuda_device)
+        self._inference_network = InferenceNetworkSimple._load(file_name, util._cuda_enabled, util._cuda_device)
 
     def trace_length_mean(self, num_traces=1000, *args, **kwargs):
         trace_lengths = self._traces(num_traces, trace_mode=TraceMode.PRIOR, map_func=lambda trace: trace.length, *args, **kwargs)

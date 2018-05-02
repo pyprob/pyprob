@@ -46,6 +46,11 @@ class InferenceEngine(enum.Enum):
     RANDOM_WALK_METROPOLIS_HASTINGS = 3  # Type: MCMC; Lightweight Metropolis Hastings with single-site proposal kernels that depend on the value of the site
 
 
+class InferenceNetwork(enum.Enum):
+    SIMPLE = 0  # A simple inference network that maps an observation embedding to proposals specializing in each address
+    LSTM = 1  # An advanced LSTM-based inference network that maintains execution state, keeps track of sampled values, learns address embeddings
+
+
 class Optimizer(enum.Enum):
     ADAM = 0
     SGD = 1
@@ -77,7 +82,7 @@ set_random_seed()
 
 Tensor = torch.FloatTensor
 _cuda_enabled = False
-_cuda_device = -1
+_cuda_device = 0
 
 
 def set_cuda(enabled, device=0):
@@ -237,7 +242,7 @@ def get_time_str():
 
 
 def get_time_stamp():
-    return datetime.datetime.fromtimestamp(time.time()).strftime('_%Y%m%d_%H%M%S')
+    return datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d_%H%M%S')
 
 
 def progress_bar(i, len):

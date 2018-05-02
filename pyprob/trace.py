@@ -89,9 +89,9 @@ class Trace(object):
 
     def pack_observes(self, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE):
         if training_observation == TrainingObservation.OBSERVE_DIST_SAMPLE:
-            return util.pack_observes_to_variable([s.distribution.sample() for s in self.samples_observed])
+            return util.pack_observes_to_variable([s.distribution.sample()[0] for s in self.samples_observed])
         else:  # training_observation == TrainingObservation.OBSERVE_DIST_MEAN
-            return util.pack_observes_to_variable([s.distribution.mean for s in self.samples_observed])
+            return util.pack_observes_to_variable([s.distribution.mean[0] for s in self.samples_observed])
 
     def last_instance(self, address_base):
         if address_base in self._samples_all_dict_adddress_base:
