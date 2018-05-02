@@ -305,9 +305,9 @@ class ProposalUniformKumaraswamy(nn.Module):
         x = F.relu(self._lin1(x))
         x = self._lin2(x)
         shape1s = x[:, 0].unsqueeze(1)
-        shape1s = util._epsilon + F.relu(shape1s)
+        shape1s = 2. + F.relu(shape1s)
         shape2s = x[:, 1].unsqueeze(1)
-        shape2s = util._epsilon + F.relu(shape2s)
+        shape2s = 1. + F.relu(shape2s)
         # prior_means = util.to_variable(torch.stack([s.distribution.mean[0] for s in samples]))
         # prior_stddevs = util.to_variable(torch.stack([s.distribution.stddev[0] for s in samples]))
         prior_lows = util.to_variable(torch.stack([s.distribution.low for s in samples]))
@@ -1037,6 +1037,9 @@ class InferenceNetworkLSTM(nn.Module):
                 proposal_distribution = self._proposal_layers[current_address](proposal_input, current_samples)
                 l = proposal_distribution.log_prob(current_samples_values)
                 if util.has_nan_or_inf(l):
+                    print('proposal_distribution', proposal_distribution)
+                    print('current_samples_values', current_samples_values)
+                    print('logprob', l)
                     print('Warning: NaN or Inf encountered in proposal log_prob.')
                     return False, 0
                 log_prob += util.safe_torch_sum(l)
