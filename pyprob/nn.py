@@ -537,11 +537,16 @@ class InferenceNetworkSimple(nn.Module):
                 l = proposal_distribution.log_prob(current_samples_values)
 
                 if util.has_nan_or_inf(l):
+                    print('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.')
                     print('proposal_distribution', proposal_distribution)
                     print('current_samples_values', current_samples_values)
-                    print('logprob', l)
-                    print('Warning: NaN or Inf encountered in proposal log_prob.')
-                    return False, 0
+                    print('log_prob', l)
+                    print('Fixing -Inf')
+                    l = util.replace_negative_inf(l)
+                    print('log_prob', l)
+                    if util.has_nan_or_inf(l):
+                        print('Nan or Inf present.')
+                        return False, 0
                 log_prob += util.safe_torch_sum(l)
 
             sub_batch_loss = -log_prob / sub_batch_length
@@ -1037,11 +1042,16 @@ class InferenceNetworkLSTM(nn.Module):
                 proposal_distribution = self._proposal_layers[current_address](proposal_input, current_samples)
                 l = proposal_distribution.log_prob(current_samples_values)
                 if util.has_nan_or_inf(l):
+                    print('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.')
                     print('proposal_distribution', proposal_distribution)
                     print('current_samples_values', current_samples_values)
-                    print('logprob', l)
-                    print('Warning: NaN or Inf encountered in proposal log_prob.')
-                    return False, 0
+                    print('log_prob', l)
+                    print('Fixing -Inf')
+                    l = util.replace_negative_inf(l)
+                    print('log_prob', l)
+                    if util.has_nan_or_inf(l):
+                        print('Nan or Inf present.')
+                        return False, 0
                 log_prob += util.safe_torch_sum(l)
 
             sub_batch_loss = -log_prob / sub_batch_length

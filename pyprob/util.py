@@ -230,6 +230,12 @@ def has_nan_or_inf(value):
         return (value == float('inf')) or (value == float('-inf')) or (value == float('NaN'))
 
 
+def replace_negative_inf(value):
+    value = value.clone()
+    value[value == float('-inf')] = _log_epsilon
+    return value
+
+
 def days_hours_mins_secs_str(total_seconds):
     d, r = divmod(total_seconds, 86400)
     h, r = divmod(r, 3600)

@@ -663,7 +663,7 @@ class Kumaraswamy(Distribution):
         super().__init__('Kumaraswamy', 'Kumaraswamy')
 
     def __repr__(self):
-        return 'Kumaraswamy(shape1:{}, shape2:{}, length_variates:{}, length_batch:{})'.format(self._shape1, self._shape2, self.length_variates, self.length_batch)
+        return 'Kumaraswamy(shape1:{}, shape2:{}, low:{}, high:{}, length_variates:{}, length_batch:{})'.format(self._shape1, self._shape2, self._low, self._high, self.length_variates, self.length_batch)
 
     def sample(self):
         s = (1. - ((1. - self._standard_uniform.sample()) ** self._shape2_recip)) ** self._shape1_recip
