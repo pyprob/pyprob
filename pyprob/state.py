@@ -1,6 +1,7 @@
 import sys
 import opcode
 import random
+from termcolor import colored
 import torch
 
 from .distributions import Uniform, Normal, TruncatedNormal, Categorical
@@ -140,7 +141,18 @@ def sample(distribution, control=True, replace=False, address=None):
 
                     value = proposal_distribution.sample()[0]
                     log_prob = distribution.log_prob(value)
-                    _current_trace.log_importance_weight += log_prob - proposal_distribution.log_prob(value)
+                    proposal_log_prob = proposal_distribution.log_prob(value)
+                    if util.has_nan_or_inf(log_prob):
+                        print(colored('Warning: prior log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
+                        print('distribution', distribution)
+                        print('value', value)
+                        print('log_prob', log_prob)
+                    if util.has_nan_or_inf(proposal_log_prob):
+                        print(colored('Warning: proposal log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
+                        print('distribution', proposal_distribution)
+                        print('value', value)
+                        print('log_prob', proposal_log_prob)
+                    _current_trace.log_importance_weight += log_prob - proposal_log_prob
                 else:
                     value = distribution.sample()
                     log_prob = distribution.log_prob(value)

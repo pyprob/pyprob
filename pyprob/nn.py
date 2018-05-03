@@ -292,10 +292,40 @@ class ProposalUniformMixture(nn.Module):
         return Mixture(distributions, coeffs)
 
 
+class ProposalUniformKumaraswamyMixture(nn.Module):
+    def __init__(self, input_dim, mixture_components=5):
+        super().__init__()
+        self._mixture_components = mixture_components
+        self._lin1 = nn.Linear(input_dim, int(input_dim/2))
+        self._lin2 = nn.Linear(int(input_dim/2), 3 * self._mixture_components)
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+
+    def forward(self, x, samples):
+        x = F.relu(self._lin1(x))
+        x = self._lin2(x)
+        shape1s = x[:, 0:self._mixture_components]
+        shape1s = 2. + F.relu(shape1s)
+        shape2s = x[:, self._mixture_components:2*self._mixture_components]
+        shape2s = 1. + F.relu(shape2s)
+        coeffs = x[:, 2*self._mixture_components:3*self._mixture_components]
+        coeffs = F.softmax(coeffs, dim=1)
+        # prior_means = util.to_variable(torch.stack([s.distribution.mean[0] for s in samples]))
+        # prior_stddevs = util.to_variable(torch.stack([s.distribution.stddev[0] for s in samples]))
+        prior_lows = util.to_variable(torch.stack([s.distribution.low for s in samples]))
+        prior_highs = util.to_variable(torch.stack([s.distribution.high for s in samples]))
+        # means = prior_means + (means * prior_stddevs)
+        # stddevs = stddevs * prior_stddevs
+        # return TruncatedNormal(means, stddevs, prior_lows, prior_highs)
+        distributions = [Kumaraswamy(shape1s[:, i:i+1], shape2s[:, i:i+1], prior_lows, prior_highs) for i in range(self._mixture_components)]
+        # dist = Kumaraswamy(shape1s, shape2s, low=prior_lows, high=prior_highs)
+        # print('dist', dist)
+        return Mixture(distributions, coeffs)
+
+
 class ProposalUniformKumaraswamy(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
-        self._input_dim = input_dim
         self._lin1 = nn.Linear(input_dim, int(input_dim/2))
         self._lin2 = nn.Linear(int(input_dim/2), 2)
         nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
@@ -469,7 +499,7 @@ class InferenceNetworkSimple(nn.Module):
                     elif isinstance(distribution, Normal):
                         proposal_layer = ProposalNormal(self._observe_embedding_dim, distribution.length_variates)
                     elif isinstance(distribution, Uniform):
-                        proposal_layer = ProposalUniformKumaraswamy(self._observe_embedding_dim)
+                        proposal_layer = ProposalUniformKumaraswamyMixture(self._observe_embedding_dim)
                     elif isinstance(distribution, Poisson):
                         proposal_layer = ProposalPoisson(self._observe_embedding_dim)
                     else:
@@ -884,7 +914,7 @@ class InferenceNetworkLSTM(nn.Module):
                     elif isinstance(distribution, Normal):
                         proposal_layer = ProposalNormal(self._lstm_dim, distribution.length_variates)
                     elif isinstance(distribution, Uniform):
-                        proposal_layer = ProposalUniformKumaraswamy(self._lstm_dim)
+                        proposal_layer = ProposalUniformKumaraswamyMixture(self._lstm_dim)
                     elif isinstance(distribution, Poisson):
                         proposal_layer = ProposalPoisson(self._lstm_dim)
                     else:

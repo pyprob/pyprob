@@ -169,7 +169,10 @@ class Model(nn.Module):
             log_weights = None
             name = 'Posterior, {} Metropolis Hastings, num_traces={}, burn_in={}, accepted={:,.2f}%, sample_reuse={:,.2f}%'.format('lightweight' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'random-walk', num_traces, burn_in, 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all)
 
-        return Empirical(results, log_weights, name=name)
+        ret = Empirical(results, log_weights, name=name)
+        if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+            ret.name += ' (ESS: {})'.format(float(ret.effective_sample_size))
+        return ret
 
     def learn_inference_network(self, inference_network=InferenceNetwork.SIMPLE, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE, prior_inflation=PriorInflation.DISABLED, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=128, sample_embedding=SampleEmbedding.FULLY_CONNECTED, lstm_dim=128, lstm_depth=2, sample_embedding_dim=16, address_embedding_dim=128, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=1e-5, num_traces=-1, use_trace_cache=False, auto_save=False, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
         if use_trace_cache and self._trace_cache_path is None:
@@ -205,8 +208,11 @@ class Model(nn.Module):
                     if discard_source:
                         self._trace_cache_discarded_file_names.append(current_file)
                     new_traces = self._load_traces(current_file)
-                    random.shuffle(new_traces)
-                    self._trace_cache += new_traces
+                    if len(new_traces) == 0:
+                        self._trace_cache_discarded_file_names.append(current_file)
+                    else:
+                        random.shuffle(new_traces)
+                        self._trace_cache += new_traces
 
                 traces = self._trace_cache[0:size]
                 self._trace_cache[0:size] = []
@@ -316,7 +322,8 @@ class Model(nn.Module):
                 data = torch.load(tmp_file, map_location=lambda storage, loc: storage)
             shutil.rmtree(tmp_dir)
         except:
-            raise RuntimeError('Cannot load trace cache.')
+            print('Warning: cannot load traces from file, file potentially corrupt: {}'.format(file_name))
+            return []
 
         # print('Loading trace cache of length {}'.format(data['length']))
         if data['model_name'] != self.name:

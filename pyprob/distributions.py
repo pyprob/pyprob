@@ -171,6 +171,8 @@ class Empirical(Distribution):
             self.values = [values[int(i)] for i in indices]
         self.weights_numpy = self.weights.data.cpu().numpy()
         self.weights_numpy_cumsum = (self.weights_numpy / self.weights_numpy.sum()).cumsum()
+        self._effective_sample_size = 1. / weights.pow(2).sum()
+
         # try:  # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
         #     self.values_numpy = torch.stack(self.values).data.cpu().numpy()
         # except:
@@ -248,6 +250,10 @@ class Empirical(Distribution):
         if self._mean is None:
             self._mean = self.expectation(lambda x: x)
         return self._mean
+
+    @property
+    def effective_sample_size(self):
+        return self._effective_sample_size
 
     @property
     def variance(self):
@@ -660,6 +666,7 @@ class Kumaraswamy(Distribution):
         self._standard_uniform = Uniform(torch.zeros(self.length_batch, self.length_variates), torch.ones(self.length_batch, self.length_variates))
         self._mean = None
         self._variance = None
+        self._epsilon = util.to_variable(1e-5)
         super().__init__('Kumaraswamy', 'Kumaraswamy')
 
     def __repr__(self):
@@ -667,6 +674,7 @@ class Kumaraswamy(Distribution):
 
     def sample(self):
         s = (1. - ((1. - self._standard_uniform.sample()) ** self._shape2_recip)) ** self._shape1_recip
+        s = torch.min(torch.max(self._epsilon, s), 1 - self._epsilon)
         return self._low + self._range * s
 
     @property

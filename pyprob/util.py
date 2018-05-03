@@ -232,7 +232,7 @@ def has_nan_or_inf(value):
 
 def replace_negative_inf(value):
     value = value.clone()
-    value[value == float('-inf')] = _log_epsilon
+    value[value.data == -np.inf] = _log_epsilon
     return value
 
 
