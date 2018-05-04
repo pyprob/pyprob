@@ -208,7 +208,7 @@ class Model(nn.Module):
                     if discard_source:
                         self._trace_cache_discarded_file_names.append(current_file)
                     new_traces = self._load_traces(current_file)
-                    if len(new_traces) == 0:
+                    if len(new_traces) == 0:  # When empty or corrupt file is read
                         self._trace_cache_discarded_file_names.append(current_file)
                     else:
                         random.shuffle(new_traces)

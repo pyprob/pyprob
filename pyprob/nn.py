@@ -556,18 +556,57 @@ class InferenceNetworkSimple(nn.Module):
             sub_batch_length = len(sub_batch)
             example_trace = sub_batch[0]
 
+            lstm_input = []
+            for time_step in range(example_trace.length):
+                current_sample = example_trace.samples[time_step]
+                current_address = current_sample.address
+                current_distribution = current_sample.distribution
+                current_addres_embedding = self._address_embeddings[current_address]
+                current_distribution_type_embedding = self._distribution_type_embeddings[current_distribution.name]
+
+                if time_step == 0:
+                    prev_sample_embedding = util.to_variable(torch.zeros(sub_batch_length, self._sample_embedding_dim))
+                    prev_addres_embedding = self._address_embedding_empty
+                    prev_distribution_type_embedding = self._distribution_type_embedding_empty
+                else:
+                    prev_sample = example_trace.samples[time_step - 1]
+                    prev_address = prev_sample.address
+                    prev_distribution = prev_sample.distribution
+                    smp = torch.stack([trace.samples[time_step - 1].value.float() for trace in sub_batch])
+                    prev_sample_embedding = self._sample_embedding_layers[prev_address](smp)
+                    prev_addres_embedding = self._address_embeddings[prev_address]
+                    prev_distribution_type_embedding = self._distribution_type_embeddings[prev_distribution.name]
+
+                lstm_input_time_step = []
+                for b in range(sub_batch_length):
+                    t = torch.cat([obs_emb[b],
+                                   prev_sample_embedding[b],
+                                   prev_distribution_type_embedding,
+                                   prev_addres_embedding,
+                                   current_distribution_type_embedding,
+                                   current_addres_embedding])
+                    lstm_input_time_step.append(t)
+                lstm_input.append(torch.stack(lstm_input_time_step))
+
+            lstm_input = torch.stack(lstm_input)
+
+            h0 = util.to_variable(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
+            c0 = util.to_variable(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
+            lstm_output, _ = self._lstm(lstm_input, (h0, c0))
+
             log_prob = 0
             for time_step in range(example_trace.length):
                 current_sample = example_trace.samples[time_step]
                 current_address = current_sample.address
 
+                proposal_input = lstm_output[time_step]
+
                 current_samples = [trace.samples[time_step] for trace in sub_batch]
                 current_samples_values = torch.stack([s.value for s in current_samples])
-                proposal_distribution = self._proposal_layers[current_address](obs_emb, current_samples)
+                proposal_distribution = self._proposal_layers[current_address](proposal_input, current_samples)
                 l = proposal_distribution.log_prob(current_samples_values)
-
                 if util.has_nan_or_inf(l):
-                    print('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.')
+                    print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))
                     print('proposal_distribution', proposal_distribution)
                     print('current_samples_values', current_samples_values)
                     print('log_prob', l)
@@ -575,7 +614,7 @@ class InferenceNetworkSimple(nn.Module):
                     l = util.replace_negative_inf(l)
                     print('log_prob', l)
                     if util.has_nan_or_inf(l):
-                        print('Nan or Inf present.')
+                        print(colored('Nan or Inf present in proposal log_prob.', 'red', attrs=['bold']))
                         return False, 0
                 log_prob += util.safe_torch_sum(l)
 
@@ -589,91 +628,104 @@ class InferenceNetworkSimple(nn.Module):
 
         return True, batch_loss / batch.length
 
-    def optimize(self, new_batch_func, training_observation, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name):
-        self._trained_on = 'CUDA' if util._cuda_enabled else 'CPU'
-        self._optimizer_type = optimizer_type
-        prev_total_train_seconds = self._total_train_seconds
-        time_start = time.time()
-        time_loss_min = time.time()
-        time_last_batch = time.time()
-        iteration = 0
-        trace = 0
-        last_validation_trace = -valid_interval + 1
-        stop = False
-        print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
-        max_print_line_len = 0
+def optimize(self, new_batch_func, training_observation, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name):
+    self._trained_on = 'CUDA' if util._cuda_enabled else 'CPU'
+    self._optimizer_type = optimizer_type
+    prev_total_train_seconds = self._total_train_seconds
+    time_start = time.time()
+    time_loss_min = time.time()
+    time_last_batch = time.time()
+    iteration = 0
+    trace = 0
+    last_validation_trace = -valid_interval + 1
+    stop = False
+    print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
+    max_print_line_len = 0
 
-        while not stop:
-            iteration += 1
-            batch = new_batch_func()
-            layers_changed = self.polymorph(batch)
-            if iteration == 1 or layers_changed:
-                if optimizer_type == Optimizer.ADAM:
-                    optimizer = optim.Adam(self.parameters(), lr=learning_rate, weight_decay=weight_decay)
-                else:  # optimizer_type == Optimizer.SGD:
-                    optimizer = optim.SGD(self.parameters(), lr=learning_rate, momentum=momentum, nesterov=True, weight_decay=weight_decay)
-            success, loss = self.loss(batch, optimizer, training_observation)
-            if not success:
-                print('Cannot compute loss, stopping. Loss: {}'.format(loss))
-                stop = True
+    batch_return = {}
+    def thread_get_new_batch(batch):
+        batch_return[''] = new_batch_func()
+    t = Thread(target=thread_get_new_batch, args=(batch_return,))
+    t.start()
+
+    while not stop:
+        iteration += 1
+
+        while len(batch_return) == 0:
+            time.sleep(0.0001)
+        batch = batch_return['']
+        batch_return = {}
+        t = Thread(target=thread_get_new_batch, args=(batch_return,))
+        t.start()
+
+        layers_changed = self.polymorph(batch)
+
+        if iteration == 1 or layers_changed:
+            if optimizer_type == Optimizer.ADAM:
+                optimizer = optim.Adam(self.parameters(), lr=learning_rate, weight_decay=weight_decay)
+            else:  # optimizer_type == Optimizer.SGD:
+                optimizer = optim.SGD(self.parameters(), lr=learning_rate, momentum=momentum, nesterov=True, weight_decay=weight_decay)
+        success, loss = self.loss(batch, optimizer, training_observation)
+        if not success:
+            print(colored('Cannot compute loss, skipping batch. Loss: {}'.format(loss), 'red', attrs=['bold']))
+        else:
+            if self._loss_initial is None:
+                self._loss_initial = loss
+                self._loss_max = loss
+            loss_initial_str = '{:+.2e}'.format(self._loss_initial)
+            # loss_max_str = '{:+.3e}'.format(self._loss_max)
+            if loss < self._loss_min:
+                self._loss_min = loss
+                loss_str = colored('{:+.2e}'.format(loss), 'green', attrs=['bold'])
+                loss_min_str = colored('{:+.2e}'.format(self._loss_min), 'green', attrs=['bold'])
+                time_loss_min = time.time()
+                time_since_loss_min_str = colored(util.days_hours_mins_secs_str(0), 'green', attrs=['bold'])
+            elif loss > self._loss_max:
+                self._loss_max = loss
+                loss_str = colored('{:+.2e}'.format(loss), 'red', attrs=['bold'])
+                # loss_max_str = colored('{:+.3e}'.format(self._loss_max), 'red', attrs=['bold'])
             else:
-                if self._loss_initial is None:
-                    self._loss_initial = loss
-                    self._loss_max = loss
-                loss_initial_str = '{:+.2e}'.format(self._loss_initial)
-                # loss_max_str = '{:+.3e}'.format(self._loss_max)
-                if loss < self._loss_min:
-                    self._loss_min = loss
-                    loss_str = colored('{:+.2e}'.format(loss), 'green', attrs=['bold'])
-                    loss_min_str = colored('{:+.2e}'.format(self._loss_min), 'green', attrs=['bold'])
-                    time_loss_min = time.time()
-                    time_since_loss_min_str = colored(util.days_hours_mins_secs_str(0), 'green', attrs=['bold'])
-                elif loss > self._loss_max:
-                    self._loss_max = loss
-                    loss_str = colored('{:+.2e}'.format(loss), 'red', attrs=['bold'])
-                    # loss_max_str = colored('{:+.3e}'.format(self._loss_max), 'red', attrs=['bold'])
+                if loss < self._loss_previous:
+                    loss_str = colored('{:+.2e}'.format(loss), 'green')
+                elif loss > self._loss_previous:
+                    loss_str = colored('{:+.2e}'.format(loss), 'red')
                 else:
-                    if loss < self._loss_previous:
-                        loss_str = colored('{:+.2e}'.format(loss), 'green')
-                    elif loss > self._loss_previous:
-                        loss_str = colored('{:+.2e}'.format(loss), 'red')
-                    else:
-                        loss_str = '{:+.2e}'.format(loss)
-                    loss_min_str = '{:+.2e}'.format(self._loss_min)
-                    # loss_max_str = '{:+.3e}'.format(self._loss_max)
-                    time_since_loss_min_str = util.days_hours_mins_secs_str(time.time() - time_loss_min)
+                    loss_str = '{:+.2e}'.format(loss)
+                loss_min_str = '{:+.2e}'.format(self._loss_min)
+                # loss_max_str = '{:+.3e}'.format(self._loss_max)
+                time_since_loss_min_str = util.days_hours_mins_secs_str(time.time() - time_loss_min)
 
-                self._loss_previous = loss
-                self._total_train_iterations += 1
-                trace += batch.length
-                self._total_train_traces += batch.length
-                total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
-                self._total_train_seconds = prev_total_train_seconds + (time.time() - time_start)
-                total_training_seconds_str = util.days_hours_mins_secs_str(self._total_train_seconds)
-                traces_per_second_str = '{:,.1f}'.format(int(batch.length / (time.time() - time_last_batch)))
-                time_last_batch = time.time()
-                if num_traces != -1:
-                    if trace >= num_traces:
-                        stop = True
+            self._loss_previous = loss
+            self._total_train_iterations += 1
+            trace += batch.length
+            self._total_train_traces += batch.length
+            total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
+            self._total_train_seconds = prev_total_train_seconds + (time.time() - time_start)
+            total_training_seconds_str = util.days_hours_mins_secs_str(self._total_train_seconds)
+            traces_per_second_str = '{:,.1f}'.format(int(batch.length / (time.time() - time_last_batch)))
+            time_last_batch = time.time()
+            if num_traces != -1:
+                if trace >= num_traces:
+                    stop = True
 
-                self._history_train_loss.append(loss)
-                self._history_train_loss_trace.append(self._total_train_traces)
-                if trace - last_validation_trace > valid_interval:
-                    print('\rComputing validation loss...', end='\r')
-                    _, valid_loss = self.loss(self._valid_batch)
-                    self._history_valid_loss.append(valid_loss)
-                    self._history_valid_loss_trace.append(self._total_train_traces)
-                    last_validation_trace = trace - 1
-                    if auto_save:
-                        file_name = auto_save_file_name + '_' + util.get_time_stamp()
-                        print('\rSaving to disk...', end='\r')
-                        self._save(file_name)
+            self._history_train_loss.append(loss)
+            self._history_train_loss_trace.append(self._total_train_traces)
+            if trace - last_validation_trace > valid_interval:
+                print('\rComputing validation loss...', end='\r')
+                _, valid_loss = self.loss(self._valid_batch)
+                self._history_valid_loss.append(valid_loss)
+                self._history_valid_loss_trace.append(self._total_train_traces)
+                last_validation_trace = trace - 1
+                if auto_save:
+                    file_name = auto_save_file_name + '_' + util.get_time_stamp()
+                    print('\rSaving to disk...', end='\r')
+                    self._save(file_name)
 
-                print_line = '{} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
-                max_print_line_len = max(len(print_line), max_print_line_len)
-                print(print_line.ljust(max_print_line_len), end='\r')
-                sys.stdout.flush()
-        print()
+            print_line = '{} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
+            max_print_line_len = max(len(print_line), max_print_line_len)
+            print(print_line.ljust(max_print_line_len), end='\r')
+            sys.stdout.flush()
+    print()
 
     def _save(self, file_name):
         self._modified = util.get_time_str()
@@ -694,7 +746,7 @@ class InferenceNetworkSimple(nn.Module):
             shutil.rmtree(tmp_dir)
         t = Thread(target=thread_save)
         t.start()
-        t.join()
+        # t.join()
 
     @staticmethod
     def _load(file_name, cuda=False, device=None):
@@ -1072,7 +1124,7 @@ class InferenceNetworkLSTM(nn.Module):
                 proposal_distribution = self._proposal_layers[current_address](proposal_input, current_samples)
                 l = proposal_distribution.log_prob(current_samples_values)
                 if util.has_nan_or_inf(l):
-                    print('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.')
+                    print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))
                     print('proposal_distribution', proposal_distribution)
                     print('current_samples_values', current_samples_values)
                     print('log_prob', l)
@@ -1080,7 +1132,7 @@ class InferenceNetworkLSTM(nn.Module):
                     l = util.replace_negative_inf(l)
                     print('log_prob', l)
                     if util.has_nan_or_inf(l):
-                        print('Nan or Inf present.')
+                        print(colored('Nan or Inf present in proposal log_prob.', 'red', attrs=['bold']))
                         return False, 0
                 log_prob += util.safe_torch_sum(l)
 
@@ -1108,10 +1160,24 @@ class InferenceNetworkLSTM(nn.Module):
         print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
         max_print_line_len = 0
 
+        batch_return = {}
+        def thread_get_new_batch(batch):
+            batch_return[''] = new_batch_func()
+        t = Thread(target=thread_get_new_batch, args=(batch_return,))
+        t.start()
+
         while not stop:
             iteration += 1
-            batch = new_batch_func()
+
+            while len(batch_return) == 0:
+                time.sleep(0.0001)
+            batch = batch_return['']
+            batch_return = {}
+            t = Thread(target=thread_get_new_batch, args=(batch_return,))
+            t.start()
+
             layers_changed = self.polymorph(batch)
+
             if iteration == 1 or layers_changed:
                 if optimizer_type == Optimizer.ADAM:
                     optimizer = optim.Adam(self.parameters(), lr=learning_rate, weight_decay=weight_decay)
@@ -1119,8 +1185,7 @@ class InferenceNetworkLSTM(nn.Module):
                     optimizer = optim.SGD(self.parameters(), lr=learning_rate, momentum=momentum, nesterov=True, weight_decay=weight_decay)
             success, loss = self.loss(batch, optimizer, training_observation)
             if not success:
-                print('Cannot compute loss, stopping. Loss: {}'.format(loss))
-                stop = True
+                print(colored('Cannot compute loss, skipping batch. Loss: {}'.format(loss), 'red', attrs=['bold']))
             else:
                 if self._loss_initial is None:
                     self._loss_initial = loss
@@ -1199,7 +1264,7 @@ class InferenceNetworkLSTM(nn.Module):
             shutil.rmtree(tmp_dir)
         t = Thread(target=thread_save)
         t.start()
-        t.join()
+        # t.join()
 
     @staticmethod
     def _load(file_name, cuda=False, device=None):
