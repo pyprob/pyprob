@@ -556,50 +556,10 @@ class InferenceNetworkSimple(nn.Module):
             sub_batch_length = len(sub_batch)
             example_trace = sub_batch[0]
 
-            lstm_input = []
-            for time_step in range(example_trace.length):
-                current_sample = example_trace.samples[time_step]
-                current_address = current_sample.address
-                current_distribution = current_sample.distribution
-                current_addres_embedding = self._address_embeddings[current_address]
-                current_distribution_type_embedding = self._distribution_type_embeddings[current_distribution.name]
-
-                if time_step == 0:
-                    prev_sample_embedding = util.to_variable(torch.zeros(sub_batch_length, self._sample_embedding_dim))
-                    prev_addres_embedding = self._address_embedding_empty
-                    prev_distribution_type_embedding = self._distribution_type_embedding_empty
-                else:
-                    prev_sample = example_trace.samples[time_step - 1]
-                    prev_address = prev_sample.address
-                    prev_distribution = prev_sample.distribution
-                    smp = torch.stack([trace.samples[time_step - 1].value.float() for trace in sub_batch])
-                    prev_sample_embedding = self._sample_embedding_layers[prev_address](smp)
-                    prev_addres_embedding = self._address_embeddings[prev_address]
-                    prev_distribution_type_embedding = self._distribution_type_embeddings[prev_distribution.name]
-
-                lstm_input_time_step = []
-                for b in range(sub_batch_length):
-                    t = torch.cat([obs_emb[b],
-                                   prev_sample_embedding[b],
-                                   prev_distribution_type_embedding,
-                                   prev_addres_embedding,
-                                   current_distribution_type_embedding,
-                                   current_addres_embedding])
-                    lstm_input_time_step.append(t)
-                lstm_input.append(torch.stack(lstm_input_time_step))
-
-            lstm_input = torch.stack(lstm_input)
-
-            h0 = util.to_variable(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
-            c0 = util.to_variable(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
-            lstm_output, _ = self._lstm(lstm_input, (h0, c0))
-
             log_prob = 0
             for time_step in range(example_trace.length):
                 current_sample = example_trace.samples[time_step]
                 current_address = current_sample.address
-
-                proposal_input = lstm_output[time_step]
 
                 current_samples = [trace.samples[time_step] for trace in sub_batch]
                 current_samples_values = torch.stack([s.value for s in current_samples])
