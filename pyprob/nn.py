@@ -746,7 +746,7 @@ class InferenceNetworkSimple(nn.Module):
             shutil.rmtree(tmp_dir)
         t = Thread(target=thread_save)
         t.start()
-        # t.join()
+        t.join()
 
     @staticmethod
     def _load(file_name, cuda=False, device=None):
@@ -1264,7 +1264,7 @@ class InferenceNetworkLSTM(nn.Module):
             shutil.rmtree(tmp_dir)
         t = Thread(target=thread_save)
         t.start()
-        # t.join()
+        t.join()
 
     @staticmethod
     def _load(file_name, cuda=False, device=None):
