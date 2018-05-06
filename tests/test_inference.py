@@ -21,7 +21,7 @@ importance_sampling_duration = 0
 inference_compilation_samples = 5000
 inference_compilation_kl_divergence = 0
 inference_compilation_duration = 0
-inference_compilation_training_traces = 1000
+inference_compilation_training_traces = 20000
 
 lightweight_metropolis_hastings_samples = 5000
 lightweight_metropolis_hastings_kl_divergence = 0
@@ -192,36 +192,42 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
-    #
-    # def test_inference_gum_posterior_inference_compilation(self):
-    #     observation = [8, 9]
-    #     posterior_mean_correct = 7.25
-    #     posterior_stddev_correct = math.sqrt(1/1.2)
-    #
-    #     self._model.learn_inference_network(observation=[1, 1], num_traces=training_traces)
-    #     posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
-    #     posterior_mean = float(posterior.mean)
-    #     posterior_mean_unweighted = float(posterior.unweighted().mean)
-    #     posterior_stddev = float(posterior.stddev)
-    #     posterior_stddev_unweighted = float(posterior.unweighted().stddev)
-    #     kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
-    #
-    #     util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
-    #     add_inference_compilation_kl_divergence(kl_divergence)
-    #
-    #     self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
-    #     self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
-    #     self.assertLess(kl_divergence, 0.25)
+
+    def test_inference_gum_posterior_inference_compilation(self):
+        samples = inference_compilation_samples
+        training_traces = inference_compilation_training_traces
+        observation = [8, 9]
+        posterior_mean_correct = 7.25
+        posterior_stddev_correct = math.sqrt(1/1.2)
+
+        self._model.learn_inference_network(observation=[1, 1], num_traces=training_traces, prior_inflation=pyprob.PriorInflation.ENABLED)
+
+        start = time.time()
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
+        add_inference_compilation_duration(time.time() - start)
+
+        posterior_mean = float(posterior.mean)
+        posterior_mean_unweighted = float(posterior.unweighted().mean)
+        posterior_stddev = float(posterior.stddev)
+        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+        kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
+
+        util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        add_inference_compilation_kl_divergence(kl_divergence)
+
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+        self.assertLess(kl_divergence, 0.25)
 
     def test_inference_gum_posterior_lightweight_metropolis_hastings(self):
-        samples = lightweight_metropolis_hastings_samples
+        samples = random_walk_metropolis_hastings_samples
         observation = [8, 9]
         posterior_mean_correct = 7.25
         posterior_stddev_correct = math.sqrt(1/1.2)
 
         start = time.time()
         posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observation=observation)
-        add_lightweight_metropolis_hastings_duration(time.time() - start)
+        add_random_walk_metropolis_hastings_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.unweighted().mean)
@@ -230,7 +236,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
 
         util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
-        add_lightweight_metropolis_hastings_kl_divergence(kl_divergence)
+        add_random_walk_metropolis_hastings_kl_divergence(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
@@ -258,6 +264,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
+
 
 class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
@@ -310,26 +317,32 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
-    #
-    # def test_inference_gum_marsaglia_posterior_inference_compilation(self):
-    #     observation = [8, 9]
-    #     posterior_mean_correct = 7.25
-    #     posterior_stddev_correct = math.sqrt(1/1.2)
-    #
-    #     self._model.learn_inference_network(observation=[1, 1], num_traces=training_traces)
-    #     posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
-    #     posterior_mean = float(posterior.mean)
-    #     posterior_mean_unweighted = float(posterior.unweighted().mean)
-    #     posterior_stddev = float(posterior.stddev)
-    #     posterior_stddev_unweighted = float(posterior.unweighted().stddev)
-    #     kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
-    #
-    #     util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
-    #     add_inference_compilation_kl_divergence(kl_divergence)
-    #
-    #     self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
-    #     self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
-    #     self.assertLess(kl_divergence, 0.25)
+
+    def test_inference_gum_marsaglia_posterior_inference_compilation(self):
+        samples = inference_compilation_samples
+        training_traces = inference_compilation_training_traces
+        observation = [8, 9]
+        posterior_mean_correct = 7.25
+        posterior_stddev_correct = math.sqrt(1/1.2)
+
+        self._model.learn_inference_network(observation=[1, 1], num_traces=training_traces, prior_inflation=pyprob.PriorInflation.ENABLED)
+
+        start = time.time()
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
+        add_inference_compilation_duration(time.time() - start)
+
+        posterior_mean = float(posterior.mean)
+        posterior_mean_unweighted = float(posterior.unweighted().mean)
+        posterior_stddev = float(posterior.stddev)
+        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+        kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
+
+        util.debug('training_traces', 'samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        add_inference_compilation_kl_divergence(kl_divergence)
+
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+        self.assertLess(kl_divergence, 0.25)
 
     def test_inference_gum_marsaglia_posterior_lightweight_metropolis_hastings(self):
         samples = lightweight_metropolis_hastings_samples
@@ -445,21 +458,29 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         self.assertLess(l2_distance, 3)
         self.assertLess(kl_divergence, 1)
 
-    # def test_inference_hmm_posterior_inference_compilation(self):
-    #     observation = self._observation
-    #     posterior_mean_correct = self._posterior_mean_correct
-    #
-    #     self._model.learn_inference_network(observation=torch.zeros(16), num_traces=training_traces)
-    #     posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
-    #     posterior_mean_unweighted = posterior.unweighted().mean
-    #     posterior_mean = posterior.mean
-    #
-    #     l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
-    #
-    #     util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance')
-    #     add_inference_compilation_kl_divergence(l2_distance)
-    #
-    #     self.assertLess(l2_distance, 6)
+    def test_inference_hmm_posterior_inference_compilation(self):
+        samples = inference_compilation_samples
+        training_traces = inference_compilation_training_traces
+        observation = self._observation
+        posterior_mean_correct = self._posterior_mean_correct
+
+        self._model.learn_inference_network(observation=torch.zeros(16), num_traces=training_traces, prior_inflation=pyprob.PriorInflation.DISABLED)
+
+        start = time.time()
+        posterior = self._model.posterior_distribution(samples, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observation=observation)
+        add_inference_compilation_duration(time.time() - start)
+
+        posterior_mean_unweighted = posterior.unweighted().mean
+        posterior_mean = posterior.mean
+
+        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+        kl_divergence = float(sum([util.kl_divergence_categorical(Categorical(i), Categorical(j)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
+
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'l2_distance', 'kl_divergence')
+        add_inference_compilation_kl_divergence(kl_divergence)
+
+        self.assertLess(l2_distance, 3)
+        self.assertLess(kl_divergence, 1)
 
     def test_inference_hmm_posterior_lightweight_metropolis_hastings(self):
         samples = lightweight_metropolis_hastings_samples
@@ -567,21 +588,23 @@ class BranchingTestCase(unittest.TestCase):
 
         self.assertLess(kl_divergence, 0.25)
 
-    # def test_inference_branching_inference_compilation(self):
-    #     observation = 6
-    #     posterior_correct = util.empirical_to_categorical(self._model.true_posterior(observation), max_val=40)
-    #
-    #     self._model.learn_inference_network(observation=1, num_traces=10000)
-    #     posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, observation=observation, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK), max_val=40)
-    #     posterior_probs = util.to_numpy(posterior._probs[0])
-    #     posterior_probs_correct = util.to_numpy(posterior_correct._probs[0])
-    #
-    #     kl_divergence = float(util.kl_divergence_categorical(posterior_correct, posterior))
-    #
-    #     util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
-    #     add_importance_sampling_kl_divergence(kl_divergence)
-    #
-    #     self.assertLess(kl_divergence, 0.25)
+    def test_inference_branching_inference_compilation(self):
+        samples = inference_compilation_samples
+        observation = 6
+        training_traces = inference_compilation_training_traces
+        posterior_correct = util.empirical_to_categorical(self._model.true_posterior(observation), max_val=40)
+
+        self._model.learn_inference_network(observation=1, num_traces=training_traces)
+        posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, observation=observation, inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK), max_val=40)
+        posterior_probs = util.to_numpy(posterior._probs[0])
+        posterior_probs_correct = util.to_numpy(posterior_correct._probs[0])
+
+        kl_divergence = float(util.kl_divergence_categorical(posterior_correct, posterior))
+
+        util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+        add_importance_sampling_kl_divergence(kl_divergence)
+
+        self.assertLess(kl_divergence, 0.25)
 
     def test_inference_branching_lightweight_metropolis_hastings(self):
         samples = lightweight_metropolis_hastings_samples
@@ -625,7 +648,7 @@ class BranchingTestCase(unittest.TestCase):
 if __name__ == '__main__':
     # if torch.cuda.is_available():
         # pyprob.set_cuda(True)
-    pyprob.set_verbosity(1)
+    pyprob.set_verbosity(2)
     tests = []
     # tests.append('MVNWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanTestCase')

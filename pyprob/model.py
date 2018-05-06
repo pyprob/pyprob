@@ -174,7 +174,7 @@ class Model(nn.Module):
             ret.name += ' (ESS: {})'.format(float(ret.effective_sample_size))
         return ret
 
-    def learn_inference_network(self, inference_network=InferenceNetwork.SIMPLE, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE, prior_inflation=PriorInflation.DISABLED, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=128, sample_embedding=SampleEmbedding.FULLY_CONNECTED, lstm_dim=128, lstm_depth=2, sample_embedding_dim=16, address_embedding_dim=128, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=1e-5, num_traces=-1, use_trace_cache=False, auto_save=False, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
+    def learn_inference_network(self, inference_network=InferenceNetwork.LSTM, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE, prior_inflation=PriorInflation.DISABLED, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=128, sample_embedding=SampleEmbedding.FULLY_CONNECTED, lstm_dim=128, lstm_depth=2, sample_embedding_dim=16, address_embedding_dim=128, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, num_traces=-1, use_trace_cache=False, auto_save=False, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
         if use_trace_cache and self._trace_cache_path is None:
             print('Warning: There is no trace cache assigned, training with online trace generation.')
             use_trace_cache = False

@@ -540,7 +540,7 @@ class TruncatedNormal(Distribution):
 
 # Temporary: this needs to be based on torch.distributions.Uniform when the new PyTorch version is released
 class Uniform(Distribution):
-    def __init__(self, low, high):
+    def __init__(self, low=0, high=1):
         self._low = util.to_variable(low)
         self._high = util.to_variable(high)
         if self._low.dim() == 1:
@@ -558,8 +558,12 @@ class Uniform(Distribution):
 
     def sample(self):
         shape = self._low.size()
-        rand = util.to_variable(torch.zeros(shape).uniform_())
-        ret = self._low + rand * (self._high - self._low)
+        accept = False
+        while not accept:
+            rand = torch.zeros(shape).uniform_()
+            if (rand.gt(0.).mul(rand.lt(1.))).sum() == len(rand):
+                accept = True
+        ret = self._low + util.to_variable(rand) * (self._high - self._low)
         if self.length_batch == 1:
             ret = ret.squeeze(0)
         return ret
@@ -567,7 +571,7 @@ class Uniform(Distribution):
     def log_prob(self, value):
         value = util.to_variable(value)
         value = value.view(self.length_batch, self.length_variates)
-        lb = value.ge(self._low).type_as(self._low)
+        lb = value.gt(self._low).type_as(self._low)
         ub = value.lt(self._high).type_as(self._low)
         ret = torch.log(lb.mul(ub)) - torch.log(self._high - self._low)
         if self.length_batch == 1:
@@ -674,7 +678,7 @@ class Kumaraswamy(Distribution):
 
     def sample(self):
         s = (1. - ((1. - self._standard_uniform.sample()) ** self._shape2_recip)) ** self._shape1_recip
-        s = torch.min(torch.max(self._epsilon, s), 1 - self._epsilon)
+        # s = torch.min(torch.max(self._epsilon, s), 1 - self._epsilon)
         return self._low + self._range * s
 
     @property

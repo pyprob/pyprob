@@ -426,12 +426,13 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
 
     def test_dist_uniform_batched(self):
-        dist_sample_shape_correct = [2, 1]
-        dist_means_correct = [[0.5], [7.5]]
-        dist_stddevs_correct = [[0.288675], [1.44338]]
-        dist_lows_correct = [[0], [5]]
-        dist_highs_correct = [[1], [10]]
-        dist_log_probs_correct = [[0], [-1.60944]]
+        dist_sample_shape_correct = [4, 1]
+        dist_means_correct = [[0.5], [7.5], [0.5], [0.5]]
+        dist_stddevs_correct = [[0.288675], [1.44338], [0.288675], [0.288675]]
+        dist_lows_correct = [[0], [5], [0], [0]]
+        dist_highs_correct = [[1], [10], [1], [1]]
+        dist_values = [[0.5], [7.5], [0], [1]]
+        dist_log_probs_correct = [[0], [-1.60944], [float('-inf')], [float('-inf')]]
 
         dist = Uniform(dist_lows_correct, dist_highs_correct)
         dist_sample_shape = list(dist.sample().size())
@@ -442,9 +443,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
-        dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
+        dist_log_probs = util.to_numpy(dist.log_prob(dist_values))
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_lows', 'dist_lows_correct', 'dist_highs', 'dist_highs_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_lows', 'dist_lows_correct', 'dist_highs', 'dist_highs_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_values', 'dist_log_probs', 'dist_log_probs_correct')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
@@ -622,12 +623,13 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
 
     def test_dist_kumaraswamy_batched(self):
-        dist_sample_shape_correct = [2, 1]
-        dist_shape1s_correct = [[0.5], [7.5]]
-        dist_shape2s_correct = [[0.75], [2.5]]
-        dist_means_correct = [[0.415584], [0.807999]]
-        dist_stddevs_correct = [[0.327509], [0.111605]]
-        dist_log_probs_correct = [[-0.283125], [1.20676]]
+        dist_sample_shape_correct = [4, 1]
+        dist_shape1s_correct = [[0.5], [7.5], [7.5], [7.5]]
+        dist_shape2s_correct = [[0.75], [2.5], [2.5], [2.5]]
+        dist_means_correct = [[0.415584], [0.807999], [0.807999], [0.807999]]
+        dist_stddevs_correct = [[0.327509], [0.111605], [0.111605], [0.111605]]
+        dist_values = [[0.415584], [0.807999], [0.], [1.]]
+        dist_log_probs_correct = [[-0.283125], [1.20676], [float('-inf')], [float('-inf')]]
 
         dist = Kumaraswamy(dist_shape1s_correct, dist_shape2s_correct)
         dist_sample_shape = list(dist.sample().size())
@@ -636,9 +638,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
-        dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
+        dist_log_probs = util.to_numpy(dist.log_prob(dist_values))
 
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
+        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_values', 'dist_log_probs', 'dist_log_probs_correct')
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))

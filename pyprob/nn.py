@@ -563,7 +563,7 @@ class InferenceNetworkSimple(nn.Module):
 
                 current_samples = [trace.samples[time_step] for trace in sub_batch]
                 current_samples_values = torch.stack([s.value for s in current_samples])
-                proposal_distribution = self._proposal_layers[current_address](proposal_input, current_samples)
+                proposal_distribution = self._proposal_layers[current_address](obs_emb, current_samples)
                 l = proposal_distribution.log_prob(current_samples_values)
                 if util.has_nan_or_inf(l):
                     print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))
@@ -602,22 +602,9 @@ class InferenceNetworkSimple(nn.Module):
         print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
         max_print_line_len = 0
 
-        batch_return = {}
-        def thread_get_new_batch(batch):
-            batch_return[''] = new_batch_func()
-        t = Thread(target=thread_get_new_batch, args=(batch_return,))
-        t.start()
-
         while not stop:
             iteration += 1
-
-            while len(batch_return) == 0:
-                time.sleep(0.0001)
-            batch = batch_return['']
-            batch_return = {}
-            t = Thread(target=thread_get_new_batch, args=(batch_return,))
-            t.start()
-
+            batch = new_batch_func()
             layers_changed = self.polymorph(batch)
 
             if iteration == 1 or layers_changed:
@@ -1120,22 +1107,10 @@ class InferenceNetworkLSTM(nn.Module):
         print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
         max_print_line_len = 0
 
-        batch_return = {}
-        def thread_get_new_batch(batch):
-            batch_return[''] = new_batch_func()
-        t = Thread(target=thread_get_new_batch, args=(batch_return,))
-        t.start()
-
         while not stop:
             iteration += 1
 
-            while len(batch_return) == 0:
-                time.sleep(0.0001)
-            batch = batch_return['']
-            batch_return = {}
-            t = Thread(target=thread_get_new_batch, args=(batch_return,))
-            t.start()
-
+            batch = new_batch_func()
             layers_changed = self.polymorph(batch)
 
             if iteration == 1 or layers_changed:
