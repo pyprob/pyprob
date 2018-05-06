@@ -586,7 +586,7 @@ class BranchingTestCase(unittest.TestCase):
         util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
         add_importance_sampling_kl_divergence(kl_divergence)
 
-        self.assertLess(kl_divergence, 0.25)
+        self.assertLess(kl_divergence, 0.75)
 
     def test_inference_branching_inference_compilation(self):
         samples = inference_compilation_samples
@@ -604,7 +604,7 @@ class BranchingTestCase(unittest.TestCase):
         util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
         add_importance_sampling_kl_divergence(kl_divergence)
 
-        self.assertLess(kl_divergence, 0.25)
+        self.assertLess(kl_divergence, 0.75)
 
     def test_inference_branching_lightweight_metropolis_hastings(self):
         samples = lightweight_metropolis_hastings_samples
@@ -623,7 +623,7 @@ class BranchingTestCase(unittest.TestCase):
         util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
         add_lightweight_metropolis_hastings_kl_divergence(kl_divergence)
 
-        self.assertLess(kl_divergence, 0.25)
+        self.assertLess(kl_divergence, 0.75)
 
     def test_inference_branching_random_walk_metropolis_hastings(self):
         samples = random_walk_metropolis_hastings_samples
@@ -642,7 +642,7 @@ class BranchingTestCase(unittest.TestCase):
         util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
         add_random_walk_metropolis_hastings_kl_divergence(kl_divergence)
 
-        self.assertLess(kl_divergence, 0.25)
+        self.assertLess(kl_divergence, 0.75)
 
 
 if __name__ == '__main__':
