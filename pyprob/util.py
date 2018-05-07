@@ -258,7 +258,7 @@ def progress_bar(i, len):
     return '#' * filled_len + '-' * (bar_len - filled_len)
 
 
-def truncate_str(s, length=40):
+def truncate_str(s, length=50):
     return (s[:length] + '...') if len(s) > length else s
 
 
@@ -283,11 +283,17 @@ def safe_torch_sum(t, *args, **kwargs):
     try:
         return torch.sum(t, *args, **kwargs)
     except RuntimeError:
-        print('Warning: torch.sum error (RuntimeError: value cannot be converted to type double without overflow) encountered, using tensor sum. Any gradient information through this variable will be lost.')
+        print(colored('Warning: torch.sum error (RuntimeError: value cannot be converted to type double without overflow) encountered, using tensor sum. Any gradient information through this variable will be lost.', 'red', attrs=['bold']))
+        print(t)
         if isinstance(t, Variable):
             return Variable(Tensor([t.data.sum(*args, **kwargs)]))
         else:
             raise TypeError('Expecting a Variable.')
+
+
+def where(cond, x_1, x_2):
+    cond = cond.float()
+    return (cond * x_1) + ((1-cond) * x_2)
 
 
 def weights_to_image(w):

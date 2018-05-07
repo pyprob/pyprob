@@ -124,9 +124,15 @@ class Distribution(object):
 class Empirical(Distribution):
     def __init__(self, values, log_weights=None, weights=None, combine_duplicates=False, name='Empirical'):
         length = len(values)
+        # print('name', name)
+        self._initial_log_weights = log_weights
+        self._initial_weights = weights
         if log_weights is not None:
             log_weights = util.to_variable(log_weights).view(-1)
+            # print('values before normalizing', values)
+            # print('log_weights before normalizing', log_weights)
             weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
+            # print('weights after normalizing', weights)
         elif weights is not None:
             weights = util.to_variable(weights)
             weights = weights / weights.sum(-1, keepdim=True)
@@ -172,6 +178,8 @@ class Empirical(Distribution):
         self.weights_numpy = self.weights.data.cpu().numpy()
         self.weights_numpy_cumsum = (self.weights_numpy / self.weights_numpy.sum()).cumsum()
         self._effective_sample_size = 1. / weights.pow(2).sum()
+        # print('weights after processing', self.weights)
+        # print('values after processing', self.values)
 
         # try:  # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
         #     self.values_numpy = torch.stack(self.values).data.cpu().numpy()
@@ -222,6 +230,16 @@ class Empirical(Distribution):
         ret._mean = None
         ret._variance = None
         return ret
+
+    def filter(self, func):
+        filtered_values = []
+        filtered_weights = []
+        for i in range(len(self.values)):
+            value = self.values[i]
+            if func(value):
+                filtered_values.append(value)
+                filtered_weights.append(self.weights[i])
+        return Empirical(filtered_values, weights=filtered_weights)
 
     @property
     def min(self):
@@ -426,7 +444,7 @@ class Normal(Distribution):
     # Won't be needed when the new PyTorch version is released
     def cdf(self, value):
         value = util.to_variable(value)
-        return 0.5 * (1 + torch.erf((value - self._mean) * self._stddev.reciprocal() / math.sqrt(2)))
+        return 0.5 * (1. + torch.erf((value - self._mean) * self._stddev.reciprocal() / math.sqrt(2)))
 
     # Won't be needed when the new PyTorch version is released
     def icdf(self, value):
@@ -460,7 +478,7 @@ class TruncatedNormal(Distribution):
         self._beta = (self._high - self._mean_non_truncated) / self._stddev_non_truncated
         self._standard_normal_cdf_alpha = self._standard_normal_dist.cdf(self._alpha)
         self._standard_normal_cdf_beta = self._standard_normal_dist.cdf(self._beta)
-        self._Z = self._standard_normal_dist.cdf(self._beta) - self._standard_normal_dist.cdf(self._alpha)
+        self._Z = self._standard_normal_cdf_beta - self._standard_normal_cdf_alpha
         self._log_stddev_Z = torch.log(self._stddev_non_truncated * self._Z)
         self._mean = None
         self._variance = None
@@ -549,6 +567,8 @@ class Uniform(Distribution):
         elif self._low.dim() == 2:
             self.length_variates = self._low.size(1)
             self.length_batch = self._low.size(0)
+        self._range = self._high - self._low
+        self._log_range = torch.log(self._range)
         self._mean = (self._high + self._low) / 2
         self._variance = (self._high - self._low).pow(2) / 12
         super().__init__('Uniform', 'Uniform')
@@ -563,7 +583,7 @@ class Uniform(Distribution):
             rand = torch.zeros(shape).uniform_()
             if (rand.gt(0.).mul(rand.lt(1.))).sum() == len(rand):
                 accept = True
-        ret = self._low + util.to_variable(rand) * (self._high - self._low)
+        ret = self._low + util.to_variable(rand) * self._range
         if self.length_batch == 1:
             ret = ret.squeeze(0)
         return ret
@@ -573,7 +593,7 @@ class Uniform(Distribution):
         value = value.view(self.length_batch, self.length_variates)
         lb = value.gt(self._low).type_as(self._low)
         ub = value.lt(self._high).type_as(self._low)
-        ret = torch.log(lb.mul(ub)) - torch.log(self._high - self._low)
+        ret = torch.log(lb.mul(ub)) - self._log_range
         if self.length_batch == 1:
             ret = ret.squeeze(0)
         return ret
@@ -677,7 +697,11 @@ class Kumaraswamy(Distribution):
         return 'Kumaraswamy(shape1:{}, shape2:{}, low:{}, high:{}, length_variates:{}, length_batch:{})'.format(self._shape1, self._shape2, self._low, self._high, self.length_variates, self.length_batch)
 
     def sample(self):
-        s = (1. - ((1. - self._standard_uniform.sample()) ** self._shape2_recip)) ** self._shape1_recip
+        accept = False
+        while not accept:
+            s = (1. - ((1. - self._standard_uniform.sample()) ** self._shape2_recip)) ** self._shape1_recip
+            if int((s.gt(0.).mul(s.lt(1.))).sum().data.cpu()) == len(s):
+                accept = True
         # s = torch.min(torch.max(self._epsilon, s), 1 - self._epsilon)
         return self._low + self._range * s
 
@@ -705,4 +729,6 @@ class Kumaraswamy(Distribution):
             lp = lp.squeeze(0)
         # if self.length_batch > 1 and self.length_variates > 1:
         #     lp = lp.unsqueeze(1)
+        # if util.has_nan_or_inf(lp):
+        lp[np.isnan(lp.data)] = float('-inf')
         return lp
