@@ -730,5 +730,5 @@ class Kumaraswamy(Distribution):
         # if self.length_batch > 1 and self.length_variates > 1:
         #     lp = lp.unsqueeze(1)
         # if util.has_nan_or_inf(lp):
-        lp[np.isnan(lp.data)] = float('-inf')
+        lp[np.isnan(lp.data.cpu())] = float('-inf')
         return lp
