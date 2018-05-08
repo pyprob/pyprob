@@ -113,7 +113,6 @@ class Model(nn.Module):
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
             traces = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, *args, **kwargs)
             log_weights = [trace.log_importance_weight for trace in traces]
-            print('log_weights', log_weights)
             name = 'Posterior, importance sampling (with prior), num_traces={:,}'.format(num_traces)
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             self._inference_network.eval()
