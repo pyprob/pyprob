@@ -167,7 +167,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddevs_correct = [[1.10454], [3.23883]]
         dist_log_probs_correct = [[-23.473], [-3.06649]]
 
-        dist = Mixture([dist_1, dist_2, dist_3], probs=[[0.7, 0.2, 0.1],[0.1, 0.2, 0.7]])
+        dist = Mixture([dist_1, dist_2, dist_3], probs=[[0.7, 0.2, 0.1], [0.1, 0.2, 0.7]])
 
         dist_sample_shape = list(dist.sample().size())
         dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
@@ -678,7 +678,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_stddev_empirical, dist_stddev_correct, places=1)
         self.assertAlmostEqual(dist_expectation_sin, dist_expectation_sin_correct, places=1)
         self.assertAlmostEqual(dist_map_sin_mean, dist_map_sin_mean_correct, places=1)
-
 
 
 if __name__ == '__main__':

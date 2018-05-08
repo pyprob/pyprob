@@ -97,7 +97,10 @@ class Model(nn.Module):
             print()
         return Empirical(ret, name='Prior, num_traces={:,}'.format(num_traces))
 
-    def posterior_distribution(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, burn_in=None, initial_trace=None, *args, **kwargs):
+    def posterior_distribution(self, *args, **kwargs):
+        return self.posterior_traces(*args, **kwargs).map(lambda x: x.result)
+
+    def posterior_traces(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, burn_in=None, initial_trace=None, *args, **kwargs):
         if (inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (self._inference_network is None):
             raise RuntimeError('Cannot run inference with inference network because there is none available. Use learn_inference_network first.')
         if burn_in is not None:
@@ -108,20 +111,17 @@ class Model(nn.Module):
             burn_in = int(min(num_traces / 10, 1000))
 
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
-            ret = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, map_func=lambda trace: (trace.log_importance_weight, trace.result), *args, **kwargs)
-            ret = [list(t) for t in zip(*ret)]
-            log_weights = ret[0]
-            results = ret[1]
+            traces = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, *args, **kwargs)
+            log_weights = [trace.log_importance_weight for trace in traces]
+            print('log_weights', log_weights)
             name = 'Posterior, importance sampling (with prior), num_traces={:,}'.format(num_traces)
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             self._inference_network.eval()
-            ret = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=self._inference_network, map_func=lambda trace: (trace.log_importance_weight, trace.result), *args, **kwargs)
-            ret = [list(t) for t in zip(*ret)]
-            log_weights = ret[0]
-            results = ret[1]
+            traces = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=self._inference_network, *args, **kwargs)
+            log_weights = [trace.log_importance_weight for trace in traces]
             name = 'Posterior, importance sampling (with learned proposal, training_traces={:,}), num_traces={:,}'.format(self._inference_network._total_train_traces, num_traces)
         else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
-            results = []
+            traces = []
             if initial_trace is None:
                 current_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, *args, **kwargs))
             else:
@@ -161,15 +161,15 @@ class Model(nn.Module):
                 if math.log(random.random()) < float(log_acceptance_ratio):
                     traces_accepted += 1
                     current_trace = candidate_trace
-                results.append(current_trace.result)
+                traces.append(current_trace)
             if util.verbosity > 1:
                 print()
             if burn_in is not None:
-                results = results[burn_in:]
+                traces = traces[burn_in:]
             log_weights = None
             name = 'Posterior, {} Metropolis Hastings, num_traces={:,}, burn_in={:,}, accepted={:,.2f}%, sample_reuse={:,.2f}%'.format('lightweight' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'random-walk', num_traces, burn_in, 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all)
 
-        ret = Empirical(results, log_weights, name=name)
+        ret = Empirical(traces, log_weights, name=name)
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             ret.name += ' (ESS: {:,.2f})'.format(float(ret.effective_sample_size))
         return ret

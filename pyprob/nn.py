@@ -293,7 +293,7 @@ class ProposalUniformMixture(nn.Module):
 
 
 class ProposalUniformKumaraswamyMixture(nn.Module):
-    def __init__(self, input_dim, mixture_components=5):
+    def __init__(self, input_dim, mixture_components=10):
         super().__init__()
         self._mixture_components = mixture_components
         self._lin1 = nn.Linear(input_dim, int(input_dim/2))

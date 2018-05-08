@@ -52,7 +52,7 @@ class Trace(object):
         self.samples_observed = []
         self._samples_all = []
         self._samples_all_dict_address = {}
-        self._samples_all_dict_adddress_base = {}
+        self._samples_all_dict_address_base = {}
         self.result = None
         self.log_prob = 0.
         self.log_prob_observed = 0.
@@ -60,7 +60,7 @@ class Trace(object):
         self.length = 0
 
     def __repr__(self):
-        return 'Trace(all:{}, controlled:{}, replaced:{}, uncontrolled:{}, observed:{}, log_prob:{})'.format(len(self._samples_all), len(self.samples), len(self.samples_replaced), len(self.samples_uncontrolled), len(self.samples_observed), float(self.log_prob))
+        return 'Trace(all:{}, controlled:{}, replaced:{}, uncontrolled:{}, observed:{}, log_prob:{}, log_importance_weight:{})'.format(len(self._samples_all), len(self.samples), len(self.samples_replaced), len(self.samples_uncontrolled), len(self.samples_observed), float(self.log_prob), float(self.log_importance_weight))
 
     def addresses(self):
         return '; '.join([sample.address for sample in self.samples])
@@ -94,15 +94,15 @@ class Trace(object):
             return util.pack_observes_to_variable([s.distribution.mean[0] for s in self.samples_observed])
 
     def last_instance(self, address_base):
-        if address_base in self._samples_all_dict_adddress_base:
-            return self._samples_all_dict_adddress_base[address_base].instance
+        if address_base in self._samples_all_dict_address_base:
+            return self._samples_all_dict_address_base[address_base].instance
         else:
             return 0
 
     def add_sample(self, sample):
         self._samples_all.append(sample)
         self._samples_all_dict_address[sample.address] = sample
-        self._samples_all_dict_adddress_base[sample.address_base] = sample
+        self._samples_all_dict_address_base[sample.address_base] = sample
 
     def cuda(self, device=None):
         for sample in self._samples_all:

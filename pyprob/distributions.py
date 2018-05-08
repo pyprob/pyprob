@@ -124,18 +124,14 @@ class Distribution(object):
 class Empirical(Distribution):
     def __init__(self, values, log_weights=None, weights=None, combine_duplicates=False, name='Empirical'):
         length = len(values)
-        # print('name', name)
         self._initial_log_weights = log_weights
         self._initial_weights = weights
         if log_weights is not None:
             log_weights = util.to_variable(log_weights).view(-1)
-            # print('values before normalizing', values)
-            # print('log_weights before normalizing', log_weights)
             weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
-            # print('weights after normalizing', weights)
         elif weights is not None:
             weights = util.to_variable(weights)
-            weights = weights / weights.sum(-1, keepdim=True)
+            weights = weights / weights.sum()
         else:
             # assume uniform distribution if no log_weights or weights are given
             # log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length))
@@ -177,10 +173,6 @@ class Empirical(Distribution):
             self.values = [values[int(i)] for i in indices]
         self.weights_numpy = self.weights.data.cpu().numpy()
         self.weights_numpy_cumsum = (self.weights_numpy / self.weights_numpy.sum()).cumsum()
-        self._effective_sample_size = 1. / weights.pow(2).sum()
-        # print('weights after processing', self.weights)
-        # print('values after processing', self.values)
-
         # try:  # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
         #     self.values_numpy = torch.stack(self.values).data.cpu().numpy()
         # except:
@@ -192,8 +184,7 @@ class Empirical(Distribution):
         self._variance = None
         self._min = None
         self._max = None
-        self._mean = None
-        self._variance = None
+        self._effective_sample_size = None
         super().__init__(name)
 
     def __len__(self):
@@ -229,6 +220,7 @@ class Empirical(Distribution):
         ret._max = None
         ret._mean = None
         ret._variance = None
+        ret._effective_sample_size = None
         return ret
 
     def filter(self, func):
@@ -271,7 +263,15 @@ class Empirical(Distribution):
 
     @property
     def effective_sample_size(self):
+        if self._effective_sample_size is None:
+            self._effective_sample_size = 1. / self.weights.pow(2).sum()
         return self._effective_sample_size
+
+    @property
+    def mode(self):
+        if self._uniform_weights:
+            print(colored('Warning: weights are uniform and there is no unique mode.', 'red', attrs=['bold']))
+        return self.values[0]  # Values are always sorted in decreasing weight
 
     @property
     def variance(self):
