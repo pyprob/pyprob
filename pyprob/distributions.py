@@ -124,68 +124,72 @@ class Distribution(object):
 class Empirical(Distribution):
     def __init__(self, values, log_weights=None, weights=None, combine_duplicates=False, name='Empirical'):
         length = len(values)
-        self._initial_log_weights = log_weights
-        self._initial_weights = weights
-        if log_weights is not None:
-            log_weights = util.to_variable(log_weights).view(-1)
-            weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
-        elif weights is not None:
-            weights = util.to_variable(weights)
-            weights = weights / weights.sum()
+        if length == 0:
+            self.length = 0
+            super().__init__(name + ' (Empty)')
         else:
-            # assume uniform distribution if no log_weights or weights are given
-            # log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length))
-            weights = util.to_variable(torch.zeros(length).fill_(1./length))
-
-        if isinstance(values, Variable) or torch.is_tensor(values):
-            values = util.to_variable(values)
-        elif isinstance(values, (list, tuple)):
-            if isinstance(values[0], Variable) or torch.is_tensor(values[0]):
-                values = util.to_variable(values)
-        distribution = collections.defaultdict(float)
-        # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
-        hashable = util.is_hashable(values[0])
-        if hashable:
-            if combine_duplicates:
-                for i in range(length):
-                    found = False
-                    for key, value in distribution.items():
-                        if torch.equal(util.to_variable(key), util.to_variable(values[i])):
-                            # Differentiability warning: values[i] is discarded here. If we need to differentiate through all values, the gradients of values[i] and key should be tied here.
-                            distribution[key] = value + weights[i]
-                            found = True
-                    if not found:
-                        distribution[values[i]] = weights[i]
+            self._initial_log_weights = log_weights
+            self._initial_weights = weights
+            if log_weights is not None:
+                log_weights = util.to_variable(log_weights).view(-1)
+                weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
+            elif weights is not None:
+                weights = util.to_variable(weights)
+                weights = weights / weights.sum()
             else:
-                for i in range(length):
-                    distribution[values[i]] += weights[i]
-            values = list(distribution.keys())
-            weights = list(distribution.values())
-            weights = torch.cat(weights)
-        self.length = len(values)
+                # assume uniform distribution if no log_weights or weights are given
+                # log_weights = util.to_variable(torch.zeros(length)).fill_(-math.log(length))
+                weights = util.to_variable(torch.zeros(length).fill_(1./length))
 
-        self._uniform_weights = torch.eq(weights, weights[0]).all()
-        if self._uniform_weights:
-            self.weights = weights
-            self.values = values
-        else:
-            self.weights, indices = torch.sort(weights, descending=True)
-            self.values = [values[int(i)] for i in indices]
-        self.weights_numpy = self.weights.data.cpu().numpy()
-        self.weights_numpy_cumsum = (self.weights_numpy / self.weights_numpy.sum()).cumsum()
-        # try:  # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
-        #     self.values_numpy = torch.stack(self.values).data.cpu().numpy()
-        # except:
-        #     try:
-        #         self.values_numpy = np.array(self.values)
-        #     except:
-        #         self.values_numpy = None
-        self._mean = None
-        self._variance = None
-        self._min = None
-        self._max = None
-        self._effective_sample_size = None
-        super().__init__(name)
+            if isinstance(values, Variable) or torch.is_tensor(values):
+                values = util.to_variable(values)
+            elif isinstance(values, (list, tuple)):
+                if isinstance(values[0], Variable) or torch.is_tensor(values[0]):
+                    values = util.to_variable(values)
+            distribution = collections.defaultdict(float)
+            # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
+            hashable = util.is_hashable(values[0])
+            if hashable:
+                if combine_duplicates:
+                    for i in range(length):
+                        found = False
+                        for key, value in distribution.items():
+                            if torch.equal(util.to_variable(key), util.to_variable(values[i])):
+                                # Differentiability warning: values[i] is discarded here. If we need to differentiate through all values, the gradients of values[i] and key should be tied here.
+                                distribution[key] = value + weights[i]
+                                found = True
+                        if not found:
+                            distribution[values[i]] = weights[i]
+                else:
+                    for i in range(length):
+                        distribution[values[i]] += weights[i]
+                values = list(distribution.keys())
+                weights = list(distribution.values())
+                weights = torch.cat(weights)
+            self.length = len(values)
+
+            self._uniform_weights = torch.eq(weights, weights[0]).all()
+            if self._uniform_weights:
+                self.weights = weights
+                self.values = values
+            else:
+                self.weights, indices = torch.sort(weights, descending=True)
+                self.values = [values[int(i)] for i in indices]
+            self.weights_numpy = self.weights.data.cpu().numpy()
+            self.weights_numpy_cumsum = (self.weights_numpy / self.weights_numpy.sum()).cumsum()
+            # try:  # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
+            #     self.values_numpy = torch.stack(self.values).data.cpu().numpy()
+            # except:
+            #     try:
+            #         self.values_numpy = np.array(self.values)
+            #     except:
+            #         self.values_numpy = None
+            self._mean = None
+            self._variance = None
+            self._min = None
+            self._max = None
+            self._effective_sample_size = None
+            super().__init__(name)
 
     def __len__(self):
         return self.length
@@ -197,12 +201,16 @@ class Empirical(Distribution):
             return 'Empirical(name:{}, length:{})'.format(self.name, self.length)
 
     def sample(self):
+        if self.length == 0:
+            raise RuntimeError('Empirical distribution instance is empty.')
         if self._uniform_weights:
             return random.choice(self.values)
         else:
             return util.fast_np_random_choice(self.values, self.weights_numpy_cumsum)
 
     def expectation(self, func):
+        if self.length == 0:
+            raise RuntimeError('Empirical distribution instance is empty.')
         if self._uniform_weights:
             return util.to_variable(sum(map(func, self.values)) / self.length)
         else:
@@ -212,6 +220,8 @@ class Empirical(Distribution):
             return ret
 
     def map(self, func):
+        if self.length == 0:
+            raise RuntimeError('Empirical distribution instance is empty.')
         ret = copy.copy(self)
         ret.values = list(map(func, self.values))
         ret._mean = None
@@ -224,6 +234,8 @@ class Empirical(Distribution):
         return ret
 
     def filter(self, func):
+        if self.length == 0:
+            raise RuntimeError('Empirical distribution instance is empty.')
         filtered_values = []
         filtered_weights = []
         for i in range(len(self.values)):
@@ -235,6 +247,8 @@ class Empirical(Distribution):
 
     @property
     def min(self):
+        if self.length == 0:
+            raise RuntimeError('Empirical distribution instance is empty.')
         if self._min is None:
             try:
                 sorted_values = sorted(map(float, self.values))
@@ -246,6 +260,8 @@ class Empirical(Distribution):
 
     @property
     def max(self):
+        if self.length == 0:
+            raise RuntimeError('Empirical distribution instance is empty.')
         if self._max is None:
             try:
                 sorted_values = sorted(map(float, self.values))
@@ -257,33 +273,45 @@ class Empirical(Distribution):
 
     @property
     def mean(self):
+        if self.length == 0:
+            raise RuntimeError('Empirical distribution instance is empty.')
         if self._mean is None:
             self._mean = self.expectation(lambda x: x)
         return self._mean
 
     @property
     def effective_sample_size(self):
+        if self.length == 0:
+            raise RuntimeError('Empirical distribution instance is empty.')
         if self._effective_sample_size is None:
             self._effective_sample_size = 1. / self.weights.pow(2).sum()
         return self._effective_sample_size
 
     @property
     def mode(self):
+        if self.length == 0:
+            raise RuntimeError('Empirical distribution instance is empty.')
         if self._uniform_weights:
             print(colored('Warning: weights are uniform and there is no unique mode.', 'red', attrs=['bold']))
         return self.values[0]  # Values are always sorted in decreasing weight
 
     @property
     def variance(self):
+        if self.length == 0:
+            raise RuntimeError('Empirical distribution instance is empty.')
         if self._variance is None:
             mean = self.mean
             self._variance = self.expectation(lambda x: (x - mean)**2)
         return self._variance
 
     def unweighted(self):
+        if self.length == 0:
+            raise RuntimeError('Empirical distribution instance is empty.')
         return Empirical(self.values)
 
     def resample(self, samples):
+        if self.length == 0:
+            raise RuntimeError('Empirical distribution instance is empty.')
         # TODO: improve this with a better resampling algorithm
         return Empirical([self.sample() for i in range(samples)])
 

@@ -113,7 +113,7 @@ class Model(nn.Module):
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
             traces = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, *args, **kwargs)
             log_weights = [trace.log_importance_weight for trace in traces]
-            name = 'Posterior, importance sampling (with prior), num_traces={:,}'.format(num_traces)
+            name = 'Posterior, importance sampling (with proposal = prior), num_traces={:,}'.format(num_traces)
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             self._inference_network.eval()
             traces = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=self._inference_network, *args, **kwargs)
@@ -170,7 +170,7 @@ class Model(nn.Module):
 
         ret = Empirical(traces, log_weights, name=name)
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-            ret.name += ' (ESS: {:,.2f})'.format(float(ret.effective_sample_size))
+            ret.name += ' (effective sample size: {:,.2f})'.format(float(ret.effective_sample_size))
         return ret
 
     def learn_inference_network(self, inference_network=InferenceNetwork.LSTM, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE, prior_inflation=PriorInflation.DISABLED, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=128, sample_embedding=SampleEmbedding.FULLY_CONNECTED, lstm_dim=128, lstm_depth=2, sample_embedding_dim=16, address_embedding_dim=128, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, num_traces=-1, use_trace_cache=False, auto_save=False, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
