@@ -1,5 +1,3 @@
-import copy
-
 from . import util, TrainingObservation
 
 
@@ -60,7 +58,7 @@ class Trace(object):
         self.length = 0
 
     def __repr__(self):
-        return 'Trace(all:{}, controlled:{}, replaced:{}, uncontrolled:{}, observed:{}, log_prob:{}, log_importance_weight:{})'.format(len(self._samples_all), len(self.samples), len(self.samples_replaced), len(self.samples_uncontrolled), len(self.samples_observed), float(self.log_prob), float(self.log_importance_weight))
+        return 'Trace(all:{:,}, controlled:{:,}, replaced:{:,}, uncontrolled:{:,}, observed:{:,}, log_prob:{:,.2f}, log_importance_weight:{:,.2f})'.format(len(self._samples_all), len(self.samples), len(self.samples_replaced), len(self.samples_uncontrolled), len(self.samples_observed), float(self.log_prob), float(self.log_importance_weight))
 
     def addresses(self):
         return '; '.join([sample.address for sample in self.samples])

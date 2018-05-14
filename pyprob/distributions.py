@@ -323,10 +323,10 @@ class Empirical(Distribution):
         all_uniform = reduce(lambda x, y: x and y, [dist._uniform_weights for dist in empirical_distributions])
         # if not all_uniform:
         #     raise ValueError('Combination is only supported between Empirical distributions with uniform weights.')
-        len = empirical_distributions[0].length
-        for dist in empirical_distributions:
-            if dist.length != len:
-                raise ValueError('Combination is only supported between Empirical distributions of equal length.')
+        # len = empirical_distributions[0].length
+        # for dist in empirical_distributions:
+        #     if dist.length != len:
+        #         raise ValueError('Combination is only supported between Empirical distributions of equal length.')
 
         if all_uniform:
             values = []
