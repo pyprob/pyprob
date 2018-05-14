@@ -8,14 +8,32 @@ import os
 import math
 
 import pyprob
-from pyprob import util
+from pyprob import util, Model
 from pyprob.distributions import Distribution, Categorical, Empirical, Mixture, Normal, TruncatedNormal, Uniform, Poisson, Kumaraswamy
 
 
-empirical_samples = 10000
+empirical_samples = 20000
 
 
 class DistributionsTestCase(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        class GaussianWithUnknownMean(Model):
+            def __init__(self, prior_mean=1, prior_stddev=math.sqrt(5), likelihood_stddev=math.sqrt(2)):
+                self.prior_mean = prior_mean
+                self.prior_stddev = prior_stddev
+                self.likelihood_stddev = likelihood_stddev
+                super().__init__('Gaussian with unknown mean')
+
+            def forward(self, observation=[]):
+                mu = pyprob.sample(Normal(self.prior_mean, self.prior_stddev))
+                likelihood = Normal(mu, self.likelihood_stddev)
+                for o in observation:
+                    pyprob.observe(likelihood, o)
+                return mu
+
+        self._model_gum = GaussianWithUnknownMean()
+        super().__init__(*args, **kwargs)
+
     def test_dist_empirical(self):
         values = Variable(util.Tensor([1, 2, 3]))
         log_weights = Variable(util.Tensor([1, 2, 3]))
@@ -63,7 +81,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.25))
 
-    def test_dist_empirical_combine(self):
+    def test_dist_empirical_combine_uniform_weights(self):
         dist1_mean_correct = 1
         dist1_stddev_correct = 3
         dist2_mean_correct = 5
@@ -99,6 +117,46 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist3_empirical_stddev, dist3_stddev_correct, places=1)
         self.assertAlmostEqual(dist_combined_empirical_mean, dist_combined_mean_correct, places=1)
         self.assertAlmostEqual(dist_combined_empirical_stddev, dist_combined_stddev_correct, places=1)
+
+    def test_dist_empirical_combine_non_uniform_weights(self):
+        samples1 = 10000
+        samples2 = 1000
+        observation = [8, 9]
+        posterior_mean_correct = 7.25
+        posterior_stddev_correct = math.sqrt(1/1.2)
+
+        posterior1 = self._model_gum.posterior_distribution(samples1, observation=observation)
+        posterior1_mean = float(posterior1.mean)
+        posterior1_mean_unweighted = float(posterior1.unweighted().mean)
+        posterior1_stddev = float(posterior1.stddev)
+        posterior1_stddev_unweighted = float(posterior1.unweighted().stddev)
+        kl_divergence1 = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior1.mean, posterior1_stddev)))
+
+        posterior2 = self._model_gum.posterior_distribution(samples2, observation=observation)
+        posterior2_mean = float(posterior2.mean)
+        posterior2_mean_unweighted = float(posterior2.unweighted().mean)
+        posterior2_stddev = float(posterior2.stddev)
+        posterior2_stddev_unweighted = float(posterior2.unweighted().stddev)
+        kl_divergence2 = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior2.mean, posterior2_stddev)))
+
+        posterior = Empirical.combine([posterior1, posterior2])
+        posterior_mean = float(posterior.mean)
+        posterior_mean_unweighted = float(posterior.unweighted().mean)
+        posterior_stddev = float(posterior.stddev)
+        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+        kl_divergence = float(util.kl_divergence_normal(Normal(posterior_mean_correct, posterior_stddev_correct), Normal(posterior.mean, posterior_stddev)))
+
+        util.debug('samples1', 'posterior1_mean_unweighted', 'posterior1_mean', 'posterior1_stddev_unweighted', 'posterior1_stddev', 'kl_divergence1', 'samples2', 'posterior2_mean_unweighted', 'posterior2_mean', 'posterior2_stddev_unweighted', 'posterior2_stddev', 'kl_divergence2', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+
+        self.assertAlmostEqual(posterior1_mean, posterior_mean_correct, places=0)
+        self.assertAlmostEqual(posterior1_stddev, posterior_stddev_correct, places=0)
+        self.assertLess(kl_divergence1, 0.25)
+        self.assertAlmostEqual(posterior2_mean, posterior_mean_correct, places=0)
+        self.assertAlmostEqual(posterior2_stddev, posterior_stddev_correct, places=0)
+        self.assertLess(kl_divergence2, 0.25)
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+        self.assertLess(kl_divergence, 0.25)
 
     def test_dist_categorical(self):
         dist_sample_shape_correct = [1]
@@ -590,7 +648,7 @@ class DistributionsTestCase(unittest.TestCase):
 
         self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
-        self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_rates, dist_rates_correct, atol=0.1))
