@@ -31,24 +31,24 @@ class Model(nn.Module):
     def forward(self):
         raise NotImplementedError()
 
-    def _trace_generator(self, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, metropolis_hastings_trace=None, *args, **kwargs):
+    def _trace_generator(self, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, metropolis_hastings_trace=None, observation_importance_exponent=1., *args, **kwargs):
         while True:
             if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
                 self._inference_network.new_trace(util.pack_observes_to_variable(kwargs['observation']).unsqueeze(0))
-            state.begin_trace(self.forward, trace_mode, prior_inflation, inference_engine, inference_network, metropolis_hastings_trace)
+            state.begin_trace(self.forward, trace_mode, prior_inflation, inference_engine, inference_network, metropolis_hastings_trace, observation_importance_exponent)
             result = self.forward(*args, **kwargs)
             trace = state.end_trace(result)
             yield trace
 
-    def _trace_result_generator(self, prior_inflation=PriorInflation.DISABLED, *args, **kwargs):
+    def _trace_result_generator(self, prior_inflation=PriorInflation.DISABLED, observation_importance_exponent=1., *args, **kwargs):
         while True:
-            state.begin_trace(None, trace_mode=TraceMode.NONE, prior_inflation=prior_inflation)
+            state.begin_trace(None, trace_mode=TraceMode.NONE, prior_inflation=prior_inflation, observation_importance_exponent=observation_importance_exponent)
             result = self.forward(*args, **kwargs)
             state.end_trace(None)
             yield result
 
-    def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=None, *args, **kwargs):
-        generator = self._trace_generator(trace_mode=trace_mode, prior_inflation=prior_inflation, inference_engine=inference_engine, inference_network=inference_network, *args, **kwargs)
+    def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=None, observation_importance_exponent=1., *args, **kwargs):
+        generator = self._trace_generator(trace_mode=trace_mode, prior_inflation=prior_inflation, inference_engine=inference_engine, inference_network=inference_network, observation_importance_exponent=observation_importance_exponent, *args, **kwargs)
         ret = []
         time_start = time.time()
         if ((trace_mode != TraceMode.PRIOR) and (util.verbosity > 1)) or (util.verbosity > 2):
@@ -100,7 +100,7 @@ class Model(nn.Module):
     def posterior_distribution(self, *args, **kwargs):
         return self.posterior_traces(*args, **kwargs).map(lambda x: x.result)
 
-    def posterior_traces(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, burn_in=None, initial_trace=None, *args, **kwargs):
+    def posterior_traces(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, burn_in=None, initial_trace=None, observation_importance_exponent=1., *args, **kwargs):
         if (inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (self._inference_network is None):
             raise RuntimeError('Cannot run inference with inference network because there is none available. Use learn_inference_network first.')
         if burn_in is not None:
@@ -122,7 +122,7 @@ class Model(nn.Module):
         else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
             traces = []
             if initial_trace is None:
-                current_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, *args, **kwargs))
+                current_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, observation_importance_exponent=observation_importance_exponent, *args, **kwargs))
             else:
                 current_trace = initial_trace
 
@@ -142,7 +142,7 @@ class Model(nn.Module):
                         traces_per_second = (i + 1) / duration
                         print('{} | {} | {} | {}/{} | {} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:,.2f}%'.format(100 * (traces_accepted / (i + 1))).rjust(7), '{:,.2f}%'.format(100 * samples_reused / max(1, samples_all)).rjust(7), traces_per_second), end='\r')
                         sys.stdout.flush()
-                candidate_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, metropolis_hastings_trace=current_trace, *args, **kwargs))
+                candidate_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, metropolis_hastings_trace=current_trace, observation_importance_exponent=observation_importance_exponent, *args, **kwargs))
                 log_acceptance_ratio = math.log(current_trace.length) - math.log(candidate_trace.length) + candidate_trace.log_prob_observed - current_trace.log_prob_observed
                 for sample in candidate_trace.samples:
                     if sample.reused:

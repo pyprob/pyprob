@@ -123,13 +123,14 @@ class Distribution(object):
 
 class Empirical(Distribution):
     def __init__(self, values, log_weights=None, weights=None, combine_duplicates=False, name='Empirical'):
+        # print('Empirical initial_log_weights', log_weights)
         length = len(values)
         if length == 0:
             self.length = 0
             super().__init__(name + ' (Empty)')
         else:
-            self._initial_log_weights = log_weights
-            self._initial_weights = weights
+            # self._initial_log_weights = log_weights
+            # self._initial_weights = weights
             if log_weights is not None:
                 log_weights = util.to_variable(log_weights).view(-1)
                 weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
@@ -189,6 +190,8 @@ class Empirical(Distribution):
             self._min = None
             self._max = None
             self._effective_sample_size = None
+            # print('Empirical final_weights', self.weights)
+
             super().__init__(name)
 
     def __len__(self):

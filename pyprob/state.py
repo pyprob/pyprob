@@ -11,6 +11,7 @@ from . import util, TraceMode, PriorInflation, InferenceEngine
 _trace_mode = TraceMode.NONE
 _inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
 _prior_inflation = PriorInflation.DISABLED
+_observation_importance_exponent = 1.
 _current_trace = None
 _current_trace_root_function_name = None
 _current_trace_inference_network = None
@@ -228,20 +229,22 @@ def observe(distribution, observation, address=None):
 
         log_prob = distribution.log_prob(observation)
         if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-            _current_trace.log_importance_weight += log_prob
+            _current_trace.log_importance_weight += _observation_importance_exponent * log_prob
 
         current_sample = Sample(distribution=distribution, value=observation, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True)
         _current_trace.add_sample(current_sample)
     return
 
 
-def begin_trace(func, trace_mode=TraceMode.NONE, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, metropolis_hastings_trace=None):
+def begin_trace(func, trace_mode=TraceMode.NONE, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, metropolis_hastings_trace=None, observation_importance_exponent=1.):
     global _trace_mode
     global _inference_engine
     global _prior_inflation
+    global _observation_importance_exponent
     _trace_mode = trace_mode
     _inference_engine = inference_engine
     _prior_inflation = prior_inflation
+    _observation_importance_exponent = observation_importance_exponent
     if trace_mode != TraceMode.NONE:
         global _current_trace
         global _current_trace_root_function_name
