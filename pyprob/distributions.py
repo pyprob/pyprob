@@ -129,8 +129,9 @@ class Empirical(Distribution):
             self.length = 0
             super().__init__(name + ' (Empty)')
         else:
-            # self._initial_log_weights = log_weights
-            # self._initial_weights = weights
+            self._initial_log_weights = log_weights
+            self._initial_weights = weights
+
             if log_weights is not None:
                 log_weights = util.to_variable(log_weights).view(-1)
                 weights = torch.exp(log_weights - util.log_sum_exp(log_weights))
@@ -147,6 +148,9 @@ class Empirical(Distribution):
             elif isinstance(values, (list, tuple)):
                 if isinstance(values[0], Variable) or torch.is_tensor(values[0]):
                     values = util.to_variable(values)
+
+            self._initial_values = values
+
             distribution = collections.defaultdict(float)
             # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
             hashable = util.is_hashable(values[0])
@@ -227,6 +231,7 @@ class Empirical(Distribution):
             raise RuntimeError('Empirical distribution instance is empty.')
         ret = copy.copy(self)
         ret.values = list(map(func, self.values))
+        ret._initial_values = list(map(func, self._initial_values))
         ret._mean = None
         ret._variance = None
         ret._min = None
@@ -319,30 +324,40 @@ class Empirical(Distribution):
         return Empirical([self.sample() for i in range(samples)])
 
     @staticmethod
-    def combine(empirical_distributions):
+    def combine(empirical_distributions, use_initial_values_and_weights=False):
         for dist in empirical_distributions:
             if not isinstance(dist, Empirical):
                 raise TypeError('Combination is only supported between Empirical distributions.')
-        all_uniform = reduce(lambda x, y: x and y, [dist._uniform_weights for dist in empirical_distributions])
-        # if not all_uniform:
-        #     raise ValueError('Combination is only supported between Empirical distributions with uniform weights.')
-        # len = empirical_distributions[0].length
-        # for dist in empirical_distributions:
-        #     if dist.length != len:
-        #         raise ValueError('Combination is only supported between Empirical distributions of equal length.')
-
-        if all_uniform:
-            values = []
-            for dist in empirical_distributions:
-                values += dist.values
-            return Empirical(values)
-        else:
+        if use_initial_values_and_weights:
             values = []
             weights = []
+            log_weights = []
             for dist in empirical_distributions:
-                values += dist.values
-                weights.append(dist.weights * dist.length)
-            return Empirical(values, weights=torch.cat(weights))
+                values += dist._initial_values
+                if dist._initial_weights is not None:
+                    weights += dist._initial_weights
+                if dist._initial_log_weights is not None:
+                    log_weights += dist._initial_log_weights
+            if len(weights) == len(values):
+                return Empirical(values, weights=weights)
+            elif len(log_weights) == len(values):
+                return Empirical(values, log_weights=log_weights)
+            else:
+                raise RuntimeError('Combination with use_initial_values_and_weights is only supported between Empirical distributions where all distributions initially have weights or all distributions initially have log_weights.')
+        else:
+            all_uniform = reduce(lambda x, y: x and y, [dist._uniform_weights for dist in empirical_distributions])
+            if all_uniform:
+                values = []
+                for dist in empirical_distributions:
+                    values += dist.values
+                return Empirical(values)
+            else:
+                values = []
+                weights = []
+                for dist in empirical_distributions:
+                    values += dist.values
+                    weights.append(dist.weights * dist.length)
+                return Empirical(values, weights=torch.cat(weights))
 
 
 class Categorical(Distribution):

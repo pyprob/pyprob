@@ -168,10 +168,9 @@ class Model(nn.Module):
             log_weights = None
             name = 'Posterior, {} Metropolis Hastings, num_traces={:,}, burn_in={:,}, accepted={:,.2f}%, sample_reuse={:,.2f}%'.format('lightweight' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'random-walk', num_traces, burn_in, 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all)
 
-        ret = Empirical(traces, log_weights, name=name)
-        if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-            ret.name += ' (effective sample size: {:,.2f})'.format(float(ret.effective_sample_size))
-        return ret
+        # if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+            # ret.name += ' (effective sample size: {:,.2f})'.format(float(ret.effective_sample_size))
+        return Empirical(traces, log_weights, name=name)
 
     def learn_inference_network(self, inference_network=InferenceNetwork.LSTM, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE, prior_inflation=PriorInflation.DISABLED, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=128, sample_embedding=SampleEmbedding.FULLY_CONNECTED, lstm_dim=128, lstm_depth=2, sample_embedding_dim=16, address_embedding_dim=128, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, num_traces=-1, use_trace_cache=False, auto_save=False, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
         if use_trace_cache and self._trace_cache_path is None:
