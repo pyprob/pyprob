@@ -1,4 +1,5 @@
 import os
+import gc
 import sys
 import datetime
 import torch
@@ -166,6 +167,7 @@ def save_report(model, file_name, detailed_traces=2):
                             plot.add_plot(width=NoEscape(r'\textwidth'))
                             plot.add_caption(FootnoteText(p_name.replace('::', ':: ')))
 
+            gc.collect()
             doc.append(NoEscape(r'\newpage'))
             with doc.create(Section('Traces')):
                 with doc.create(Tabularx('ll')) as table:
@@ -243,6 +245,7 @@ def save_report(model, file_name, detailed_traces=2):
                             plt_all_colors.append(color)
                             address_id_to_color[address_id] = color
 
+                    gc.collect()
                     with doc.create(Figure(position='H')) as plot:
                         fig = plt.figure(figsize=(10, 5))
                         ax = plt.subplot(111)
@@ -269,6 +272,7 @@ def save_report(model, file_name, detailed_traces=2):
                         plot.add_plot(width=NoEscape(r'\textwidth'))
                         plot.add_caption('Histogram of controlled and observed addresses. Red: controlled, green: replaced, blue: observed.')
 
+                gc.collect()
                 with doc.create(Subsection('Trace lengths')):
                     with doc.create(Tabularx('ll')) as table:
                         trace_lengths_controlled = [v[3] for v in inference_network._trace_stats.values()]
@@ -324,6 +328,7 @@ def save_report(model, file_name, detailed_traces=2):
                         plot.add_plot(width=NoEscape(r'\textwidth'))
                         plot.add_caption('Histogram of controlled trace lengths.')
 
+                gc.collect()
                 with doc.create(Subsection('Unique traces encountered')):
                     detailed_traces = min(len(inference_network._trace_stats), detailed_traces)
                     with doc.create(Tabularx('ll')) as table:

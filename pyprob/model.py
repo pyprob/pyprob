@@ -111,12 +111,12 @@ class Model(nn.Module):
             burn_in = int(min(num_traces / 10, 1000))
 
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
-            traces = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, *args, **kwargs)
+            traces = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, observation_importance_exponent=observation_importance_exponent, *args, **kwargs)
             log_weights = [trace.log_importance_weight for trace in traces]
             name = 'Posterior, importance sampling (with proposal = prior), num_traces={:,}'.format(num_traces)
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             self._inference_network.eval()
-            traces = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=self._inference_network, *args, **kwargs)
+            traces = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=self._inference_network, observation_importance_exponent=observation_importance_exponent, *args, **kwargs)
             log_weights = [trace.log_importance_weight for trace in traces]
             name = 'Posterior, importance sampling (with learned proposal, training_traces={:,}), num_traces={:,}'.format(self._inference_network._total_train_traces, num_traces)
         else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
