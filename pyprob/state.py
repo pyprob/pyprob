@@ -227,9 +227,9 @@ def observe(distribution, observation, address=None):
         instance = _current_trace.last_instance(address_base) + 1
         address = '{}_{}_{}'.format(address_base, distribution.address_suffix, instance)
 
-        log_prob = distribution.log_prob(observation)
+        log_prob = _observation_importance_exponent * distribution.log_prob(observation)
         if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-            _current_trace.log_importance_weight += _observation_importance_exponent * log_prob
+            _current_trace.log_importance_weight += log_prob
 
         current_sample = Sample(distribution=distribution, value=observation, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True)
         _current_trace.add_sample(current_sample)
