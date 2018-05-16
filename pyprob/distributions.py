@@ -342,6 +342,8 @@ class Empirical(Distribution):
                 return Empirical(values, weights=weights)
             elif len(log_weights) == len(values):
                 return Empirical(values, log_weights=log_weights)
+            elif len(log_weights) == 0 and len(weights) == 0:
+                return Empirical(values)
             else:
                 raise RuntimeError('Combination with use_initial_values_and_weights is only supported between Empirical distributions where all distributions initially have weights or all distributions initially have log_weights.')
         else:
