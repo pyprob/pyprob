@@ -151,11 +151,11 @@ class Empirical(Distribution):
 
             self._initial_values = values
 
-            distribution = collections.defaultdict(float)
-            # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
-            hashable = util.is_hashable(values[0])
-            if hashable:
-                if combine_duplicates:
+            if combine_duplicates:
+                distribution = collections.defaultdict(float)
+                # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
+                hashable = util.is_hashable(values[0])
+                if hashable:
                     for i in range(length):
                         found = False
                         for key, value in distribution.items():
@@ -165,12 +165,15 @@ class Empirical(Distribution):
                                 found = True
                         if not found:
                             distribution[values[i]] = weights[i]
-                else:
-                    for i in range(length):
-                        distribution[values[i]] += weights[i]
-                values = list(distribution.keys())
-                weights = list(distribution.values())
-                weights = torch.cat(weights)
+                    # else:
+                    #     for i in range(length):
+                    #         distribution[values[i]] += weights[i]
+                    values = list(distribution.keys())
+                    weights = list(distribution.values())
+                    weights = torch.cat(weights)
+            else:
+                values = [values[i] for i in range(length)]
+
             self.length = len(values)
 
             self._uniform_weights = torch.eq(weights, weights[0]).all()
@@ -219,10 +222,14 @@ class Empirical(Distribution):
         if self.length == 0:
             raise RuntimeError('Empirical distribution instance is empty.')
         if self._uniform_weights:
+            # print('computing empirical expectation with uniform weights')
             return util.to_variable(sum(map(func, self.values)) / self.length)
         else:
+            # print('computing empirical expectation with non-uniform weights')
             ret = 0.
             for i in range(self.length):
+                # print('value {}: {}'.format(i, self.values[i]))
+                # print('weight {}: {}'.format(i, self.weights[i]))
                 ret += func(self.values[i]) * self.weights[i]
             return ret
 
@@ -284,6 +291,7 @@ class Empirical(Distribution):
         if self.length == 0:
             raise RuntimeError('Empirical distribution instance is empty.')
         if self._mean is None:
+            # print('computing empirical mean')
             self._mean = self.expectation(lambda x: x)
         return self._mean
 
