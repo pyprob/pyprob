@@ -126,13 +126,13 @@ def to_variable(value, *args, **kwargs):
         elif (type(value[0]) is float) or (type(value[0]) is int):
             ret = torch.stack(list(map(lambda x: Variable(Tensor([x]), *args, **kwargs), value))).float().view(-1)
         else:
-            ret = Variable(Tensor(value)).float()
+            ret = Variable(Tensor(value))
     else:
         ret = Variable(Tensor([float(value)]), *args, **kwargs)
     if _cuda_enabled:
-        return ret.cuda()
+        return ret.float().cuda()
     else:
-        return ret
+        return ret.float()
 
 
 def to_numpy(value):

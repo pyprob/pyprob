@@ -15,7 +15,7 @@ python:
 - '3.6'
 before_install:
 - sudo apt-get install -y libzmq3-dev uuid-dev
-- pip install http://download.pytorch.org/whl/cpu/torch-0.3.1-cp36-cp36m-linux_x86_64.whl
+- pip install http://download.pytorch.org/whl/cpu/torch-0.4.0-cp36-cp36m-linux_x86_64.whl
 - pip install torchvision
 install:
 - pip install .

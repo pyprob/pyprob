@@ -48,7 +48,7 @@ def extract_address(root_function_name):
         if n == root_function_name:
             break
         frame = frame.f_back
-    return "{}/{}".format(ip, '.'.join(reversed(names)))
+    return "{}/{}".format(ip, '/'.join(reversed(names)))
 
 
 def _extract_target_of_assignment():
@@ -229,7 +229,7 @@ def observe(distribution, observation, address=None):
 
         log_prob = _observation_importance_exponent * distribution.log_prob(observation)
         if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-            _current_trace.log_importance_weight += log_prob
+            _current_trace.log_importance_weight += log_prob.item()
 
         current_sample = Sample(distribution=distribution, value=observation, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True)
         _current_trace.add_sample(current_sample)

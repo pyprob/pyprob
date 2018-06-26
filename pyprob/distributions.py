@@ -170,7 +170,7 @@ class Empirical(Distribution):
                     #         distribution[values[i]] += weights[i]
                     values = list(distribution.keys())
                     weights = list(distribution.values())
-                    weights = torch.cat(weights)
+                    weights = torch.stack(weights)
             else:
                 values = [values[i] for i in range(length)]
 
@@ -394,7 +394,10 @@ class Categorical(Distribution):
         return self.length_variates
 
     def sample(self):
-        return self._torch_dist.sample().float()
+        ret = self._torch_dist.sample().float()
+        if self.length_batch == 1 and len(ret.size()) == 0:
+            ret = ret.unsqueeze(0)
+        return ret
 
     def log_prob(self, value):
         value = util.to_variable(value)
@@ -435,7 +438,7 @@ class Mixture(Distribution):
 
     def log_prob(self, value):
         value = util.to_variable(value).view(self.length_batch, 1)
-        ret = util.log_sum_exp(torch.log(self._probs) + torch.stack([d.log_prob(value).squeeze(-1) for d in self._distributions]).t())
+        ret = util.log_sum_exp(torch.log(self._probs) + torch.stack([d.log_prob(value).squeeze(-1) for d in self._distributions]).view(-1, self.length_batch).t())
         if self.length_batch == 1:
             ret = ret.squeeze(1)
         return ret
@@ -481,6 +484,9 @@ class Normal(Distribution):
     def __init__(self, mean, stddev):
         self._mean = util.to_variable(mean)
         self._stddev = util.to_variable(stddev)
+        if self._mean.dim() == 0:
+            self._mean = self._mean.unsqueeze(0)
+            self._stddev = self._stddev.unsqueeze(0)
         if self._mean.dim() == 1:
             self.length_variates = self._mean.size(0)
             self.length_batch = 1
@@ -642,6 +648,8 @@ class Uniform(Distribution):
         ret = self._low + util.to_variable(rand) * self._range
         if self.length_batch == 1:
             ret = ret.squeeze(0)
+        if len(ret.size()) == 0:
+            ret = ret.unsqueeze(0)
         return ret
 
     def log_prob(self, value):

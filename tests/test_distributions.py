@@ -43,6 +43,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_map_sin_mean_correct = 0.3921678960323334
         dist_min_correct = 1
         dist_max_correct = 3
+        # dist_sample_shape_correct = []
 
         dist = Empirical(values, log_weights)
         dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
@@ -54,9 +55,11 @@ class DistributionsTestCase(unittest.TestCase):
         dist_map_sin_mean = float(dist.map(torch.sin).mean)
         dist_min = float(dist.min)
         dist_max = float(dist.max)
+        dist_sample_shape = list(dist.sample().size())
 
         util.debug('dist_mean', 'dist_mean_empirical', 'dist_mean_correct', 'dist_stddev', 'dist_stddev_empirical', 'dist_stddev_correct', 'dist_expectation_sin', 'dist_expectation_sin_correct', 'dist_map_sin_mean', 'dist_map_sin_mean_correct', 'dist_min', 'dist_min_correct', 'dist_max', 'dist_max_correct')
 
+        # self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
         self.assertAlmostEqual(dist_mean, dist_mean_correct, places=1)
         self.assertAlmostEqual(dist_mean_empirical, dist_mean_correct, places=1)
         self.assertAlmostEqual(dist_stddev, dist_stddev_correct, places=1)

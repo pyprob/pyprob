@@ -70,9 +70,9 @@ class ObserveEmbeddingFC(nn.Module):
         # self._drop1 = nn.Dropout()
         self._lin2 = nn.Linear(self._input_dim, output_dim)
         # self._lin3 = nn.Linear(output_dim, output_dim)
-        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
-        # nn.init.xavier_uniform(self._lin3.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
+        # nn.init.xavier_uniform_(self._lin3.weight, gain=nn.init.calculate_gain('relu'))
 
     def forward(self, x):
         x = F.relu(self._lin1(x.view(-1, self._input_dim)))
@@ -188,8 +188,8 @@ class SampleEmbeddingFC(nn.Module):
             input_dim = input_one_hot_dim
         self._lin1 = nn.Linear(input_dim, int(output_dim/2))
         self._lin2 = nn.Linear(int(output_dim/2), output_dim)
-        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
 
     def forward(self, x):
         if self._input_is_one_hot_index:
@@ -207,8 +207,8 @@ class ProposalCategorical(nn.Module):
         self._lin1 = nn.Linear(input_dim, input_dim)
         self._drop1 = nn.Dropout()
         self._lin2 = nn.Linear(input_dim, output_dim)
-        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
@@ -223,8 +223,8 @@ class ProposalNormal(nn.Module):
         self._output_dim = output_dim
         self._lin1 = nn.Linear(input_dim, input_dim)
         self._lin2 = nn.Linear(input_dim, self._output_dim * 2)
-        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
@@ -245,8 +245,8 @@ class ProposalUniform(nn.Module):
         self._input_dim = input_dim
         self._lin1 = nn.Linear(input_dim, int(input_dim/2))
         self._lin2 = nn.Linear(int(input_dim/2), 2)
-        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
@@ -268,8 +268,8 @@ class ProposalUniformMixture(nn.Module):
         self._mixture_components = mixture_components
         self._lin1 = nn.Linear(input_dim, input_dim)
         self._lin2 = nn.Linear(input_dim, 3 * self._mixture_components)
-        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
@@ -298,8 +298,8 @@ class ProposalUniformKumaraswamyMixture(nn.Module):
         self._mixture_components = mixture_components
         self._lin1 = nn.Linear(input_dim, int(input_dim/2))
         self._lin2 = nn.Linear(int(input_dim/2), 3 * self._mixture_components)
-        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
@@ -328,8 +328,8 @@ class ProposalUniformKumaraswamy(nn.Module):
         super().__init__()
         self._lin1 = nn.Linear(input_dim, int(input_dim/2))
         self._lin2 = nn.Linear(int(input_dim/2), 2)
-        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
@@ -356,8 +356,8 @@ class ProposalPoisson(nn.Module):
         self._input_dim = input_dim
         self._lin1 = nn.Linear(input_dim, input_dim)
         self._lin2 = nn.Linear(input_dim, 2)
-        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     # TODO: implement a better proposal for Poisson
     def forward(self, x, samples):
@@ -952,14 +952,16 @@ class InferenceNetworkLSTM(nn.Module):
             prev_sample_embedding = util.to_variable(torch.zeros(1, self._sample_embedding_dim))
             prev_addres_embedding = self._address_embedding_empty
             prev_distribution_type_embedding = self._distribution_type_embedding_empty
-            h0 = util.to_variable(torch.zeros(self._lstm_depth, 1, self._lstm_dim), volatile=True)
-            c0 = util.to_variable(torch.zeros(self._lstm_depth, 1, self._lstm_dim), volatile=True)
+            h0 = util.to_variable(torch.zeros(self._lstm_depth, 1, self._lstm_dim))
+            c0 = util.to_variable(torch.zeros(self._lstm_depth, 1, self._lstm_dim))
             self._state_lstm_hidden_state = (h0, c0)
             self._state_new_trace = False
         else:
             prev_address = previous_sample.address
             prev_distribution = previous_sample.distribution
             prev_value = previous_sample.value
+            if prev_value.dim() == 0:
+                prev_value = prev_value.unsqueeze(0)
             if prev_address in self._sample_embedding_layers:
                 prev_sample_embedding = self._sample_embedding_layers[prev_address](prev_value.float())
             else:

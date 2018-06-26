@@ -18,23 +18,23 @@ samples = 1000
 training_traces = 1000
 
 docker_client = docker.from_env()
-print('Pulling latest Docker image: probprog/cpproblight')
-docker_client.images.pull('probprog/cpproblight')
+print('Pulling latest Docker image: probprog/pyprob_cpp')
+docker_client.images.pull('probprog/pyprob_cpp')
 print('Docker image pulled.')
 
-docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_gum_marsaglia tcp://*:5555', network='host', detach=True)
+docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia tcp://*:5555', network='host', detach=True)
 GaussianWithUnknownMeanMarsagliaCPP = ModelRemote('tcp://127.0.0.1:5555')
 
-docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_gum_marsaglia_replacement tcp://*:5556', network='host', detach=True)
+docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia_replacement tcp://*:5556', network='host', detach=True)
 GaussianWithUnknownMeanMarsagliaWithReplacementCPP = ModelRemote('tcp://127.0.0.1:5556')
 
-docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_hmm tcp://*:5557', network='host', detach=True)
+docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_hmm tcp://*:5557', network='host', detach=True)
 HiddenMarkovModelCPP = ModelRemote('tcp://127.0.0.1:5557')
 
-docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_branching tcp://*:5558', network='host', detach=True)
+docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_branching tcp://*:5558', network='host', detach=True)
 BranchingCPP = ModelRemote('tcp://127.0.0.1:5558')
 
-docker_client.containers.run('probprog/cpproblight', '/code/cpproblight/build/cpproblight/test_set_defaults_and_addresses tcp://*:5559', network='host', detach=True)
+docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_set_defaults_and_addresses tcp://*:5559', network='host', detach=True)
 SetDefaultsAndAddressesCPP = ModelRemote('tcp://127.0.0.1:5559')
 
 
