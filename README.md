@@ -8,6 +8,9 @@
 
 We support front ends in multiple languages through a `pplprotocol` interface that allows execution of models and inference engines in separate programming languages, processes, and machines connected over a network. The currently supported languages are Python and C++.
 
+* Python: `pyprob` is implemented and directly usable from Python
+* C++: A lightweight C++ front end is available through the [pyprob_cpp](https://github.com/probprog/pyprob_cpp) library
+
 ### Inference engines
 
 `pyprob` currently provides the following inference engines:
