@@ -66,7 +66,7 @@ If you use `pyprob` and/or would like to cite our paper, please use the followin
 
 ## License
 
-`pyprob` is distributed under the MIT License.
+`pyprob` is distributed under the BSD License.
 
 ## Authors
 
