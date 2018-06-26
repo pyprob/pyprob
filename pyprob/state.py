@@ -153,7 +153,7 @@ def sample(distribution, control=True, replace=False, address=None):
                         print('distribution', proposal_distribution)
                         print('value', value)
                         print('log_prob', proposal_log_prob)
-                    _current_trace.log_importance_weight += log_prob - proposal_log_prob
+                    _current_trace.log_importance_weight += log_prob - proposal_log_prob.item()
                 else:
                     value = distribution.sample()
                     log_prob = distribution.log_prob(value)
