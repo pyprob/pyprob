@@ -58,6 +58,7 @@ A website with documentation and examples will be available in due course.
 
 The [examples](https://github.com/probprog/pyprob/tree/master/examples) folder in this repository provides some working models and inference workflows as Jupyter notebooks.
 
+An set of continuous integration [tests](https://github.com/probprog/pyprob/tree/master/tests) are available in this repository, including those checking for correctness of inference over a range of reference models and inference engines.
 
 ## Information and citing
 
