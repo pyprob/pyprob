@@ -2,7 +2,7 @@
 
 `pyprob` is a [PyTorch](http://pytorch.org/)-based library for [probabilistic programming](http://probabilistic-programming.org) and inference compilation. The main focus of this library is on coupling existing simulation codebases with probabilistic inference with minimal intervention.
 
-'pyprob' is currently a research prototype in alpha testing stage, with more documentation and examples on the way. Watch this space!
+`pyprob` is currently a research prototype in alpha testing stage, with more documentation and examples on the way. Watch this space!
 
 ### Support for multiple languages
 
@@ -18,7 +18,7 @@ We support front ends in multiple languages through a `pplprotocol` interface th
   * Regular sequential importance sampling (proposals from prior)
   * Inference compilation
 
-Inference compilation is an amortized inference technique for performing fast inference, using deep neural networks to parameterize proposal distributions of a sequential importance sampling inference engine. We are planning to add other inference engines, e.g., from the variational inference family.
+Inference compilation is an amortized inference technique for performing fast repeated inference using deep neural networks to parameterize proposal distributions in the importance sampling family of inference engines. We are planning to add other inference engines, e.g., from the variational inference family.
 
 ## Installation
 
