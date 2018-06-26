@@ -40,7 +40,7 @@ pip install .
 ```
 
 ### Install using `pip`
-To use the latest version available in [Python Package Index](https://pypi.python.org/), run:
+To use the latest version available in [Python Package Index](https://pypi.org/project/pyprob/), run:
 
 ```
 pip install pyprob
