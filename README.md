@@ -85,7 +85,7 @@ If you use `pyprob` and/or would like to cite our paper, please use the followin
 
 ## Authors
 
-`pyprob` has been developed by [Atılım Güneş Baydin](http://www.robots.ox.ac.uk/~gunes/) and [Tuan Anh Le](http://www.tuananhle.co.uk/) within the [Probabilistic Programming Group at the University of Oxford](https://github.com/probprog), led by [Frank Wood](http://www.robots.ox.ac.uk/~fwood/index.html).
+`pyprob` has been developed by [Atılım Güneş Baydin](http://www.robots.ox.ac.uk/~gunes/) and [Tuan Anh Le](http://www.tuananhle.co.uk/) within the Programming Languages and AI group led by [Frank Wood](http://www.cs.ubc.ca/~fwood/index.html) at the University of Oxford and University of British Columbia.
 
 For the full list of contributors, see:
 
