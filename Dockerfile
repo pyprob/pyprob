@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates &&\
     rm -rf /var/lib/apt/lists/*
 
-RUN git clone --branch v1.8.0 https://github.com/google/flatbuffers.git /code/flatbuffers && cd /code/flatbuffers && cmake -G "Unix Makefiles" && make install
+RUN git clone --branch v1.9.0 https://github.com/google/flatbuffers.git /code/flatbuffers && cd /code/flatbuffers && cmake -G "Unix Makefiles" && make install
 RUN git clone --branch 0.4.0 https://github.com/QuantStack/xtl.git /code/xtl && cd /code/xtl && cmake . && make install
 RUN git clone --branch 0.15.4 https://github.com/QuantStack/xtensor.git /code/xtensor && cd /code/xtensor && cmake . && make install
 RUN git clone --branch 0.1.0 https://github.com/probprog/pyprob_cpp.git /code/pyprob_cpp && cd /code/pyprob_cpp && mkdir build && cd build && cmake ../src && cmake --build . && make install
