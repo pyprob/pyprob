@@ -11,6 +11,7 @@ import random
 import tarfile
 import tempfile
 import shutil
+import torch.distributed as dist #added by Lei for distributed training
 
 from .distributions import Empirical
 from . import state, util, __version__, TraceMode, InferenceEngine, InferenceNetwork, PriorInflation, Optimizer, TrainingObservation
@@ -25,8 +26,12 @@ class Model(nn.Module):
         self.name = name
         self._inference_network = None
         self._trace_cache_path = None
+        self._main_trace_cache_path = None
         self._trace_cache = []
         self._trace_cache_discarded_file_names = []
+        self.num_buckets = None
+        self.num_files_per_bucket=None
+        self.UseBuckets = True# modified it for multi-bucketing support 
 
     def forward(self):
         raise NotImplementedError()
@@ -172,68 +177,149 @@ class Model(nn.Module):
             # ret.name += ' (effective sample size: {:,.2f})'.format(float(ret.effective_sample_size))
         return Empirical(traces, log_weights, name=name)
 
+    def init_print(self, rank, size, debug_print=True):#added by Lei for distributed training
+        if not debug_print:
+            """ In case run on hundreds of nodes, you may want to mute all the nodes except master """
+            if rank > 0:
+                sys.stdout = open(os.devnull, 'w')
+                sys.stderr = open(os.devnull, 'w')
+        else:
+        # labelled print with info of [rank/size]
+            old_out = sys.stdout
+            class LabeledStdout:
+                def __init__(self, rank, size):
+                    self._r = rank
+                    self._s = size
+                    self.flush = sys.stdout.flush
+
+                def write(self, x):
+                    if x == '\n':
+                        old_out.write(x)
+                    else:
+                        old_out.write('[%d/%d] %s' % (self._r, self._s, x))
+
+            sys.stdout = LabeledStdout(rank, size)
+
+
     def learn_inference_network(self, inference_network=InferenceNetwork.LSTM, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE, prior_inflation=PriorInflation.DISABLED, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=128, sample_embedding=SampleEmbedding.FULLY_CONNECTED, lstm_dim=128, lstm_depth=2, sample_embedding_dim=16, address_embedding_dim=128, batch_size=64, valid_size=256, valid_interval=2048, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, num_traces=-1, use_trace_cache=False, auto_save=False, auto_save_file_name='pyprob_inference_network', *args, **kwargs):
+        
+        dist.init_process_group(backend='mpi')
+        num_ranks= dist.get_world_size()
+        rank = dist.get_rank()
+        self.init_print(rank, num_ranks)
+
+        
+ 
+        if (dist.get_rank() == 0):
+
+            print("+------------------------------+")
+            print("| Etalumis                    |")
+            print("| # Ranks = {:5d}              |".format(num_ranks))
+            print("| Global Batch = {:6d}        |".format(num_ranks * batch_size))
+            print("| Optimizer = " + str(optimizer_type) + " |")
+
+            print("+------------------------------+")
+
+
         if use_trace_cache and self._trace_cache_path is None:
             print('Warning: There is no trace cache assigned, training with online trace generation.')
             use_trace_cache = False
 
+
+
         if use_trace_cache:
             print('Using trace cache to train...')
+            
+            if self.UseBuckets:#single trace per file #added by Lei
+                #assume each bucket size is much larger than global batch size
+                num_iter_per_bucket = int(self.num_files_per_bucket/(batch_size * dist.get_world_size()))
 
-            def new_batch_func(size=batch_size, discard_source=False):
-                if discard_source:
-                    self._trace_cache = []
+                def new_batch_func(size=batch_size, bucket_idx=None, discard_source=False):
+                    if bucket_idx is not None:
+                        self._trace_cache_path = self._main_trace_cache_path + '/bucket_' + str(bucket_idx)#Lei
+                    else: #validation set
+                        print('randomly pick one bucket for validation set')
+                        self._trace_cache_path = self._main_trace_cache_path + '/bucket_' + str(random.randrange(10))
+                        print('trace_cache_path used for validation is {}'.format(self._trace_cache_path))
 
-                while len(self._trace_cache) < size:
-                    current_files = self._trace_cache_current_files()
-                    if len(current_files) == 0:
-                        cache_is_empty = True
-                        cache_was_empty = False
-                        while cache_is_empty:
-                            current_files = self._trace_cache_current_files()
-                            num_files = len(current_files)
-                            if num_files > 0:
-                                cache_is_empty = False
-                                if cache_was_empty:
-                                    print('Resuming, new data appeared in trace cache (currently with {} files) at {}'.format(num_files, self._trace_cache_path))
-                            else:
-                                if not cache_was_empty:
-                                    print('Waiting for new data, empty (or fully discarded) trace cache at {}'.format(self._trace_cache_path))
-                                    cache_was_empty = True
-                                time.sleep(0.5)
-
-                    current_file = random.choice(current_files)
                     if discard_source:
-                        self._trace_cache_discarded_file_names.append(current_file)
-                    new_traces = self._load_traces(current_file)
-                    if len(new_traces) == 0:  # When empty or corrupt file is read
-                        self._trace_cache_discarded_file_names.append(current_file)
-                    else:
-                        random.shuffle(new_traces)
-                        self._trace_cache += new_traces
+                        self._trace_cache = []
+                    while len(self._trace_cache) < size:
+                        current_files = self._trace_cache_current_files()
+                        chosen_files= random.sample(current_files, size)
+                        if discard_source:
+                            self._trace_cache_discarded_file_names.extend(chosen_files)
+                        for file in chosen_files:
+                            new_trace= torch.load(file) #the file is already in .pt format and not need decompress
+                            self._trace_cache.append(new_trace)
+                    traces = self._trace_cache[0:size]
+                    self._trace_cache[0:size] = []
+                    return Batch(traces)
 
-                traces = self._trace_cache[0:size]
-                self._trace_cache[0:size] = []
-                return Batch(traces)
+
+            else:# not use buckets, multiple traces per file, original code
+
+                def new_batch_func(size=batch_size, bucket_idx=None, discard_source=False):
+                    if discard_source:
+                        self._trace_cache = []
+
+                    while len(self._trace_cache) < size:
+                        current_files = self._trace_cache_current_files()
+                        if len(current_files) == 0:
+                            cache_is_empty = True
+                            cache_was_empty = False
+                            while cache_is_empty:
+                                current_files = self._trace_cache_current_files()
+                                num_files = len(current_files)
+                                if num_files > 0:
+                                    cache_is_empty = False
+                                    if cache_was_empty:
+                                        print('Resuming, new data appeared in trace cache (currently with {} files) at {}'.format(num_files, self._trace_cache_path))
+                                else:
+                                    if not cache_was_empty:
+                                        print('Waiting for new data, empty (or fully discarded) trace cache at {}'.format(self._trace_cache_path))
+                                        cache_was_empty = True
+                                    time.sleep(0.5)
+
+                        current_file = random.choice(current_files)
+                        if discard_source:
+                            self._trace_cache_discarded_file_names.append(current_file)
+                        new_traces = self._load_traces(current_file)
+                        if len(new_traces) == 0:  # When empty or corrupt file is read
+                            self._trace_cache_discarded_file_names.append(current_file)
+                        else:
+                            random.shuffle(new_traces)
+                            self._trace_cache += new_traces
+
+                    traces = self._trace_cache[0:size]
+                    self._trace_cache[0:size] = []
+                    return Batch(traces)
         else:
-            def new_batch_func(size=batch_size, discard_source=False):
+            def new_batch_func(size=batch_size, buket_idx=None, discard_source=False):
                 traces = self._traces(size, trace_mode=TraceMode.PRIOR, prior_inflation=prior_inflation, *args, **kwargs)
                 return Batch(traces)
-
+        
+        
         if self._inference_network is None:
             print('Creating new inference network...')
-            valid_batch = new_batch_func(valid_size, discard_source=True)
+            valid_batch = new_batch_func(valid_size, None, discard_source=True)
             if inference_network == InferenceNetwork.SIMPLE:
                 self._inference_network = InferenceNetworkSimple(model_name=self.name, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, valid_batch=valid_batch)
             else:  # inference_network == InferenceNetwork.LSTM:
                 self._inference_network = InferenceNetworkLSTM(model_name=self.name, lstm_dim=lstm_dim, lstm_depth=lstm_depth, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, sample_embedding=sample_embedding, sample_embedding_dim=sample_embedding_dim, address_embedding_dim=address_embedding_dim, valid_batch=valid_batch)
 
-            self._inference_network.polymorph()
+            #self._inference_network.polymorph() #Lei blocked due to preprocessing
         else:
             print('Continuing to train existing inference network...')
 
+
+        if self.UseBuckets:
+            self._inference_network.num_files_per_bucket= self.num_files_per_bucket#Lei
+            self._inference_network.num_buckets = self.num_buckets#Lei
+            self._inference_network.num_iter_per_bucket=num_iter_per_bucket#Lei
+            self._inference_network._main_trace_cache_path= self._main_trace_cache_path#Lei
         self._inference_network.train()
-        self._inference_network.optimize(new_batch_func, training_observation, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name)
+        self._inference_network.optimize(new_batch_func, training_observation, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name, self._trace_cache_path)
 
     def save_inference_network(self, file_name):
         if self._inference_network is None:
@@ -274,10 +360,27 @@ class Model(nn.Module):
             if (files != -1) and (f >= files):
                 done = True
 
+
     def use_trace_cache(self, trace_cache_path):
-        self._trace_cache_path = trace_cache_path
-        num_files = len(self._trace_cache_current_files())
-        print('Monitoring trace cache (currently with {} files) at {}'.format(num_files, trace_cache_path))
+        self._main_trace_cache_path = trace_cache_path #never change it
+        if self.UseBuckets:
+            dirlist=[]
+            dirlist=[x for x in os.listdir(trace_cache_path) if x.startswith('bucket_')]
+            self.num_buckets = len(dirlist)
+            
+            count=0
+            for dirname in dirlist:
+                self._trace_cache_path = os.path.join(trace_cache_path, dirname)
+                num_files= len(self._trace_cache_current_files())
+                count+= num_files
+            self.num_files_per_bucket=num_files #each bucket has the same number of files
+
+            print('Monitoring bucket folders under trace cache (currently with {} files) in {} buckets at {}'.format(count, self.num_buckets, trace_cache_path))
+            self._trace_cache_path = trace_cache_path #base directory for traces
+        else:#original code 
+            self._trace_cache_path = trace_cache_path
+            num_files = len(self._trace_cache_current_files())
+            print('Monitoring trace cache (currently with {} files) at {}'.format(num_files, trace_cache_path))
 
     def _trace_cache_current_files(self):
         files = [name for name in os.listdir(self._trace_cache_path)]
