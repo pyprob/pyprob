@@ -15,7 +15,7 @@ import torch.distributed as dist #added by Lei for distributed training
 
 from .distributions import Empirical
 from . import state, util, __version__, TraceMode, InferenceEngine, InferenceNetwork, PriorInflation, Optimizer, TrainingObservation
-from .nn import ObserveEmbedding, SampleEmbedding, Batch, InferenceNetworkSimple, InferenceNetworkLSTM
+from .nn import ObserveEmbedding, SampleEmbedding, Batch, InferenceNetworkSimple, InferenceNetworkLSTM, InferenceNetworkLSTMwithPreprocessing#Lei added new class
 from .remote import ModelServer
 from .analytics import save_report
 
@@ -254,7 +254,7 @@ class Model(nn.Module):
                             self._trace_cache.append(new_trace)
                     traces = self._trace_cache[0:size]
                     self._trace_cache[0:size] = []
-                    return Batch(traces)
+                    return Batch(traces, preprocessed=True)
 
 
             else:# not use buckets, multiple traces per file, original code
@@ -305,8 +305,10 @@ class Model(nn.Module):
             valid_batch = new_batch_func(valid_size, None, discard_source=True)
             if inference_network == InferenceNetwork.SIMPLE:
                 self._inference_network = InferenceNetworkSimple(model_name=self.name, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, valid_batch=valid_batch)
-            else:  # inference_network == InferenceNetwork.LSTM:
+            elif inference_network == InferenceNetwork.LSTM:
                 self._inference_network = InferenceNetworkLSTM(model_name=self.name, lstm_dim=lstm_dim, lstm_depth=lstm_depth, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, sample_embedding=sample_embedding, sample_embedding_dim=sample_embedding_dim, address_embedding_dim=address_embedding_dim, valid_batch=valid_batch)
+            else:#inference_network == InferenceNetwork.LSTM_WITH_PREPROCESSING  
+               self._inference_network = InferenceNetworkLSTMwithPreprocessing(model_name=self.name, lstm_dim=lstm_dim, lstm_depth=lstm_depth, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, sample_embedding=sample_embedding, sample_embedding_dim=sample_embedding_dim, address_embedding_dim=address_embedding_dim, valid_batch=valid_batch)
 
             #self._inference_network.polymorph() #Lei blocked due to preprocessing
         else:

@@ -49,6 +49,7 @@ class InferenceEngine(enum.Enum):
 class InferenceNetwork(enum.Enum):
     SIMPLE = 0  # A simple inference network that maps an observation embedding to proposals specializing in each address
     LSTM = 1  # An advanced LSTM-based inference network that maintains execution state, keeps track of sampled values, learns address embeddings
+    LSTM_WITH_PREPROCESSING = 2 #same LSTM-based inference network as above, but with length-based grouping/processing, which depends on preprocessing of dataset to get global address embedding matrix, global sampling embedding layers, global proposal layers, and preprocessed dataset into multiple length-based bucket.
 
 
 class Optimizer(enum.Enum):
