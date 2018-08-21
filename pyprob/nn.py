@@ -827,7 +827,7 @@ class InferenceNetworkLSTM(nn.Module):
         self._address_stats = OrderedDict()
         self._trace_stats = OrderedDict()
 
-       self._address_embeddings = {}
+        self._address_embeddings = {}
         self._distribution_type_embeddings = {}
 
         self._address_embedding_empty = util.to_variable(torch.zeros(self._address_embedding_dim))

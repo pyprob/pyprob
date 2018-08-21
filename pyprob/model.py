@@ -369,7 +369,7 @@ class Model(nn.Module):
             dirlist=[]
             dirlist=[x for x in os.listdir(trace_cache_path) if x.startswith('bucket_')]
             self.num_buckets = len(dirlist)
-            
+            num_files=0
             count=0
             for dirname in dirlist:
                 self._trace_cache_path = os.path.join(trace_cache_path, dirname)
