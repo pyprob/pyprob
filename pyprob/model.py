@@ -305,12 +305,14 @@ class Model(nn.Module):
             valid_batch = new_batch_func(valid_size, None, discard_source=True)
             if inference_network == InferenceNetwork.SIMPLE:
                 self._inference_network = InferenceNetworkSimple(model_name=self.name, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, valid_batch=valid_batch)
+                self._inference_network.polymorph()
             elif inference_network == InferenceNetwork.LSTM:
                 self._inference_network = InferenceNetworkLSTM(model_name=self.name, lstm_dim=lstm_dim, lstm_depth=lstm_depth, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, sample_embedding=sample_embedding, sample_embedding_dim=sample_embedding_dim, address_embedding_dim=address_embedding_dim, valid_batch=valid_batch)
+                self._inference_network.polymorph()
             else:#inference_network == InferenceNetwork.LSTM_WITH_PREPROCESSING  
                self._inference_network = InferenceNetworkLSTMwithPreprocessing(model_name=self.name, lstm_dim=lstm_dim, lstm_depth=lstm_depth, observe_embedding=observe_embedding, observe_reshape=observe_reshape, observe_embedding_dim=observe_embedding_dim, sample_embedding=sample_embedding, sample_embedding_dim=sample_embedding_dim, address_embedding_dim=address_embedding_dim, valid_batch=valid_batch)
 
-            #self._inference_network.polymorph() #Lei blocked due to preprocessing
+                #Lei blocked self._inference_network.polymorph() due to preprocessing
         else:
             print('Continuing to train existing inference network...')
 
