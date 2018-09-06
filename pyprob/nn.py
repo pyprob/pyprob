@@ -18,27 +18,36 @@ from collections import OrderedDict
 
 from . import util, __version__, ObserveEmbedding, SampleEmbedding, Optimizer, TrainingObservation
 from .distributions import Categorical, Mixture, Normal, TruncatedNormal, Uniform, Poisson, Kumaraswamy
+#import horovod.torch as hvd#Lei
+import torch.distributed as dist#Lei
+import numpy as np#Lei
 
+   
 
 class Batch(object):
-    def __init__(self, traces, sort=True):
+    def __init__(self, traces,preprocessed=False,sort=True):
         self.batch = traces
         self.length = len(traces)
         self.traces_lengths = []
         self.traces_max_length = 0
-        sb = {}
-        for trace in traces:
-            if trace.length == 0:
-                raise ValueError('Trace of length zero')
-            if trace.length > self.traces_max_length:
-                self.traces_max_length = trace.length
-            h = hash(trace.addresses())
-            if h not in sb:
-                sb[h] = []
-            sb[h].append(trace)
-        self.sub_batches = []
-        for _, t in sb.items():
-            self.sub_batches.append(t)
+
+        if preprocessed:
+            self.sub_batches= [traces] #Lei
+        else:
+            sb = {}
+            for trace in traces:
+                if trace.length == 0:
+                    raise ValueError('Trace of length zero')
+                if trace.length > self.traces_max_length:
+                    self.traces_max_length = trace.length
+                h = trace.length#hash(trace.addresses()) #Lei
+                if h not in sb:
+                    sb[h] = []
+                sb[h].append(trace)
+            self.sub_batches = []
+            for _, t in sb.items():
+                self.sub_batches.append(t)
+        
         if sort:
             # Sort the batch in descreasing trace length
             self.batch = sorted(self.batch, reverse=True, key=lambda t: t.length)
@@ -70,14 +79,17 @@ class ObserveEmbeddingFC(nn.Module):
         # self._drop1 = nn.Dropout()
         self._lin2 = nn.Linear(self._input_dim, output_dim)
         # self._lin3 = nn.Linear(output_dim, output_dim)
-        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
-        # nn.init.xavier_uniform_(self._lin3.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
+        # nn.init.xavier_uniform(self._lin3.weight, gain=nn.init.calculate_gain('relu'))
 
     def forward(self, x):
+        #print('input to ObserveEmbeddingFC={}'.format(x.size()))
         x = F.relu(self._lin1(x.view(-1, self._input_dim)))
+        #print('output of lin1 in ObserveEmbeddingFC={}'.format(x.size()))
         # x = self._drop1(x)
         x = F.relu(self._lin2(x))
+        #print('output of lin2 in ObserveEmbeddingFC={}'.format(x.size()))
         # x = F.relu(self._lin3(x))
         return x
 
@@ -156,23 +168,40 @@ class ObserveEmbeddingConvNet3D4C(nn.Module):
         self._lin2 = nn.Linear(self._output_dim, self._output_dim)
 
     def _forward_cnn(self, x):
+        #print('input to _forward_cnn in ObserveEmbConv3D4C={}'.format(x.size()))
         x = F.relu(self._conv1(x))
+        ##print('size of _conv1={}'.format(self._conv1.size()))
+        #print('size of output of _conv1={}'.format(x.size()))
         x = F.relu(self._conv2(x))
+        ##print('size of _conv2={}'.format(self._conv2.size()))
+        #print('size of output of _conv2={}'.format(x.size()))
         x = nn.MaxPool3d(2)(x)
+        #print('size of output of 1st MaxPool3d(2)(x)={}'.format(x.size()))
         x = F.relu(self._conv3(x))
+        ##print('size of _conv3={}'.format(self._conv3.size()))
+        #print('size of output of _conv3={}'.format(x.size()))
         x = F.relu(self._conv4(x))
+        ##print('size of _conv4={}'.format(self._conv4.size()))
+        #print('size of output of _conv4={}'.format(x.size()))
         x = nn.MaxPool3d(2)(x)
+        #print('size of output of 2nd MaxPool3d(2)(x)={}'.format(x.size()))
         return x
 
     def forward(self, x):
+        #print('input to ObserveEmbeddingConv3D4C={}'.format(x.size()))
         if self._reshape is not None:
             x = x.view(self._reshape)
+            #print('shape after reshape={}'.format(x.size()))
         if x.dim() == 4:  # This indicates that there are no channel dimensions and we have BxDxHxW
             x = x.unsqueeze(1)  # Add a channel dimension of 1 after the batch dimension so that we have BxCxDxHxW
         x = self._forward_cnn(x)
+        #print('output after _forward_cnn(x)={}'.format(x.size()))
         x = x.view(-1, self._cnn_output_dim)
+        #print('output after reshape of output of  _forward_cnn(x)={}'.format(x.size()))
         x = F.relu(self._lin1(x))
+        #print('output of lin1 in ObserveEmbeddingConv3D4C={}'.format(x.size()))
         x = F.relu(self._lin2(x))
+        #print('output of lin2 in ObserveEmbeddingConv3D4C={}'.format(x.size()))
         return x
 
 
@@ -188,16 +217,21 @@ class SampleEmbeddingFC(nn.Module):
             input_dim = input_one_hot_dim
         self._lin1 = nn.Linear(input_dim, int(output_dim/2))
         self._lin2 = nn.Linear(int(output_dim/2), output_dim)
-        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('relu'))
 
     def forward(self, x):
+        #print('input to SampleEmbeddingFC={}'.format(x.size()))
         if self._input_is_one_hot_index:
             x = torch.stack([util.one_hot(self._input_one_hot_dim, int(v)) for v in x])
+            #print('size of one hot input for SampleEmbeddingFC={}'.format(x.size()))
         else:
             x = x.view(-1, self._input_dim)
+            #print('size after reshape for non-onehot SampleEmbeddingFC={}'.format(x.size()))
         x = F.relu(self._lin1(x))
+        #print('size after _lin1(x) in SampleEmbeddingFC={}'.format(x.size()))
         x = F.relu(self._lin2(x))
+        #print('size after _lin2(x) in SampleEmbeddingFC={}'.format(x.size()))
         return x
 
 
@@ -207,13 +241,16 @@ class ProposalCategorical(nn.Module):
         self._lin1 = nn.Linear(input_dim, input_dim)
         self._drop1 = nn.Dropout()
         self._lin2 = nn.Linear(input_dim, output_dim)
-        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
         x = self._drop1(x)
-        x = F.softmax(self._lin2(x), dim=1) + util._epsilon
+        if (torch.Tensor.dim(x)==1):#Lei
+            x = F.softmax(self._lin2(x), dim=0) + util._epsilon
+        else:
+            x = F.softmax(self._lin2(x), dim=1) + util._epsilon
         return Categorical(probs=x)
 
 
@@ -223,8 +260,8 @@ class ProposalNormal(nn.Module):
         self._output_dim = output_dim
         self._lin1 = nn.Linear(input_dim, input_dim)
         self._lin2 = nn.Linear(input_dim, self._output_dim * 2)
-        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
@@ -245,8 +282,8 @@ class ProposalUniform(nn.Module):
         self._input_dim = input_dim
         self._lin1 = nn.Linear(input_dim, int(input_dim/2))
         self._lin2 = nn.Linear(int(input_dim/2), 2)
-        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
@@ -268,8 +305,8 @@ class ProposalUniformMixture(nn.Module):
         self._mixture_components = mixture_components
         self._lin1 = nn.Linear(input_dim, input_dim)
         self._lin2 = nn.Linear(input_dim, 3 * self._mixture_components)
-        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
@@ -298,26 +335,42 @@ class ProposalUniformKumaraswamyMixture(nn.Module):
         self._mixture_components = mixture_components
         self._lin1 = nn.Linear(input_dim, int(input_dim/2))
         self._lin2 = nn.Linear(int(input_dim/2), 3 * self._mixture_components)
-        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
         x = self._lin2(x)
-        shape1s = x[:, 0:self._mixture_components]
-        shape1s = 2. + F.relu(shape1s)
-        shape2s = x[:, self._mixture_components:2*self._mixture_components]
-        shape2s = 1. + F.relu(shape2s)
-        coeffs = x[:, 2*self._mixture_components:3*self._mixture_components]
-        coeffs = F.softmax(coeffs, dim=1)
+        if (torch.Tensor.dim(x)==1): # 1-dimension  #Lei
+            shape1s = x[0:self._mixture_components]
+            shape1s = 2. + F.relu(shape1s)
+            shape2s = x[self._mixture_components:2*self._mixture_components]
+            shape2s = 1. + F.relu(shape2s)
+            coeffs = x[2*self._mixture_components:3*self._mixture_components]
+            coeffs = F.softmax(coeffs, dim=0)
+            
+        else:
+            shape1s = x[:, 0:self._mixture_components]
+            shape1s = 2. + F.relu(shape1s)
+            shape2s = x[:, self._mixture_components:2*self._mixture_components]
+            shape2s = 1. + F.relu(shape2s)
+            coeffs = x[:, 2*self._mixture_components:3*self._mixture_components]
+            coeffs = F.softmax(coeffs, dim=1)
         # prior_means = util.to_variable(torch.stack([s.distribution.mean[0] for s in samples]))
         # prior_stddevs = util.to_variable(torch.stack([s.distribution.stddev[0] for s in samples]))
-        prior_lows = util.to_variable(torch.stack([s.distribution.low for s in samples]))
-        prior_highs = util.to_variable(torch.stack([s.distribution.high for s in samples]))
+        #if len(list(samples))==1: #Lei
+        #    prior_lows =util.to_variable(samples.distribution.low)#modified by Lei 
+        #    prior_highs =util.to_variable(samples.distribution.high)
+        #else:
+        prior_lows =util.to_variable(torch.stack([s.distribution.low for s in samples]))
+        prior_highs =util.to_variable(torch.stack([s.distribution.high for s in samples]))
         # means = prior_means + (means * prior_stddevs)
         # stddevs = stddevs * prior_stddevs
         # return TruncatedNormal(means, stddevs, prior_lows, prior_highs)
-        distributions = [Kumaraswamy(shape1s[:, i:i+1], shape2s[:, i:i+1], prior_lows, prior_highs) for i in range(self._mixture_components)]
+        if (torch.Tensor.dim(x)==1): # 1-dimension  #Lei
+            distributions = [Kumaraswamy(shape1s[i:i+1], shape2s[i:i+1], prior_lows, prior_highs) for i in range(self._mixture_components)]            
+        else:
+            distributions = [Kumaraswamy(shape1s[:, i:i+1], shape2s[:, i:i+1], prior_lows, prior_highs) for i in range(self._mixture_components)]#add squeeze by Lei
         # dist = Kumaraswamy(shape1s, shape2s, low=prior_lows, high=prior_highs)
         # print('dist', dist)
         return Mixture(distributions, coeffs)
@@ -328,8 +381,8 @@ class ProposalUniformKumaraswamy(nn.Module):
         super().__init__()
         self._lin1 = nn.Linear(input_dim, int(input_dim/2))
         self._lin2 = nn.Linear(int(input_dim/2), 2)
-        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     def forward(self, x, samples):
         x = F.relu(self._lin1(x))
@@ -356,8 +409,8 @@ class ProposalPoisson(nn.Module):
         self._input_dim = input_dim
         self._lin1 = nn.Linear(input_dim, input_dim)
         self._lin2 = nn.Linear(input_dim, 2)
-        nn.init.xavier_uniform_(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
+        nn.init.xavier_uniform(self._lin1.weight, gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform(self._lin2.weight, gain=nn.init.calculate_gain('linear'))
 
     # TODO: implement a better proposal for Poisson
     def forward(self, x, samples):
@@ -588,6 +641,8 @@ class InferenceNetworkSimple(nn.Module):
 
         return True, batch_loss / batch.length
 
+
+
     def optimize(self, new_batch_func, training_observation, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name):
         self._trained_on = 'CUDA' if util._cuda_enabled else 'CPU'
         self._optimizer_type = optimizer_type
@@ -604,6 +659,7 @@ class InferenceNetworkSimple(nn.Module):
 
         while not stop:
             iteration += 1
+            print('iteration=',iteration)
             batch = new_batch_func()
             layers_changed = self.polymorph(batch)
 
@@ -730,8 +786,6 @@ class InferenceNetworkSimple(nn.Module):
                 print(colored('Warning: loading CUDA (device {}) network to CPU'.format(ret._cuda_device), 'red', attrs=['bold']))
                 ret.cpu()
         return ret
-
-
 class InferenceNetworkLSTM(nn.Module):
     def __init__(self, model_name='Unnamed model', lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=256, valid_batch=None):
         super().__init__()
@@ -1168,6 +1222,695 @@ class InferenceNetworkLSTM(nn.Module):
                 if trace - last_validation_trace > valid_interval:
                     print('\rComputing validation loss...', end='\r')
                     _, valid_loss = self.loss(self._valid_batch)
+                    self._history_valid_loss.append(valid_loss)
+                    self._history_valid_loss_trace.append(self._total_train_traces)
+                    last_validation_trace = trace - 1
+                    if auto_save:
+                        file_name = auto_save_file_name + '_' + util.get_time_stamp()
+                        print('\rSaving to disk...', end='\r')
+                        self._save(file_name)
+
+                print_line = '{} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
+                max_print_line_len = max(len(print_line), max_print_line_len)
+                print(print_line.ljust(max_print_line_len), end='\r')
+                sys.stdout.flush()
+        print()
+
+    def _save(self, file_name):
+        self._modified = util.get_time_str()
+        self._updates += 1
+
+        data = {}
+        data['pyprob_version'] = __version__
+        data['torch_version'] = torch.__version__
+        data['inference_network'] = self
+
+        def thread_save():
+            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+            tmp_file_name = os.path.join(tmp_dir, 'pyprob_inference_network')
+            torch.save(data, tmp_file_name)
+            tar = tarfile.open(file_name, 'w:gz', compresslevel=2)
+            tar.add(tmp_file_name, arcname='pyprob_inference_network')
+            tar.close()
+            shutil.rmtree(tmp_dir)
+        t = Thread(target=thread_save)
+        t.start()
+        t.join()
+
+    @staticmethod
+    def _load(file_name, cuda=False, device=None):
+        try:
+            tar = tarfile.open(file_name, 'r:gz')
+            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+            tmp_file = os.path.join(tmp_dir, 'pyprob_inference_network')
+            tar.extract('pyprob_inference_network', tmp_dir)
+            tar.close()
+            if cuda:
+                data = torch.load(tmp_file)
+            else:
+                data = torch.load(tmp_file, map_location=lambda storage, loc: storage)
+                shutil.rmtree(tmp_dir)
+        except:
+            raise RuntimeError('Cannot load inference network.')
+
+        if data['pyprob_version'] != __version__:
+            print(colored('Warning: different pyprob versions (loaded network: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
+        if data['torch_version'] != torch.__version__:
+            print(colored('Warning: different PyTorch versions (loaded network: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
+
+        ret = data['inference_network']
+        if cuda:
+            if ret._on_cuda:
+                if ret._cuda_device != device:
+                    print(colored('Warning: loading CUDA (device {}) network to CUDA (device {})'.format(ret._cuda_device, device), 'red', attrs=['bold']))
+                    ret.cuda(device)
+            else:
+                print(colored('Warning: loading CPU network to CUDA (device {})'.format(device), 'red', attrs=['bold']))
+                ret.cuda(device)
+        else:
+            if ret._on_cuda:
+                print(colored('Warning: loading CUDA (device {}) network to CPU'.format(ret._cuda_device), 'red', attrs=['bold']))
+                ret.cpu()
+        return ret
+
+
+class InferenceNetworkLSTMwithPreprocessing(nn.Module):
+    def __init__(self, model_name='Unnamed model', lstm_dim=512, lstm_depth=2, observe_embedding=ObserveEmbedding.FULLY_CONNECTED, observe_reshape=None, observe_embedding_dim=512, sample_embedding=SampleEmbedding.FULLY_CONNECTED, sample_embedding_dim=32, address_embedding_dim=256, valid_batch=None):
+        super().__init__()
+        self._model_name = model_name
+        self._lstm_dim = lstm_dim
+        self._lstm_depth = lstm_depth
+        self._observe_embedding = observe_embedding
+        self._observe_reshape = observe_reshape
+        self._observe_embedding_dim = observe_embedding_dim
+        self._sample_embedding = sample_embedding
+        self._sample_embedding_dim = sample_embedding_dim
+        self._address_embedding_dim = address_embedding_dim
+        self._distribution_type_embedding_dim = 4  # Needs to match the number of distribution types in pyprob (except Emprical)
+        self._valid_batch = valid_batch
+        self._on_cuda = util._cuda_enabled
+        self._cuda_device = util._cuda_device
+        self._trained_on = 'CPU'
+        self._total_train_seconds = 0
+        self._total_train_traces = 0
+        self._total_train_iterations = 0
+        self._loss_initial = None
+        self._loss_min = float('inf')
+        self._loss_max = None
+        self._loss_previous = float('inf')
+        self._history_train_loss = []
+        self._history_train_loss_trace = []
+        self._history_valid_loss = []
+        self._history_valid_loss_trace = []
+        self._history_num_params = []
+        self._history_num_params_trace = []
+        self._created = util.get_time_str()
+        self._modified = util.get_time_str()
+        self._updates = 0
+        self._pyprob_version = __version__
+        self._torch_version = torch.__version__
+        self._optimizer_type = ''
+
+        self._aver_loss_train=[]#Lei
+        self._aver_loss_val=[]#Lei
+        self._best_val_loss=float('inf') #Lei
+        self._train_loss= torch.tensor(0.)#Lei
+        self._val_loss=torch.tensor(0.)#Lei
+        self.num_files_per_buckets=None#Lei
+        self.num_buckets=None #Lei
+        self.num_iter_per_bucket=None #Lei
+        self._main_trace_cache_path=None #Lei
+        self._bucket_idx = torch.tensor(0)#Lei
+        
+        self._state_new_trace = True
+        self._state_observes = None
+        self._state_observes_embedding = None
+        self._state_lstm_hidden_state = None
+
+        self._address_stats = OrderedDict()
+        self._trace_stats = OrderedDict()
+
+        self._address_embeddings = {}
+        self._distribution_type_embeddings = {}
+
+        self._address_embedding_empty = util.to_variable(torch.zeros(self._address_embedding_dim))
+        self._distribution_type_embedding_empty = util.to_variable(torch.zeros(self._distribution_type_embedding_dim))
+
+        self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
+        self._lstm = nn.LSTM(self._lstm_input_dim, self._lstm_dim, self._lstm_depth)
+        example_observes = self._valid_batch[0].pack_observes()  # To do: we need to check all the observes in the batch, to be more intelligent
+        if self._observe_embedding == ObserveEmbedding.FULLY_CONNECTED:
+            self._observe_embedding_layer = ObserveEmbeddingFC(example_observes, self._observe_embedding_dim)
+        elif self._observe_embedding == ObserveEmbedding.CONVNET_2D_5C:
+            self._observe_embedding_layer = ObserveEmbeddingConvNet2D5C(example_observes, self._observe_embedding_dim, self._observe_reshape)
+            self._observe_embedding_layer.configure()
+        elif self._observe_embedding == ObserveEmbedding.CONVNET_3D_4C:
+            self._observe_embedding_layer = ObserveEmbeddingConvNet3D4C(example_observes, self._observe_embedding_dim, self._observe_reshape)
+            self._observe_embedding_layer.configure()
+        else:
+            raise ValueError('Unknown observation embedding: {}'.format(self._observe_embedding))
+        self._sample_embedding_layers = {}
+        self._proposal_layers = {}
+
+    def cuda(self, device=None):
+        self._on_cuda = True
+        self._cuda_device = device
+        super().cuda(device)
+        self._address_embedding_empty = self._address_embedding_empty.cuda(device)
+        self._distribution_type_embedding_empty = self._distribution_type_embedding_empty.cuda(device)
+        for k, t in self._address_embeddings.items():
+            self._address_embeddings[k] = t.cuda(device)
+        for k, t in self._distribution_type_embeddings.items():
+            self._distribution_type_embeddings[k] = t.cuda(device)
+        self._valid_batch.cuda(device)
+        return self
+
+    def cpu(self):
+        self._on_cuda = False
+        super().cpu()
+        self._address_embedding_empty = self._address_embedding_empty.cpu()
+        self._distribution_type_embedding_empty = self._distribution_type_embedding_empty.cpu()
+        for k, t in self._address_embeddings.items():
+            self._address_embeddings[k] = t.cpu()
+        for k, t in self._distribution_type_embeddings.items():
+            self._distribution_type_embeddings[k] = t.cpu()
+        self._valid_batch.cpu()
+        return self
+
+    def _update_stats(self, batch):
+        for sub_batch in batch.sub_batches:
+            example_trace = sub_batch[0]
+            # Update address stats
+            for sample in example_trace._samples_all:
+                address = sample.address
+                if address not in self._address_stats:
+                    address_id = 'A' + str(len(self._address_stats) + 1)
+                    self._address_stats[address] = [len(sub_batch), address_id, sample.distribution.name, sample.control, sample.replace, sample.observed]
+                else:
+                    self._address_stats[address][0] += len(sub_batch)
+            # Update trace stats
+            trace_str = example_trace.addresses()
+            if trace_str not in self._trace_stats:
+                trace_id = 'T' + str(len(self._trace_stats) + 1)
+
+                # TODO: the following is not needed when the Trace code is updated to keep track of samples_controlled, samples_controlled_observed
+                samples_controlled_observed = []
+                replaced_indices = []
+                for i in range(len(example_trace._samples_all)):
+                    sample = example_trace._samples_all[i]
+                    if sample.control and i not in replaced_indices:
+                        if sample.replace:
+                            for j in range(i + 1, len(example_trace._samples_all)):
+                                if example_trace._samples_all[j].address_base == sample.address_base:
+                                    # example_trace.samples_replaced.append(sample)
+                                    sample = example_trace._samples_all[j]
+                                    replaced_indices.append(j)
+                        samples_controlled_observed.append(sample)
+                    elif sample.observed:
+                        samples_controlled_observed.append(sample)
+                trace_addresses = [self._address_stats[sample.address][1] for sample in samples_controlled_observed]
+                self._trace_stats[trace_str] = [len(sub_batch), trace_id, len(example_trace._samples_all),  len(example_trace.samples), trace_addresses]
+            else:
+                self._trace_stats[trace_str][0] += len(sub_batch)
+
+    def _add_address(self, address):
+        if address not in self._address_embeddings:
+            t = Parameter(util.Tensor(self._address_embedding_dim).normal_())
+            self._address_embeddings[address] = t
+            self.register_parameter('address_embedding_' + address, t)
+            print('New layers for address ({}): {}'.format(self._address_stats[address][1], util.truncate_str(address)))
+
+    def _add_distribution_type(self, distribution_type):
+        if distribution_type not in self._distribution_type_embeddings:
+            print('New distribution type: {}'.format(distribution_type))
+            i = len(self._distribution_type_embeddings)
+            if i < self._distribution_type_embedding_dim:
+                t = util.one_hot(self._distribution_type_embedding_dim, i)
+                self._distribution_type_embeddings[distribution_type] = t
+            else:
+                print('Warning: overflow (collision) in distribution type embeddings. Allowed: {}; Encountered: {}'.format(self._distribution_type_embedding_dim, i + 1))
+                self._distribution_type_embeddings[distribution_type] = random.choice(list(self._distribution_type_embeddings.values()))
+
+    def polymorph(self, batch=None):
+        if batch is None:
+            if self._valid_batch is None:
+                return
+            else:
+                batch = self._valid_batch
+
+        self._update_stats(batch)#no longer needed #Lei
+
+        layers_changed = False
+        print('number of subbatches={}'.format(len(batch.sub_batches)))
+        for sub_batch in batch.sub_batches:
+            print('current subbatch length={}'.format(len(sub_batch)))
+            for trace in sub_batch:
+            #example_trace = sub_batch[0]
+
+                for sample in trace.samples:
+                    address = sample.address
+                    distribution = sample.distribution
+
+                # Update the dictionaries for address and distribution type embeddings
+                    #self._add_address(address)#Lei #not needed any longer since preprocessing is done
+                    #self._add_distribution_type(distribution.name) #Lei #not needed any longer since preprocessing is done
+
+                    if address not in self._sample_embedding_layers:
+                        if self._sample_embedding == SampleEmbedding.FULLY_CONNECTED:
+                            if isinstance(distribution, Categorical):
+                                sample_embedding_layer = SampleEmbeddingFC(sample.value.nelement(), self._sample_embedding_dim, input_is_one_hot_index=True, input_one_hot_dim=distribution.length_categories)
+                            else:
+                                sample_embedding_layer = SampleEmbeddingFC(sample.value.nelement(), self._sample_embedding_dim)
+                        else:
+                            raise ValueError('Unkown sample embedding: {}'.format(self._sample_embedding))
+
+                        if isinstance(distribution, Categorical):
+                            proposal_layer = ProposalCategorical(self._lstm_dim, distribution.length_categories)
+                        elif isinstance(distribution, Normal):
+                            proposal_layer = ProposalNormal(self._lstm_dim, distribution.length_variates)
+                        elif isinstance(distribution, Uniform):
+                            proposal_layer = ProposalUniformKumaraswamyMixture(self._lstm_dim)
+                        elif isinstance(distribution, Poisson):
+                            proposal_layer = ProposalPoisson(self._lstm_dim)
+                        else:
+                            raise ValueError('Unsupported distribution: {}'.format(distribution.name))
+
+                        self._sample_embedding_layers[address] = sample_embedding_layer
+                        self._proposal_layers[address] = proposal_layer
+                        self.add_module('sample_embedding_layer({})'.format(address), sample_embedding_layer)
+                        self.add_module('proposal_layer({})'.format(address), proposal_layer)
+                        layers_changed = True
+
+        if layers_changed:
+            num_params = 0
+            for p in self.parameters():
+                num_params += p.nelement()
+            print('New trainable params: {:,}'.format(num_params))
+            self._history_num_params.append(num_params)
+            self._history_num_params_trace.append(self._total_train_traces)
+
+        if self._on_cuda:
+            self.cuda(self._cuda_device)
+
+        return layers_changed
+
+    def new_trace(self, observes=None):
+        self._state_new_trace = True
+        self._state_observes = observes
+        self._state_observes_embedding = self._observe_embedding_layer.forward(observes)
+
+    def forward_one_time_step(self, previous_sample, current_sample):
+        if self._state_observes is None:
+            raise RuntimeError('Cannot run the inference network without observations. Call new_trace and supply observations.')
+
+        success = True
+        if self._state_new_trace:
+            prev_sample_embedding = util.to_variable(torch.zeros(1, self._sample_embedding_dim))
+            prev_addres_embedding = self._address_embedding_empty
+            prev_distribution_type_embedding = self._distribution_type_embedding_empty
+            h0 = util.to_variable(torch.zeros(self._lstm_depth, 1, self._lstm_dim), volatile=True)
+            c0 = util.to_variable(torch.zeros(self._lstm_depth, 1, self._lstm_dim), volatile=True)
+            self._state_lstm_hidden_state = (h0, c0)
+            self._state_new_trace = False
+        else:
+            prev_address = previous_sample.address
+            prev_distribution = previous_sample.distribution
+            prev_value = previous_sample.value
+            if prev_address in self._sample_embedding_layers:
+                prev_sample_embedding = self._sample_embedding_layers[prev_address](prev_value.float())
+            else:
+                print('Warning: no sample embedding layer for: {}'.format(prev_address))
+                success = False
+            if prev_address in self._address_embeddings:
+                prev_addres_embedding = self._address_embeddings[prev_address]
+            else:
+                print('Warning: unknown address (previous): {}'.format(prev_address))
+                success = False
+            if prev_distribution.name in self._distribution_type_embeddings:
+                prev_distribution_type_embedding = self._distribution_type_embeddings[prev_distribution.name]
+            else:
+                print('Warning: unkown distribution type (previous): {}'.format(prev_distribution.name))
+                success = False
+
+        current_address = current_sample.address
+        current_distribution = current_sample.distribution
+        if current_address not in self._proposal_layers:
+            print('Warning: no proposal layer for: {}'.format(current_address))
+            success = False
+        if current_address in self._address_embeddings:
+            current_addres_embedding = self._address_embeddings[current_address]
+        else:
+            print('Warning: unknown address (current): {}'.format(current_address))
+            success = False
+        if current_distribution.name in self._distribution_type_embeddings:
+            current_distribution_type_embedding = self._distribution_type_embeddings[current_distribution.name]
+        else:
+            print('Warning: unkown distribution type (current): {}'.format(current_distribution.name))
+            success = False
+
+        if success:
+            t = [self._state_observes_embedding[0],
+                 prev_sample_embedding[0],
+                 prev_distribution_type_embedding,
+                 prev_addres_embedding,
+                 current_distribution_type_embedding,
+                 current_addres_embedding]
+            t = torch.cat(t).unsqueeze(0)
+            lstm_input = t.unsqueeze(0)
+            lstm_output, self._state_lstm_hidden_state = self._lstm(lstm_input, self._state_lstm_hidden_state)
+            proposal_input = lstm_output[0]
+            proposal_distribution = self._proposal_layers[current_address](proposal_input, [current_sample])
+            return proposal_distribution
+        else:
+            print('Warning: no proposal could be made, prior will be used')
+            return current_distribution
+
+    def sync_params(self):
+        """ broadcast rank 0 parameter to all ranks """
+        for param in self.parameters():
+            dist.broadcast(param.data, 0)
+
+    def sync_grads(self):
+        """ all_reduce grads from all ranks """
+        size=float(dist.get_world_size())
+        for param in self.parameters():
+            try:
+                dist.all_reduce(param.grad.data)
+                param.grad.data /= size #average gradients
+
+            except AttributeError:
+                #pass
+                print("None for grad,  with param.size=", param.size())
+                
+                
+         
+
+
+    #def loss(self, batch, optimizer=None, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE):
+    def loss(self, batch, time_steps_chosen, optimizer=None, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE):#modified for multi-bucketing
+        gc.collect()
+
+
+
+        batch_loss = 0
+        for sub_batch in batch.sub_batches:
+            obs = torch.stack([trace.pack_observes(training_observation) for trace in sub_batch])
+            obs_emb = self._observe_embedding_layer(obs)
+
+            sub_batch_length = len(sub_batch)
+
+            #example_trace = sub_batch[0] #Lei blocked it
+          
+            traces_max_length=time_steps_chosen# for the timebeing, need to double check!!
+
+            lstm_input = []
+            for time_step in range(traces_max_length):#range(example_trace.length): #Lei
+                lstm_input_time_step = [] #Lei moved it here
+                for b, trace in enumerate(sub_batch):#Lei
+                    if time_step< trace.length:
+                        current_sample = trace.samples[time_step]
+                        current_address = current_sample.address
+                        current_distribution = current_sample.distribution
+                        current_addres_embedding = self._address_embeddings[current_address]
+                        current_distribution_type_embedding = self._distribution_type_embeddings[current_distribution.name]
+
+                        if time_step == 0:
+                            prev_sample_embedding = util.to_variable(torch.zeros( self._sample_embedding_dim))#modified by Lei
+                            prev_addres_embedding = self._address_embedding_empty
+                            prev_distribution_type_embedding = self._distribution_type_embedding_empty
+                        else:
+                            prev_sample = trace.samples[time_step - 1]
+                            prev_address = prev_sample.address
+                            prev_distribution = prev_sample.distribution
+                            smp = trace.samples[time_step - 1].value.float()
+                            prev_sample_embedding = torch.squeeze(self._sample_embedding_layers[prev_address](smp))#Lei squeeze it
+                            prev_addres_embedding = self._address_embeddings[prev_address]
+                            prev_distribution_type_embedding = self._distribution_type_embeddings[prev_distribution.name]
+
+                            
+                        t = torch.cat([obs_emb[b],
+                                   prev_sample_embedding,
+                                   prev_distribution_type_embedding,
+                                   prev_addres_embedding,
+                                   current_distribution_type_embedding,
+                                   current_addres_embedding])
+                    else:
+                        t= util.to_variable(torch.zeros(self._lstm_input_dim))#Lei
+                    lstm_input_time_step.append(t)
+                lstm_input.append(torch.stack(lstm_input_time_step))
+
+            lstm_input = torch.stack(lstm_input)
+
+            h0 = util.to_variable(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
+            c0 = util.to_variable(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
+            lstm_output, _ = self._lstm(lstm_input, (h0, c0))
+            log_prob = 0
+            for time_step in range(traces_max_length):#range(example_trace.length):
+                for b, trace in enumerate(sub_batch):#Lei
+                    if time_step< trace.length:#Lei
+                        current_sample = trace.samples[time_step]
+                        current_address = current_sample.address
+
+                        proposal_input = lstm_output[time_step][b] #for current trace only!!! #Lei
+
+                        current_samples = [trace.samples[time_step]]# add [] to make it iterable
+                        current_samples_values = current_samples[0].value#torch.stack([s.value for s in current_samples]) #Lei
+                
+                        proposal_distribution = self._proposal_layers[current_address](proposal_input, current_samples)
+                        l = proposal_distribution.log_prob(current_samples_values)
+                        if util.has_nan_or_inf(l):
+                            print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))
+                            print('proposal_distribution', proposal_distribution)
+                            print('current_samples_values', current_samples_values)
+                            print('log_prob', l)
+                            print('Fixing -Inf')
+                            l = util.replace_negative_inf(l)
+                            print('log_prob', l)
+                            if util.has_nan_or_inf(l):
+                                print(colored('Nan or Inf present in proposal log_prob.', 'red', attrs=['bold']))
+                                return False, 0
+                        log_prob += util.safe_torch_sum(l)
+
+            sub_batch_loss = -log_prob / sub_batch_length
+            batch_loss += float(sub_batch_loss * sub_batch_length)
+
+            if optimizer is not None:
+                optimizer.zero_grad()
+                
+                sub_batch_loss.backward(retain_graph=True)#added retain_graph=True by Lei
+                if (dist.get_world_size() >1):
+                    for param in self.parameters():
+                        if (param.grad is None):
+                            param.grad = torch.Tensor(torch.zeros_like(param.data)) # force it to be zero for all-reduce!!i
+                    #all_reduce grads               
+                    self.sync_grads()#added by Lei for distributed training                
+                optimizer.step()
+
+ 
+        return True, batch_loss / batch.length
+
+
+
+    def optimize(self, new_batch_func, training_observation, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name):
+        self._trained_on = 'CUDA' if util._cuda_enabled else 'CPU'
+        self._optimizer_type = optimizer_type
+        prev_total_train_seconds = self._total_train_seconds
+
+        
+        preprocess_dir=os.path.abspath(os.path.join(self._main_trace_cache_path,os.pardir))
+        print('preprocess_dir={}'.format(preprocess_dir))
+
+      #####################Lei
+        print('load embedding matrices from preprocessed files')
+        
+        address_stats=torch.load(preprocess_dir+'/address_stats.pt')
+        self._address_stats=address_stats
+        address_embeddings=torch.load(preprocess_dir+'/address_embeddings.pt')
+        self._address_embeddings=address_embeddings
+        sample_embedding_layers=torch.load(preprocess_dir+'/sampleEmbeddinglayers.pt')
+        self._sample_embedding_layers=sample_embedding_layers
+        proposal_layers=torch.load(preprocess_dir+'/proposal_layers.pt')
+        self._proposal_layers=proposal_layers
+        distribution_type_embeddings=torch.load(preprocess_dir+'/distribution_type_embeddings.pt')
+        self._distribution_type_embeddings=distribution_type_embeddings
+
+
+        #register address_embeddings
+        print('register parameter for self._address_embeddings based on preprocessed global matrix')
+        for address,t in self._address_embeddings.items():
+            self.register_parameter('address_embedding_' + address, Parameter(t))
+        
+        print('add module for sample_embedding_layers based on preprocessed global matrix')
+        for address, sample_embedding_layer in self._sample_embedding_layers.items():
+            self.add_module('sample_embedding_layer({})'.format(address), sample_embedding_layer)
+
+        print('add module for proposal layers based on preprocessed global matrix')
+        for address, proposal_layer in self._proposal_layers.items():
+            self.add_module('proposal_layer({})'.format(address), proposal_layer)
+        
+        world_size = dist.get_world_size()
+
+
+      ######################
+        if (dist.get_rank() == 0):
+            num_params = 0
+            for p in self.parameters():
+                num_params += p.nelement()
+            #num_named_params = 0
+            #for _, p in self.named_parameters():
+            #    num_named_params += p.nelement()
+            #totsize=sum(p.numel() for p in self.parameters() if p.requires_grad)
+            
+            print("+------------------------------+")
+            print("| Etalumis                    |")
+            print("| # Ranks = {:5d}              |".format(world_size))
+            print("| # trainable parameters = {:,}     |".format(num_params))
+            print("| Eff. Learning Rate ={} |".format(learning_rate*world_size))
+
+            print("+------------------------------+")
+
+
+
+
+
+        time_start = time.time()
+        time_loss_min = time.time()
+        time_last_batch = time.time()
+        iteration = 0
+        trace = 0
+        last_validation_trace = -valid_interval + 1  #modified by Lei to 0 for profiling!!!
+        stop = False
+        print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
+        max_print_line_len = 0
+        loss_average_interval = valid_interval#Lei
+        param_sync_interval = 10000# iterations
+
+        # for multibucketing (sorted). Assume 1 trace per file #Lei
+        num_files_per_bucket =self.num_files_per_bucket#1244 #hard coded for now, will change later
+        num_buckets = self.num_buckets#10
+        num_iter_per_bucket = self.num_iter_per_bucket
+       
+ 
+        while not stop:
+            #make sure we have the same parameters for all ranks
+            if (iteration % param_sync_interval == 0) and (world_size >1):########added by Lei for distributed training
+                self.sync_params()
+
+            iteration += 1
+            
+            if (iteration <=num_iter_per_bucket * num_buckets): #first epoch
+                bucket_idx=int((iteration-1) /num_iter_per_bucket)
+            else:#from 2nd epoch on 
+                if ((iteration -1) %num_iter_per_bucket ==0): #need to decide new bucket_idx
+                    if (dist.get_rank()==0):
+                        bucket_idx= random.randint(0,num_buckets-1)
+                        self._bucket_idx = torch.tensor(bucket_idx) #so that to broadcast the tensor
+                    if (world_size >1):
+                        dist.broadcast(self._bucket_idx, 0)# to make sure all ranks use the same bucket_idx that rank 0 selected
+                        bucket_idx = int(self._bucket_idx.item())
+            #########pre-processed with multi-bucketing, need to find the correct bucket for processing
+            batch = new_batch_func(bucket_idx=bucket_idx)
+            traces_max_length=max(batch.traces_lengths)
+            time_steps_chosen= min(int(sum(batch.traces_lengths)/batch.length)+1, traces_max_length)# to be decided!!!
+            #layers_changed = self.polymorph(batch) #no longer needed since the global preprocessed files are available #lei
+            layers_changed =True #Lei
+
+            if iteration == 1 or layers_changed:
+                if optimizer_type == Optimizer.ADAM:
+                    optimizer = optim.Adam(self.parameters(), lr=learning_rate*world_size, weight_decay=weight_decay)
+
+                else:  # optimizer_type == Optimizer.SGD:
+                    optimizer = optim.SGD(self.parameters(), lr=learning_rate*world_size, momentum=momentum, nesterov=True, weight_decay=weight_decay)
+          
+  
+
+
+ 
+            #success, loss = self.loss(batch, optimizer, training_observation)
+            success, loss = self.loss(batch, time_steps_chosen, optimizer, training_observation)#mmodified by Lei for multi-bucketing!! 
+            if not success:
+                print(colored('Cannot compute loss, skipping batch. Loss: {}'.format(loss), 'red', attrs=['bold']))
+            else:
+                if self._loss_initial is None:
+                    self._loss_initial = loss
+                    self._loss_max = loss
+                loss_initial_str = '{:+.2e}'.format(self._loss_initial)
+                # loss_max_str = '{:+.3e}'.format(self._loss_max)
+                if loss < self._loss_min:
+                    self._loss_min = loss
+                    loss_str = colored('{:+.2e}'.format(loss), 'green', attrs=['bold'])
+                    loss_min_str = colored('{:+.2e}'.format(self._loss_min), 'green', attrs=['bold'])
+                    time_loss_min = time.time()
+                    time_since_loss_min_str = colored(util.days_hours_mins_secs_str(0), 'green', attrs=['bold'])
+                elif loss > self._loss_max:
+                    self._loss_max = loss
+                    loss_str = colored('{:+.2e}'.format(loss), 'red', attrs=['bold'])
+                    # loss_max_str = colored('{:+.3e}'.format(self._loss_max), 'red', attrs=['bold'])
+                else:
+                    if loss < self._loss_previous:
+                        loss_str = colored('{:+.2e}'.format(loss), 'green')
+                    elif loss > self._loss_previous:
+                        loss_str = colored('{:+.2e}'.format(loss), 'red')
+                    else:
+                        loss_str = '{:+.2e}'.format(loss)
+                    loss_min_str = '{:+.2e}'.format(self._loss_min)
+                    # loss_max_str = '{:+.3e}'.format(self._loss_max)
+                    time_since_loss_min_str = util.days_hours_mins_secs_str(time.time() - time_loss_min)
+                if (iteration % loss_average_interval ==0):
+                    if (dist.get_world_size()>1): 
+                        self._train_loss=torch.tensor(loss)
+                        dist.all_reduce(self._train_loss)
+                        aver_loss_train = self._train_loss.numpy()/dist.get_world_size()
+                    else:
+                        aver_loss_train =loss
+                    if (dist.get_rank()==0):
+                            print('aver_loss_train across ranks={}'.format(aver_loss_train))
+                 
+                    
+                    self._aver_loss_train.append(aver_loss_train)
+
+
+                self._loss_previous = loss
+                self._total_train_iterations += 1
+                trace += batch.length
+                self._total_train_traces += batch.length* world_size #modified by Lei
+                total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
+                self._total_train_seconds = prev_total_train_seconds + (time.time() - time_start)
+                total_training_seconds_str = util.days_hours_mins_secs_str(self._total_train_seconds)
+                traces_per_second_str = '{:,.1f}'.format(int(batch.length* world_size / (time.time() - time_last_batch)))#modified by Lei
+                time_last_batch = time.time()
+                if num_traces != -1:
+                    if trace >= num_traces:
+                        stop = True
+
+                self._history_train_loss.append(loss)
+                self._history_train_loss_trace.append(self._total_train_traces)
+                if trace - last_validation_trace > valid_interval:
+                    print('\rComputing validation loss...', end='\r')
+                    traces_max_length=max(self._valid_batch.traces_lengths)
+                    time_steps_chosen= min(int(sum(self._valid_batch.traces_lengths)/self._valid_batch.length)+1, traces_max_length)#
+                    _, valid_loss = self.loss(self._valid_batch, time_steps_chosen)
+                    if world_size>1:
+                        self._val_loss= torch.tensor(valid_loss)
+                        dist.all_reduce(self._val_loss)
+                        global_loss = self._val_loss.numpy()/world_size
+                        self._train_loss=torch.tensor(loss)
+                        dist.all_reduce(self._train_loss)
+                        aver_loss_train = self._train_loss.numpy()/world_size
+
+                     
+                    else:
+                        global_loss=valid_loss
+                        aver_loss_train =loss #Lei
+                    
+                    self._aver_loss_val.append(global_loss)
+                    if global_loss <  self._best_val_loss:
+                        self._best_val_loss = global_loss
+                    if (dist.get_rank() == 0):
+                        print("  average training loss across ranks: %.3f" %(aver_loss_train))
+                        print("  average validation loss across ranks: %.3f" %(global_loss))
+                        print("  best loss: %.3f"%(self._best_val_loss))
+
                     self._history_valid_loss.append(valid_loss)
                     self._history_valid_loss_trace.append(self._total_train_traces)
                     last_validation_trace = trace - 1
