@@ -358,8 +358,12 @@ class ProposalUniformKumaraswamyMixture(nn.Module):
             coeffs = F.softmax(coeffs, dim=1)
         # prior_means = util.to_variable(torch.stack([s.distribution.mean[0] for s in samples]))
         # prior_stddevs = util.to_variable(torch.stack([s.distribution.stddev[0] for s in samples]))
-        prior_lows =util.to_variable(samples.distribution.low) #util.to_variable(torch.stack([s.distribution.low for s in samples]))#modified by Lei
-        prior_highs =util.to_variable(samples.distribution.high) #util.to_variable(torch.stack([s.distribution.high for s in samples])) #modified by Lei
+        #if len(list(samples))==1: #Lei
+        #    prior_lows =util.to_variable(samples.distribution.low)#modified by Lei 
+        #    prior_highs =util.to_variable(samples.distribution.high)
+        #else:
+        prior_lows =util.to_variable(torch.stack([s.distribution.low for s in samples]))
+        prior_highs =util.to_variable(torch.stack([s.distribution.high for s in samples]))
         # means = prior_means + (means * prior_stddevs)
         # stddevs = stddevs * prior_stddevs
         # return TruncatedNormal(means, stddevs, prior_lows, prior_highs)
@@ -1336,6 +1340,7 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
         self.num_buckets=None #Lei
         self.num_iter_per_bucket=None #Lei
         self._main_trace_cache_path=None #Lei
+        self._bucket_idx = torch.tensor(0)#Lei
         
         self._state_new_trace = True
         self._state_observes = None
@@ -1668,8 +1673,8 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
 
                         proposal_input = lstm_output[time_step][b] #for current trace only!!! #Lei
 
-                        current_samples = trace.samples[time_step]
-                        current_samples_values = current_samples.value#torch.stack([s.value for s in current_samples]) #Lei
+                        current_samples = [trace.samples[time_step]]# add [] to make it iterable
+                        current_samples_values = current_samples[0].value#torch.stack([s.value for s in current_samples]) #Lei
                 
                         proposal_distribution = self._proposal_layers[current_address](proposal_input, current_samples)
                         l = proposal_distribution.log_prob(current_samples_values)
@@ -1706,8 +1711,7 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
 
 
 
-#    def optimize(self, new_batch_func, training_observation, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name):
-    def optimize(self, new_batch_func, training_observation, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name, current_trace_cache_path):
+    def optimize(self, new_batch_func, training_observation, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name):
         self._trained_on = 'CUDA' if util._cuda_enabled else 'CPU'
         self._optimizer_type = optimizer_type
         prev_total_train_seconds = self._total_train_seconds
@@ -1799,10 +1803,11 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
             else:#from 2nd epoch on 
                 if ((iteration -1) %num_iter_per_bucket ==0): #need to decide new bucket_idx
                     if (dist.get_rank()==0):
-                        bucket_idx= random.randint(0,num_buckets)
+                        bucket_idx= random.randint(0,num_buckets-1)
+                        self._bucket_idx = torch.tensor(bucket_idx) #so that to broadcast the tensor
                     if (world_size >1):
-                        dist.broadcast(bucket_idx, 0)# to make sure all ranks use the same bucket_idx that rank 0 selected
-
+                        dist.broadcast(self._bucket_idx, 0)# to make sure all ranks use the same bucket_idx that rank 0 selected
+                        bucket_idx = int(self._bucket_idx.item())
             #########pre-processed with multi-bucketing, need to find the correct bucket for processing
             batch = new_batch_func(bucket_idx=bucket_idx)
             traces_max_length=max(batch.traces_lengths)
@@ -1872,7 +1877,7 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
                 total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
                 self._total_train_seconds = prev_total_train_seconds + (time.time() - time_start)
                 total_training_seconds_str = util.days_hours_mins_secs_str(self._total_train_seconds)
-                traces_per_second_str = '{:,.1f}'.format(int(batch.length* dist.get_world_size() / (time.time() - time_last_batch)))#modified by Lei
+                traces_per_second_str = '{:,.1f}'.format(int(batch.length* world_size / (time.time() - time_last_batch)))#modified by Lei
                 time_last_batch = time.time()
                 if num_traces != -1:
                     if trace >= num_traces:

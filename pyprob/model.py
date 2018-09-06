@@ -225,7 +225,10 @@ class Model(nn.Module):
             print('Warning: There is no trace cache assigned, training with online trace generation.')
             use_trace_cache = False
 
-
+        if (inference_network== InferenceNetwork.LSTM) or (inference_network== InferenceNetwork.SIMPLE):
+            self.UseBuckets = False
+        elif inference_network== InferenceNetwork.LSTM_WITH_PREPROCESSING:
+            self.UseBuckets = True
 
         if use_trace_cache:
             print('Using trace cache to train...')
@@ -245,7 +248,10 @@ class Model(nn.Module):
                     if discard_source:
                         self._trace_cache = []
                     while len(self._trace_cache) < size:
+                        #print("current trace_cache_path is {}".format(self._trace_cache_path))
                         current_files = self._trace_cache_current_files()
+                        #print("current_files number={}".format(len(current_files)))
+                        #print("size={}".format(size))
                         chosen_files= random.sample(current_files, size)
                         if discard_source:
                             self._trace_cache_discarded_file_names.extend(chosen_files)
@@ -323,7 +329,7 @@ class Model(nn.Module):
             self._inference_network.num_iter_per_bucket=num_iter_per_bucket#Lei
             self._inference_network._main_trace_cache_path= self._main_trace_cache_path#Lei
         self._inference_network.train()
-        self._inference_network.optimize(new_batch_func, training_observation, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name, self._trace_cache_path)
+        self._inference_network.optimize(new_batch_func, training_observation, optimizer_type, num_traces, learning_rate, momentum, weight_decay, valid_interval, auto_save, auto_save_file_name)
 
     def save_inference_network(self, file_name):
         if self._inference_network is None:
