@@ -21,6 +21,18 @@ def to_tensor(value):
     return torch.tensor(value).to(device=_device, dtype=_dtype)
 
 
+def to_numpy(value):
+    if torch.is_tensor(value):
+        return value.cpu().numpy()
+    elif isinstance(value, np.ndarray):
+        return value
+    else:
+        try:
+            return np.array(value)
+        except:
+            raise TypeError('Cannot convert to Numpy array.')
+
+
 def fast_np_random_choice(values, probs_cumsum):
     # See https://mobile.twitter.com/RadimRehurek/status/928671225861296128
     return values[min(np.searchsorted(probs_cumsum, random.random()), len(values) - 1)]

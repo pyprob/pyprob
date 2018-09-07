@@ -21,11 +21,17 @@ class Distribution():
 
     @property
     def batch_shape(self):
-        return self._batch_shape
+        if self._torch_dist is not None:
+            return self._torch_dist.batch_shape
+        else:
+            return self._batch_shape
 
     @property
     def event_shape(self):
-        return self._event_shape
+        if self._torch_dist is not None:
+            return self._torch_dist.event_shape
+        else:
+            return self._event_shape
 
     def sample(self):
         if self._torch_dist is not None:
@@ -36,13 +42,13 @@ class Distribution():
 
     def log_prob(self, value):
         if self._torch_dist is not None:
-            lp = self._torch_dist.log_prob(value)
+            lp = self._torch_dist.log_prob(util.to_tensor(value))
             return lp
         else:
             raise NotImplementedError()
 
     def prob(self, value):
-        return torch.exp(self.log_prob(value))
+        return torch.exp(self.log_prob(util.to_tensor(value)))
 
     @property
     def mean(self):

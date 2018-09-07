@@ -9,9 +9,10 @@ from .. import util
 
 
 class Empirical(Distribution):
-    def __init__(self, values, log_weights=None, weights=None, sort_by_weights=True, name='Empirical'):
+    def __init__(self, values, log_weights=None, weights=None, sorted_by_weights=True, name='Empirical'):
         self.values = values
         self.length = len(values)
+        self.sorted_by_weights = sorted_by_weights
         if self.length == 0:
             super().__init__(name + ' (Empty)')
         else:
@@ -30,7 +31,7 @@ class Empirical(Distribution):
                 self.log_weights = torch.zeros(self.length).fill_(-math.log(self.length))
                 self._uniform_weights = True
 
-            if sort_by_weights and not self._uniform_weights:
+            if sorted_by_weights and not self._uniform_weights:
                 self.weights, indices = torch.sort(self.weights, descending=True)
                 log_weights = util.to_tensor([self.log_weights[int(i)] for i in indices]).view(-1)
                 self.values = [values[int(i)] for i in indices]
@@ -39,6 +40,7 @@ class Empirical(Distribution):
             self.weights_numpy_cumsum = (self.weights_numpy / self.weights_numpy.sum()).cumsum()
             self._mean = None
             self._variance = None
+            self._mode = None
             self._min = None
             self._max = None
             self._effective_sample_size = None
@@ -65,14 +67,10 @@ class Empirical(Distribution):
         if self.length == 0:
             raise RuntimeError('Empirical distribution instance is empty.')
         if self._uniform_weights:
-            # print('computing empirical expectation with uniform weights')
             return util.to_tensor(sum(map(func, self.values)) / self.length)
         else:
-            # print('computing empirical expectation with non-uniform weights')
             ret = 0.
             for i in range(self.length):
-                # print('value {}: {}'.format(i, self.values[i]))
-                # print('weight {}: {}'.format(i, self.weights[i]))
                 ret += func(self.values[i]) * self.weights[i]
             return ret
 
@@ -83,6 +81,7 @@ class Empirical(Distribution):
         ret.values = list(map(func, self.values))
         ret._mean = None
         ret._variance = None
+        ret._mode = None
         ret._min = None
         ret._max = None
         ret._effective_sample_size = None
@@ -131,17 +130,8 @@ class Empirical(Distribution):
         if self.length == 0:
             raise RuntimeError('Empirical distribution instance is empty.')
         if self._mean is None:
-            # print('computing empirical mean')
             self._mean = self.expectation(lambda x: x)
         return self._mean
-
-    @property
-    def effective_sample_size(self):
-        if self.length == 0:
-            raise RuntimeError('Empirical distribution instance is empty.')
-        if self._effective_sample_size is None:
-            self._effective_sample_size = 1. / self.weights.pow(2).sum()
-        return self._effective_sample_size
 
     @property
     def mode(self):
@@ -149,7 +139,13 @@ class Empirical(Distribution):
             raise RuntimeError('Empirical distribution instance is empty.')
         if self._uniform_weights:
             print(colored('Warning: weights are uniform and there is no unique mode.', 'red', attrs=['bold']))
-        return self.values[0]  # Values are always sorted in decreasing weight
+        if self._mode is None:
+            if self.sorted_by_weights:
+                self._mode = self.values[0]
+            else:
+                _, max_index = self.weights.max(-1)
+                self._mode = self.values[int(max_index)]
+        return self._mode
 
     @property
     def variance(self):
@@ -159,6 +155,14 @@ class Empirical(Distribution):
             mean = self.mean
             self._variance = self.expectation(lambda x: (x - mean)**2)
         return self._variance
+
+    @property
+    def effective_sample_size(self):
+        if self.length == 0:
+            raise RuntimeError('Empirical distribution instance is empty.')
+        if self._effective_sample_size is None:
+            self._effective_sample_size = 1. / self.weights.pow(2).sum()
+        return self._effective_sample_size
 
     def unweighted(self):
         if self.length == 0:
