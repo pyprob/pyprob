@@ -10,8 +10,11 @@ from .. import util
 
 class Empirical(Distribution):
     def __init__(self, values, log_weights=None, weights=None, sorted_by_weights=True, name='Empirical'):
-        self.values = values
         self.length = len(values)
+        if isinstance(values, list):
+            self.values = values
+        else:
+            self.values = [values[i] for i in range(self.length)]
         self.sorted_by_weights = sorted_by_weights
         if self.length == 0:
             super().__init__(name + ' (Empty)')
@@ -91,13 +94,13 @@ class Empirical(Distribution):
         if self.length == 0:
             raise RuntimeError('Empirical distribution instance is empty.')
         filtered_values = []
-        filtered_weights = []
+        filtered_log_weights = []
         for i in range(len(self.values)):
             value = self.values[i]
             if func(value):
                 filtered_values.append(value)
-                filtered_weights.append(self.weights[i])
-        return Empirical(filtered_values, weights=filtered_weights)
+                filtered_log_weights.append(self.log_weights[i])
+        return Empirical(filtered_values, log_weights=filtered_log_weights)
 
     @property
     def min(self):
@@ -174,3 +177,19 @@ class Empirical(Distribution):
             raise RuntimeError('Empirical distribution instance is empty.')
         # TODO: improve this with a better resampling algorithm
         return Empirical([self.sample() for i in range(samples)])
+
+    @staticmethod
+    def combine(empirical_distributions):
+        for dist in empirical_distributions:
+            if not isinstance(dist, Empirical):
+                raise TypeError('Combination is only supported between Empirical distributions.')
+
+        values = []
+        log_weights = []
+        length = empirical_distributions[0].length
+        for dist in empirical_distributions:
+            if dist.length != length:
+                raise RuntimeError('Combination is only supported between Empirical distributions of equal length.')
+            values += dist.values
+            log_weights.append(dist.log_weights)
+        return Empirical(values, torch.cat(log_weights))
