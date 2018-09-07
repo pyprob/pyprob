@@ -4,3 +4,4 @@ from .normal import Normal
 from .categorical import Categorical
 from .uniform import Uniform
 from .poisson import Poisson
+from .beta import Beta
