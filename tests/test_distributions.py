@@ -64,6 +64,16 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.25))
 
+    def test_dist_empirical_slice(self):
+        dist_slice_elements_correct = [0, 1, 2]
+
+        dist = Empirical([0, 1, 2, 3, 4, 5])
+        dist_slice_elements = dist[0:3].values
+
+        util.debug('dist_slice_elements', 'dist_slice_elements_correct')
+
+        self.assertEqual(dist_slice_elements, dist_slice_elements_correct)
+
     def test_dist_empirical_combine_uniform_weights(self):
         dist1_mean_correct = 1
         dist1_stddev_correct = 3

@@ -56,7 +56,10 @@ class Empirical(Distribution):
         return 'Empirical(name:{}, length:{})'.format(self.name, self.length)
 
     def __getitem__(self, index):
-        return self.values[index]
+        if isinstance(index, slice):
+            return Empirical(self.values[index], self.log_weights[index])
+        else:
+            return self.values[index]
 
     def sample(self):
         if self.length == 0:

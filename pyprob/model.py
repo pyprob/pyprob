@@ -60,15 +60,9 @@ class Model(nn.Module):
     def prior_distribution(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=lambda trace: trace.result, *args, **kwargs):
         return self.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, map_func=map_func, *args, **kwargs)
 
-    def posterior_traces(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, burn_in=None, initial_trace=None, map_func=None, observe=None, *args, **kwargs):
+    def posterior_traces(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=None, observe=None, *args, **kwargs):
         if (inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (self._inference_network is None):
             raise RuntimeError('Cannot run inference engine IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK because no inference network for this model is available. Use learn_inference_network or load_inference_network first.')
-        if burn_in is not None:
-            if burn_in >= num_traces:
-                raise ValueError('burn_in must be less than num_traces')
-        else:
-            # Default burn_in
-            burn_in = int(min(num_traces / 10, 1000))
 
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
             traces, log_weights = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, map_func=map_func, observe=observe, *args, **kwargs)
@@ -122,15 +116,14 @@ class Model(nn.Module):
                     traces.append(current_trace)
             if util._verbosity > 1:
                 print()
-            if burn_in is not None:
-                traces = traces[burn_in:]
+
             log_weights = None
-            name = 'Posterior, {} Metropolis Hastings, num_traces={:,}, burn_in={:,}, accepted={:,.2f}%, sample_reuse={:,.2f}%'.format('lightweight' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'random-walk', num_traces, burn_in, 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all)
+            name = 'Posterior, {} Metropolis Hastings, num_traces={:,}, accepted={:,.2f}%, sample_reuse={:,.2f}%'.format('lightweight' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'random-walk', num_traces, 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all)
 
         return Empirical(traces, log_weights, name=name)
 
-    def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, burn_in=None, initial_trace=None, map_func=lambda trace: trace.result, observe=None, *args, **kwargs):
-        return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, burn_in=burn_in, initial_trace=initial_trace, map_func=map_func, observe=observe, *args, **kwargs)
+    def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, *args, **kwargs):
+        return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, *args, **kwargs)
 
     def learn_inference_network(self):
         raise NotImplementedError()
