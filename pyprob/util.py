@@ -8,7 +8,9 @@ import enum
 
 _device = torch.device('cpu')
 _dtype = torch.float
-_verbosity = 2
+_verbosity = 3
+_print_refresh_rate = 0.2  # seconds
+
 
 class TraceMode(enum.Enum):
     NONE = 0  # No trace recording, forward sample trace results only
@@ -73,3 +75,10 @@ def progress_bar(i, len):
     filled_len = int(round(bar_len * i / len))
     # percents = round(100.0 * i / len, 1)
     return '#' * filled_len + '-' * (bar_len - filled_len)
+
+
+def days_hours_mins_secs_str(total_seconds):
+    d, r = divmod(total_seconds, 86400)
+    h, r = divmod(r, 3600)
+    m, s = divmod(r, 60)
+    return '{0}d:{1:02}:{2:02}:{3:02}'.format(int(d), int(h), int(m), int(s))
