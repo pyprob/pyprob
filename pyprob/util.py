@@ -4,18 +4,34 @@ import random
 from termcolor import colored
 import inspect
 import sys
+import enum
 
 _device = torch.device('cpu')
 _dtype = torch.float
+_verbosity = 2
+
+class TraceMode(enum.Enum):
+    NONE = 0  # No trace recording, forward sample trace results only
+    PRIOR = 1
+    POSTERIOR = 2
 
 
-# def is_hashable(v):
-#     """Determine whether `v` can be hashed."""
-#     try:
-#         hash(v)
-#     except TypeError:
-#         return False
-#     return True
+class PriorInflation(enum.Enum):
+    DISABLED = 0
+    ENABLED = 1
+
+
+class InferenceEngine(enum.Enum):
+    IMPORTANCE_SAMPLING = 0  # Type: IS; Importance sampling with proposals from prior
+    IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK = 1  # Type: IS; Importance sampling with proposals from inference network
+    LIGHTWEIGHT_METROPOLIS_HASTINGS = 2  # Type: MCMC; Lightweight (single-site) Metropolis Hastings sampling, http://proceedings.mlr.press/v15/wingate11a/wingate11a.pdf and https://arxiv.org/abs/1507.00996
+    RANDOM_WALK_METROPOLIS_HASTINGS = 3  # Type: MCMC; Lightweight Metropolis Hastings with single-site proposal kernels that depend on the value of the site
+
+
+def set_verbosity(v=2):
+    global _verbosity
+    _verbosity = v
+
 
 def to_tensor(value):
     return torch.tensor(value).to(device=_device, dtype=_dtype)
@@ -50,3 +66,10 @@ def debug(*expressions):
         if isinstance(val, np.ndarray):
             val = val.tolist()
         print('  {} = {}'.format(expression.ljust(max_str_length), repr(val)))
+
+
+def progress_bar(i, len):
+    bar_len = 20
+    filled_len = int(round(bar_len * i / len))
+    # percents = round(100.0 * i / len, 1)
+    return '#' * filled_len + '-' * (bar_len - filled_len)

@@ -13,7 +13,7 @@ from .. import __version__, util
 
 class Distribution():
     def __init__(self, name, address_suffix='', batch_shape=torch.Size(), event_shape=torch.Size(), torch_dist=None):
-        self._name = name
+        self.name = name
         self._address_suffix = address_suffix
         self._batch_shape = batch_shape
         self._event_shape = event_shape

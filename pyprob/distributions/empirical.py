@@ -53,10 +53,7 @@ class Empirical(Distribution):
         return self.length
 
     def __repr__(self):
-        try:
-            return 'Empirical(name:{}, length:{}, mean:{}, stddev:{})'.format(self.name, self.length, self.mean, self.stddev)
-        except RuntimeError:
-            return 'Empirical(name:{}, length:{})'.format(self.name, self.length)
+        return 'Empirical(name:{}, length:{})'.format(self.name, self.length)
 
     def sample(self):
         if self.length == 0:
