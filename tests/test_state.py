@@ -1,5 +1,4 @@
 import unittest
-import torch
 
 import pyprob
 from pyprob import util, state, Model
@@ -31,8 +30,8 @@ class PriorInflationTestCase(unittest.TestCase):
 
             def forward(self, observation=None):
                 categorical_value = pyprob.sample(Categorical([0.1, 0.1, 0.8]))
-                normal_value = pyprob.sample(Normal(5, 2))
-                return categorical_value, normal_value
+                normal_value = pyprob.sample(Normal(5., 2.))
+                return float(categorical_value), normal_value
 
         self._model = CategoricalModel()
         super().__init__(*args, **kwargs)

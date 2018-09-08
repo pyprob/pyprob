@@ -6,6 +6,7 @@ import math
 import uuid
 import tempfile
 
+import pyprob
 from pyprob import util
 from pyprob.distributions import Distribution, Empirical, Normal, Categorical, Uniform, Poisson, Beta, Mixture, TruncatedNormal
 
@@ -790,3 +791,8 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+
+
+if __name__ == '__main__':
+    pyprob.set_verbosity(1)
+    unittest.main(verbosity=2)

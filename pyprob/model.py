@@ -131,3 +131,12 @@ class Model(nn.Module):
 
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, burn_in=None, initial_trace=None, map_func=lambda trace: trace.result, observe=None, *args, **kwargs):
         return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, burn_in=burn_in, initial_trace=initial_trace, map_func=map_func, observe=observe, *args, **kwargs)
+
+    def learn_inference_network(self):
+        raise NotImplementedError()
+
+    def save_inference_network(self):
+        raise NotImplementedError()
+
+    def load_inference_network(self):
+        raise NotImplementedError()
