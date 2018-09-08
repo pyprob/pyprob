@@ -5,6 +5,7 @@ from termcolor import colored
 import inspect
 import sys
 import enum
+import time
 
 _device = torch.device('cpu')
 _dtype = torch.float
@@ -28,6 +29,21 @@ class InferenceEngine(enum.Enum):
     IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK = 1  # Type: IS; Importance sampling with proposals from inference network
     LIGHTWEIGHT_METROPOLIS_HASTINGS = 2  # Type: MCMC; Lightweight (single-site) Metropolis Hastings sampling, http://proceedings.mlr.press/v15/wingate11a/wingate11a.pdf and https://arxiv.org/abs/1507.00996
     RANDOM_WALK_METROPOLIS_HASTINGS = 3  # Type: MCMC; Lightweight Metropolis Hastings with single-site proposal kernels that depend on the value of the site
+
+
+def set_random_seed(seed=123):
+    if seed is None:
+        seed = int((time.time()*1e6) % 1e8)
+    global _random_seed
+    _random_seed = seed
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+
+
+set_random_seed()
 
 
 def set_verbosity(v=2):

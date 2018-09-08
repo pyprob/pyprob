@@ -1,5 +1,4 @@
 import unittest
-from functools import reduce
 
 import pyprob
 from pyprob import util
