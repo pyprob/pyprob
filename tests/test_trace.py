@@ -21,10 +21,10 @@ class TraceTestCase(unittest.TestCase):
                 ret = pyprob.sample(uniform, control=False)
                 ret = pyprob.sample(uniform, control=False)
                 ret = pyprob.sample(uniform, control=False)
-                pyprob.observe(uniform, 0.5)
-                pyprob.observe(uniform, 0.5)
-                pyprob.observe(uniform, 0.5)
-                pyprob.observe(uniform, 0.5)
+                pyprob.observe(0.5, uniform)
+                pyprob.observe(0.5, uniform)
+                pyprob.observe(0.5, uniform)
+                pyprob.observe(0.5, uniform)
                 return ret
 
         self._model = TestModel()
@@ -35,10 +35,10 @@ class TraceTestCase(unittest.TestCase):
         uncontrolled_correct = 3
         observed_correct = 4
 
-        trace = self._model._traces(1)[0]
-        controlled = len(trace.samples)
-        uncontrolled = len(trace.samples_uncontrolled)
-        observed = len(trace.samples_observed)
+        trace = self._model._traces(1)[0][0]
+        controlled = len(trace.variables_controlled)
+        uncontrolled = len(trace.variables_uncontrolled)
+        observed = len(trace.variables_observed)
 
         util.debug('controlled', 'controlled_correct', 'uncontrolled', 'uncontrolled_correct', 'observed', 'observed_correct')
 
@@ -46,20 +46,20 @@ class TraceTestCase(unittest.TestCase):
         self.assertEqual(uncontrolled, uncontrolled_correct)
         self.assertEqual(observed, observed_correct)
 
-    def test_trace_save_trace_cache_train(self):
-        cache_files = 4
-        cache_traces_per_file = 128
-        training_traces = 128
-        path_name = tempfile.mkdtemp()
-
-        self._model.use_trace_cache(path_name)
-        self._model.save_trace_cache(path_name, files=cache_files, traces_per_file=cache_traces_per_file, observation=[0, 0])
-        self._model.learn_inference_network(observation=[0, 0], num_traces=training_traces, use_trace_cache=True, batch_size=64, valid_size=256)
-        shutil.rmtree(path_name)
-
-        util.debug('path_name', 'cache_files', 'cache_traces_per_file', 'training_traces')
-
-        self.assertTrue(True)
+    # def test_trace_save_trace_cache_train(self):
+    #     cache_files = 4
+    #     cache_traces_per_file = 128
+    #     training_traces = 128
+    #     path_name = tempfile.mkdtemp()
+    #
+    #     self._model.use_trace_cache(path_name)
+    #     self._model.save_trace_cache(path_name, files=cache_files, traces_per_file=cache_traces_per_file, observation=[0, 0])
+    #     self._model.learn_inference_network(observation=[0, 0], num_traces=training_traces, use_trace_cache=True, batch_size=64, valid_size=256)
+    #     shutil.rmtree(path_name)
+    #
+    #     util.debug('path_name', 'cache_files', 'cache_traces_per_file', 'training_traces')
+    #
+    #     self.assertTrue(True)
 
 
 if __name__ == '__main__':
