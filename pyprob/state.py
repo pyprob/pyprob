@@ -15,6 +15,7 @@ _current_trace_root_function_name = None
 _current_trace_inference_network = None
 _current_trace_previous_sample = None
 _current_trace_replaced_variable_proposal_distributions = {}
+_current_trace_observed_variables = None
 
 
 def extract_address(root_function_name):
@@ -82,7 +83,29 @@ def _sample_with_prior_inflation(distribution):
     return distribution.sample()
 
 
-def sample(distribution, control=True, replace=False, observable_name=None, address=None):
+def observe(value, distribution=None, name=None, address=None):
+    if _trace_mode != TraceMode.NONE:
+        global _current_trace
+        if address is None:
+            address_base = extract_address(_current_trace_root_function_name)
+        else:
+            address_base = address
+        instance = _current_trace.last_instance(address_base) + 1
+        address = '{}_{}_{}'.format(address_base, distribution._address_suffix, instance)
+
+        if distribution is None:
+            log_prob = 0
+        else:
+            log_prob = distribution.log_prob(value)
+        if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+            _current_trace.log_importance_weight += log_prob.item()
+
+        current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True)
+        _current_trace.add(current_sample)
+    return
+
+
+def sample(distribution, control=True, replace=False, name=None, address=None):
     if _trace_mode == TraceMode.NONE:
         return _sample_with_prior_inflation(distribution)  # Forward sample
     else:  # _trace_mode == TraceMode.PRIOR or _trace_mode == TraceMode.POSTERIOR
@@ -109,9 +132,21 @@ def sample(distribution, control=True, replace=False, observable_name=None, addr
             value = _sample_with_prior_inflation(distribution)
             log_prob = distribution.log_prob(value)
         else:  # _trace_mode == TraceMode.POSTERIOR
-            raise NotImplementedError()
+            if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
+                if name in _current_trace_observed_variables:
+                    # Variable is observed
+                    value = _current_trace_observed_variables[name]
+                    log_prob = distribution.log_prob(value)
+                    _current_trace.log_importance_weight += log_prob.item()
+                else:
+                    # Variable is sampled
+                    value = distribution.sample()
+                    log_prob = distribution.log_prob(value)
+                    # _current_trace.log_importance_weight += 0  # Not computed because log_importance_weight is zero when running importance sampling with prior as proposal
+            else:
+                raise NotImplementedError()
 
-        current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, control=control, replace=replace, observable_name=observable_name, reused=reused)
+        current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, control=control, replace=replace, name=name, reused=reused)
         _current_trace.add(current_sample)
 
         if update_previous_sample:
@@ -120,7 +155,7 @@ def sample(distribution, control=True, replace=False, observable_name=None, addr
         return current_sample.value
 
 
-def begin_trace(func, trace_mode=TraceMode.NONE, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, metropolis_hastings_trace=None):
+def begin_trace(func, trace_mode=TraceMode.NONE, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None):
     global _trace_mode
     global _inference_engine
     global _prior_inflation
@@ -132,10 +167,15 @@ def begin_trace(func, trace_mode=TraceMode.NONE, prior_inflation=PriorInflation.
         global _current_trace_root_function_name
         global _current_trace_inference_network
         global _current_trace_replaced_variable_proposal_distributions
+        global _current_trace_observed_variables
         _current_trace = Trace()
         _current_trace_root_function_name = func.__code__.co_name
         _current_trace_inference_network = inference_network
         _current_trace_replaced_variable_proposal_distributions = {}
+        if observe is None:
+            _current_trace_observed_variables = {}
+        else:
+            _current_trace_observed_variables = observe
         if (_inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (inference_network is None):
             raise ValueError('Cannot run trace with IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK without an inference network.')
 

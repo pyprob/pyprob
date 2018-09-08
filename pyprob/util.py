@@ -8,7 +8,7 @@ import enum
 
 _device = torch.device('cpu')
 _dtype = torch.float
-_verbosity = 3
+_verbosity = 2
 _print_refresh_rate = 0.2  # seconds
 
 

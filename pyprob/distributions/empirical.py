@@ -55,6 +55,9 @@ class Empirical(Distribution):
     def __repr__(self):
         return 'Empirical(name:{}, length:{})'.format(self.name, self.length)
 
+    def __getitem__(self, index):
+        return self.values[index]
+
     def sample(self):
         if self.length == 0:
             raise RuntimeError('Empirical distribution instance is empty.')

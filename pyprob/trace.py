@@ -2,7 +2,7 @@ import torch
 
 
 class Variable():
-    def __init__(self, distribution=None, value=None, address_base=None, address=None, instance=None, log_prob=None, control=None, replace=None, observable_name=None, observed=False, reused=False):
+    def __init__(self, distribution=None, value=None, address_base=None, address=None, instance=None, log_prob=None, control=None, replace=None, name=None, observed=False, reused=False):
         self.distribution = distribution
         self.value = value
         self.address_base = address_base
@@ -11,20 +11,22 @@ class Variable():
         self.log_prob = log_prob
         self.control = control
         self.replace = replace
-        self.observable_name = observable_name
-        self.observable = observable_name is not None
+        self.name = name
+        self.observable = name is not None
         self.observed = observed
         self.reused = reused
 
     def __repr__(self):
-        return 'Variable(control:{}, replace:{}, observable_name:{}, observed:{}, address:{}, distribution:{}, value:{})'.format(
+        return 'Variable(name:{}, control:{}, replace:{}, observable:{}, observed:{}, address:{}, distribution:{}, value:{}: log_prob:{})'.format(
+            self.name,
             self.control,
             self.replace,
-            self.observable_name,
+            self.observable,
             self.observed,
             self.address,
             str(self.distribution),
-            str(self.value))
+            str(self.value),
+            str(self.log_prob))
 
 
 class Trace():
@@ -37,6 +39,7 @@ class Trace():
         self.variables_observable = []
         self.variables_dict_address = {}
         self.variables_dict_address_base = {}
+        self.named_variables = {}
         self.result = None
         self.log_prob = 0.
         self.log_prob_observed = 0.
@@ -65,6 +68,8 @@ class Trace():
         replaced_indices = []
         for i in range(len(self.variables)):
             variable = self.variables[i]
+            if variable.name is not None:
+                self.named_variables[variable.name] = variable
             if variable.control and i not in replaced_indices:
                 if variable.replace:
                     for j in range(i + 1, len(self.variables)):
