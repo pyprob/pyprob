@@ -1,8 +1,9 @@
 import torch
 import sys
 import opcode
+import random
 
-from .distributions import Normal, Categorical
+from .distributions import Normal, Categorical, Uniform, TruncatedNormal
 from .trace import Variable, Trace
 from . import util, TraceMode, PriorInflation, InferenceEngine
 
@@ -16,6 +17,9 @@ _current_trace_inference_network = None
 _current_trace_previous_sample = None
 _current_trace_replaced_variable_proposal_distributions = {}
 _current_trace_observed_variables = None
+_metropolis_hastings_trace = None
+_metropolis_hastings_site_address = None
+_metropolis_hastings_site_transition_log_prob = 0
 
 
 def extract_address(root_function_name):
@@ -93,6 +97,10 @@ def observe(value, distribution=None, name=None, address=None):
         instance = _current_trace.last_instance(address_base) + 1
         address = '{}_{}_{}'.format(address_base, distribution._address_suffix, instance)
 
+        if name in _current_trace_observed_variables:
+            # Override observed value
+            value = _current_trace_observed_variables[name]
+
         if distribution is None:
             log_prob = 0
         else:
@@ -143,8 +151,58 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                     value = distribution.sample()
                     log_prob = distribution.log_prob(value)
                     # _current_trace.log_importance_weight += 0  # Not computed because log_importance_weight is zero when running importance sampling with prior as proposal
-            else:
+            elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
                 raise NotImplementedError()
+            else:  # _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
+                if _metropolis_hastings_trace is None:
+                    value = distribution.sample()
+                    log_prob = distribution.log_prob(value)
+                else:
+                    if address == _metropolis_hastings_site_address:
+                        global _metropolis_hastings_site_transition_log_prob
+                        _metropolis_hastings_site_transition_log_prob = util.to_tensor(0.)
+                        if _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
+                            if isinstance(distribution, Normal):
+                                proposal_kernel_func = lambda x: Normal(x, 1)
+                            elif isinstance(distribution, Uniform):
+                                proposal_kernel_func = lambda x: TruncatedNormal(x, 0.1, low=distribution.low, high=distribution.high)
+                            else:
+                                proposal_kernel_func = None
+
+                            if proposal_kernel_func is not None:
+                                _metropolis_hastings_site_value = _metropolis_hastings_trace.variables_dict_address[address].value
+                                _metropolis_hastings_site_log_prob = _metropolis_hastings_trace.variables_dict_address[address].log_prob
+                                proposal_kernel_forward = proposal_kernel_func(_metropolis_hastings_site_value)
+                                alpha = 0.5
+                                if random.random() < alpha:
+                                    value = proposal_kernel_forward.sample()
+                                else:
+                                    value = distribution.sample()
+                                log_prob = distribution.log_prob(value)
+                                proposal_kernel_reverse = proposal_kernel_func(value)
+
+                                _metropolis_hastings_site_transition_log_prob = torch.log(alpha * torch.exp(proposal_kernel_reverse.log_prob(_metropolis_hastings_site_value)) + (1 - alpha) * torch.exp(_metropolis_hastings_site_log_prob)) + log_prob
+                                _metropolis_hastings_site_transition_log_prob -= torch.log(alpha * torch.exp(proposal_kernel_forward.log_prob(value)) + (1 - alpha) * torch.exp(log_prob)) + _metropolis_hastings_site_log_prob
+                            else:
+                                value = distribution.sample()
+                                log_prob = distribution.log_prob(value)
+                        else:
+                            value = distribution.sample()
+                            log_prob = distribution.log_prob(value)
+                        reused = False
+                    elif address not in _metropolis_hastings_trace.variables_dict_address:
+                        value = distribution.sample()
+                        log_prob = distribution.log_prob(value)
+                        reused = False
+                    else:
+                        value = _metropolis_hastings_trace.variables_dict_address[address].value
+                        reused = True
+                        try:  # Takes care of issues such as changed distribution parameters (e.g., batch size) that prevent a rescoring of a reused value under this distribution.
+                            log_prob = distribution.log_prob(value)
+                        except:
+                            value = distribution.sample()
+                            log_prob = distribution.log_prob(value)
+                            reused = False
 
         current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, control=control, replace=replace, name=name, reused=reused)
         _current_trace.add(current_sample)
@@ -178,6 +236,15 @@ def begin_trace(func, trace_mode=TraceMode.NONE, prior_inflation=PriorInflation.
             _current_trace_observed_variables = observe
         if (_inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (inference_network is None):
             raise ValueError('Cannot run trace with IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK without an inference network.')
+        if _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
+            global _metropolis_hastings_trace
+            global _metropolis_hastings_site_transition_log_prob
+            _metropolis_hastings_trace = metropolis_hastings_trace
+            _metropolis_hastings_site_transition_log_prob = None
+            if _metropolis_hastings_trace is not None:
+                global _metropolis_hastings_site_address
+                variable = random.choice(_metropolis_hastings_trace.variables_controlled)
+                _metropolis_hastings_site_address = variable.address
 
 
 def end_trace(result):
