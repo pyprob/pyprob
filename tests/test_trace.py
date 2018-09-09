@@ -21,10 +21,10 @@ class TraceTestCase(unittest.TestCase):
                 ret = pyprob.sample(uniform, control=False)
                 ret = pyprob.sample(uniform, control=False)
                 ret = pyprob.sample(uniform, control=False)
-                pyprob.observe(0.5, uniform)
-                pyprob.observe(0.5, uniform)
-                pyprob.observe(0.5, uniform)
-                pyprob.observe(0.5, uniform)
+                pyprob.observe(uniform, 0.5)
+                pyprob.observe(uniform, 0.5)
+                pyprob.observe(uniform, 0.5)
+                pyprob.observe(uniform, 0.5)
                 return ret
 
         self._model = TestModel()

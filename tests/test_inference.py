@@ -84,12 +84,13 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
                 mu = pyprob.sample(Normal(self.prior_mean, self.prior_stddev))
                 likelihood = Normal(mu, self.likelihood_stddev)
                 # Alternative #1
-                observation = pyprob.observe(name='obs')
+                observation = pyprob.observe(value=[], name='obs')
                 for o in observation:
                     pyprob.observe(likelihood, o)
                 # Alternative #2
                 # pyprob.observe(likelihood, name='obs1')
                 # pyprob.observe(likelihood, name='obs2')
+                # ...
                 return mu
 
         self._model = GaussianWithUnknownMean()
@@ -274,7 +275,7 @@ if __name__ == '__main__':
     pyprob.set_verbosity(2)
     tests = []
     tests.append('GaussianWithUnknownMeanTestCase')
-    # tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
+    tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
     # tests.append('HiddenMarkovModelTestCase')
     # tests.append('BranchingTestCase')
 
