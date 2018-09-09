@@ -83,8 +83,13 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
             def forward(self):
                 mu = pyprob.sample(Normal(self.prior_mean, self.prior_stddev))
                 likelihood = Normal(mu, self.likelihood_stddev)
-                pyprob.observe(likelihood, name='obs1')
-                pyprob.observe(likelihood, name='obs2')
+                # Alternative #1
+                observation = pyprob.observe(name='obs')
+                for o in observation:
+                    pyprob.observe(likelihood, o)
+                # Alternative #2
+                # pyprob.observe(likelihood, name='obs1')
+                # pyprob.observe(likelihood, name='obs2')
                 return mu
 
         self._model = GaussianWithUnknownMean()
@@ -99,7 +104,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         prior_stddev_correct = math.sqrt(5)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs1': 8, 'obs2': 9})
+        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs': [8, 9]})
         add_importance_sampling_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -125,7 +130,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs1': 8, 'obs2': 9})[burn_in:]
+        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs': [8, 9]})[burn_in:]
         add_lightweight_metropolis_hastings_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -147,7 +152,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs1': 8, 'obs2': 9})[burn_in:]
+        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs': [8, 9]})[burn_in:]
         add_random_walk_metropolis_hastings_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -176,8 +181,8 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
                 uniform = Uniform(-1, 1)
                 s = 1
                 while float(s) >= 1:
-                    x = pyprob.sample(uniform, replace=True)[0]
-                    y = pyprob.sample(uniform, replace=True)[0]
+                    x = pyprob.sample(uniform, replace=True)
+                    y = pyprob.sample(uniform, replace=True)
                     s = x*x + y*y
                 return mean + stddev * (x * torch.sqrt(-2 * torch.log(s) / s))
 
@@ -191,7 +196,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self._model = GaussianWithUnknownMeanMarsaglia()
         super().__init__(*args, **kwargs)
 
-    def test_inference_gum_posterior_importance_sampling(self):
+    def test_inference_gum_marsaglia_posterior_importance_sampling(self):
         samples = importance_sampling_samples
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
@@ -218,7 +223,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_inference_gum_posterior_lightweight_metropolis_hastings(self):
+    def test_inference_gum_marsaglia_posterior_lightweight_metropolis_hastings(self):
         samples = lightweight_metropolis_hastings_samples
         burn_in = lightweight_metropolis_hastings_burn_in
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
@@ -240,7 +245,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_inference_gum_posterior_random_walk_metropolis_hastings(self):
+    def test_inference_gum_marsaglia_posterior_random_walk_metropolis_hastings(self):
         samples = random_walk_metropolis_hastings_samples
         burn_in = random_walk_metropolis_hastings_burn_in
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
@@ -269,7 +274,7 @@ if __name__ == '__main__':
     pyprob.set_verbosity(2)
     tests = []
     tests.append('GaussianWithUnknownMeanTestCase')
-    tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
+    # tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
     # tests.append('HiddenMarkovModelTestCase')
     # tests.append('BranchingTestCase')
 
