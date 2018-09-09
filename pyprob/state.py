@@ -109,7 +109,7 @@ def observe(distribution=None, value=None, name=None, address=None):
         if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             _current_trace.log_importance_weight += log_prob
 
-        current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True)
+        current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True, name=name)
         _current_trace.add(current_sample)
     return value
 

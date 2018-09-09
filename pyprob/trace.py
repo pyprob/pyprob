@@ -4,7 +4,7 @@ from pyprob import util
 
 
 class Variable():
-    def __init__(self, distribution=None, value=None, address_base=None, address=None, instance=None, log_prob=None, control=None, replace=None, name=None, observed=False, reused=False):
+    def __init__(self, distribution=None, value=None, address_base=None, address=None, instance=None, log_prob=None, control=False, replace=False, name=None, observed=False, reused=False):
         self.distribution = distribution
         self.value = value
         self.address_base = address_base
