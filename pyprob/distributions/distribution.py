@@ -71,6 +71,12 @@ class Distribution():
     def expectation(self, func):
         raise NotImplementedError()
 
+    @staticmethod
+    def kl_divergence(distribution_1, distribution_2):
+        if distribution_1._torch_dist is None or distribution_2._torch_dist is None:
+            raise ValueError('KL divergence is not currently supported for this pair of distributions.')
+        return torch.distributions.kl.kl_divergence(distribution_1._torch_dist, distribution_2._torch_dist)
+
     def save(self, file_name):
         data = {}
         data['distribution'] = self

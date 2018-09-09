@@ -87,7 +87,7 @@ def _sample_with_prior_inflation(distribution):
     return distribution.sample()
 
 
-def observe(value, distribution=None, name=None, address=None):
+def observe(distribution=None, value=None, name=None, address=None):
     if _trace_mode != TraceMode.NONE:
         global _current_trace
         if address is None:
@@ -95,13 +95,14 @@ def observe(value, distribution=None, name=None, address=None):
         else:
             address_base = address
         instance = _current_trace.last_instance(address_base) + 1
-        address = '{}_{}_{}'.format(address_base, distribution._address_suffix, instance)
+        address_suffix = 'None' if distribution is None else distribution._address_suffix
+        address = '{}_{}_{}'.format(address_base, address_suffix, instance)
 
         if name in _current_trace_observed_variables:
             # Override observed value
             value = _current_trace_observed_variables[name]
 
-        if distribution is None:
+        if distribution is None or value is None:
             log_prob = 0
         else:
             log_prob = distribution.log_prob(value)
