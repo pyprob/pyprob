@@ -103,7 +103,7 @@ def observe(distribution=None, value=None, name=None, address=None):
             value = _current_trace_observed_variables[name]
 
         if distribution is None or value is None:
-            log_prob = 0
+            log_prob = 0.
         else:
             log_prob = distribution.log_prob(value)
         if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:

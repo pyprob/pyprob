@@ -1,5 +1,7 @@
 import torch
 
+from pyprob import util
+
 
 class Variable():
     def __init__(self, distribution=None, value=None, address_base=None, address=None, instance=None, log_prob=None, control=None, replace=None, name=None, observed=False, reused=False):
@@ -8,7 +10,7 @@ class Variable():
         self.address_base = address_base
         self.address = address
         self.instance = instance
-        self.log_prob = log_prob
+        self.log_prob = util.to_tensor(log_prob)
         self.control = control
         self.replace = replace
         self.name = name
