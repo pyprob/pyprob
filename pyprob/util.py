@@ -109,3 +109,8 @@ def has_nan_or_inf(value):
     else:
         value = float(value)
         return (value == float('inf')) or (value == float('-inf')) or (value == float('NaN'))
+
+
+def rgb_to_hex(rgb):
+    # rgb is a triple of (r, g, b) where r, g, b are between 0 and 1.
+    return "#{:02x}{:02x}{:02x}".format(int(max(0, min(rgb[0], 1))*255), int(max(0, min(rgb[1], 1))*255), int(max(0, min(rgb[2], 1))*255))
