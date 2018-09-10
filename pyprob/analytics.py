@@ -9,15 +9,15 @@ class Analytics():
     def __init__(self, model):
         self._model = model
 
-    def prior_statistics(self, num_traces=1000, prior_inflation=PriorInflation.DISABLED, controlled_only=False, file_name=None, *args, **kwargs):
+    def prior_statistics(self, num_traces=1000, prior_inflation=PriorInflation.DISABLED, controlled_only=False, bins=100, log_xscale=False, log_yscale=False, file_name=None, *args, **kwargs):
         trace_dist = self._model.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, *args, **kwargs)
-        return self._collect_statistics(trace_dist, controlled_only, file_name)
+        return self._collect_statistics(trace_dist, controlled_only, file_name, bins, log_xscale, log_yscale)
 
-    def posterior_statistics(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe=None, controlled_only=False, file_name=None, *args, **kwargs):
+    def posterior_statistics(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe=None, controlled_only=False, bins=100, log_xscale=False, log_yscale=False, file_name=None, *args, **kwargs):
         trace_dist = self._model.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, observe=observe, *args, **kwargs)
-        return self._collect_statistics(trace_dist, controlled_only, file_name)
+        return self._collect_statistics(trace_dist, controlled_only, file_name, bins, log_xscale, log_yscale)
 
-    def _collect_statistics(self, trace_dist, controlled_only, file_name):
+    def _collect_statistics(self, trace_dist, controlled_only, file_name, bins, log_xscale, log_yscale):
         if controlled_only:
             trace_length_dist = trace_dist.map(lambda trace: len(trace.variables_controlled))
         else:
@@ -55,6 +55,13 @@ class Analytics():
         stats['addresses_observable'] = len([1 for variable in list(address_stats.values()) if variable[2].observable])
         stats['addresses_observed'] = len([1 for variable in list(address_stats.values()) if variable[2].observed])
 
+        address_ids = [i for i in range(len(address_stats))]
+        address_weights = []
+        for key, value in address_stats.items():
+            address_weights.append(value[0])
+        address_id_dist = Empirical(address_ids, weights=address_weights, name='Address ID')
+
+        trace_ids = [i for i in range(len(trace_stats))]
         trace_lengths = []
         trace_lengths_controlled = []
         trace_execution_times = []
@@ -64,9 +71,11 @@ class Analytics():
             trace_lengths_controlled.append(len(value[2].variables_controlled))
             trace_execution_times.append(value[2].execution_time_sec)
             trace_weights.append(value[0])
-        trace_length_dist = Empirical(trace_lengths, weights=trace_weights)
-        trace_length_controlled_dist = Empirical(trace_lengths_controlled, weights=trace_weights)
-        trace_execution_time_dist = Empirical(trace_execution_times, weights=trace_weights)
+        trace_id_dist = Empirical(trace_ids, weights=trace_ids, name='Unique trace ID')
+        # trace_id_dist.values = range(len(trace_stats))
+        trace_length_dist = Empirical(trace_lengths, weights=trace_weights, name='Trace length (all)')
+        trace_length_controlled_dist = Empirical(trace_lengths_controlled, weights=trace_weights, name='Trace length (controlled)')
+        trace_execution_time_dist = Empirical(trace_execution_times, weights=trace_weights, name='Trace execution time (s)')
 
         stats['traces'] = len(trace_stats)
         stats['trace_length_min'] = float(trace_length_dist.min)
@@ -104,4 +113,25 @@ class Analytics():
                 file.write('trace_id, frequency, length, length_controlled, address_id_sequence\n')
                 for key, value in trace_stats.items():
                     file.write('{}, {}, {}, {}, {}\n'.format(value[1], value[0], len(value[2].variables), len(value[2].variables_controlled), ' '.join(value[3])))
+
+            file_name_address_id_dist = file_name + '_address_ids.pdf'
+            print('Saving trace type distribution to {} ...'.format(file_name_address_id_dist))
+            address_id_dist.plot_histogram(bins=range(len(address_stats)), xticks=range(len(address_stats)), log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_address_id_dist)
+
+            file_name_trace_id_dist = file_name + '_trace_ids.pdf'
+            print('Saving trace type distribution to {} ...'.format(file_name_trace_id_dist))
+            trace_id_dist.plot_histogram(bins=range(len(trace_stats)), xticks=range(len(trace_stats)), log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_id_dist)
+
+            file_name_trace_length_dist = file_name + '_trace_length_all.pdf'
+            print('Saving trace length (all) distribution to {} ...'.format(file_name_trace_length_dist))
+            trace_length_dist.plot_histogram(bins=bins, log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_length_dist)
+
+            file_name_trace_length_controlled_dist = file_name + '_trace_length_controlled.pdf'
+            print('Saving trace length (controlled) distribution to {} ...'.format(file_name_trace_length_controlled_dist))
+            trace_length_controlled_dist.plot_histogram(bins=bins, log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_length_controlled_dist)
+
+            file_name_trace_execution_time_dist = file_name + '_trace_execution_time.pdf'
+            print('Saving trace execution time distribution to {} ...'.format(file_name_trace_execution_time_dist))
+            trace_execution_time_dist.plot_histogram(bins=bins, log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_execution_time_dist)
+
         return stats

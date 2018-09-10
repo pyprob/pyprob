@@ -4,6 +4,8 @@ import math
 import random
 import copy
 from termcolor import colored
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 from . import Distribution
 from .. import util
@@ -209,3 +211,29 @@ class Empirical(Distribution):
 
     def weights_numpy(self):
         return self._weights_numpy
+
+    def plot_histogram(self, figsize=(10, 5), xlabel=None, ylabel='Frequency', xticks=None, yticks=None, log_xscale=False, log_yscale=False, file_name=None, show=True, density=1, *args, **kwargs):
+        if not show:
+            mpl.rcParams['axes.unicode_minus'] = False
+            plt.switch_backend('agg')
+        fig = plt.figure(figsize=figsize)
+        values = self.values_numpy()
+        weights = self.weights_numpy()
+        plt.hist(values, weights=weights, density=density, *args, **kwargs)
+        if log_xscale:
+            plt.xscale('log')
+        if log_yscale:
+            plt.yscale('log', nonposy='clip')
+        if xticks is not None:
+            plt.xticks(xticks)
+        if yticks is not None:
+            plt.xticks(yticks)
+        if xlabel is None:
+            xlabel = self.name
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        fig.tight_layout()
+        if file_name is not None:
+            plt.savefig(file_name)
+        if show:
+            plt.show()

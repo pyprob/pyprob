@@ -10,7 +10,7 @@ import time
 _device = torch.device('cpu')
 _dtype = torch.float
 _verbosity = 2
-_print_refresh_rate = 0.2  # seconds
+_print_refresh_rate = 0.25  # seconds
 
 
 class TraceMode(enum.Enum):
