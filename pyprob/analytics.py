@@ -119,7 +119,6 @@ class Analytics():
 
         master_graph_nodes = {}
         master_graph_edges = {}
-        transition_count_total = 0
         for key, value in sorted_trace_stats.items():
             count = value[0]
             address_id_sequence = value[3]
@@ -133,7 +132,6 @@ class Analytics():
                     master_graph_edges[(left, right)] += count
                 else:
                     master_graph_edges[(left, right)] = count
-                transition_count_total += count
 
         master_graph = pydotplus.graphviz.Dot(graph_type='digraph', rankdir='LR')
         transition_count_max = 0
@@ -193,10 +191,6 @@ class Analytics():
 
             graph_nodes = {}
             graph_edges = {}
-            transition_count_total = 0
-            # for key, value in sorted_trace_stats.items():
-            #     count = value[0]
-            #     address_id_sequence = value[3]
             for address_id in address_id_sequence:
                 if address_id in graph_nodes:
                     graph_nodes[address_id] += count
@@ -207,26 +201,12 @@ class Analytics():
                     graph_edges[(left, right)] += count
                 else:
                     graph_edges[(left, right)] = count
-                transition_count_total += count
 
             graph = pydotplus.graphviz.graph_from_dot_data(master_graph.to_string())
             transition_count_max = 0
             for edge, count in graph_edges.items():
                 if count > transition_count_max:
                     transition_count_max = count
-                # nodes = graph.get_node(edge[0])
-                # if len(nodes) > 0:
-                #     n0 = nodes[0]
-                # else:
-                #     n0 = pydotplus.Node(edge[0])
-                #     graph.add_node(n0)
-                # nodes = graph.get_node(edge[1])
-                # if len(nodes) > 0:
-                #     n1 = nodes[0]
-                # else:
-                #     n1 = pydotplus.Node(edge[1])
-                #     graph.add_node(n1)
-                # graph.add_edge(pydotplus.Edge(n0, n1, weight=count))
 
             for node in graph.get_nodes():
                 # color = util.rgb_to_hex(util.rgb_blend((1, 1, 1), (1, 0, 0), address_id_to_count[node.obj_dict['name']] / address_id_count_total))
