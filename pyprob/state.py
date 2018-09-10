@@ -2,6 +2,7 @@ import torch
 import sys
 import opcode
 import random
+import time
 
 from .distributions import Normal, Categorical, Uniform, TruncatedNormal
 from .trace import Variable, Trace
@@ -17,6 +18,7 @@ _current_trace_inference_network = None
 _current_trace_previous_sample = None
 _current_trace_replaced_variable_proposal_distributions = {}
 _current_trace_observed_variables = None
+_current_trace_execution_start = None
 _metropolis_hastings_trace = None
 _metropolis_hastings_site_address = None
 _metropolis_hastings_site_transition_log_prob = 0
@@ -227,6 +229,8 @@ def begin_trace(func, trace_mode=TraceMode.NONE, prior_inflation=PriorInflation.
         global _current_trace_inference_network
         global _current_trace_replaced_variable_proposal_distributions
         global _current_trace_observed_variables
+        global _current_trace_execution_start
+        _current_trace_execution_start = time.time()
         _current_trace = Trace()
         _current_trace_root_function_name = func.__code__.co_name
         _current_trace_inference_network = inference_network
@@ -261,7 +265,8 @@ def end_trace(result):
         return None
     else:
         _trace_mode = TraceMode.NONE
-        _current_trace.end(result)
+        execution_time_sec = time.time() - _current_trace_execution_start
+        _current_trace.end(result, execution_time_sec)
         ret = _current_trace
         _current_trace = None
         _current_trace_root_function_name = None

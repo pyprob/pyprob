@@ -65,8 +65,9 @@ class Trace():
         self.variables_dict_address[variable.address] = variable
         self.variables_dict_address_base[variable.address_base] = variable
 
-    def end(self, result):
+    def end(self, result, execution_time_sec):
         self.result = result
+        self.execution_time_sec = execution_time_sec
         replaced_indices = []
         for i in range(len(self.variables)):
             variable = self.variables[i]

@@ -2,6 +2,7 @@ import torch
 from collections import OrderedDict
 
 from pyprob import __version__, PriorInflation, InferenceEngine
+from pyprob.distributions import Empirical
 
 
 class Analytics():
@@ -25,10 +26,6 @@ class Analytics():
         stats['pyprob_version'] = __version__
         stats['torch_version'] = torch.__version__
         stats['model_name'] = self._model.name
-        stats['trace_length_mean'] = float(trace_length_dist.mean)
-        stats['trace_length_stddev'] = float(trace_length_dist.stddev)
-        stats['trace_length_min'] = float(trace_length_dist.min)
-        stats['trace_length_max'] = float(trace_length_dist.max)
 
         print('Collecting address and trace statistics...')
         traces = trace_dist.values
@@ -52,12 +49,38 @@ class Analytics():
             else:
                 trace_stats[trace_str][0] += 1
 
-        stats['num_addresses'] = len(address_stats)
-        stats['num_addresses_controlled'] = len([1 for variable in list(address_stats.values()) if variable[2].control])
-        stats['num_addresses_replaced'] = len([1 for variable in list(address_stats.values()) if variable[2].replace])
-        stats['num_addresses_observable'] = len([1 for variable in list(address_stats.values()) if variable[2].observable])
-        stats['num_addresses_observed'] = len([1 for variable in list(address_stats.values()) if variable[2].observed])
-        stats['num_traces'] = len(trace_stats)
+        stats['addresses'] = len(address_stats)
+        stats['addresses_controlled'] = len([1 for variable in list(address_stats.values()) if variable[2].control])
+        stats['addresses_replaced'] = len([1 for variable in list(address_stats.values()) if variable[2].replace])
+        stats['addresses_observable'] = len([1 for variable in list(address_stats.values()) if variable[2].observable])
+        stats['addresses_observed'] = len([1 for variable in list(address_stats.values()) if variable[2].observed])
+
+        trace_lengths = []
+        trace_lengths_controlled = []
+        trace_execution_times = []
+        trace_weights = []
+        for key, value in trace_stats.items():
+            trace_lengths.append(len(value[2].variables))
+            trace_lengths_controlled.append(len(value[2].variables_controlled))
+            trace_execution_times.append(value[2].execution_time_sec)
+            trace_weights.append(value[0])
+        trace_length_dist = Empirical(trace_lengths, weights=trace_weights)
+        trace_length_controlled_dist = Empirical(trace_lengths_controlled, weights=trace_weights)
+        trace_execution_time_dist = Empirical(trace_execution_times, weights=trace_weights)
+
+        stats['traces'] = len(trace_stats)
+        stats['trace_length_min'] = float(trace_length_dist.min)
+        stats['trace_length_max'] = float(trace_length_dist.max)
+        stats['trace_length_mean'] = float(trace_length_dist.mean)
+        stats['trace_length_stddev'] = float(trace_length_dist.stddev)
+        stats['trace_length_controlled_min'] = float(trace_length_controlled_dist.min)
+        stats['trace_length_controlled_max'] = float(trace_length_controlled_dist.max)
+        stats['trace_length_controlled_mean'] = float(trace_length_controlled_dist.mean)
+        stats['trace_length_controlled_stddev'] = float(trace_length_controlled_dist.stddev)
+        stats['trace_execution_time_min'] = float(trace_execution_time_dist.min)
+        stats['trace_execution_time_max'] = float(trace_execution_time_dist.max)
+        stats['trace_execution_time_mean'] = float(trace_execution_time_dist.mean)
+        stats['trace_execution_time_stddev'] = float(trace_execution_time_dist.stddev)
 
         if file_name is not None:
             file_name_stats = file_name + '.txt'
