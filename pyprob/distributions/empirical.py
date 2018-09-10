@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import math
 import random
 import copy
@@ -39,8 +40,8 @@ class Empirical(Distribution):
                 log_weights = util.to_tensor([self.log_weights[int(i)] for i in indices]).view(-1)
                 self.values = [values[int(i)] for i in indices]
 
-            self.weights_numpy = self.weights.data.cpu().numpy()
-            self.weights_numpy_cumsum = (self.weights_numpy / self.weights_numpy.sum()).cumsum()
+            self._weights_numpy = self.weights.data.cpu().numpy()
+            self._weights_numpy_cumsum = (self._weights_numpy / self._weights_numpy.sum()).cumsum()
             self._mean = None
             self._variance = None
             self._mode = None
@@ -67,7 +68,7 @@ class Empirical(Distribution):
         if self._uniform_weights:
             return random.choice(self.values)
         else:
-            return util.fast_np_random_choice(self.values, self.weights_numpy_cumsum)
+            return util.fast_np_random_choice(self.values, self._weights_numpy_cumsum)
 
     def expectation(self, func):
         if self.length == 0:
@@ -196,3 +197,15 @@ class Empirical(Distribution):
             values += dist.values
             log_weights.append(dist.log_weights)
         return Empirical(values, torch.cat(log_weights))
+
+    def values_numpy(self):
+        try:  # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
+            return torch.stack(self.values).cpu().numpy()
+        except:
+            try:
+                return np.array(self.values)
+            except:
+                raise RuntimeError('Cannot convert values to numpy.')
+
+    def weights_numpy(self):
+        return self._weights_numpy

@@ -49,6 +49,27 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_min, dist_min_correct, places=1)
         self.assertAlmostEqual(dist_max, dist_max_correct, places=1)
 
+    def test_dist_empirical_numpy(self):
+        samples = 25
+        dist_means_correct = 10
+        dist_stddevs_correct = 0.01
+
+        dist = Normal(dist_means_correct, dist_stddevs_correct)
+        dist_empirical = Empirical([dist.sample() for i in range(samples)])
+        dist_empirical_values_numpy = dist_empirical.values_numpy()
+        dist_empirical_values_numpy_len = len(dist_empirical_values_numpy)
+        dist_empirical_values_numpy_mean = np.mean(dist_empirical_values_numpy)
+        dist_empirical_values_numpy_stddev = np.std(dist_empirical_values_numpy)
+        dist_empirical_weights_numpy = dist_empirical.weights_numpy()
+        dist_empirical_weights_numpy_len = len(dist_empirical_weights_numpy)
+
+        util.debug('samples', 'dist_empirical_values_numpy_len', 'dist_empirical_weights_numpy_len', 'dist_empirical_values_numpy_mean', 'dist_means_correct', 'dist_empirical_values_numpy_stddev', 'dist_stddevs_correct')
+
+        self.assertEqual(dist_empirical_values_numpy_len, samples)
+        self.assertEqual(dist_empirical_weights_numpy_len, samples)
+        self.assertAlmostEqual(dist_empirical_values_numpy_mean, dist_means_correct, places=1)
+        self.assertAlmostEqual(dist_empirical_values_numpy_stddev, dist_stddevs_correct, places=0)
+
     def test_dist_empirical_resample(self):
         dist_means_correct = [2]
         dist_stddevs_correct = [5]
