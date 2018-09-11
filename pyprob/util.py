@@ -51,8 +51,10 @@ def set_verbosity(v=2):
     _verbosity = v
 
 
-def to_tensor(value):
-    return torch.tensor(value).to(device=_device, dtype=_dtype)
+def to_tensor(value, dtype=None):
+    if dtype is None:
+        dtype = _dtype
+    return torch.tensor(value).to(device=_device, dtype=dtype)
 
 
 def to_numpy(value):

@@ -23,26 +23,26 @@ class Empirical(Distribution):
             super().__init__(name + ' (Empty)')
         else:
             if log_weights is not None:
-                self.log_weights = util.to_tensor(log_weights).view(-1)
+                self.log_weights = util.to_tensor(log_weights, dtype=torch.float64).view(-1)
                 self.weights = torch.exp(self.log_weights - torch.logsumexp(self.log_weights, dim=0))
                 self._uniform_weights = torch.eq(self.weights, self.weights[0]).all()
             elif weights is not None:
-                self.weights = util.to_tensor(weights).view(-1)
+                self.weights = util.to_tensor(weights, dtype=torch.float64).view(-1)
                 self.weights = self.weights / self.weights.sum()
                 self._uniform_weights = torch.eq(self.weights, self.weights[0]).all()
                 self.log_weights = torch.log(self.weights)
             else:
                 # assume uniform distribution if no log_weights or weights are given
-                self.weights = util.to_tensor(torch.zeros(self.length)).fill_(1./self.length)
+                self.weights = util.to_tensor(torch.zeros(self.length), dtype=torch.float64).fill_(1./self.length)
                 self.log_weights = torch.zeros(self.length).fill_(-math.log(self.length))
                 self._uniform_weights = True
 
             if sorted_by_weights and not self._uniform_weights:
                 self.weights, indices = torch.sort(self.weights, descending=True)
-                log_weights = util.to_tensor([self.log_weights[int(i)] for i in indices]).view(-1)
+                log_weights = util.to_tensor([self.log_weights[int(i)] for i in indices], dtype=torch.float64).view(-1)
                 self.values = [values[int(i)] for i in indices]
 
-            self._weights_numpy = self.weights.data.cpu().numpy()
+            self._weights_numpy = self.weights.cpu().numpy()
             self._weights_numpy_cumsum = (self._weights_numpy / self._weights_numpy.sum()).cumsum()
             self._mean = None
             self._variance = None
@@ -64,6 +64,10 @@ class Empirical(Distribution):
         else:
             return self.values[index]
 
+    def __iter__(self):
+        for i in range(len(self.values)):
+            yield self.values[i], self.weights[i]
+
     def sample(self):
         if self.length == 0:
             raise RuntimeError('Empirical distribution instance is empty.')
@@ -80,8 +84,8 @@ class Empirical(Distribution):
         else:
             ret = 0.
             for i in range(self.length):
-                ret += func(self.values[i]) * self.weights[i]
-            return ret
+                ret += func(self.values[i]).to(dtype=torch.float64) * self.weights[i]
+            return util.to_tensor(ret)
 
     def map(self, func):
         if self.length == 0:
