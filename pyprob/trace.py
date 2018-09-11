@@ -1,6 +1,6 @@
 import torch
 
-from pyprob import util
+from . import util
 
 
 class Variable():
