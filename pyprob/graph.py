@@ -50,9 +50,17 @@ class Edge():
 
 
 class Graph():
-    def __init__(self, trace_dist, use_address_base=True, n_most_frequent=None):
+    def __init__(self, trace_dist, base_graph=None, use_address_base=True, n_most_frequent=None):
         self.nodes = []
         self.edges = []
+        if base_graph is None:
+            self.address_ids = {}
+            self.trace_ids = {}
+            self.use_address_base = use_address_base
+        else:
+            self.address_ids = base_graph.address_ids
+            self.trace_ids = base_graph.trace_ids
+            self.use_address_base = base_graph.use_address_base
 
         traces = trace_dist.values
         self.address_stats = OrderedDict()
@@ -61,7 +69,11 @@ class Graph():
             for variable in trace.variables:
                 address = variable.address_base if use_address_base else variable.address
                 if address not in self.address_stats:
-                    address_id = 'A' + str(len(self.address_stats) + 1)
+                    if address in self.address_ids:
+                        address_id = self.address_ids[address]
+                    else:
+                        address_id = 'A' + str(len(self.address_ids) + 1)
+                        self.address_ids[address] = address_id
                     self.address_stats[address] = [1, address_id, variable]
                     address_id_to_variable[address_id] = variable
                 else:
@@ -71,7 +83,11 @@ class Graph():
         for trace in traces:
             trace_str = ''.join([variable.address_base if use_address_base else variable.address for variable in trace.variables])
             if trace_str not in self.trace_stats:
-                trace_id = 'T' + str(len(self.trace_stats) + 1)
+                if trace_str in self.trace_ids:
+                    trace_id = self.trace_ids[trace_str]
+                else:
+                    trace_id = 'T' + str(len(self.trace_ids) + 1)
+                    self.trace_ids[trace_str] = trace_id
                 address_id_sequence = ['START'] + [self.address_stats[variable.address_base if use_address_base else variable.address][1] for variable in trace.variables] + ['END']
                 self.trace_stats[trace_str] = [1, trace_id, trace, address_id_sequence]
             else:
@@ -146,7 +162,7 @@ class Graph():
             node.weight /= node_weight_total
 
     def get_sub_graph(self, trace_type_index):
-        return Graph(Empirical([list(self.trace_stats.values())[trace_type_index][2]]))
+        return Graph(Empirical([list(self.trace_stats.values())[trace_type_index][2]]), base_graph=self, use_address_base=self.use_address_base)
 
     def render_to_graphviz(self, background_graph=None):
         if background_graph is None:
@@ -159,7 +175,7 @@ class Graph():
             for edge in graph.get_edges():
                 edge.set_color('#cccccc')
                 edge.set_fontcolor('#cccccc')
-                # edge.set_label('')
+                edge.set_label(' ')
 
         for edge in self.edges:
             node_0 = edge.node_0
@@ -194,15 +210,16 @@ class Graph():
             if len(edges) > 0:
                 graph_edge = edges[0]
             else:
-                graph_edge = pydotplus.Edge(graph_node_0, graph_node_1, weight=edge.weight)
+                graph_edge = pydotplus.Edge(graph_node_0, graph_node_1, weight=max(edge.weight, 1e-3))  # pydotplus fails with extremely small weights
                 graph.add_edge(graph_edge)
-            if background_graph is None:
-                graph_edge.set_label('\"{:,.3f}\"'.format(edge.weight))
-                color_factor = 0.75 * (math.exp(1. - edge.weight) - 1.) / (math.e - 1.)
-                graph_edge.set_color(util.rgb_to_hex((color_factor, color_factor, color_factor)))
-            else:
-                graph_edge.set_color('black')
-                graph_edge.set_fontcolor('black')
+            # if background_graph is None:
+            graph_edge.set_label('\"{:,.3f}\"'.format(edge.weight))
+            color_factor = 0.75 * (math.exp(1. - edge.weight) - 1.) / (math.e - 1.)
+            graph_edge.set_color(util.rgb_to_hex((color_factor, color_factor, color_factor)))
+            graph_edge.set_fontcolor('black')
+            # else:
+                # graph_edge.set_color('black')
+                # graph_edge.set_fontcolor('black')
 
         return graph.to_string()
 

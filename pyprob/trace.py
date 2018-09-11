@@ -14,7 +14,7 @@ class Variable():
         self.control = control
         self.replace = replace
         self.name = name
-        self.observable = name is not None
+        self.observable = (name is not None) or observed
         self.observed = observed
         self.reused = reused
 
