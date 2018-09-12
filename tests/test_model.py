@@ -4,8 +4,8 @@ import torch
 import os
 
 import pyprob
-from pyprob import util, Model, TraceMode, InferenceEngine, Analytics
-from pyprob.distributions import Normal, Uniform
+from pyprob import util, Model, TraceMode, InferenceEngine
+from pyprob.distributions import Normal, Uniform, Empirical
 
 
 importance_sampling_samples = 5000
@@ -60,12 +60,12 @@ class ModelTestCase(unittest.TestCase):
         trace_length_stddev_correct = 1.2081329822540283
         trace_length_min_correct = 2
 
-        analytics = Analytics(self._model)
-        stats = analytics.prior_statistics(num_traces, controlled_only=True)
-        trace_length_mean = stats['trace_length_mean']
-        trace_length_stddev = stats['trace_length_stddev']
-        trace_length_min = stats['trace_length_min']
-        trace_length_max = stats['trace_length_max']
+        trace_lengths = self._model.prior_traces(num_traces, map_func=lambda trace: trace.length_controlled)
+        trace_length_dist = Empirical(trace_lengths)
+        trace_length_mean = float(trace_length_dist.mean)
+        trace_length_stddev = float(trace_length_dist.stddev)
+        trace_length_min = float(trace_length_dist.min)
+        trace_length_max = (trace_length_dist.max)
 
         util.debug('num_traces', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max')
 
@@ -86,7 +86,7 @@ class ModelTestCase(unittest.TestCase):
     #
     #     self.assertTrue(True)
 
-    def test_model_lmh_posterior_with_initial_trace(self):
+    def test_model_lmh_posterior_with_stop_and_resume(self):
         num_traces = 256
 
         trace = next(self._model._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS))
@@ -134,12 +134,12 @@ class ModelWithReplacementTestCase(unittest.TestCase):
         trace_length_min_correct = 2
         trace_length_max_correct = 2
 
-        analytics = Analytics(self._model)
-        stats = analytics.prior_statistics(num_traces, controlled_only=True)
-        trace_length_mean = stats['trace_length_mean']
-        trace_length_stddev = stats['trace_length_stddev']
-        trace_length_min = stats['trace_length_min']
-        trace_length_max = stats['trace_length_max']
+        trace_lengths = self._model.prior_traces(num_traces, map_func=lambda trace: trace.length_controlled)
+        trace_length_dist = Empirical(trace_lengths)
+        trace_length_mean = float(trace_length_dist.mean)
+        trace_length_stddev = float(trace_length_dist.stddev)
+        trace_length_min = float(trace_length_dist.min)
+        trace_length_max = (trace_length_dist.max)
 
         util.debug('num_traces', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max', 'trace_length_max_correct')
 
