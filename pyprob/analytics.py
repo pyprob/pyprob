@@ -168,7 +168,7 @@ class Analytics():
                     print('Saving distribution to {} ...'.format(file_name_dist))
                     dist.plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
                     if report_sub_dir is not None:
-                        if report_sub_dir == 'IMPORTANCE_SAMPLING':
+                        if report_sub_dir == InferenceEngine.IMPORTANCE_SAMPLING.name or report_sub_dir == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK.name:
                             file_name_dist = os.path.join(report_distribution_root, '{}_{}_distribution.pdf'.format(address_id, 'proposal'))
                             print('Saving distribution to {} ...'.format(file_name_dist))
                             dist.unweighted().plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
