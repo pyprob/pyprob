@@ -1,0 +1,1 @@
+from .inference_network_feedforward import InferenceNetworkFeedForward

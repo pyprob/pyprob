@@ -31,6 +31,10 @@ class InferenceEngine(enum.Enum):
     RANDOM_WALK_METROPOLIS_HASTINGS = 3  # Type: MCMC; Lightweight Metropolis Hastings with single-site proposal kernels that depend on the value of the site
 
 
+class InferenceNetwork(enum.Enum):
+    FEEDFORWARD = 0
+
+
 def set_random_seed(seed=123):
     if seed is None:
         seed = int((time.time()*1e6) % 1e8)

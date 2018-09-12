@@ -7,7 +7,8 @@ import random
 from termcolor import colored
 
 from .distributions import Empirical
-from . import util, state, TraceMode, PriorInflation, InferenceEngine
+from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork
+from .nn import InferenceNetworkFeedForward
 
 
 class Model(nn.Module):
@@ -61,14 +62,14 @@ class Model(nn.Module):
         return self.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, map_func=map_func, *args, **kwargs)
 
     def posterior_traces(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=None, observe=None, *args, **kwargs):
-        if (inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (self._inference_network is None):
-            raise RuntimeError('Cannot run inference engine IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK because no inference network for this model is available. Use learn_inference_network or load_inference_network first.')
-
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
             traces, log_weights = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, map_func=map_func, observe=observe, *args, **kwargs)
-            name = 'Posterior, importance sampling (with proposal = prior), num_traces={:,}'.format(num_traces)
+            name = 'Posterior, importance sampling (prior as proposal, num_traces: {:,})'.format(num_traces)
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-            raise NotImplementedError()
+            if self._inference_network is None:
+                raise RuntimeError('Cannot run inference engine IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK because no inference network for this model is available. Use learn_inference_network or load_inference_network first.')
+            traces, log_weights = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=self._inference_network, map_func=map_func, observe=observe, *args, **kwargs)
+            name = 'Posterior, importance sampling with inference network (learned proposal, num_traces: {:,}, training_traces: {})'.format(num_traces, self._inference_network._total_train_traces)
         else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
             traces = []
             if initial_trace is None:
@@ -125,8 +126,17 @@ class Model(nn.Module):
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, *args, **kwargs):
         return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, *args, **kwargs)
 
-    def learn_inference_network(self):
-        raise NotImplementedError()
+    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED):
+        if self._inference_network is None:
+            print('Creating new inference network...')
+            if inference_network == InferenceNetwork.FEEDFORWARD:
+                self._inference_network = InferenceNetworkFeedForward(model=self, prior_inflation=prior_inflation)
+            else:
+                raise ValueError('Unknown inference_network: {}'.format(inference_network))
+        else:
+            print('Continuing to train existing inference network...')
+
+        self._inference_network.optimize(num_traces)
 
     def save_inference_network(self):
         raise NotImplementedError()

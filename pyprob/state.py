@@ -24,6 +24,7 @@ _metropolis_hastings_site_address = None
 _metropolis_hastings_site_transition_log_prob = 0
 
 
+# extract_address and _extract_target_of_assignment code by Tobias Kohn (kohnt@tobiaskohn.ch)
 def extract_address(root_function_name):
     # Retun an address in the format:
     # 'instruction pointer' / 'qualified function name'
