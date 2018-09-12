@@ -108,13 +108,13 @@ class Empirical(Distribution):
         if self.length == 0:
             return self
         filtered_values = []
-        filtered_log_weights = []
+        filtered_weights = []
         for i in range(len(self.values)):
             value = self.values[i]
             if func(value):
                 filtered_values.append(value)
-                filtered_log_weights.append(self.log_weights[i])
-        return Empirical(filtered_values, log_weights=filtered_log_weights)
+                filtered_weights.append(self.weights[i])
+        return Empirical(filtered_values, weights=filtered_weights)
 
     @property
     def min(self):
@@ -184,7 +184,7 @@ class Empirical(Distribution):
     def unweighted(self):
         if self.length == 0:
             raise RuntimeError('Empirical distribution instance is empty.')
-        return Empirical(self.values)
+        return Empirical(self.values, name=self.name)
 
     def resample(self, samples):
         if self.length == 0:

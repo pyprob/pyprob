@@ -93,13 +93,13 @@ class Model(nn.Module):
                         print('{} | {} | {} | {}/{} | {} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:,.2f}%'.format(100 * (traces_accepted / (i + 1))).rjust(7), '{:,.2f}%'.format(100 * samples_reused / max(1, samples_all)).rjust(7), traces_per_second), end='\r')
                         sys.stdout.flush()
                 candidate_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, metropolis_hastings_trace=current_trace, observe=observe, *args, **kwargs))
-                log_acceptance_ratio = math.log(current_trace.length) - math.log(candidate_trace.length) + candidate_trace.log_prob_observed - current_trace.log_prob_observed
+                log_acceptance_ratio = math.log(current_trace.length_controlled) - math.log(candidate_trace.length_controlled) + candidate_trace.log_prob_observed - current_trace.log_prob_observed
                 for variable in candidate_trace.variables_controlled:
                     if variable.reused:
                         log_acceptance_ratio += torch.sum(variable.log_prob)
                         log_acceptance_ratio -= torch.sum(current_trace.variables_dict_address[variable.address].log_prob)
                         samples_reused += 1
-                samples_all += candidate_trace.length
+                samples_all += candidate_trace.length_controlled
 
                 if state._metropolis_hastings_site_transition_log_prob is None:
                     print(colored('Warning: trace did not hit the Metropolis Hastings site, ensure that the model is deterministic except pyprob.sample calls', 'red', attrs=['bold']))

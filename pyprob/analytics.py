@@ -14,14 +14,14 @@ class Analytics():
     def prior_graph(self, num_traces=1000, prior_inflation=PriorInflation.DISABLED, use_address_base=True, bins=100, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, trace_dist=None, *args, **kwargs):
         if trace_dist is None:
             trace_dist = self._model.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, *args, **kwargs)
-        return self._collect_statistics(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, 'prior', bins, log_xscale, log_yscale)
+        return self._collect_statistics(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, None, 'prior', bins, log_xscale, log_yscale)
 
     def posterior_graph(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe=None, use_address_base=True, bins=100, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, trace_dist=None, *args, **kwargs):
         if trace_dist is None:
             trace_dist = self._model.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, observe=observe, *args, **kwargs)
-        return self._collect_statistics(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, 'posterior', bins, log_xscale, log_yscale)
+        return self._collect_statistics(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, inference_engine.name, 'posterior', bins, log_xscale, log_yscale)
 
-    def _collect_statistics(self, trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, report_name, bins, log_xscale, log_yscale):
+    def _collect_statistics(self, trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, report_sub_dir, report_name, bins, log_xscale, log_yscale):
         stats = OrderedDict()
         stats['pyprob_version'] = __version__
         stats['torch_version'] = torch.__version__
@@ -71,6 +71,8 @@ class Analytics():
 
         if report_dir is not None:
             report_root = os.path.join(report_dir, report_name)
+            if report_sub_dir is not None:
+                report_root = os.path.join(report_root, report_sub_dir)
             if not os.path.exists(report_root):
                 print('Directory does not exist, creating: {}'.format(report_root))
                 os.makedirs(report_root)
@@ -146,19 +148,32 @@ class Analytics():
             for key, value in address_stats.items():
                 address_id = value['address_id']
                 variable = value['variable']
-                if use_address_base:
-                    address_base = variable.address_base
-                    dist = trace_dist.filter(lambda trace: address_base in trace.variables_dict_address_base).map(lambda trace: util.to_tensor(trace.variables_dict_address_base[address_base].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
-                else:
-                    address = variable.address
-                    dist = trace_dist.filter(lambda trace: address in trace.variables_dict_address).map(lambda trace: util.to_tensor(trace.variables_dict_address[address].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
+                can_render = True
+                try:
+                    if use_address_base:
+                        address_base = variable.address_base
+                        dist = trace_dist.filter(lambda trace: address_base in trace.variables_dict_address_base).map(lambda trace: util.to_tensor(trace.variables_dict_address_base[address_base].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
+                    else:
+                        address = variable.address
+                        dist = trace_dist.filter(lambda trace: address in trace.variables_dict_address).map(lambda trace: util.to_tensor(trace.variables_dict_address[address].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
 
-                dist.rename(address_id + '' if variable.name is None else '{} (name: {})'.format(address_id, variable.name))
-                if dist.length == 0:
-                    print('Cannot render histogram for {} because it is not scalar valued Example value: {}'.format(address_id, variable.value))
-                else:
-                    file_name_dist = os.path.join(report_distribution_root, report_name + '_distribution_{}.pdf'.format(address_id))
+                    dist.rename(address_id + '' if variable.name is None else '{} (name: {})'.format(address_id, variable.name))
+                    if dist.length == 0:
+                        can_render = False
+                except:
+                    can_render = False
+
+                if can_render:
+                    file_name_dist = os.path.join(report_distribution_root, '{}_{}_distribution.pdf'.format(address_id, report_name))
                     print('Saving distribution to {} ...'.format(file_name_dist))
                     dist.plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
+                    if report_sub_dir is not None:
+                        if report_sub_dir == 'IMPORTANCE_SAMPLING':
+                            file_name_dist = os.path.join(report_distribution_root, '{}_{}_distribution.pdf'.format(address_id, 'proposal'))
+                            print('Saving distribution to {} ...'.format(file_name_dist))
+                            dist.unweighted().plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
+
+                else:
+                    print('Cannot render histogram for {} because it is not scalar valued. Example value: {}'.format(address_id, variable.value))
 
         return master_graph, stats

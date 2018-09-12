@@ -63,10 +63,8 @@ class Trace():
 
     def add(self, variable):
         self.variables.append(variable)
-        if variable.address not in self.variables_dict_address:
-            self.variables_dict_address[variable.address] = variable
-        if variable.address_base not in self.variables_dict_address_base:
-            self.variables_dict_address_base[variable.address_base] = variable
+        self.variables_dict_address[variable.address] = variable
+        self.variables_dict_address_base[variable.address_base] = variable
 
     def end(self, result, execution_time_sec):
         self.result = result
