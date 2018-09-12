@@ -145,7 +145,9 @@ class Analytics():
                 print('Directory does not exist, creating: {}'.format(report_distribution_root))
                 os.makedirs(report_distribution_root)
 
+            i = 0
             for key, value in address_stats.items():
+                i += 1
                 address_id = value['address_id']
                 variable = value['variable']
                 can_render = True
@@ -165,12 +167,12 @@ class Analytics():
 
                 if can_render:
                     file_name_dist = os.path.join(report_distribution_root, '{}_{}_distribution.pdf'.format(address_id, report_name))
-                    print('Saving distribution to {} ...'.format(file_name_dist))
+                    print('Saving distribution {} of {} to {} ...'.format(i, len(address_stats), file_name_dist))
                     dist.plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
                     if report_sub_dir is not None:
                         if report_sub_dir == InferenceEngine.IMPORTANCE_SAMPLING.name or report_sub_dir == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK.name:
                             file_name_dist = os.path.join(report_distribution_root, '{}_{}_distribution.pdf'.format(address_id, 'proposal'))
-                            print('Saving distribution to {} ...'.format(file_name_dist))
+                            print('Saving distribution {} of {} to {} ...'.format(i, len(address_stats), file_name_dist))
                             dist.unweighted().plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
 
                 else:
