@@ -48,6 +48,7 @@ class Trace():
         self.log_importance_weight = 0.
         self.length = 0
         self.length_controlled = 0
+        self.execution_time_sec = None
 
     def __repr__(self):
         return 'Trace(all:{:,}, controlled:{:,}, replaced:{:,}, observeable:{:,}, observed:{:,}, uncontrolled:{:,}, log_prob:{}, log_importance_weight:{})'.format(
@@ -62,8 +63,10 @@ class Trace():
 
     def add(self, variable):
         self.variables.append(variable)
-        self.variables_dict_address[variable.address] = variable
-        self.variables_dict_address_base[variable.address_base] = variable
+        if variable.address not in self.variables_dict_address:
+            self.variables_dict_address[variable.address] = variable
+        if variable.address_base not in self.variables_dict_address_base:
+            self.variables_dict_address_base[variable.address_base] = variable
 
     def end(self, result, execution_time_sec):
         self.result = result

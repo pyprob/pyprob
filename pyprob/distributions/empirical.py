@@ -68,6 +68,10 @@ class Empirical(Distribution):
         for i in range(len(self.values)):
             yield self.values[i], self.weights[i]
 
+    def rename(self, name):
+        self.name = name
+        return self
+
     def sample(self):
         if self.length == 0:
             raise RuntimeError('Empirical distribution instance is empty.')
@@ -84,12 +88,12 @@ class Empirical(Distribution):
         else:
             ret = 0.
             for i in range(self.length):
-                ret += func(self.values[i]).to(dtype=torch.float64) * self.weights[i]
+                ret += util.to_tensor(func(self.values[i]), dtype=torch.float64) * self.weights[i]
             return util.to_tensor(ret)
 
     def map(self, func):
         if self.length == 0:
-            raise RuntimeError('Empirical distribution instance is empty.')
+            return self
         ret = copy.copy(self)
         ret.values = list(map(func, self.values))
         ret._mean = None
@@ -102,7 +106,7 @@ class Empirical(Distribution):
 
     def filter(self, func):
         if self.length == 0:
-            raise RuntimeError('Empirical distribution instance is empty.')
+            return self
         filtered_values = []
         filtered_log_weights = []
         for i in range(len(self.values)):
