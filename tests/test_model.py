@@ -4,7 +4,7 @@ import torch
 import os
 
 import pyprob
-from pyprob import util, Model, TraceMode, InferenceEngine
+from pyprob import util, Model, InferenceEngine
 from pyprob.distributions import Normal, Uniform, Empirical
 
 

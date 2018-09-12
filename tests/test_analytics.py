@@ -44,7 +44,7 @@ class AnalyticsTestCase(unittest.TestCase):
         trace_length_min_correct = 3
 
         analytics = Analytics(self._model)
-        stats = analytics.prior_statistics(num_traces)
+        _, stats = analytics.prior_graph(num_traces)
         trace_length_mean = stats['trace_length_mean']
         trace_length_stddev = stats['trace_length_stddev']
         trace_length_min = stats['trace_length_min']
@@ -63,7 +63,7 @@ class AnalyticsTestCase(unittest.TestCase):
         trace_length_min_correct = 5
 
         analytics = Analytics(self._model)
-        stats = analytics.posterior_statistics(num_traces, observe={'obs': [8, 9]})
+        _, stats = analytics.posterior_graph(num_traces, observe={'obs': [8, 9]})
         trace_length_mean = stats['trace_length_mean']
         trace_length_stddev = stats['trace_length_stddev']
         trace_length_min = stats['trace_length_min']
