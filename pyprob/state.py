@@ -138,6 +138,7 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
         instance = _current_trace.last_instance(address_base) + 1
         address = '{}_{}_{}'.format(address_base, distribution._address_suffix, 'replaced' if replace else str(instance))
         reused = False
+        observed = False
         update_previous_sample = False
 
         if _trace_mode == TraceMode.PRIOR:
@@ -147,6 +148,8 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
             if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
                 if name in _current_trace_observed_variables:
                     # Variable is observed
+                    observed = True
+                    control = False
                     value = _current_trace_observed_variables[name]
                     log_prob = distribution.log_prob(value)
                     _current_trace.log_importance_weight += log_prob.item()
@@ -208,7 +211,7 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                             log_prob = distribution.log_prob(value)
                             reused = False
 
-        current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, control=control, replace=replace, name=name, reused=reused)
+        current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, control=control, replace=replace, name=name, observed=observed, reused=reused)
         _current_trace.add(current_sample)
 
         if update_previous_sample:

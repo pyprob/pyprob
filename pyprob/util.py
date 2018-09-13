@@ -6,6 +6,9 @@ import inspect
 import sys
 import enum
 import time
+from functools import reduce
+import operator
+
 
 _device = torch.device('cpu')
 _dtype = torch.float
@@ -33,6 +36,10 @@ class InferenceEngine(enum.Enum):
 
 class InferenceNetwork(enum.Enum):
     FEEDFORWARD = 0
+
+
+class ObserveEmbedding(enum.Enum):
+    FULLY_CONNECTED = 0
 
 
 def set_random_seed(seed=123):
@@ -120,3 +127,11 @@ def has_nan_or_inf(value):
 def rgb_to_hex(rgb):
     # rgb is a triple of (r, g, b) where r, g, b are between 0 and 1.
     return "#{:02x}{:02x}{:02x}".format(int(max(0, min(rgb[0], 1))*255), int(max(0, min(rgb[1], 1))*255), int(max(0, min(rgb[2], 1))*255))
+
+
+def prod(iterable):
+    return reduce(operator.mul, iterable, 1)
+
+
+def truncate_str(s, length=50):
+    return (s[:length] + '...') if len(s) > length else s
