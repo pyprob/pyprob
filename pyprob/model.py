@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 import time
 import sys
 import math
@@ -11,7 +10,7 @@ from . import util, state, TraceMode, PriorInflation, InferenceEngine, Inference
 from .nn import InferenceNetworkFeedForward
 
 
-class Model(nn.Module):
+class Model():
     def __init__(self, name='Unnamed pyprob model'):
         super().__init__()
         self.name = name
@@ -27,17 +26,17 @@ class Model(nn.Module):
             trace = state.end_trace(result)
             yield trace
 
-    def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=None, observe=None, *args, **kwargs):
+    def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=None, silent=False, observe=None, *args, **kwargs):
         generator = self._trace_generator(trace_mode=trace_mode, prior_inflation=prior_inflation, inference_engine=inference_engine, inference_network=inference_network, observe=observe, *args, **kwargs)
         traces = []
         log_weights = []
         time_start = time.time()
-        if util._verbosity > 1:
+        if (util._verbosity > 1) and not silent:
             len_str_num_traces = len(str(num_traces))
             print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
             prev_duration = 0
         for i in range(num_traces):
-            if util._verbosity > 1:
+            if (util._verbosity > 1) and not silent:
                 duration = time.time() - time_start
                 if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
                     prev_duration = duration
@@ -50,7 +49,7 @@ class Model(nn.Module):
             else:
                 traces.append(trace)
             log_weights.append(trace.log_importance_weight)
-        if util._verbosity > 1:
+        if (util._verbosity > 1) and not silent:
             print()
         return traces, log_weights
 
@@ -126,17 +125,17 @@ class Model(nn.Module):
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, *args, **kwargs):
         return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, *args, **kwargs)
 
-    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED):
+    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, observe_embeddings={}, batch_size=64, valid_batch_size=64, valid_interval=1000, learning_rate=0.0001, weight_decay=1e-5):
         if self._inference_network is None:
             print('Creating new inference network...')
             if inference_network == InferenceNetwork.FEEDFORWARD:
-                self._inference_network = InferenceNetworkFeedForward(model=self, prior_inflation=prior_inflation)
+                self._inference_network = InferenceNetworkFeedForward(model=self, prior_inflation=prior_inflation, observe_embeddings=observe_embeddings, valid_batch_size=valid_batch_size)
             else:
                 raise ValueError('Unknown inference_network: {}'.format(inference_network))
         else:
             print('Continuing to train existing inference network...')
 
-        self._inference_network.optimize(num_traces)
+        self._inference_network.optimize(num_traces, batch_size=batch_size, valid_interval=valid_interval, learning_rate=learning_rate, weight_decay=weight_decay)
 
     def save_inference_network(self):
         raise NotImplementedError()

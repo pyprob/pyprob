@@ -9,7 +9,7 @@ from .trace import Variable, Trace
 from . import util, TraceMode, PriorInflation, InferenceEngine
 
 
-_trace_mode = TraceMode.NONE
+_trace_mode = TraceMode.PRIOR
 _inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
 _prior_inflation = PriorInflation.DISABLED
 _current_trace = None
@@ -90,170 +90,167 @@ def _sample_with_prior_inflation(distribution):
     return distribution.sample()
 
 
-def observe(distribution=None, value=None, name=None, address=None):
-    if _trace_mode != TraceMode.NONE:
-        global _current_trace
-        if address is None:
-            address_base = extract_address(_current_trace_root_function_name)
-        else:
-            address_base = address
-        instance = _current_trace.last_instance(address_base) + 1
-        address_suffix = 'None' if distribution is None else distribution._address_suffix
-        address = '{}_{}_{}'.format(address_base, address_suffix, instance)
+def observe(distribution, value=None, name=None, address=None):
+    global _current_trace
+    if address is None:
+        address_base = extract_address(_current_trace_root_function_name)
+    else:
+        address_base = address
+    instance = _current_trace.last_instance(address_base) + 1
+    address = '{}_{}_{}'.format(address_base, distribution._address_suffix, instance)
 
-        if name in _current_trace_observed_variables:
-            # Override observed value
-            value = _current_trace_observed_variables[name]
+    if name in _current_trace_observed_variables:
+        # Override observed value
+        value = _current_trace_observed_variables[name]
+    elif value is None:
+        value = distribution.sample()
 
-        if distribution is None or value is None:
-            log_prob = 0.
-        else:
-            log_prob = distribution.log_prob(value)
-        if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-            _current_trace.log_importance_weight += log_prob
+    log_prob = distribution.log_prob(value)
+    if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+        _current_trace.log_importance_weight += log_prob
 
-        current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True, name=name)
-        _current_trace.add(current_sample)
+    current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True, name=name)
+    _current_trace.add(current_sample)
     return value
 
 
 def sample(distribution, control=True, replace=False, name=None, address=None):
-    if _trace_mode == TraceMode.NONE:
-        return _sample_with_prior_inflation(distribution)  # Forward sample
-    else:  # _trace_mode == TraceMode.PRIOR or _trace_mode == TraceMode.POSTERIOR
-        global _current_trace
+    global _current_trace
 
-        # Only replace if controlled
-        if not control:
-            replace = False
+    # Only replace if controlled
+    if not control:
+        replace = False
 
-        if _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
-            control = True
-            replace = False
+    if _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
+        control = True
+        replace = False
 
-        if address is None:
-            address_base = extract_address(_current_trace_root_function_name)
-        else:
-            address_base = address
-        instance = _current_trace.last_instance(address_base) + 1
-        address = '{}_{}_{}'.format(address_base, distribution._address_suffix, 'replaced' if replace else str(instance))
-        reused = False
-        observed = False
-        update_previous_sample = False
+    if address is None:
+        address_base = extract_address(_current_trace_root_function_name)
+    else:
+        address_base = address
+    instance = _current_trace.last_instance(address_base) + 1
+    address = '{}_{}_{}'.format(address_base, distribution._address_suffix, 'replaced' if replace else str(instance))
+    reused = False
+    observed = False
+    update_previous_sample = False
 
-        if _trace_mode == TraceMode.PRIOR:
-            value = _sample_with_prior_inflation(distribution)
-            log_prob = distribution.log_prob(value)
-        else:  # _trace_mode == TraceMode.POSTERIOR
-            if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
-                if name in _current_trace_observed_variables:
-                    # Variable is observed
-                    observed = True
-                    control = False
-                    value = _current_trace_observed_variables[name]
-                    log_prob = distribution.log_prob(value)
-                    _current_trace.log_importance_weight += log_prob.item()
-                else:
-                    # Variable is sampled
-                    value = distribution.sample()
-                    log_prob = distribution.log_prob(value)
-                    # _current_trace.log_importance_weight += 0  # Not computed because log_importance_weight is zero when running importance sampling with prior as proposal
-            elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-                raise NotImplementedError()
-            else:  # _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
-                if _metropolis_hastings_trace is None:
-                    value = distribution.sample()
-                    log_prob = distribution.log_prob(value)
-                else:
-                    if address == _metropolis_hastings_site_address:
-                        global _metropolis_hastings_site_transition_log_prob
-                        _metropolis_hastings_site_transition_log_prob = util.to_tensor(0.)
-                        if _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
-                            if isinstance(distribution, Normal):
-                                proposal_kernel_func = lambda x: Normal(x, 1)
-                            elif isinstance(distribution, Uniform):
-                                proposal_kernel_func = lambda x: TruncatedNormal(x, 0.1, low=distribution.low, high=distribution.high)
-                            else:
-                                proposal_kernel_func = None
+    if _trace_mode == TraceMode.PRIOR:
+        value = _sample_with_prior_inflation(distribution)
+        log_prob = distribution.log_prob(value)
+    else:  # _trace_mode == TraceMode.POSTERIOR
+        if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
+            if name in _current_trace_observed_variables:
+                # Variable is observed
+                observed = True
+                control = False
+                value = _current_trace_observed_variables[name]
+                log_prob = distribution.log_prob(value)
+                _current_trace.log_importance_weight += log_prob.item()
+            else:
+                # Variable is sampled
+                value = distribution.sample()
+                log_prob = distribution.log_prob(value)
+                # _current_trace.log_importance_weight += 0  # Not computed because log_importance_weight is zero when running importance sampling with prior as proposal
+        elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+            raise NotImplementedError()
+        else:  # _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
+            if _metropolis_hastings_trace is None:
+                value = distribution.sample()
+                log_prob = distribution.log_prob(value)
+            else:
+                if address == _metropolis_hastings_site_address:
+                    global _metropolis_hastings_site_transition_log_prob
+                    _metropolis_hastings_site_transition_log_prob = util.to_tensor(0.)
+                    if _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
+                        if isinstance(distribution, Normal):
+                            proposal_kernel_func = lambda x: Normal(x, 1)
+                        elif isinstance(distribution, Uniform):
+                            proposal_kernel_func = lambda x: TruncatedNormal(x, 0.1, low=distribution.low, high=distribution.high)
+                        else:
+                            proposal_kernel_func = None
 
-                            if proposal_kernel_func is not None:
-                                _metropolis_hastings_site_value = _metropolis_hastings_trace.variables_dict_address[address].value
-                                _metropolis_hastings_site_log_prob = _metropolis_hastings_trace.variables_dict_address[address].log_prob
-                                proposal_kernel_forward = proposal_kernel_func(_metropolis_hastings_site_value)
-                                alpha = 0.5
-                                if random.random() < alpha:
-                                    value = proposal_kernel_forward.sample()
-                                else:
-                                    value = distribution.sample()
-                                log_prob = distribution.log_prob(value)
-                                proposal_kernel_reverse = proposal_kernel_func(value)
-
-                                _metropolis_hastings_site_transition_log_prob = torch.log(alpha * torch.exp(proposal_kernel_reverse.log_prob(_metropolis_hastings_site_value)) + (1 - alpha) * torch.exp(_metropolis_hastings_site_log_prob)) + log_prob
-                                _metropolis_hastings_site_transition_log_prob -= torch.log(alpha * torch.exp(proposal_kernel_forward.log_prob(value)) + (1 - alpha) * torch.exp(log_prob)) + _metropolis_hastings_site_log_prob
+                        if proposal_kernel_func is not None:
+                            _metropolis_hastings_site_value = _metropolis_hastings_trace.variables_dict_address[address].value
+                            _metropolis_hastings_site_log_prob = _metropolis_hastings_trace.variables_dict_address[address].log_prob
+                            proposal_kernel_forward = proposal_kernel_func(_metropolis_hastings_site_value)
+                            alpha = 0.5
+                            if random.random() < alpha:
+                                value = proposal_kernel_forward.sample()
                             else:
                                 value = distribution.sample()
-                                log_prob = distribution.log_prob(value)
+                            log_prob = distribution.log_prob(value)
+                            proposal_kernel_reverse = proposal_kernel_func(value)
+
+                            _metropolis_hastings_site_transition_log_prob = torch.log(alpha * torch.exp(proposal_kernel_reverse.log_prob(_metropolis_hastings_site_value)) + (1 - alpha) * torch.exp(_metropolis_hastings_site_log_prob)) + log_prob
+                            _metropolis_hastings_site_transition_log_prob -= torch.log(alpha * torch.exp(proposal_kernel_forward.log_prob(value)) + (1 - alpha) * torch.exp(log_prob)) + _metropolis_hastings_site_log_prob
                         else:
                             value = distribution.sample()
                             log_prob = distribution.log_prob(value)
-                        reused = False
-                    elif address not in _metropolis_hastings_trace.variables_dict_address:
+                    else:
+                        value = distribution.sample()
+                        log_prob = distribution.log_prob(value)
+                    reused = False
+                elif address not in _metropolis_hastings_trace.variables_dict_address:
+                    value = distribution.sample()
+                    log_prob = distribution.log_prob(value)
+                    reused = False
+                else:
+                    value = _metropolis_hastings_trace.variables_dict_address[address].value
+                    reused = True
+                    try:  # Takes care of issues such as changed distribution parameters (e.g., batch size) that prevent a rescoring of a reused value under this distribution.
+                        log_prob = distribution.log_prob(value)
+                    except:
                         value = distribution.sample()
                         log_prob = distribution.log_prob(value)
                         reused = False
-                    else:
-                        value = _metropolis_hastings_trace.variables_dict_address[address].value
-                        reused = True
-                        try:  # Takes care of issues such as changed distribution parameters (e.g., batch size) that prevent a rescoring of a reused value under this distribution.
-                            log_prob = distribution.log_prob(value)
-                        except:
-                            value = distribution.sample()
-                            log_prob = distribution.log_prob(value)
-                            reused = False
 
-        current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, control=control, replace=replace, name=name, observed=observed, reused=reused)
-        _current_trace.add(current_sample)
+    current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, control=control, replace=replace, name=name, observed=observed, reused=reused)
+    _current_trace.add(current_sample)
 
-        if update_previous_sample:
-            _current_trace_previous_sample = current_sample
+    if update_previous_sample:
+        _current_trace_previous_sample = current_sample
 
-        return current_sample.value
+    return current_sample.value
 
 
-def begin_trace(func, trace_mode=TraceMode.NONE, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None):
+def begin_trace(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None):
     global _trace_mode
     global _inference_engine
     global _prior_inflation
     _trace_mode = trace_mode
     _inference_engine = inference_engine
     _prior_inflation = prior_inflation
-    if trace_mode != TraceMode.NONE:
-        global _current_trace
-        global _current_trace_root_function_name
-        global _current_trace_inference_network
-        global _current_trace_replaced_variable_proposal_distributions
-        global _current_trace_observed_variables
-        global _current_trace_execution_start
-        _current_trace_execution_start = time.time()
-        _current_trace = Trace()
-        _current_trace_root_function_name = func.__code__.co_name
-        _current_trace_inference_network = inference_network
-        _current_trace_replaced_variable_proposal_distributions = {}
-        if observe is None:
-            _current_trace_observed_variables = {}
-        else:
-            _current_trace_observed_variables = observe
-        if (_inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK) and (inference_network is None):
+    global _current_trace
+    global _current_trace_root_function_name
+    global _current_trace_inference_network
+    global _current_trace_replaced_variable_proposal_distributions
+    global _current_trace_observed_variables
+    global _current_trace_execution_start
+    _current_trace_execution_start = time.time()
+    _current_trace = Trace()
+    _current_trace_root_function_name = func.__code__.co_name
+    _current_trace_replaced_variable_proposal_distributions = {}
+    if observe is None:
+        _current_trace_observed_variables = {}
+    else:
+        _current_trace_observed_variables = observe
+    _current_trace_inference_network = inference_network
+    if _current_trace_inference_network is None:
+        if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             raise ValueError('Cannot run trace with IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK without an inference network.')
-        if _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
-            global _metropolis_hastings_trace
-            global _metropolis_hastings_site_transition_log_prob
-            _metropolis_hastings_trace = metropolis_hastings_trace
-            _metropolis_hastings_site_transition_log_prob = None
-            if _metropolis_hastings_trace is not None:
-                global _metropolis_hastings_site_address
-                variable = random.choice(_metropolis_hastings_trace.variables_controlled)
-                _metropolis_hastings_site_address = variable.address
+    else:
+        _current_trace_inference_network.infer_trace_init(_current_trace_observed_variables)
+
+    if _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
+        global _metropolis_hastings_trace
+        global _metropolis_hastings_site_transition_log_prob
+        _metropolis_hastings_trace = metropolis_hastings_trace
+        _metropolis_hastings_site_transition_log_prob = None
+        if _metropolis_hastings_trace is not None:
+            global _metropolis_hastings_site_address
+            variable = random.choice(_metropolis_hastings_trace.variables_controlled)
+            _metropolis_hastings_site_address = variable.address
 
 
 def end_trace(result):
@@ -265,14 +262,10 @@ def end_trace(result):
     global _current_trace_inference_network
     _inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
     _prior_inflation = PriorInflation.DISABLED
-    if _trace_mode == TraceMode.NONE:
-        return None
-    else:
-        _trace_mode = TraceMode.NONE
-        execution_time_sec = time.time() - _current_trace_execution_start
-        _current_trace.end(result, execution_time_sec)
-        ret = _current_trace
-        _current_trace = None
-        _current_trace_root_function_name = None
-        _current_trace_inference_network = None
-        return ret
+    execution_time_sec = time.time() - _current_trace_execution_start
+    _current_trace.end(result, execution_time_sec)
+    ret = _current_trace
+    _current_trace = None
+    _current_trace_root_function_name = None
+    _current_trace_inference_network = None
+    return ret

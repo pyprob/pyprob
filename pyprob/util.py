@@ -6,6 +6,7 @@ import inspect
 import sys
 import enum
 import time
+import math
 from functools import reduce
 import operator
 
@@ -14,10 +15,11 @@ _device = torch.device('cpu')
 _dtype = torch.float
 _verbosity = 2
 _print_refresh_rate = 0.25  # seconds
+_epsilon = 1e-8
+_log_epsilon = math.log(_epsilon)  # log(1e-8) = -18.420680743952367
 
 
 class TraceMode(enum.Enum):
-    NONE = 0  # No trace recording, forward sample trace results only
     PRIOR = 1
     POSTERIOR = 2
 
@@ -122,6 +124,12 @@ def has_nan_or_inf(value):
     else:
         value = float(value)
         return (value == float('inf')) or (value == float('-inf')) or (value == float('NaN'))
+
+
+def replace_negative_inf(value):
+    value = value.clone()
+    value[value == -np.inf] = _log_epsilon
+    return value
 
 
 def rgb_to_hex(rgb):

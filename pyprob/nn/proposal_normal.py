@@ -21,8 +21,8 @@ class ProposalNormal(nn.Module):
         x = self._lin2(x)
         means = x[:, :self._output_dim]
         stddevs = torch.exp(x[:, self._output_dim:])
-        prior_means = torch.stack([v.distribution.mean for v in prior_variables])
-        prior_stddevs = torch.stack([v.distribution.stddev for v in prior_variables])
+        prior_means = torch.stack([v.distribution.mean for v in prior_variables]).view(means.size())
+        prior_stddevs = torch.stack([v.distribution.stddev for v in prior_variables]).view(stddevs.size())
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
         means = means.view(self._output_shape)
