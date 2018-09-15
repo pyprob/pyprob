@@ -6,9 +6,9 @@ import gc
 import time
 from termcolor import colored
 
-from . import EmbeddingFeedForward, ProposalNormal
+from . import EmbeddingFeedForward, ProposalNormal, ProposalUniform
 from .. import util, TraceMode, ObserveEmbedding
-from ..distributions import Normal
+from ..distributions import Normal, Uniform
 
 
 class Batch():
@@ -27,7 +27,7 @@ class Batch():
 
 
 class InferenceNetworkFeedForward(nn.Module):
-    # observe_embeddings example: {'obs': {'input_shape': torch.Size([100]), 'output_shape': torch.Size([25]), 'observe_embedding':ObserveEmbedding.FULLY_CONNECTED}}
+    # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FULLY_CONNECTED, 'embedding_dim': 25}}
     def __init__(self, model, prior_inflation, valid_batch_size=64, observe_embeddings={}):
         super().__init__()
         self._model = model
@@ -60,24 +60,24 @@ class InferenceNetworkFeedForward(nn.Module):
         self._layer_observe_embeddings = {}
         observe_embedding_total_dim = 0
         for name, value in observe_embeddings.items():
-            if 'input_shape' in value:
-                input_shape = value['input_shape']
+            distribution = self._valid_batch.batch[0].named_variables[name].distribution
+            if distribution is None:
+                raise ValueError('Cannot use this observation as an input to the inference network, because there is no associated likelihood: {}'.format(name))
             else:
-                raise ValueError('Expecting the input_shape of variable: {}'.format(name))
-            if 'output_shape' in value:
-                output_shape = value['output_shape']
+                input_shape = distribution.sample().size()
+            if 'embedding_dim' in value:
+                output_shape = torch.Size([value['embedding_dim']])
             else:
-                output_shape = torch.Size([int(util.prod(input_shape)/2)])
-                print('output_shape not provided, using {} for variable: {}'.format(output_shape, name))
-            if 'observe_embedding' in value:
-                observe_embedding = value['observe_embedding']
+                raise ValueError('Expecting the embedding_dim of variable: {}'.format(name))
+            if 'embedding' in value:
+                embedding = value['embedding']
             else:
                 print('Observe embedding not provided, using default FULLY_CONNECTED for variable: {}'.format(name))
-                observe_embedding = ObserveEmbedding.FULLY_CONNECTED
-            if observe_embedding == ObserveEmbedding.FULLY_CONNECTED:
+                embedding = ObserveEmbedding.FULLY_CONNECTED
+            if embedding == ObserveEmbedding.FULLY_CONNECTED:
                 layer = EmbeddingFeedForward(input_shape=input_shape, output_shape=output_shape)
             else:
-                raise ValueError('Unknown observe_embedding: {}'.format(observe_embedding))
+                raise ValueError('Unknown embedding: {}'.format(embedding))
             self._layer_observe_embedding[name] = layer
             self.add_module('_layer_observe_embedding({})'.format(name), layer)
             observe_embedding_total_dim += util.prod(output_shape)
@@ -90,14 +90,26 @@ class InferenceNetworkFeedForward(nn.Module):
     def _embed_observe(self, observe=None):
         if observe is None:
             raise ValueError('All observes in observe_embeddings are needed to initialize a new trace.')
-        return torch.cat([layer.forward(observe[name].value).view(-1) for name, layer in self._layer_observe_embedding.items()])
+        return torch.cat([layer.forward(observe[name]).view(-1) for name, layer in self._layer_observe_embedding.items()])
 
     def infer_trace_init(self, observe=None):
         self._infer_observe = observe
-        self._infer_observe_embedding = self._embed_observe(observe)
+        self._infer_observe_embedding = self._embed_observe({name: util.to_tensor(v) for name, v in observe.items()})
 
-    def infer_trace_step(self):
-        return
+    def infer_trace_step(self, variable, previous_variable=None):
+        success = True
+        address = variable.address
+        distribution = variable.distribution
+        if address not in self._layer_proposal:
+            print('Warning: no proposal layer for: {}'.format(address))
+            success = False
+
+        if success:
+            proposal_distribution = self._layer_proposal[address].forward(self._infer_observe_embedding.unsqueeze(0), [variable])
+            return proposal_distribution
+        else:
+            print('Warning: no proposal can be made, prior will be used.')
+            return distribution
 
     def _polymorph(self, batch):
         layers_changed = False
@@ -111,6 +123,8 @@ class InferenceNetworkFeedForward(nn.Module):
                     print('New proposal layer for address: {}'.format(util.truncate_str(address)))
                     if isinstance(distribution, Normal):
                         layer = ProposalNormal(self._layer_hidden_shape, variable_shape)
+                    elif isinstance(distribution, Uniform):
+                        layer = ProposalUniform(self._layer_hidden_shape, variable_shape)
                     else:
                         raise RuntimeError('Distribution currently unsupported: {}'.format(distribution.name))
                     self._layer_proposal[address] = layer
@@ -123,13 +137,13 @@ class InferenceNetworkFeedForward(nn.Module):
         batch_loss = 0
         for sub_batch in batch.sub_batches:
             example_trace = sub_batch[0]
-            observe_embedding = torch.stack([self._embed_observe(trace.named_variables) for trace in sub_batch])
+            observe_embedding = torch.stack([self._embed_observe({name: variable.value for name, variable in trace.named_variables.items()}) for trace in sub_batch])
             sub_batch_loss = 0.
             for time_step in range(example_trace.length_controlled):
                 address = example_trace.variables_controlled[time_step].address
                 variables = [trace.variables_controlled[time_step] for trace in sub_batch]
                 values = torch.stack([v.value for v in variables])
-                proposal_distribution = self._layer_proposal[address](observe_embedding, variables)
+                proposal_distribution = self._layer_proposal[address].forward(observe_embedding, variables)
                 log_prob = proposal_distribution.log_prob(values)
                 if util.has_nan_or_inf(log_prob):
                     print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))

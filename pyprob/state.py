@@ -3,6 +3,7 @@ import sys
 import opcode
 import random
 import time
+from termcolor import colored
 
 from .distributions import Normal, Categorical, Uniform, TruncatedNormal
 from .trace import Variable, Trace
@@ -15,7 +16,7 @@ _prior_inflation = PriorInflation.DISABLED
 _current_trace = None
 _current_trace_root_function_name = None
 _current_trace_inference_network = None
-_current_trace_previous_sample = None
+_current_trace_previous_variable = None
 _current_trace_replaced_variable_proposal_distributions = {}
 _current_trace_observed_variables = None
 _current_trace_execution_start = None
@@ -90,28 +91,33 @@ def _sample_with_prior_inflation(distribution):
     return distribution.sample()
 
 
-def observe(distribution, value=None, name=None, address=None):
+def observe(distribution=None, value=None, name=None, address=None):
     global _current_trace
     if address is None:
         address_base = extract_address(_current_trace_root_function_name)
     else:
         address_base = address
     instance = _current_trace.last_instance(address_base) + 1
-    address = '{}_{}_{}'.format(address_base, distribution._address_suffix, instance)
+    address_suffix = 'None' if distribution is None else distribution._address_suffix
+    address = '{}_{}_{}'.format(address_base, address_suffix, instance)
 
     if name in _current_trace_observed_variables:
         # Override observed value
         value = _current_trace_observed_variables[name]
-    elif value is None:
+    elif value is not None:
+        value = util.to_tensor(value)
+    elif distribution is not None:
         value = distribution.sample()
 
-    log_prob = distribution.log_prob(value)
+    if distribution is None or value is None:
+        log_prob = 0.
+    else:
+        log_prob = distribution.log_prob(value, sum=True)
     if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
         _current_trace.log_importance_weight += log_prob
 
-    current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True, name=name)
-    _current_trace.add(current_sample)
-    return value
+    variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True, name=name)
+    _current_trace.add(variable)
 
 
 def sample(distribution, control=True, replace=False, name=None, address=None):
@@ -131,87 +137,115 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
         address_base = address
     instance = _current_trace.last_instance(address_base) + 1
     address = '{}_{}_{}'.format(address_base, distribution._address_suffix, 'replaced' if replace else str(instance))
-    reused = False
-    observed = False
-    update_previous_sample = False
 
-    if _trace_mode == TraceMode.PRIOR:
-        value = _sample_with_prior_inflation(distribution)
-        log_prob = distribution.log_prob(value)
-    else:  # _trace_mode == TraceMode.POSTERIOR
-        if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
-            if name in _current_trace_observed_variables:
-                # Variable is observed
-                observed = True
-                control = False
-                value = _current_trace_observed_variables[name]
-                log_prob = distribution.log_prob(value)
-                _current_trace.log_importance_weight += log_prob.item()
-            else:
-                # Variable is sampled
+    if name in _current_trace_observed_variables:
+        # Variable is observed
+        value = _current_trace_observed_variables[name]
+        log_prob = distribution.log_prob(value, sum=True)
+        _current_trace.log_importance_weight += log_prob.item()
+        variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True, name=name)
+    else:
+        reused = False
+        observed = False
+        update_previous_variable = False
+
+        if _trace_mode == TraceMode.PRIOR:
+            value = _sample_with_prior_inflation(distribution)
+            log_prob = distribution.log_prob(value, sum=True)
+        else:  # _trace_mode == TraceMode.POSTERIOR
+            if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
                 value = distribution.sample()
-                log_prob = distribution.log_prob(value)
+                log_prob = distribution.log_prob(value, sum=True)
                 # _current_trace.log_importance_weight += 0  # Not computed because log_importance_weight is zero when running importance sampling with prior as proposal
-        elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-            raise NotImplementedError()
-        else:  # _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
-            if _metropolis_hastings_trace is None:
-                value = distribution.sample()
-                log_prob = distribution.log_prob(value)
-            else:
-                if address == _metropolis_hastings_site_address:
-                    global _metropolis_hastings_site_transition_log_prob
-                    _metropolis_hastings_site_transition_log_prob = util.to_tensor(0.)
-                    if _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
-                        if isinstance(distribution, Normal):
-                            proposal_kernel_func = lambda x: Normal(x, 1)
-                        elif isinstance(distribution, Uniform):
-                            proposal_kernel_func = lambda x: TruncatedNormal(x, 0.1, low=distribution.low, high=distribution.high)
-                        else:
-                            proposal_kernel_func = None
+            elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+                if control:
+                    global _current_trace_previous_variable
+                    global _current_trace_replaced_variable_proposal_distributions
+                    _current_trace_inference_network.eval()
+                    variable = Variable(distribution=distribution, value=None, address_base=address_base, address=address, instance=instance, log_prob=0., control=control, replace=replace, name=name, observed=observed, reused=reused)
+                    if replace:
+                        if address not in _current_trace_replaced_variable_proposal_distributions:
+                            _current_trace_replaced_variable_proposal_distributions[address] = _current_trace_inference_network.infer_trace_step(variable, previous_variable=_current_trace_previous_variable)
+                            update_previous_variable = True
+                        proposal_distribution = _current_trace_replaced_variable_proposal_distributions[address]
+                    else:
+                        proposal_distribution = _current_trace_inference_network.infer_trace_step(variable, previous_variable=_current_trace_previous_variable)
+                        update_previous_variable = True
 
-                        if proposal_kernel_func is not None:
-                            _metropolis_hastings_site_value = _metropolis_hastings_trace.variables_dict_address[address].value
-                            _metropolis_hastings_site_log_prob = _metropolis_hastings_trace.variables_dict_address[address].log_prob
-                            proposal_kernel_forward = proposal_kernel_func(_metropolis_hastings_site_value)
-                            alpha = 0.5
-                            if random.random() < alpha:
-                                value = proposal_kernel_forward.sample()
+                    value = proposal_distribution.sample()[0]
+                    log_prob = distribution.log_prob(value, sum=True)
+                    proposal_log_prob = proposal_distribution.log_prob(value, sum=True)
+                    if util.has_nan_or_inf(log_prob):
+                        print(colored('Warning: prior log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
+                        print('distribution', distribution)
+                        print('value', value)
+                        print('log_prob', log_prob)
+                    if util.has_nan_or_inf(proposal_log_prob):
+                        print(colored('Warning: proposal log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
+                        print('distribution', proposal_distribution)
+                        print('value', value)
+                        print('log_prob', proposal_log_prob)
+                    _current_trace.log_importance_weight += log_prob - proposal_log_prob
+                else:
+                    value = distribution.sample()
+                    log_prob = distribution.log_prob(value, sum=True)
+            else:  # _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
+                if _metropolis_hastings_trace is None:
+                    value = distribution.sample()
+                    log_prob = distribution.log_prob(value, sum=True)
+                else:
+                    if address == _metropolis_hastings_site_address:
+                        global _metropolis_hastings_site_transition_log_prob
+                        _metropolis_hastings_site_transition_log_prob = util.to_tensor(0.)
+                        if _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
+                            if isinstance(distribution, Normal):
+                                proposal_kernel_func = lambda x: Normal(x, 1)
+                            elif isinstance(distribution, Uniform):
+                                proposal_kernel_func = lambda x: TruncatedNormal(x, 0.1, low=distribution.low, high=distribution.high)
+                            else:
+                                proposal_kernel_func = None
+
+                            if proposal_kernel_func is not None:
+                                _metropolis_hastings_site_value = _metropolis_hastings_trace.variables_dict_address[address].value
+                                _metropolis_hastings_site_log_prob = _metropolis_hastings_trace.variables_dict_address[address].log_prob
+                                proposal_kernel_forward = proposal_kernel_func(_metropolis_hastings_site_value)
+                                alpha = 0.5
+                                if random.random() < alpha:
+                                    value = proposal_kernel_forward.sample()
+                                else:
+                                    value = distribution.sample()
+                                log_prob = distribution.log_prob(value, sum=True)
+                                proposal_kernel_reverse = proposal_kernel_func(value)
+
+                                _metropolis_hastings_site_transition_log_prob = torch.log(alpha * torch.exp(proposal_kernel_reverse.log_prob(_metropolis_hastings_site_value, sum=True)) + (1 - alpha) * torch.exp(_metropolis_hastings_site_log_prob)) + log_prob
+                                _metropolis_hastings_site_transition_log_prob -= torch.log(alpha * torch.exp(proposal_kernel_forward.log_prob(value, sum=True)) + (1 - alpha) * torch.exp(log_prob)) + _metropolis_hastings_site_log_prob
                             else:
                                 value = distribution.sample()
-                            log_prob = distribution.log_prob(value)
-                            proposal_kernel_reverse = proposal_kernel_func(value)
-
-                            _metropolis_hastings_site_transition_log_prob = torch.log(alpha * torch.exp(proposal_kernel_reverse.log_prob(_metropolis_hastings_site_value)) + (1 - alpha) * torch.exp(_metropolis_hastings_site_log_prob)) + log_prob
-                            _metropolis_hastings_site_transition_log_prob -= torch.log(alpha * torch.exp(proposal_kernel_forward.log_prob(value)) + (1 - alpha) * torch.exp(log_prob)) + _metropolis_hastings_site_log_prob
+                                log_prob = distribution.log_prob(value, sum=True)
                         else:
                             value = distribution.sample()
-                            log_prob = distribution.log_prob(value)
-                    else:
-                        value = distribution.sample()
-                        log_prob = distribution.log_prob(value)
-                    reused = False
-                elif address not in _metropolis_hastings_trace.variables_dict_address:
-                    value = distribution.sample()
-                    log_prob = distribution.log_prob(value)
-                    reused = False
-                else:
-                    value = _metropolis_hastings_trace.variables_dict_address[address].value
-                    reused = True
-                    try:  # Takes care of issues such as changed distribution parameters (e.g., batch size) that prevent a rescoring of a reused value under this distribution.
-                        log_prob = distribution.log_prob(value)
-                    except:
-                        value = distribution.sample()
-                        log_prob = distribution.log_prob(value)
+                            log_prob = distribution.log_prob(value, sum=True)
                         reused = False
+                    elif address not in _metropolis_hastings_trace.variables_dict_address:
+                        value = distribution.sample()
+                        log_prob = distribution.log_prob(value, sum=True)
+                        reused = False
+                    else:
+                        value = _metropolis_hastings_trace.variables_dict_address[address].value
+                        reused = True
+                        try:  # Takes care of issues such as changed distribution parameters (e.g., batch size) that prevent a rescoring of a reused value under this distribution.
+                            log_prob = distribution.log_prob(value, sum=True)
+                        except:
+                            value = distribution.sample()
+                            log_prob = distribution.log_prob(value, sum=True)
+                            reused = False
 
-    current_sample = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, control=control, replace=replace, name=name, observed=observed, reused=reused)
-    _current_trace.add(current_sample)
+        variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, control=control, replace=replace, name=name, observed=observed, reused=reused)
+        if update_previous_variable:
+            _current_trace_previous_variable = variable
 
-    if update_previous_sample:
-        _current_trace_previous_sample = current_sample
-
-    return current_sample.value
+    _current_trace.add(variable)
+    return variable.value
 
 
 def begin_trace(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None):

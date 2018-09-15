@@ -43,16 +43,16 @@ class TruncatedNormal(Distribution):
     def __repr__(self):
         return 'TruncatedNormal(mean_non_truncated:{}, stddev_non_truncated:{}, low:{}, high:{})'.format(self._mean_non_truncated, self._stddev_non_truncated, self._low, self._high)
 
-    def log_prob(self, value):
+    def log_prob(self, value, sum=False):
         value = util.to_tensor(value)
         # value = value.view(self._batch_length, self.length_variates)
         #  TODO: With the following handling of low and high bounds, the derivative is not correct for a value outside the truncation domain
         lb = value.ge(self._low).type_as(self._low)
         ub = value.le(self._high).type_as(self._low)
-        ret = torch.log(lb.mul(ub)) + self._standard_normal_dist.log_prob((value - self._mean_non_truncated) / self._stddev_non_truncated) - self._log_stddev_Z
+        lp = torch.log(lb.mul(ub)) + self._standard_normal_dist.log_prob((value - self._mean_non_truncated) / self._stddev_non_truncated) - self._log_stddev_Z
         if self._batch_length == 1:
-            ret = ret.squeeze(0)
-        return ret
+            lp = lp.squeeze(0)
+        return torch.sum(lp) if sum else lp
 
     @property
     def low(self):

@@ -35,13 +35,14 @@ class Mixture(Distribution):
     def __len__(self):
         return self.length
 
-    def log_prob(self, value):
+    def log_prob(self, value, sum=False):
         if self._batch_length == 0:
             value = util.to_tensor(value).squeeze()
-            return torch.logsumexp(self._log_probs + util.to_tensor([d.log_prob(value) for d in self._distributions]), dim=0)
+            lp = torch.logsumexp(self._log_probs + util.to_tensor([d.log_prob(value) for d in self._distributions]), dim=0)
         else:
             value = util.to_tensor(value).view(self._batch_length)
-            return torch.logsumexp(self._log_probs + torch.stack([d.log_prob(value).squeeze(-1) for d in self._distributions]).view(-1, self._batch_length).t(), dim=1)
+            lp = torch.logsumexp(self._log_probs + torch.stack([d.log_prob(value).squeeze(-1) for d in self._distributions]).view(-1, self._batch_length).t(), dim=1)
+        return torch.sum(lp) if sum else lp
 
     def sample(self):
         if self._batch_length == 0:

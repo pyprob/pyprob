@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 
 from .. import util
-from ..distributions import Normal
+from ..distributions import Beta
 
 
-class ProposalNormal(nn.Module):
+class ProposalUniform(nn.Module):
     def __init__(self, input_shape, output_shape):
         super().__init__()
         self._input_shape = input_shape
@@ -18,15 +18,11 @@ class ProposalNormal(nn.Module):
 
     def forward(self, x, prior_variables):
         x = torch.relu(self._lin1(x.view(-1, self._input_dim)))
-        x = self._lin2(x)
-        means = x[:, :self._output_dim]
-        stddevs = torch.exp(x[:, self._output_dim:])
-        prior_means = torch.stack([v.distribution.mean for v in prior_variables]).view(means.size())
-        prior_stddevs = torch.stack([v.distribution.stddev for v in prior_variables]).view(stddevs.size())
-        means = prior_means + (means * prior_stddevs)
-        stddevs = stddevs * prior_stddevs
-        means = means.view(self._output_shape)
-        stddevs = stddevs.view(self._output_shape)
-        ret = Normal(means, stddevs)
+        x = torch.relu(self._lin2(x))
+        concentration1s = 1. + x[:, :self._output_dim]
+        concentration0s = 1. + x[:, self._output_dim:]
+        prior_lows = torch.stack([v.distribution.low for v in prior_variables]).view(concentration1s.size())
+        prior_highs = torch.stack([v.distribution.high for v in prior_variables]).view(concentration1s.size())
+        ret = Beta(concentration1s, concentration0s, low=prior_lows, high=prior_highs)
         # print(ret)
         return ret

@@ -16,16 +16,17 @@ class TraceTestCase(unittest.TestCase):
 
             def forward(self, observation=[]):
                 uniform = Uniform(0, 1)
-                ret = pyprob.sample(uniform)
-                ret = pyprob.sample(uniform)
-                ret = pyprob.sample(uniform, control=False)
-                ret = pyprob.sample(uniform, control=False)
-                ret = pyprob.sample(uniform, control=False)
+                val = pyprob.sample(uniform)
+                val = pyprob.sample(uniform)
+                val = pyprob.sample(uniform, control=False)
+                val = pyprob.sample(uniform, control=False)
+                val = pyprob.sample(uniform, control=False)
+                pyprob.observe(value=val, name='val')
                 pyprob.observe(uniform, 0.5)
                 pyprob.observe(uniform, 0.5)
                 pyprob.observe(uniform, 0.5)
                 pyprob.observe(uniform, 0.5)
-                return ret
+                return val
 
         self._model = TestModel()
         super().__init__(*args, **kwargs)
@@ -33,18 +34,20 @@ class TraceTestCase(unittest.TestCase):
     def test_trace_controlled_uncontrolled_observed(self):
         controlled_correct = 2
         uncontrolled_correct = 3
-        observed_correct = 4
+        observed_correct = 5
 
         trace = self._model._traces(1)[0][0]
         controlled = len(trace.variables_controlled)
         uncontrolled = len(trace.variables_uncontrolled)
         observed = len(trace.variables_observed)
+        observed_val = 'val' in trace.named_variables
 
-        util.debug('controlled', 'controlled_correct', 'uncontrolled', 'uncontrolled_correct', 'observed', 'observed_correct')
+        util.debug('controlled', 'controlled_correct', 'uncontrolled', 'uncontrolled_correct', 'observed', 'observed_correct', 'observed_val')
 
         self.assertEqual(controlled, controlled_correct)
         self.assertEqual(uncontrolled, uncontrolled_correct)
         self.assertEqual(observed, observed_correct)
+        self.assertTrue(observed_val)
 
     # def test_trace_save_trace_cache_train(self):
     #     cache_files = 4
@@ -63,5 +66,6 @@ class TraceTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    pyprob.set_random_seed(123)
     pyprob.set_verbosity(1)
     unittest.main(verbosity=2)

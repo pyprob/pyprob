@@ -40,10 +40,10 @@ class Distribution():
         else:
             raise NotImplementedError()
 
-    def log_prob(self, value):
+    def log_prob(self, value, sum=False):
         if self._torch_dist is not None:
             lp = self._torch_dist.log_prob(util.to_tensor(value))
-            return lp
+            return torch.sum(lp) if sum else lp
         else:
             raise NotImplementedError()
 

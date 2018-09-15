@@ -14,10 +14,10 @@ importance_sampling_samples = 5000
 importance_sampling_kl_divergence = 0
 importance_sampling_duration = 0
 
-inference_compilation_samples = 5000
-inference_compilation_kl_divergence = 0
-inference_compilation_duration = 0
-inference_compilation_training_traces = 20000
+importance_sampling_with_inference_network_samples = 5000
+importance_sampling_with_inference_network_kl_divergence = 0
+importance_sampling_with_inference_network_duration = 0
+importance_sampling_with_inference_network_training_traces = 25000
 
 lightweight_metropolis_hastings_samples = 5000
 lightweight_metropolis_hastings_burn_in = 500
@@ -35,9 +35,9 @@ def add_importance_sampling_kl_divergence(val):
     importance_sampling_kl_divergence += val
 
 
-def add_inference_compilation_kl_divergence(val):
-    global inference_compilation_kl_divergence
-    inference_compilation_kl_divergence += val
+def add_importance_sampling_with_inference_network_kl_divergence(val):
+    global importance_sampling_with_inference_network_kl_divergence
+    importance_sampling_with_inference_network_kl_divergence += val
 
 
 def add_lightweight_metropolis_hastings_kl_divergence(val):
@@ -55,9 +55,9 @@ def add_importance_sampling_duration(val):
     importance_sampling_duration += val
 
 
-def add_inference_compilation_duration(val):
-    global inference_compilation_duration
-    inference_compilation_duration += val
+def add_importance_sampling_with_inference_network_duration(val):
+    global importance_sampling_with_inference_network_duration
+    importance_sampling_with_inference_network_duration += val
 
 
 def add_lightweight_metropolis_hastings_duration(val):
@@ -83,14 +83,8 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
             def forward(self):
                 mu = pyprob.sample(Normal(self.prior_mean, self.prior_stddev))
                 likelihood = Normal(mu, self.likelihood_stddev)
-                # Alternative #1
-                observation = pyprob.observe(value=[], name='obs')
-                for o in observation:
-                    pyprob.observe(likelihood, o)
-                # Alternative #2
-                # pyprob.observe(likelihood, name='obs1')
-                # pyprob.observe(likelihood, name='obs2')
-                # ...
+                pyprob.observe(likelihood, name='obs1')
+                pyprob.observe(likelihood, name='obs2')
                 return mu
 
         self._model = GaussianWithUnknownMean()
@@ -103,24 +97,55 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
         prior_mean_correct = 1.
         prior_stddev_correct = math.sqrt(5)
+        posterior_effective_sample_size_min = samples * 0.005
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs': [8, 9]})
+        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs1': 8, 'obs2': 9})
         add_importance_sampling_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.unweighted().mean)
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+        posterior_effective_sample_size = float(posterior.effective_sample_size)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        util.debug('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
         add_importance_sampling_kl_divergence(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean_unweighted, prior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev_unweighted, prior_stddev_correct, places=0)
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+        self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
+        self.assertLess(kl_divergence, 0.25)
+
+    def test_inference_gum_posterior_importance_sampling_with_inference_network(self):
+        samples = importance_sampling_samples
+        true_posterior = Normal(7.25, math.sqrt(1/1.2))
+        posterior_mean_correct = float(true_posterior.mean)
+        posterior_stddev_correct = float(true_posterior.stddev)
+        posterior_effective_sample_size_min = samples * 0.6
+
+        self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs1': {'embedding_dim': 64}, 'obs2': {'embedding_dim': 64}})
+
+        start = time.time()
+        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs1': 8, 'obs2': 9})
+        add_importance_sampling_with_inference_network_duration(time.time() - start)
+
+        posterior_mean = float(posterior.mean)
+        posterior_mean_unweighted = float(posterior.unweighted().mean)
+        posterior_stddev = float(posterior.stddev)
+        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+        posterior_effective_sample_size = float(posterior.effective_sample_size)
+        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
+
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
+        add_importance_sampling_with_inference_network_kl_divergence(kl_divergence)
+
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+        self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
         self.assertLess(kl_divergence, 0.25)
 
     def test_inference_gum_posterior_lightweight_metropolis_hastings(self):
@@ -131,7 +156,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs': [8, 9]})[burn_in:]
+        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs1': 8, 'obs2': 9})[burn_in:]
         add_lightweight_metropolis_hastings_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -153,7 +178,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs': [8, 9]})[burn_in:]
+        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs1': 8, 'obs2': 9})[burn_in:]
         add_random_walk_metropolis_hastings_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -224,6 +249,34 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
 
+    def test_inference_gum_marsaglia_posterior_importance_sampling_with_inference_network(self):
+        samples = importance_sampling_samples
+        true_posterior = Normal(7.25, math.sqrt(1/1.2))
+        posterior_mean_correct = float(true_posterior.mean)
+        posterior_stddev_correct = float(true_posterior.stddev)
+        posterior_effective_sample_size_min = samples * 0.6
+
+        self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs1': {'embedding_dim': 64}, 'obs2': {'embedding_dim': 64}})
+
+        start = time.time()
+        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs1': 8, 'obs2': 9})
+        add_importance_sampling_with_inference_network_duration(time.time() - start)
+
+        posterior_mean = float(posterior.mean)
+        posterior_mean_unweighted = float(posterior.unweighted().mean)
+        posterior_stddev = float(posterior.stddev)
+        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+        posterior_effective_sample_size = float(posterior.effective_sample_size)
+        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
+
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
+        add_importance_sampling_with_inference_network_kl_divergence(kl_divergence)
+
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+        self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
+        self.assertLess(kl_divergence, 0.25)
+
     def test_inference_gum_marsaglia_posterior_lightweight_metropolis_hastings(self):
         samples = lightweight_metropolis_hastings_samples
         burn_in = lightweight_metropolis_hastings_burn_in
@@ -270,8 +323,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # if torch.cuda.is_available():
-        # pyprob.set_cuda(True)
+    pyprob.set_random_seed(123)
     pyprob.set_verbosity(2)
     tests = []
     tests.append('GaussianWithUnknownMeanTestCase')
@@ -284,13 +336,13 @@ if __name__ == '__main__':
     print('\nDuration                   : {}'.format(util.days_hours_mins_secs_str(time.time() - time_start)))
     print('Models run                 : {}'.format(' '.join(tests)))
     print('\nTotal inference performance:\n')
-    print(colored('                                 Samples        KL divergence  Duration (s) ', 'yellow', attrs=['bold']))
-    print(colored('Importance sampling            : ', 'yellow', attrs=['bold']), end='')
+    print(colored('                                       Samples        KL divergence  Duration (s) ', 'yellow', attrs=['bold']))
+    print(colored('Importance sampling                  : ', 'yellow', attrs=['bold']), end='')
     print(colored('{:+.6e}  {:+.6e}  {:+.6e}'.format(importance_sampling_samples, importance_sampling_kl_divergence, importance_sampling_duration), 'white', attrs=['bold']))
-    print(colored('Inference compilation          : ', 'yellow', attrs=['bold']), end='')
-    print(colored('{:+.6e}  {:+.6e}  {:+.6e}'.format(inference_compilation_samples, inference_compilation_kl_divergence, inference_compilation_duration), 'white', attrs=['bold']))
-    print(colored('Lightweight Metropolis Hastings: ', 'yellow', attrs=['bold']), end='')
+    print(colored('Importance sampling w/ inference net.: ', 'yellow', attrs=['bold']), end='')
+    print(colored('{:+.6e}  {:+.6e}  {:+.6e}'.format(importance_sampling_with_inference_network_samples, importance_sampling_with_inference_network_kl_divergence, importance_sampling_with_inference_network_duration), 'white', attrs=['bold']))
+    print(colored('Lightweight Metropolis Hastings      : ', 'yellow', attrs=['bold']), end='')
     print(colored('{:+.6e}  {:+.6e}  {:+.6e}'.format(lightweight_metropolis_hastings_samples, lightweight_metropolis_hastings_kl_divergence, lightweight_metropolis_hastings_duration), 'white', attrs=['bold']))
-    print(colored('Random-walk Metropolis Hastings: ', 'yellow', attrs=['bold']), end='')
+    print(colored('Random-walk Metropolis Hastings      : ', 'yellow', attrs=['bold']), end='')
     print(colored('{:+.6e}  {:+.6e}  {:+.6e}\n'.format(random_walk_metropolis_hastings_samples, random_walk_metropolis_hastings_kl_divergence, random_walk_metropolis_hastings_duration), 'white', attrs=['bold']))
     sys.exit(0 if success else 1)
