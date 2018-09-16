@@ -6,13 +6,13 @@ from ..distributions import Normal
 
 
 class ProposalNormal(nn.Module):
-    def __init__(self, input_shape, output_shape):
+    def __init__(self, input_shape, output_shape, num_layers=2):
         super().__init__()
         self._input_shape = input_shape
         self._input_dim = util.prod(input_shape)
         self._output_dim = util.prod(output_shape)
         self._output_shape = torch.Size([-1]) + output_shape
-        hidden_dim = int((self._input_dim + self._output_dim) / 2)
+        hidden_dim = int((self._input_dim + self._output_dim * 2))
         self._lin1 = nn.Linear(self._input_dim, hidden_dim)
         self._lin2 = nn.Linear(hidden_dim, self._output_dim * 2)
 

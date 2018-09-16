@@ -27,7 +27,7 @@ class Batch():
 
 
 class InferenceNetworkFeedForward(nn.Module):
-    # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FULLY_CONNECTED, 'embedding_dim': 25}}
+    # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FULLY_CONNECTED, 'dim': 32, 'depth': 2}}
     def __init__(self, model, prior_inflation, valid_batch_size=64, observe_embeddings={}):
         super().__init__()
         self._model = model
@@ -38,9 +38,6 @@ class InferenceNetworkFeedForward(nn.Module):
         self._infer_observe = None
         self._infer_observe_embedding = {}
         self._optimizer = None
-        self._valid_batch = self._get_batch(valid_batch_size)
-        self._init_layer_observe_embeddings(observe_embeddings)
-        self._polymorph(self._valid_batch)
 
         self._total_train_seconds = 0
         self._total_train_traces = 0
@@ -53,6 +50,12 @@ class InferenceNetworkFeedForward(nn.Module):
         self._history_train_loss_trace = []
         self._history_valid_loss = []
         self._history_valid_loss_trace = []
+        self._history_num_params = []
+        self._history_num_params_trace = []
+
+        self._valid_batch = self._get_batch(valid_batch_size)
+        self._init_layer_observe_embeddings(observe_embeddings)
+        self._polymorph(self._valid_batch)
 
     def _init_layer_observe_embeddings(self, observe_embeddings):
         if len(observe_embeddings) == 0:
@@ -62,26 +65,33 @@ class InferenceNetworkFeedForward(nn.Module):
         for name, value in observe_embeddings.items():
             distribution = self._valid_batch.batch[0].named_variables[name].distribution
             if distribution is None:
-                raise ValueError('Cannot use this observation as an input to the inference network, because there is no associated likelihood: {}'.format(name))
+                raise ValueError('Observable {}: cannot use this observation as an input to the inference network, because there is no associated likelihood.'.format(name))
             else:
                 input_shape = distribution.sample().size()
-            if 'embedding_dim' in value:
-                output_shape = torch.Size([value['embedding_dim']])
+            if 'dim' in value:
+                output_shape = torch.Size([value['dim']])
             else:
-                raise ValueError('Expecting the embedding_dim of variable: {}'.format(name))
+                print('Observable {}: embedding dim not provided, using the default 256.'.format(name))
+                output_shape = torch.Size([256])
+            if 'depth' in value:
+                depth = value['depth']
+            else:
+                print('Observable {}: embedding depth not provided, using the default 2.'.format(name))
+                depth = 2
             if 'embedding' in value:
                 embedding = value['embedding']
             else:
-                print('Observe embedding not provided, using default FULLY_CONNECTED for variable: {}'.format(name))
+                print('Observable {}: observe embedding not provided, using the default FULLY_CONNECTED.'.format(name))
                 embedding = ObserveEmbedding.FULLY_CONNECTED
             if embedding == ObserveEmbedding.FULLY_CONNECTED:
-                layer = EmbeddingFeedForward(input_shape=input_shape, output_shape=output_shape)
+                layer = EmbeddingFeedForward(input_shape=input_shape, output_shape=output_shape, num_layers=depth)
             else:
                 raise ValueError('Unknown embedding: {}'.format(embedding))
             self._layer_observe_embedding[name] = layer
             self.add_module('_layer_observe_embedding({})'.format(name), layer)
             observe_embedding_total_dim += util.prod(output_shape)
-            self._layer_hidden_shape = torch.Size([observe_embedding_total_dim])
+        self._layer_hidden_shape = torch.Size([observe_embedding_total_dim])
+        self._layer_observe_embedding_final = EmbeddingFeedForward(input_shape=self._layer_hidden_shape, output_shape=self._layer_hidden_shape, num_layers=1)
 
     def _get_batch(self, length=64, *args, **kwargs):
         traces, _ = self._model._traces(length, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs)
@@ -90,7 +100,7 @@ class InferenceNetworkFeedForward(nn.Module):
     def _embed_observe(self, observe=None):
         if observe is None:
             raise ValueError('All observes in observe_embeddings are needed to initialize a new trace.')
-        return torch.cat([layer.forward(observe[name]).view(-1) for name, layer in self._layer_observe_embedding.items()])
+        return self._layer_observe_embedding_final(torch.cat([layer.forward(observe[name]).view(-1) for name, layer in self._layer_observe_embedding.items()]))
 
     def infer_trace_init(self, observe=None):
         self._infer_observe = observe
@@ -130,6 +140,11 @@ class InferenceNetworkFeedForward(nn.Module):
                     self._layer_proposal[address] = layer
                     self.add_module('layer_proposal({})'.format(address), layer)
                     layers_changed = True
+        if layers_changed:
+            num_params = sum(p.numel() for p in self.parameters())
+            print('New number of parameters: {:,}'.format(num_params))
+            self._history_num_params.append(num_params)
+            self._history_num_params_trace.append(self._total_train_traces)
         return layers_changed
 
     def _loss(self, batch):
