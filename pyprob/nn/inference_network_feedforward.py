@@ -13,28 +13,9 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import EmbeddingFeedForward, ProposalNormalNormal, ProposalUniformBeta
-from .. import __version__, util, TraceMode, ObserveEmbedding
+from . import BatchGenerator, EmbeddingFeedForward, ProposalNormalNormal, ProposalUniformBeta
+from .. import __version__, util, ObserveEmbedding
 from ..distributions import Normal, Uniform
-
-
-class Batch():
-    def __init__(self, traces):
-        self.traces = traces
-        self.length = len(traces)
-        sub_batches = {}
-        for trace in traces:
-            if trace.length == 0:
-                raise ValueError('Trace of length zero.')
-            trace_hash = ''.join([variable.address for variable in trace.variables_controlled])
-            if trace_hash not in sub_batches:
-                sub_batches[trace_hash] = []
-            sub_batches[trace_hash].append(trace)
-        self.sub_batches = list(sub_batches.values())
-
-    def to(self, device):
-        for trace in self.traces:
-            trace.to(device=device)
 
 
 class InferenceNetworkFeedForward(nn.Module):
@@ -43,6 +24,7 @@ class InferenceNetworkFeedForward(nn.Module):
         super().__init__()
         self._model = model
         self._prior_inflation = prior_inflation
+        self._batch_generator = BatchGenerator(model, prior_inflation)
         self._layer_proposal = nn.ModuleDict()
         self._layer_observe_embedding = nn.ModuleDict()
         self._layer_observe_embedding_final = None
@@ -69,7 +51,7 @@ class InferenceNetworkFeedForward(nn.Module):
         self._on_cuda = False
         self._device = torch.device('cpu')
 
-        self._valid_batch = self._get_batch(valid_batch_size)
+        self._valid_batch = self._batch_generator.get_batch(valid_batch_size)
         self._init_layer_observe_embeddings(observe_embeddings)
         self._polymorph(self._valid_batch)
 
@@ -171,10 +153,6 @@ class InferenceNetworkFeedForward(nn.Module):
             self._on_cuda = True
         super().to(device=device, *args, *kwargs)
 
-    def _get_batch(self, length=64, *args, **kwargs):
-        traces, _ = self._model._traces(length, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs)
-        return Batch(traces)
-
     def _embed_observe(self, observe=None):
         if observe is None:
             raise ValueError('All observes in observe_embeddings are needed to initialize a new trace.')
@@ -265,7 +243,7 @@ class InferenceNetworkFeedForward(nn.Module):
         max_print_line_len = 0
         while not stop:
             iteration += 1
-            batch = self._get_batch(batch_size)
+            batch = self._batch_generator.get_batch(batch_size)
             layers_changed = self._polymorph(batch)
 
             if (self._optimizer is None) or layers_changed:
