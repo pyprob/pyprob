@@ -32,12 +32,13 @@ class Batch():
 
 
 class BatchGenerator():
-    def __init__(self, model, prior_inflation=PriorInflation.DISABLED, trace_store_dir=None):
+    def __init__(self, model, prior_inflation, trace_store_dir=None):
         self._model = model
         self._prior_inflation = prior_inflation
         self._trace_store_dir = trace_store_dir
         if trace_store_dir is not None:
-            self._trace_cache = []
+            self._trace_store_cache = []
+            self._trace_store_discarded_file_names = []
             num_files = len(self._trace_store_current_files())
             print('Monitoring trace cache (currently with {} files) at {}'.format(num_files, trace_store_dir))
 
@@ -46,9 +47,9 @@ class BatchGenerator():
             traces, _ = self._model._traces(length, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs)
         else:
             if discard_source:
-                self._trace_cache = []
+                self._trace_store_cache = []
 
-            while len(self._trace_cache) < length:
+            while len(self._trace_store_cache) < length:
                 current_files = self._trace_store_current_files()
                 if len(current_files) == 0:
                     cache_is_empty = True
@@ -68,27 +69,27 @@ class BatchGenerator():
 
                 current_file = random.choice(current_files)
                 if discard_source:
-                    self._trace_cache_discarded_file_names.append(current_file)
+                    self._trace_store_discarded_file_names.append(current_file)
                 new_traces = self._load_traces(current_file)
                 if len(new_traces) == 0:  # When empty or corrupt file is read
-                    self._trace_cache_discarded_file_names.append(current_file)
+                    self._trace_store_discarded_file_names.append(current_file)
                 else:
                     random.shuffle(new_traces)
-                    self._trace_cache += new_traces
+                    self._trace_store_cache += new_traces
 
-            traces = self._trace_cache[0:length]
-            self._trace_cache[0:length] = []
+            traces = self._trace_store_cache[0:length]
+            self._trace_store_cache[0:length] = []
         return Batch(traces)
 
     def save_trace_store(self, trace_store_dir, files=16, traces_per_file=16, *args, **kwargs):
         f = 0
         done = False
         while not done:
-            traces = self._model._traces(traces_per_file, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, *args, **kwargs)
+            traces, _ = self._model._traces(traces_per_file, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, *args, **kwargs)
             file_name = os.path.join(trace_store_dir, 'pyprob_traces_{}_{}'.format(traces_per_file, str(uuid.uuid4())))
             self._save_traces(traces, file_name)
             f += 1
-            if (files != -1) and (f >= files):
+            if (files is not None) and (f >= files):
                 done = True
 
     def _trace_store_current_files(self):

@@ -13,18 +13,16 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import BatchGenerator, EmbeddingFeedForward, ProposalNormalNormal, ProposalUniformBeta
+from . import EmbeddingFeedForward, ProposalNormalNormal, ProposalUniformBeta
 from .. import __version__, util, ObserveEmbedding
 from ..distributions import Normal, Uniform
 
 
 class InferenceNetworkFeedForward(nn.Module):
     # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FULLY_CONNECTED, 'dim': 32, 'depth': 2}}
-    def __init__(self, model, prior_inflation, valid_batch_size=64, observe_embeddings={}):
+    def __init__(self, model, valid_batch_size=64, observe_embeddings={}):
         super().__init__()
         self._model = model
-        self._prior_inflation = prior_inflation
-        self._batch_generator = BatchGenerator(model, prior_inflation)
         self._layer_proposal = nn.ModuleDict()
         self._layer_observe_embedding = nn.ModuleDict()
         self._layer_observe_embedding_final = None
@@ -51,9 +49,9 @@ class InferenceNetworkFeedForward(nn.Module):
         self._on_cuda = False
         self._device = torch.device('cpu')
 
-        self._valid_batch = self._batch_generator.get_batch(valid_batch_size)
-        self._init_layer_observe_embeddings(observe_embeddings)
-        self._polymorph(self._valid_batch)
+        self._valid_batch_size = valid_batch_size
+        self._observe_embeddings = observe_embeddings
+        self._valid_batch = None
 
     def _init_layer_observe_embeddings(self, observe_embeddings):
         if len(observe_embeddings) == 0:
@@ -230,7 +228,13 @@ class InferenceNetworkFeedForward(nn.Module):
             batch_loss += sub_batch_loss
         return True, batch_loss / batch.length
 
-    def optimize(self, num_traces=None, batch_size=64, valid_interval=1000, learning_rate=0.0001, weight_decay=1e-5, *args, **kwargs):
+    def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, learning_rate=0.0001, weight_decay=1e-5, *args, **kwargs):
+        if self._valid_batch is None:
+            print('Initializing inference network...')
+            self._valid_batch = batch_generator.get_batch(self._valid_batch_size, discard_source=True)
+            self._init_layer_observe_embeddings(self._observe_embeddings)
+            self._polymorph(self._valid_batch)
+
         prev_total_train_seconds = self._total_train_seconds
         time_start = time.time()
         time_loss_min = time.time()
@@ -243,7 +247,7 @@ class InferenceNetworkFeedForward(nn.Module):
         max_print_line_len = 0
         while not stop:
             iteration += 1
-            batch = self._batch_generator.get_batch(batch_size)
+            batch = batch_generator.get_batch(batch_size)
             layers_changed = self._polymorph(batch)
 
             if (self._optimizer is None) or layers_changed:
