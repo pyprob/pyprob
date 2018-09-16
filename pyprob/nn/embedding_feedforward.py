@@ -5,7 +5,7 @@ from .. import util
 
 
 class EmbeddingFeedForward(nn.Module):
-    def __init__(self, input_shape, output_shape, num_layers=3, activation=torch.relu, activation_last=torch.relu, name='EmbeddingFeedForward'):
+    def __init__(self, input_shape, output_shape, num_layers=3, activation=torch.relu, activation_last=torch.relu):
         super().__init__()
         self._input_shape = input_shape
         self._input_dim = util.prod(input_shape)

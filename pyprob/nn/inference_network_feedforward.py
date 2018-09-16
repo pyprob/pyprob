@@ -13,7 +13,7 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import EmbeddingFeedForward, ProposalNormalNormal, ProposalUniformBeta
+from . import EmbeddingFeedForward, ProposalNormalNormal, ProposalNormalNormalMixture, ProposalUniformBeta
 from .. import __version__, util, ObserveEmbedding
 from ..distributions import Normal, Uniform
 
@@ -151,14 +151,23 @@ class InferenceNetworkFeedForward(nn.Module):
             self._on_cuda = True
         super().to(device=device, *args, *kwargs)
 
-    def _embed_observe(self, observe=None):
-        if observe is None:
-            raise ValueError('All observes in observe_embeddings are needed to initialize a new trace.')
-        return self._layer_observe_embedding_final(torch.cat([layer.forward(observe[name]).view(-1) for name, layer in self._layer_observe_embedding.items()]))
+    def _embed_observe(self, traces=None):
+        embedding = []
+        for name, layer in self._layer_observe_embedding.items():
+            values = torch.stack([trace.named_variables[name].value for trace in traces]).view(len(traces), -1)
+            embedding.append(layer(values))
+        embedding = torch.cat(embedding, dim=1)
+        embedding = self._layer_observe_embedding_final(embedding)
+        return embedding
 
     def infer_trace_init(self, observe=None):
         self._infer_observe = observe
-        self._infer_observe_embedding = self._embed_observe({name: util.to_tensor(v) for name, v in observe.items()})
+        embedding = []
+        for name, layer in self._layer_observe_embedding.items():
+            value = util.to_tensor(observe[name]).view(1, -1)
+            embedding.append(layer(value))
+        embedding = torch.cat(embedding, dim=1)
+        self._infer_observe_embedding = self._layer_observe_embedding_final(embedding)
 
     def infer_trace_step(self, variable, previous_variable=None):
         success = True
@@ -169,7 +178,7 @@ class InferenceNetworkFeedForward(nn.Module):
             success = False
 
         if success:
-            proposal_distribution = self._layer_proposal[address].forward(self._infer_observe_embedding.unsqueeze(0), [variable])
+            proposal_distribution = self._layer_proposal[address].forward(self._infer_observe_embedding, [variable])
             return proposal_distribution
         else:
             print('Warning: no proposal can be made, prior will be used.')
@@ -186,7 +195,7 @@ class InferenceNetworkFeedForward(nn.Module):
                 if address not in self._layer_proposal:
                     print('New proposal layer for address: {}'.format(util.truncate_str(address)))
                     if isinstance(distribution, Normal):
-                        layer = ProposalNormalNormal(self._layer_hidden_shape, variable_shape)
+                        layer = ProposalNormalNormalMixture(self._layer_hidden_shape, variable_shape)
                     elif isinstance(distribution, Uniform):
                         layer = ProposalUniformBeta(self._layer_hidden_shape, variable_shape)
                     else:
@@ -205,7 +214,7 @@ class InferenceNetworkFeedForward(nn.Module):
         batch_loss = 0
         for sub_batch in batch.sub_batches:
             example_trace = sub_batch[0]
-            observe_embedding = torch.stack([self._embed_observe({name: variable.value for name, variable in trace.named_variables.items()}) for trace in sub_batch])
+            observe_embedding = self._embed_observe(sub_batch)
             sub_batch_loss = 0.
             for time_step in range(example_trace.length_controlled):
                 address = example_trace.variables_controlled[time_step].address

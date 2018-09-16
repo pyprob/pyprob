@@ -9,7 +9,7 @@ import random
 from threading import Thread
 from termcolor import colored
 
-from .. import __version__, util, TraceMode, PriorInflation
+from .. import __version__, util, TraceMode
 
 
 class Batch():
@@ -44,8 +44,10 @@ class BatchGenerator():
 
     def get_batch(self, length=64, discard_source=False, *args, **kwargs):
         if self._trace_store_dir is None:
+            # There is no trace store on disk, sample traces online from the model
             traces, _ = self._model._traces(length, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs)
         else:
+            # There is a trace store on disk, load traces from disk
             if discard_source:
                 self._trace_store_cache = []
 
