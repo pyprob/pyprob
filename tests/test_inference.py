@@ -127,7 +127,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
         posterior_effective_sample_size_min = samples * 0.6
 
-        self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs1': {'embedding_dim': 64}, 'obs2': {'embedding_dim': 64}})
+        self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs1': {'dim': 256, 'depth': 1}, 'obs2': {'dim': 256, 'depth': 1}})
 
         start = time.time()
         posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs1': 8, 'obs2': 9})
@@ -229,6 +229,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
         prior_mean_correct = 1.
         prior_stddev_correct = math.sqrt(5)
+        posterior_effective_sample_size_min = samples * 0.005
 
         start = time.time()
         posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs1': 8, 'obs2': 9})
@@ -238,15 +239,17 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_mean_unweighted = float(posterior.unweighted().mean)
         posterior_stddev = float(posterior.stddev)
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+        posterior_effective_sample_size = float(posterior.effective_sample_size)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        util.debug('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
         add_importance_sampling_kl_divergence(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean_unweighted, prior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev_unweighted, prior_stddev_correct, places=0)
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+        self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
         self.assertLess(kl_divergence, 0.25)
 
     def test_inference_gum_marsaglia_posterior_importance_sampling_with_inference_network(self):
@@ -254,9 +257,9 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
-        posterior_effective_sample_size_min = samples * 0.6
+        posterior_effective_sample_size_min = samples * 0.03
 
-        self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs1': {'embedding_dim': 64}, 'obs2': {'embedding_dim': 64}})
+        self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs1': {'dim': 256, 'depth': 1}, 'obs2': {'dim': 256, 'depth': 1}})
 
         start = time.time()
         posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs1': 8, 'obs2': 9})

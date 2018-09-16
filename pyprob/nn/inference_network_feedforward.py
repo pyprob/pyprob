@@ -20,7 +20,7 @@ from ..distributions import Normal, Uniform
 
 class Batch():
     def __init__(self, traces):
-        self.batch = traces
+        self.traces = traces
         self.length = len(traces)
         sub_batches = {}
         for trace in traces:
@@ -32,6 +32,10 @@ class Batch():
             sub_batches[trace_hash].append(trace)
         self.sub_batches = list(sub_batches.values())
 
+    def to(self, device):
+        for trace in self.traces:
+            trace.to(device=device)
+
 
 class InferenceNetworkFeedForward(nn.Module):
     # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FULLY_CONNECTED, 'dim': 32, 'depth': 2}}
@@ -39,9 +43,9 @@ class InferenceNetworkFeedForward(nn.Module):
         super().__init__()
         self._model = model
         self._prior_inflation = prior_inflation
+        self._layer_proposal = nn.ModuleDict()
         self._layer_observe_embedding = nn.ModuleDict()
         self._layer_observe_embedding_final = None
-        self._layer_proposal = nn.ModuleDict()
         self._layer_hidden_shape = None
         self._infer_observe = None
         self._infer_observe_embedding = {}
@@ -74,7 +78,7 @@ class InferenceNetworkFeedForward(nn.Module):
             raise ValueError('At least one observe embedding is needed to initialize inference network.')
         observe_embedding_total_dim = 0
         for name, value in observe_embeddings.items():
-            distribution = self._valid_batch.batch[0].named_variables[name].distribution
+            distribution = self._valid_batch.traces[0].named_variables[name].distribution
             if distribution is None:
                 raise ValueError('Observable {}: cannot use this observation as an input to the inference network, because there is no associated likelihood.'.format(name))
             else:

@@ -30,6 +30,12 @@ class Variable():
             str(self.value),
             str(self.log_prob))
 
+    def to(self, device):
+        if self.value is not None:
+            self.value.to(device=device)
+        # if self.distribution is not None:
+        #     self.distribution.to(device=device)
+
 
 class Trace():
     def __init__(self):
@@ -95,3 +101,7 @@ class Trace():
             return self.variables_dict_address_base[address_base].instance
         else:
             return 0
+
+    def to(self, device):
+        for variable in self.variables:
+            variable.to(device)
