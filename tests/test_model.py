@@ -2,6 +2,8 @@ import unittest
 import math
 import torch
 import os
+import tempfile
+import uuid
 
 import pyprob
 from pyprob import util, Model, InferenceEngine
@@ -72,18 +74,19 @@ class ModelTestCase(unittest.TestCase):
         self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)
         self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
 
-    # def test_model_train_save_load(self):
-    #     training_traces = 128
-    #     file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
-    #
-    #     self._model.learn_inference_network(observation=[1, 1], num_traces=training_traces)
-    #     self._model.save_inference_network(file_name)
-    #     self._model.load_inference_network(file_name)
-    #     os.remove(file_name)
-    #
-    #     util.debug('training_traces', 'file_name')
-    #
-    #     self.assertTrue(True)
+    def test_model_train_save_load_train(self):
+        training_traces = 128
+        file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+
+        self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs1': {'dim': 64}, 'obs2': {'dim': 64}})
+        self._model.save_inference_network(file_name)
+        self._model.load_inference_network(file_name)
+        os.remove(file_name)
+        self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs1': {'dim': 64}, 'obs2': {'dim': 64}})
+
+        util.debug('training_traces', 'file_name')
+
+        self.assertTrue(True)
 
     def test_model_lmh_posterior_with_stop_and_resume(self):
         posterior_num_runs = 100

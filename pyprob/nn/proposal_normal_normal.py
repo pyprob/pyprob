@@ -5,7 +5,7 @@ from .. import util
 from ..distributions import Normal
 
 
-class ProposalNormal(nn.Module):
+class ProposalNormalNormal(nn.Module):
     def __init__(self, input_shape, output_shape, num_layers=2):
         super().__init__()
         self._input_shape = input_shape

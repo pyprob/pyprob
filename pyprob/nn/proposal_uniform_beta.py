@@ -5,7 +5,7 @@ from .. import util
 from ..distributions import Beta
 
 
-class ProposalUniform(nn.Module):
+class ProposalUniformBeta(nn.Module):
     def __init__(self, input_shape, output_shape):
         super().__init__()
         self._input_shape = input_shape

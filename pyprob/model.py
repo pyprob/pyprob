@@ -134,11 +134,17 @@ class Model():
                 raise ValueError('Unknown inference_network: {}'.format(inference_network))
         else:
             print('Continuing to train existing inference network...')
+            print('Total number of parameters: {:,}'.format(self._inference_network._history_num_params[-1]))
 
+        self._inference_network.to(device=util._device)
         self._inference_network.optimize(num_traces, batch_size=batch_size, valid_interval=valid_interval, learning_rate=learning_rate, weight_decay=weight_decay)
 
-    def save_inference_network(self):
-        raise NotImplementedError()
+    def save_inference_network(self, file_name):
+        if self._inference_network is None:
+            raise RuntimeError('The model has no trained inference network.')
+        self._inference_network._save(file_name)
 
-    def load_inference_network(self):
-        raise NotImplementedError()
+    def load_inference_network(self, file_name):
+        self._inference_network = InferenceNetworkFeedForward._load(file_name)
+        # The following is due to a temporary hack related with https://github.com/pytorch/pytorch/issues/9981 and can be deprecated by using dill as pickler with torch > 0.4.1
+        self._inference_network._model = self

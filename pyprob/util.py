@@ -9,10 +9,12 @@ import time
 import math
 from functools import reduce
 import operator
+import datetime
 
 
 _device = torch.device('cpu')
 _dtype = torch.float
+_cuda_enabled = False
 _verbosity = 2
 _print_refresh_rate = 0.25  # seconds
 _epsilon = 1e-8
@@ -57,6 +59,17 @@ def set_random_seed(seed=123):
 
 
 set_random_seed()
+
+
+def set_cuda(enabled, device=None):
+    global _device
+    global _cuda_enabled
+    if torch.cuda.is_available() and enabled:
+        _device = torch.device('cuda')
+        _cuda_enabled = True
+    else:
+        _device = torch.device('cpu')
+        _cuda_enabled = False
 
 
 def set_verbosity(v=2):
@@ -143,3 +156,7 @@ def prod(iterable):
 
 def truncate_str(s, length=50):
     return (s[:length] + '...') if len(s) > length else s
+
+
+def get_time_str():
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")

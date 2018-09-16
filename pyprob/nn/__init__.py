@@ -1,4 +1,4 @@
 from .embedding_feedforward import EmbeddingFeedForward
-from .proposal_normal import ProposalNormal
-from .proposal_uniform import ProposalUniform
+from .proposal_normal_normal import ProposalNormalNormal
+from .proposal_uniform_beta import ProposalUniformBeta
 from .inference_network_feedforward import InferenceNetworkFeedForward

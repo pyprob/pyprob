@@ -4,10 +4,17 @@ import torch.optim as optim
 import sys
 import gc
 import time
+import os
+import shutil
+import uuid
+import tempfile
+import tarfile
+import copy
+from threading import Thread
 from termcolor import colored
 
-from . import EmbeddingFeedForward, ProposalNormal, ProposalUniform
-from .. import util, TraceMode, ObserveEmbedding
+from . import EmbeddingFeedForward, ProposalNormalNormal, ProposalUniformBeta
+from .. import __version__, util, TraceMode, ObserveEmbedding
 from ..distributions import Normal, Uniform
 
 
@@ -32,8 +39,9 @@ class InferenceNetworkFeedForward(nn.Module):
         super().__init__()
         self._model = model
         self._prior_inflation = prior_inflation
-        self._layer_observe_embedding = {}
-        self._layer_proposal = {}
+        self._layer_observe_embedding = nn.ModuleDict()
+        self._layer_observe_embedding_final = None
+        self._layer_proposal = nn.ModuleDict()
         self._layer_hidden_shape = None
         self._infer_observe = None
         self._infer_observe_embedding = {}
@@ -52,6 +60,10 @@ class InferenceNetworkFeedForward(nn.Module):
         self._history_valid_loss_trace = []
         self._history_num_params = []
         self._history_num_params_trace = []
+        self._modified = util.get_time_str()
+        self._updates = 0
+        self._on_cuda = False
+        self._device = torch.device('cpu')
 
         self._valid_batch = self._get_batch(valid_batch_size)
         self._init_layer_observe_embeddings(observe_embeddings)
@@ -60,7 +72,6 @@ class InferenceNetworkFeedForward(nn.Module):
     def _init_layer_observe_embeddings(self, observe_embeddings):
         if len(observe_embeddings) == 0:
             raise ValueError('At least one observe embedding is needed to initialize inference network.')
-        self._layer_observe_embeddings = {}
         observe_embedding_total_dim = 0
         for name, value in observe_embeddings.items():
             distribution = self._valid_batch.batch[0].named_variables[name].distribution
@@ -88,10 +99,73 @@ class InferenceNetworkFeedForward(nn.Module):
             else:
                 raise ValueError('Unknown embedding: {}'.format(embedding))
             self._layer_observe_embedding[name] = layer
-            self.add_module('_layer_observe_embedding({})'.format(name), layer)
             observe_embedding_total_dim += util.prod(output_shape)
         self._layer_hidden_shape = torch.Size([observe_embedding_total_dim])
         self._layer_observe_embedding_final = EmbeddingFeedForward(input_shape=self._layer_hidden_shape, output_shape=self._layer_hidden_shape, num_layers=1)
+
+    def _save(self, file_name):
+        self._modified = util.get_time_str()
+        self._updates += 1
+
+        data = {}
+        data['pyprob_version'] = __version__
+        data['torch_version'] = torch.__version__
+        # The following is due to a temporary hack related with https://github.com/pytorch/pytorch/issues/9981 and can be deprecated by using dill as pickler with torch > 0.4.1
+        data['inference_network'] = copy.copy(self)
+        data['inference_network']._model = None
+        data['inference_network']._optimizer = None
+
+        def thread_save():
+            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+            tmp_file_name = os.path.join(tmp_dir, 'pyprob_inference_network')
+            torch.save(data, tmp_file_name)
+            tar = tarfile.open(file_name, 'w:gz', compresslevel=2)
+            tar.add(tmp_file_name, arcname='pyprob_inference_network')
+            tar.close()
+            shutil.rmtree(tmp_dir)
+        t = Thread(target=thread_save)
+        t.start()
+        t.join()
+
+    @staticmethod
+    def _load(file_name):
+        try:
+            tar = tarfile.open(file_name, 'r:gz')
+            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+            tmp_file = os.path.join(tmp_dir, 'pyprob_inference_network')
+            tar.extract('pyprob_inference_network', tmp_dir)
+            tar.close()
+            if util._cuda_enabled:
+                data = torch.load(tmp_file)
+            else:
+                data = torch.load(tmp_file, map_location=lambda storage, loc: storage)
+                shutil.rmtree(tmp_dir)
+        except:
+            raise RuntimeError('Cannot load inference network.')
+
+        if data['pyprob_version'] != __version__:
+            print(colored('Warning: different pyprob versions (loaded network: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
+        if data['torch_version'] != torch.__version__:
+            print(colored('Warning: different PyTorch versions (loaded network: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
+
+        ret = data['inference_network']
+        if util._cuda_enabled:
+            if ret._on_cuda:
+                if ret._device != util._device:
+                    print(colored('Warning: loading CUDA (device {}) network to CUDA (device {})'.format(ret._device, util._device), 'red', attrs=['bold']))
+            else:
+                print(colored('Warning: loading CPU network to CUDA (device {})'.format(util._device), 'red', attrs=['bold']))
+        else:
+            if ret._on_cuda:
+                print(colored('Warning: loading CUDA (device {}) network to CPU'.format(ret._device), 'red', attrs=['bold']))
+        ret.to(device=util._device)
+        return ret
+
+    def to(self, device=None, *args, **kwargs):
+        self._device = device
+        if 'cuda' in str(device):
+            self._on_cuda = True
+        super().to(device=device, *args, *kwargs)
 
     def _get_batch(self, length=64, *args, **kwargs):
         traces, _ = self._model._traces(length, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs)
@@ -132,17 +206,16 @@ class InferenceNetworkFeedForward(nn.Module):
                 if address not in self._layer_proposal:
                     print('New proposal layer for address: {}'.format(util.truncate_str(address)))
                     if isinstance(distribution, Normal):
-                        layer = ProposalNormal(self._layer_hidden_shape, variable_shape)
+                        layer = ProposalNormalNormal(self._layer_hidden_shape, variable_shape)
                     elif isinstance(distribution, Uniform):
-                        layer = ProposalUniform(self._layer_hidden_shape, variable_shape)
+                        layer = ProposalUniformBeta(self._layer_hidden_shape, variable_shape)
                     else:
                         raise RuntimeError('Distribution currently unsupported: {}'.format(distribution.name))
                     self._layer_proposal[address] = layer
-                    self.add_module('layer_proposal({})'.format(address), layer)
                     layers_changed = True
         if layers_changed:
             num_params = sum(p.numel() for p in self.parameters())
-            print('New number of parameters: {:,}'.format(num_params))
+            print('Total number of parameters: {:,}'.format(num_params))
             self._history_num_params.append(num_params)
             self._history_num_params_trace.append(self._total_train_traces)
         return layers_changed
