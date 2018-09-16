@@ -3,4 +3,5 @@ from .embedding_feedforward import EmbeddingFeedForward
 from .proposal_normal_normal import ProposalNormalNormal
 from .proposal_normal_normal_mixture import ProposalNormalNormalMixture
 from .proposal_uniform_beta import ProposalUniformBeta
+from .proposal_uniform_beta_mixture import ProposalUniformBetaMixture
 from .inference_network_feedforward import InferenceNetworkFeedForward
