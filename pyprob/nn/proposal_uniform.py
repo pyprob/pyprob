@@ -19,10 +19,8 @@ class ProposalUniform(nn.Module):
     def forward(self, x, prior_variables):
         x = torch.relu(self._lin1(x.view(-1, self._input_dim)))
         x = torch.relu(self._lin2(x))
-        concentration1s = 1. + x[:, :self._output_dim]
-        concentration0s = 1. + x[:, self._output_dim:]
+        concentration1s = 1. + x[:, :self._output_dim].view(self._output_shape)
+        concentration0s = 1. + x[:, self._output_dim:].view(self._output_shape)
         prior_lows = torch.stack([v.distribution.low for v in prior_variables]).view(concentration1s.size())
         prior_highs = torch.stack([v.distribution.high for v in prior_variables]).view(concentration1s.size())
-        ret = Beta(concentration1s, concentration0s, low=prior_lows, high=prior_highs)
-        # print(ret)
-        return ret
+        return Beta(concentration1s, concentration0s, low=prior_lows, high=prior_highs)

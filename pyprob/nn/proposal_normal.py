@@ -19,14 +19,10 @@ class ProposalNormal(nn.Module):
     def forward(self, x, prior_variables):
         x = torch.relu(self._lin1(x.view(-1, self._input_dim)))
         x = self._lin2(x)
-        means = x[:, :self._output_dim]
-        stddevs = torch.exp(x[:, self._output_dim:])
+        means = x[:, :self._output_dim].view(self._output_shape)
+        stddevs = torch.exp(x[:, self._output_dim:]).view(self._output_shape)
         prior_means = torch.stack([v.distribution.mean for v in prior_variables]).view(means.size())
         prior_stddevs = torch.stack([v.distribution.stddev for v in prior_variables]).view(stddevs.size())
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
-        means = means.view(self._output_shape)
-        stddevs = stddevs.view(self._output_shape)
-        ret = Normal(means, stddevs)
-        # print(ret)
-        return ret
+        return Normal(means, stddevs)
