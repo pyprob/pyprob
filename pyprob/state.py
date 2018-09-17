@@ -28,7 +28,7 @@ _metropolis_hastings_site_transition_log_prob = 0
 # extract_address and _extract_target_of_assignment code by Tobias Kohn (kohnt@tobiaskohn.ch)
 def extract_address(root_function_name):
     # Retun an address in the format:
-    # 'instruction pointer' / 'qualified function name'
+    # 'instruction pointer' __ 'qualified function name'
     frame = sys._getframe(2)
     ip = frame.f_lasti
     names = []
@@ -45,7 +45,7 @@ def extract_address(root_function_name):
         if n == root_function_name:
             break
         frame = frame.f_back
-    return "{}/{}".format(ip, '/'.join(reversed(names)))
+    return '{}__{}'.format(ip, '__'.join(reversed(names)))
 
 
 def _extract_target_of_assignment():
@@ -99,7 +99,7 @@ def observe(distribution=None, value=None, name=None, address=None):
         address_base = address
     instance = _current_trace.last_instance(address_base) + 1
     address_suffix = 'None' if distribution is None else distribution._address_suffix
-    address = '{}_{}_{}'.format(address_base, address_suffix, instance)
+    address = '{}__{}__{}'.format(address_base, address_suffix, instance)
 
     if name in _current_trace_observed_variables:
         # Override observed value
@@ -136,7 +136,7 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
     else:
         address_base = address
     instance = _current_trace.last_instance(address_base) + 1
-    address = '{}_{}_{}'.format(address_base, distribution._address_suffix, 'replaced' if replace else str(instance))
+    address = '{}__{}__{}'.format(address_base, distribution._address_suffix, 'replaced' if replace else str(instance))
 
     if name in _current_trace_observed_variables:
         # Variable is observed

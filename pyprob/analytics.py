@@ -1,6 +1,9 @@
 import torch
 import os
 from collections import OrderedDict
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 from . import __version__, util, PriorInflation, InferenceEngine
 from .distributions import Empirical
@@ -11,17 +14,128 @@ class Analytics():
     def __init__(self, model):
         self._model = model
 
+    def inference_network(self, report_dir=None):
+        if self._model._inference_network is None:
+            raise RuntimeError('The model does not have a trained inference network. Use learn_inference_network first.')
+        return self._network_statistics(self._model._inference_network, report_dir)
+
     def prior_graph(self, num_traces=1000, prior_inflation=PriorInflation.DISABLED, use_address_base=True, bins=100, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, trace_dist=None, *args, **kwargs):
         if trace_dist is None:
             trace_dist = self._model.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, *args, **kwargs)
-        return self._collect_statistics(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, None, 'prior', bins, log_xscale, log_yscale)
+        return self._graph_statistics(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, None, 'prior', bins, log_xscale, log_yscale)
 
     def posterior_graph(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe=None, use_address_base=True, bins=100, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, trace_dist=None, *args, **kwargs):
         if trace_dist is None:
             trace_dist = self._model.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, observe=observe, *args, **kwargs)
-        return self._collect_statistics(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, inference_engine.name, 'posterior', bins, log_xscale, log_yscale)
+        return self._graph_statistics(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, inference_engine.name, 'posterior', bins, log_xscale, log_yscale)
 
-    def _collect_statistics(self, trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, report_sub_dir, report_name, bins, log_xscale, log_yscale):
+    def _network_statistics(self, inference_network, report_dir=None):
+        train_iter_per_sec = inference_network._total_train_iterations / inference_network._total_train_seconds
+        train_traces_per_sec = inference_network._total_train_traces / inference_network._total_train_seconds
+        train_traces_per_iter = inference_network._total_train_traces / inference_network._total_train_iterations
+        train_loss_initial = inference_network._history_train_loss[0]
+        train_loss_final = inference_network._history_train_loss[-1]
+        train_loss_change = train_loss_final - train_loss_initial
+        train_loss_change_per_sec = train_loss_change / inference_network._total_train_seconds
+        train_loss_change_per_iter = train_loss_change / inference_network._total_train_iterations
+        train_loss_change_per_trace = train_loss_change / inference_network._total_train_traces
+        valid_loss_initial = inference_network._history_valid_loss[0]
+        valid_loss_final = inference_network._history_valid_loss[-1]
+        valid_loss_change = valid_loss_final - valid_loss_initial
+        valid_loss_change_per_sec = valid_loss_change / inference_network._total_train_seconds
+        valid_loss_change_per_iter = valid_loss_change / inference_network._total_train_iterations
+        valid_loss_change_per_trace = valid_loss_change / inference_network._total_train_traces
+
+        stats = OrderedDict()
+        stats['pyprob_version'] = __version__
+        stats['torch_version'] = torch.__version__
+        stats['model_name'] = self._model.name
+        stats['modified'] = inference_network._modified
+        stats['updates'] = inference_network._updates
+        stats['trained_on_device'] = str(inference_network._device)
+        stats['valid_batch_size'] = inference_network._valid_batch_size
+        stats['total_train_seconds'] = inference_network._total_train_seconds
+        stats['total_train_traces'] = inference_network._total_train_traces
+        stats['total_train_iterations'] = inference_network._total_train_iterations
+        stats['train_iter_per_sec'] = train_iter_per_sec
+        stats['train_traces_per_sec'] = train_traces_per_sec
+        stats['train_traces_per_iter'] = train_traces_per_iter
+        stats['train_loss_initial'] = train_loss_initial
+        stats['train_loss_final'] = train_loss_final
+        stats['train_loss_change_per_sec'] = train_loss_change_per_sec
+        stats['train_loss_change_per_iter'] = train_loss_change_per_iter
+        stats['train_loss_change_per_trace'] = train_loss_change_per_trace
+        stats['valid_loss_initial'] = valid_loss_initial
+        stats['valid_loss_final'] = valid_loss_final
+        stats['valid_loss_change_per_sec'] = valid_loss_change_per_sec
+        stats['valid_loss_change_per_iter'] = valid_loss_change_per_iter
+        stats['valid_loss_change_per_trace'] = valid_loss_change_per_trace
+
+        if report_dir is not None:
+            if not os.path.exists(report_dir):
+                print('Directory does not exist, creating: {}'.format(report_dir))
+                os.makedirs(report_dir)
+            file_name_stats = os.path.join(report_dir, 'inference_network_stats.txt')
+            print('Saving analytics information to {} ...'.format(file_name_stats))
+            with open(file_name_stats, 'w') as file:
+                file.write('pyprob analytics report\n')
+                for key, value in stats.items():
+                    file.write('{}: {}\n'.format(key, value))
+                file.write('architecture:\n')
+                file.write(str(next(inference_network.modules())))
+
+            mpl.rcParams['axes.unicode_minus'] = False
+            plt.switch_backend('agg')
+
+            file_name_loss = os.path.join(report_dir, 'loss.pdf')
+            print('Plotting loss to file: {} ...'.format(file_name_loss))
+            fig = plt.figure(figsize=(10, 7))
+            ax = plt.subplot(111)
+            ax.plot(inference_network._history_train_loss_trace, inference_network._history_train_loss, label='Training')
+            ax.plot(inference_network._history_valid_loss_trace, inference_network._history_valid_loss, label='Validation')
+            ax.legend()
+            plt.xlabel('Training traces')
+            plt.ylabel('Loss')
+            plt.grid()
+            fig.tight_layout()
+            plt.savefig(file_name_loss)
+
+            file_name_num_params = os.path.join(report_dir, 'num_params.pdf')
+            print('Plotting number of parameters to file: {} ...'.format(file_name_num_params))
+            fig = plt.figure(figsize=(10, 7))
+            ax = plt.subplot(111)
+            ax.plot(inference_network._history_num_params_trace, inference_network._history_num_params, label='Training')
+            plt.xlabel('Training traces')
+            plt.ylabel('Number of parameters')
+            plt.grid()
+            fig.tight_layout()
+            plt.savefig(file_name_num_params)
+
+            report_dir_params = os.path.join(report_dir, 'params')
+            if not os.path.exists(report_dir_params):
+                print('Directory does not exist, creating: {}'.format(report_dir_params))
+                os.makedirs(report_dir_params)
+            for param in inference_network.named_parameters():
+                param_name = param[0]
+                file_name_param = os.path.join(report_dir_params, param_name + '.png')
+                print('Plotting parameter to file: {} ...'.format(file_name_param))
+                param_val = param[1].detach().numpy()
+                if param_val.ndim == 1:
+                    param_val = np.expand_dims(param_val, 1)
+                if param_val.ndim > 2:
+                    print('Cannot render parameter {} because it is {}-dimensional.'.format(param_name, param_val.ndim))
+                else:
+                    fig = plt.figure()
+                    ax = plt.subplot(111)
+                    heatmap = ax.pcolor(param_val, cmap=plt.cm.jet)
+                    ax.invert_yaxis()
+                    plt.xlabel('{} {}'.format(param_name, param_val.shape))
+                    plt.colorbar(heatmap)
+                    # fig.tight_layout()
+                    plt.savefig(file_name_param)
+        return stats
+
+    def _graph_statistics(self, trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, report_sub_dir, report_name, bins, log_xscale, log_yscale):
         stats = OrderedDict()
         stats['pyprob_version'] = __version__
         stats['torch_version'] = torch.__version__
