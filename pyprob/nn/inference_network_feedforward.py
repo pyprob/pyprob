@@ -199,7 +199,7 @@ class InferenceNetworkFeedForward(nn.Module):
                     elif isinstance(distribution, Uniform):
                         layer = ProposalUniformTruncatedNormalMixture(self._layer_hidden_shape, variable_shape)
                     elif isinstance(distribution, Categorical):
-                        layer = ProposalCategoricalCategorical(self._layer_hidden_shape, variable_shape)
+                        layer = ProposalCategoricalCategorical(self._layer_hidden_shape, distribution.num_categories)
                     else:
                         raise RuntimeError('Distribution currently unsupported: {}'.format(distribution.name))
                     self._layer_proposal[address] = layer

@@ -160,3 +160,9 @@ def truncate_str(s, length=50):
 
 def get_time_str():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def one_hot(dim, i):
+    t = torch.zeros(dim)
+    t.narrow(0, i, 1).fill_(1)
+    return t

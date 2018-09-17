@@ -7,10 +7,9 @@ from ..distributions import Categorical
 
 
 class ProposalCategoricalCategorical(nn.Module):
-    def __init__(self, input_shape, output_shape, num_layers=3):
+    def __init__(self, input_shape, num_categories, num_layers=3):
         super().__init__()
-        self._output_dim = util.prod(output_shape)
-        self._ff = EmbeddingFeedForward(input_shape=input_shape, output_shape=torch.Size([self._output_dim]), num_layers=num_layers, activation=torch.relu, activation_last=lambda x: x)
+        self._ff = EmbeddingFeedForward(input_shape=input_shape, output_shape=torch.Size([num_categories]), num_layers=num_layers, activation=torch.relu, activation_last=lambda x: x)
 
     def forward(self, x, prior_variables):
         batch_size = x.size(0)
