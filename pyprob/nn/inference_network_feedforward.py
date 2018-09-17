@@ -13,9 +13,9 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import EmbeddingFeedForward, ProposalNormalNormal, ProposalNormalNormalMixture, ProposalUniformBeta, ProposalUniformBetaMixture, ProposalUniformTruncatedNormalMixture
+from . import EmbeddingFeedForward, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical
 from .. import __version__, util, ObserveEmbedding
-from ..distributions import Normal, Uniform
+from ..distributions import Normal, Uniform, Categorical
 
 
 class InferenceNetworkFeedForward(nn.Module):
@@ -198,6 +198,8 @@ class InferenceNetworkFeedForward(nn.Module):
                         layer = ProposalNormalNormalMixture(self._layer_hidden_shape, variable_shape)
                     elif isinstance(distribution, Uniform):
                         layer = ProposalUniformTruncatedNormalMixture(self._layer_hidden_shape, variable_shape)
+                    elif isinstance(distribution, Categorical):
+                        layer = ProposalCategoricalCategorical(self._layer_hidden_shape, variable_shape)
                     else:
                         raise RuntimeError('Distribution currently unsupported: {}'.format(distribution.name))
                     self._layer_proposal[address] = layer
