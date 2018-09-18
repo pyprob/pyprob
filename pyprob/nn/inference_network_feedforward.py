@@ -66,17 +66,17 @@ class InferenceNetworkFeedForward(nn.Module):
             if 'dim' in value:
                 output_shape = torch.Size([value['dim']])
             else:
-                print('Observable {}: embedding dim not provided, using the default 256.'.format(name))
+                print('Observable {}: embedding dim not specified, using the default 256.'.format(name))
                 output_shape = torch.Size([256])
             if 'depth' in value:
                 depth = value['depth']
             else:
-                print('Observable {}: embedding depth not provided, using the default 2.'.format(name))
+                print('Observable {}: embedding depth not specified, using the default 2.'.format(name))
                 depth = 2
             if 'embedding' in value:
                 embedding = value['embedding']
             else:
-                print('Observable {}: observe embedding not provided, using the default FULLY_CONNECTED.'.format(name))
+                print('Observable {}: observe embedding not specified, using the default FULLY_CONNECTED.'.format(name))
                 embedding = ObserveEmbedding.FULLY_CONNECTED
             if embedding == ObserveEmbedding.FULLY_CONNECTED:
                 layer = EmbeddingFeedForward(input_shape=input_shape, output_shape=output_shape, num_layers=depth)
