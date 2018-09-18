@@ -9,6 +9,7 @@ from termcolor import colored
 from .distributions import Empirical
 from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork
 from .nn import BatchGenerator, InferenceNetworkFeedForward
+from .remote import ModelServer
 
 
 class Model():
@@ -157,3 +158,25 @@ class Model():
             os.makedirs(trace_store_dir)
         batch_generator = BatchGenerator(self, prior_inflation)
         batch_generator.save_trace_store(trace_store_dir, files, traces_per_file)
+
+
+class ModelRemote(Model):
+    def __init__(self, server_address='tcp://127.0.0.1:5555'):
+        self._server_address = server_address
+        self._model_server = ModelServer(server_address)
+        super().__init__('{} running on {}'.format(self._model_server.model_name, self._model_server.system_name))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.close()
+
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        self._model_server.close()
+
+    def forward(self, observation=None):
+        return self._model_server.forward(observation)

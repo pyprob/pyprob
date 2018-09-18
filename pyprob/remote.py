@@ -84,11 +84,11 @@ class ModelServer(object):
             t = torch.from_numpy(data)
         if len(shape) != 0:
             t = t.view(shape.tolist())
-        return util.to_variable(t)
+        return util.to_tensor(t)
 
     def _variable_to_protocol_tensor(self, builder, variable):
         if variable is None:
-            variable = util.to_variable(torch.zeros(0))
+            variable = util.to_tensor(torch.zeros(0))
         variable_numpy = util.to_numpy(variable)
         data = variable_numpy.flatten().tolist()
         shape = list(variable_numpy.shape)
