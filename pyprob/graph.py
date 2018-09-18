@@ -1,5 +1,5 @@
 import pydotplus
-import subprocess
+import os
 import math
 import numpy as np
 from collections import OrderedDict
@@ -232,7 +232,7 @@ class Graph():
         with open(file_name_dot, 'w') as file:
             file.write(graph)
         file_name_pdf = file_name + '.pdf'
-        status, result = subprocess.getstatusoutput('dot -Tpdf {} -o {}'.format(file_name_dot, file_name_pdf))
+        status = os.system('dot -Tpdf {} -o {}'.format(file_name_dot, file_name_pdf))
         if status != 0:
             print('Cannot not render to file {}. Check that GraphViz is installed.'.format(file_name_pdf))
 
