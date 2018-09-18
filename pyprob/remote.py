@@ -24,7 +24,7 @@ from .ppx import ObserveResult as ppx_ObserveResult
 from .ppx import Reset as ppx_Reset
 
 
-class Requester(object):
+class ZMQRequester():
     def __init__(self, server_address):
         self._server_address = server_address
         self._context = zmq.Context.instance()
@@ -57,7 +57,7 @@ class Requester(object):
 
 class ModelServer(object):
     def __init__(self, server_address):
-        self._requester = Requester(server_address)
+        self._requester = ZMQRequester(server_address)
         self.system_name, self.model_name = self._handshake()
         print('ppx (Python): This system        : {}'.format(colored('pyprob {}'.format(__version__), 'green')))
         print('ppx (Python): Connected to system: {}'.format(colored(self.system_name, 'green')))
@@ -187,6 +187,7 @@ class ModelServer(object):
                 return result
             elif isinstance(message_body, ppx_Sample.Sample):
                 address = message_body.Address().decode('utf-8')
+                name = message_body.Name().decode('utf-8')
                 control = bool(message_body.Control())
                 replace = bool(message_body.Replace())
                 distribution_type = message_body.DistributionType()
@@ -214,7 +215,7 @@ class ModelServer(object):
                     dist = Poisson(rate)
                 else:
                     raise RuntimeError('ppx (Python): Sample from an unexpected distribution requested.')
-                result = state.sample(dist, control, replace, address)
+                result = state.sample(distribution=dist, control=control, replace=replace, name=name, address=address)
                 builder = flatbuffers.Builder(64)
                 result = self._variable_to_protocol_tensor(builder, result)
                 ppx_SampleResult.SampleResultStart(builder)
@@ -232,6 +233,7 @@ class ModelServer(object):
                 self._requester.send_request(message)
             elif isinstance(message_body, ppx_Observe.Observe):
                 address = message_body.Address().decode('utf-8')
+                name = message_body.Name().decode('utf-8')
                 value = self._protocol_tensor_to_variable(message_body.Value())
                 distribution_type = message_body.DistributionType()
                 if distribution_type == ppx_Distribution.Distribution().Uniform:
@@ -261,7 +263,7 @@ class ModelServer(object):
                 if value is None:
                     print('ppx (Python): Warning: observed None value.')
                 else:
-                    state.observe(dist, value, address)
+                    state.observe(distribution=dist, value=value, name=name, address=address)
                 builder = flatbuffers.Builder(64)
                 ppx_ObserveResult.ObserveResultStart(builder)
                 message_body = ppx_ObserveResult.ObserveResultEnd(builder)
