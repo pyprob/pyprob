@@ -26,15 +26,22 @@ class Observe(object):
         return bytes()
 
     # Observe
-    def DistributionType(self):
+    def Name(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        if o != 0:
+            return self._tab.String(o + self._tab.Pos)
+        return bytes()
+
+    # Observe
+    def DistributionType(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
         return 0
 
     # Observe
     def Distribution(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             from flatbuffers.table import Table
             obj = Table(bytearray(), 0)
@@ -44,7 +51,7 @@ class Observe(object):
 
     # Observe
     def Value(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
             from .Tensor import Tensor
@@ -53,9 +60,10 @@ class Observe(object):
             return obj
         return None
 
-def ObserveStart(builder): builder.StartObject(4)
+def ObserveStart(builder): builder.StartObject(5)
 def ObserveAddAddress(builder, address): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(address), 0)
-def ObserveAddDistributionType(builder, distributionType): builder.PrependUint8Slot(1, distributionType, 0)
-def ObserveAddDistribution(builder, distribution): builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(distribution), 0)
-def ObserveAddValue(builder, value): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(value), 0)
+def ObserveAddName(builder, name): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(name), 0)
+def ObserveAddDistributionType(builder, distributionType): builder.PrependUint8Slot(2, distributionType, 0)
+def ObserveAddDistribution(builder, distribution): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(distribution), 0)
+def ObserveAddValue(builder, value): builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(value), 0)
 def ObserveEnd(builder): return builder.EndObject()
