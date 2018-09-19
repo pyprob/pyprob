@@ -10,7 +10,7 @@ class ProposalUniformTruncatedNormalMixture(nn.Module):
         super().__init__()
         # Currently only supports event_shape=torch.Size([]) for the mixture components
         self._mixture_components = mixture_components
-        self._ff = EmbeddingFeedForward(input_shape=input_shape, output_shape=torch.Size([3 * self._mixture_components]), num_layers=num_layers, activation=torch.relu, activation_last=lambda x: x)
+        self._ff = EmbeddingFeedForward(input_shape=input_shape, output_shape=torch.Size([3 * self._mixture_components]), num_layers=num_layers, activation=torch.relu, activation_last=None)
 
     def forward(self, x, prior_variables):
         batch_size = x.size(0)

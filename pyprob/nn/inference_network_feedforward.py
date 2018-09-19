@@ -258,6 +258,8 @@ class InferenceNetworkFeedForward(nn.Module):
         stop = False
         print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
         max_print_line_len = 0
+        loss_min_str = ''
+        time_since_loss_min_str = ''
         while not stop:
             iteration += 1
             batch = batch_generator.get_batch(batch_size)

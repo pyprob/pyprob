@@ -32,7 +32,8 @@ class EmbeddingFeedForward(nn.Module):
             layer = self._layers[i]
             x = layer(x)
             if i == len(self._layers) - 1:
-                x = self._activation_last(x)
+                if self._activation_last is not None:
+                    x = self._activation_last(x)
             else:
                 x = self._activation(x)
         return x.view(self._output_shape)

@@ -11,7 +11,7 @@ class ProposalNormalNormal(nn.Module):
         super().__init__()
         self._output_dim = util.prod(output_shape)
         self._output_shape = torch.Size([-1]) + output_shape
-        self._ff = EmbeddingFeedForward(input_shape=input_shape, output_shape=torch.Size([self._output_dim * 2]), num_layers=num_layers, activation=torch.relu, activation_last=lambda x: x)
+        self._ff = EmbeddingFeedForward(input_shape=input_shape, output_shape=torch.Size([self._output_dim * 2]), num_layers=num_layers, activation=torch.relu, activation_last=None)
 
     def forward(self, x, prior_variables):
         batch_size = x.size(0)
