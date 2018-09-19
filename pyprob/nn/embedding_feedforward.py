@@ -10,7 +10,7 @@ class EmbeddingFeedForward(nn.Module):
         self._input_shape = input_shape
         self._input_dim = util.prod(input_shape)
         self._output_dim = util.prod(output_shape)
-        self._output_shape = torch.Size([-1]) + output_shape
+        self._output_shape = output_shape
         if num_layers < 1:
             raise ValueError('Expecting num_layers >= 1')
         layers = []
@@ -36,4 +36,4 @@ class EmbeddingFeedForward(nn.Module):
                     x = self._activation_last(x)
             else:
                 x = self._activation(x)
-        return x.view(self._output_shape)
+        return x.view(torch.Size([-1]) + self._output_shape)

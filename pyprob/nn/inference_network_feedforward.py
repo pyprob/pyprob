@@ -13,13 +13,13 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import EmbeddingFeedForward, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
+from . import EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D4C, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
 from .. import __version__, util, ObserveEmbedding
 from ..distributions import Normal, Uniform, Categorical, Poisson
 
 
 class InferenceNetworkFeedForward(nn.Module):
-    # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'dim': 32, 'depth': 2}}
+    # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'reshape': [10, 10], 'dim': 32, 'depth': 2}}
     def __init__(self, model, valid_batch_size=64, observe_embeddings={}):
         super().__init__()
         self._model = model
@@ -62,7 +62,10 @@ class InferenceNetworkFeedForward(nn.Module):
             if distribution is None:
                 raise ValueError('Observable {}: cannot use this observation as an input to the inference network, because there is no associated likelihood.'.format(name))
             else:
-                input_shape = distribution.sample().size()
+                if 'reshape' in value:
+                    input_shape = torch.Size(value['reshape'])
+                else:
+                    input_shape = distribution.sample().size()
             if 'dim' in value:
                 output_shape = torch.Size([value['dim']])
             else:
@@ -80,6 +83,10 @@ class InferenceNetworkFeedForward(nn.Module):
                 embedding = ObserveEmbedding.FEEDFORWARD
             if embedding == ObserveEmbedding.FEEDFORWARD:
                 layer = EmbeddingFeedForward(input_shape=input_shape, output_shape=output_shape, num_layers=depth)
+            elif embedding == ObserveEmbedding.CNN2D5C:
+                layer = EmbeddingCNN2D5C(input_shape=input_shape, output_shape=output_shape, num_layers=depth)
+            elif embedding == ObserveEmbedding.CNN3D4C:
+                layer = EmbeddingCNN3D4C(input_shape=input_shape, output_shape=output_shape, num_layers=depth)
             else:
                 raise ValueError('Unknown embedding: {}'.format(embedding))
             self._layer_observe_embedding[name] = layer
