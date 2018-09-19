@@ -18,17 +18,5 @@ class Run(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Run
-    def Observation(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
-        if o != 0:
-            x = self._tab.Indirect(o + self._tab.Pos)
-            from .Tensor import Tensor
-            obj = Tensor()
-            obj.Init(self._tab.Bytes, x)
-            return obj
-        return None
-
-def RunStart(builder): builder.StartObject(1)
-def RunAddObservation(builder, observation): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(observation), 0)
+def RunStart(builder): builder.StartObject(0)
 def RunEnd(builder): return builder.EndObject()

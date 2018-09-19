@@ -178,5 +178,5 @@ class ModelRemote(Model):
     def close(self):
         self._model_server.close()
 
-    def forward(self, observation=None):
-        return self._model_server.forward(observation)
+    def forward(self):
+        return self._model_server.forward()

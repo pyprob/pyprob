@@ -35,8 +35,8 @@ class ModelTestCase(unittest.TestCase):
             def forward(self):
                 mu = self.marsaglia(self.prior_mean, self.prior_stddev)
                 likelihood = Normal(mu, self.likelihood_stddev)
+                pyprob.observe(likelihood, 0, name='obs0')
                 pyprob.observe(likelihood, 0, name='obs1')
-                pyprob.observe(likelihood, 0, name='obs2')
                 return mu
 
         self._model = GaussianWithUnknownMeanMarsaglia()
@@ -78,11 +78,11 @@ class ModelTestCase(unittest.TestCase):
         training_traces = 128
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
 
-        self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs1': {'dim': 64}, 'obs2': {'dim': 64}})
+        self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
         self._model.save_inference_network(file_name)
         self._model.load_inference_network(file_name)
         os.remove(file_name)
-        self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs1': {'dim': 64}, 'obs2': {'dim': 64}})
+        self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
 
         util.debug('training_traces', 'file_name')
 
@@ -101,7 +101,7 @@ class ModelTestCase(unittest.TestCase):
         posteriors = []
         initial_trace = None
         for i in range(posterior_num_runs):
-            posterior = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs1': 8, 'obs2': 9}, initial_trace=initial_trace)
+            posterior = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace)
             initial_trace = posterior[-1]
             posteriors.append(posterior)
         posterior = Empirical.combine(posteriors).map(lambda trace: trace.result)
@@ -132,7 +132,7 @@ class ModelTestCase(unittest.TestCase):
         posteriors = []
         initial_trace = None
         for i in range(posterior_num_runs):
-            posterior = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs1': 8, 'obs2': 9}, initial_trace=initial_trace)
+            posterior = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace)
             initial_trace = posterior[-1]
             posteriors.append(posterior)
         posterior = Empirical.combine(posteriors).map(lambda trace: trace.result)
@@ -173,8 +173,8 @@ class ModelWithReplacementTestCase(unittest.TestCase):
             def forward(self):
                 mu = self.marsaglia(self.prior_mean, self.prior_stddev)
                 likelihood = Normal(mu, self.likelihood_stddev)
+                pyprob.observe(likelihood, 0, name='obs0')
                 pyprob.observe(likelihood, 0, name='obs1')
-                pyprob.observe(likelihood, 0, name='obs2')
                 return mu
 
         self._model = GaussianWithUnknownMeanMarsagliaWithReplacement()
@@ -216,8 +216,8 @@ class ModelObservationStyle1TestCase(unittest.TestCase):
                 mu = pyprob.sample(Normal(self.prior_mean, self.prior_stddev))
                 likelihood = Normal(mu, self.likelihood_stddev)
                 # pyprob.observe usage alternative #1
+                pyprob.observe(likelihood, name='obs0')
                 pyprob.observe(likelihood, name='obs1')
-                pyprob.observe(likelihood, name='obs2')
                 return mu
 
         self._model = GaussianWithUnknownMean()
@@ -231,7 +231,7 @@ class ModelObservationStyle1TestCase(unittest.TestCase):
         prior_mean_correct = 1.
         prior_stddev_correct = math.sqrt(5)
 
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs1': 8, 'obs2': 9})
+        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
 
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.unweighted().mean)
@@ -262,8 +262,8 @@ class ModelObservationStyle2TestCase(unittest.TestCase):
                 mu = pyprob.sample(Normal(self.prior_mean, self.prior_stddev))
                 likelihood = Normal(mu, self.likelihood_stddev)
                 # pyprob.observe usage alternative #2
+                pyprob.sample(likelihood, name='obs0')
                 pyprob.sample(likelihood, name='obs1')
-                pyprob.sample(likelihood, name='obs2')
                 return mu
 
         self._model = GaussianWithUnknownMean()
@@ -277,7 +277,7 @@ class ModelObservationStyle2TestCase(unittest.TestCase):
         prior_mean_correct = 1.
         prior_stddev_correct = math.sqrt(5)
 
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs1': 8, 'obs2': 9})
+        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
 
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.unweighted().mean)

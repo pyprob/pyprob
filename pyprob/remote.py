@@ -76,6 +76,8 @@ class ModelServer(object):
         self._requester.close()
 
     def _protocol_tensor_to_variable(self, protocol_tensor):
+        if protocol_tensor is None:
+            return None
         data = protocol_tensor.DataAsNumpy()
         shape = protocol_tensor.ShapeAsNumpy()
         if len(data) == 0:
@@ -155,17 +157,11 @@ class ModelServer(object):
         else:
             raise RuntimeError('ppx (Python): Unexpected reply to handshake.')
 
-    def forward(self, observation=None):
+    def forward(self):
         builder = flatbuffers.Builder(64)
-
-        if observation is not None:
-            # construct Tensor
-            observation = self._variable_to_protocol_tensor(builder, observation)
 
         # construct MessageBody
         ppx_Run.RunStart(builder)
-        if observation is not None:
-            ppx_Run.RunAddObservation(builder, observation)
         message_body = ppx_Run.RunEnd(builder)
 
         # construct Message
@@ -188,6 +184,8 @@ class ModelServer(object):
             elif isinstance(message_body, ppx_Sample.Sample):
                 address = message_body.Address().decode('utf-8')
                 name = message_body.Name().decode('utf-8')
+                if name == '':
+                    name = None
                 control = bool(message_body.Control())
                 replace = bool(message_body.Replace())
                 distribution_type = message_body.DistributionType()
@@ -234,6 +232,8 @@ class ModelServer(object):
             elif isinstance(message_body, ppx_Observe.Observe):
                 address = message_body.Address().decode('utf-8')
                 name = message_body.Name().decode('utf-8')
+                if name == '':
+                    name = None
                 value = self._protocol_tensor_to_variable(message_body.Value())
                 distribution_type = message_body.DistributionType()
                 if distribution_type == ppx_Distribution.Distribution().Uniform:
@@ -260,10 +260,8 @@ class ModelServer(object):
                     dist = Poisson(rate)
                 else:
                     raise RuntimeError('ppx (Python): Sample from an unexpected distribution requested.')
-                if value is None:
-                    print('ppx (Python): Warning: observed None value.')
-                else:
-                    state.observe(distribution=dist, value=value, name=name, address=address)
+
+                state.observe(distribution=dist, value=value, name=name, address=address)
                 builder = flatbuffers.Builder(64)
                 ppx_ObserveResult.ObserveResultStart(builder)
                 message_body = ppx_ObserveResult.ObserveResultEnd(builder)
