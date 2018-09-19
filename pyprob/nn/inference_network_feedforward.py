@@ -241,7 +241,7 @@ class InferenceNetworkFeedForward(nn.Module):
             batch_loss += sub_batch_loss
         return True, batch_loss / batch.length
 
-    def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, learning_rate=0.0001, weight_decay=1e-5, *args, **kwargs):
+    def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name=None, auto_save_interval_sec=600, *args, **kwargs):
         if self._valid_batch is None:
             print('Initializing inference network...')
             self._valid_batch = batch_generator.get_batch(self._valid_batch_size, discard_source=True)
@@ -260,6 +260,7 @@ class InferenceNetworkFeedForward(nn.Module):
         max_print_line_len = 0
         loss_min_str = ''
         time_since_loss_min_str = ''
+        last_auto_save_time = time.time() - auto_save_interval_sec
         while not stop:
             iteration += 1
             batch = batch_generator.get_batch(batch_size)
@@ -326,10 +327,13 @@ class InferenceNetworkFeedForward(nn.Module):
                     self._history_valid_loss.append(valid_loss)
                     self._history_valid_loss_trace.append(self._total_train_traces)
                     last_validation_trace = trace - 1
-                    # if auto_save:
-                    #     file_name = auto_save_file_name + '_' + util.get_time_stamp()
-                    #     print('\rSaving to disk...', end='\r')
-                    #     self._save(file_name)
+
+                if auto_save_file_name is not None:
+                    if time.time() - last_auto_save_time > auto_save_interval_sec:
+                        last_auto_save_time = time.time()
+                        file_name = auto_save_file_name + '_' + util.get_time_stamp()
+                        print('\rSaving to disk...', end='\r')
+                        self._save(file_name)
 
                 print_line = '{} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
                 max_print_line_len = max(len(print_line), max_print_line_len)

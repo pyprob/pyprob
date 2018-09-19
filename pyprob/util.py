@@ -164,6 +164,10 @@ def get_time_str():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def get_time_stamp():
+    return datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d_%H%M%S')
+
+
 def one_hot(dim, i):
     t = torch.zeros(dim)
     t.narrow(0, i, 1).fill_(1)
