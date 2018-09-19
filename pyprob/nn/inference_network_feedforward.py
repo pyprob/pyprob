@@ -13,9 +13,9 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import EmbeddingFeedForward, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical
+from . import EmbeddingFeedForward, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
 from .. import __version__, util, ObserveEmbedding
-from ..distributions import Normal, Uniform, Categorical
+from ..distributions import Normal, Uniform, Categorical, Poisson
 
 
 class InferenceNetworkFeedForward(nn.Module):
@@ -198,6 +198,8 @@ class InferenceNetworkFeedForward(nn.Module):
                         layer = ProposalNormalNormalMixture(self._layer_hidden_shape, variable_shape)
                     elif isinstance(distribution, Uniform):
                         layer = ProposalUniformTruncatedNormalMixture(self._layer_hidden_shape, variable_shape)
+                    elif isinstance(distribution, Poisson):
+                        layer = ProposalPoissonTruncatedNormalMixture(self._layer_hidden_shape, variable_shape)
                     elif isinstance(distribution, Categorical):
                         layer = ProposalCategoricalCategorical(self._layer_hidden_shape, distribution.num_categories)
                     else:

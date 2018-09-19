@@ -4,11 +4,12 @@ import torch.nn.functional as F
 import time
 import math
 import sys
+import functools
 from termcolor import colored
 
 import pyprob
 from pyprob import util, Model, InferenceEngine
-from pyprob.distributions import Normal, Uniform, Categorical
+from pyprob.distributions import Normal, Uniform, Categorical, Poisson, Empirical
 
 
 importance_sampling_samples = 5000
@@ -461,6 +462,123 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
 
         self.assertLess(l2_distance, 3)
         self.assertLess(kl_divergence, 1)
+
+
+class BranchingTestCase(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        class Branching(Model):
+            def __init__(self):
+                super().__init__('Branching')
+
+            @functools.lru_cache(maxsize=None)  # 128 by default
+            def fibonacci(self, n):
+                if n < 2:
+                    return 1
+
+                a = 1
+                fib = 1
+                for i in range(n-2):
+                    a, fib = fib, a + fib
+                return fib
+
+            def forward(self):
+                count_prior = Poisson(4)
+                r = pyprob.sample(count_prior)
+                if 4 < float(r):
+                    l = 6
+                else:
+                    l = 1 + self.fibonacci(3 * int(r)) + pyprob.sample(count_prior)
+
+                pyprob.observe(Poisson(l), name='obs')
+                return r
+
+            def true_posterior(self, observe=6):
+                count_prior = Poisson(4)
+                vals = []
+                log_weights = []
+                for r in range(40):
+                    for s in range(40):
+                        if 4 < float(r):
+                            l = 6
+                        else:
+                            f = self.fibonacci(3 * r)
+                            l = 1 + f + count_prior.sample()
+                        vals.append(r)
+                        log_weights.append(Poisson(l).log_prob(observe) + count_prior.log_prob(r) + count_prior.log_prob(s))
+                return Empirical(vals, log_weights)
+
+        self._model = Branching()
+        super().__init__(*args, **kwargs)
+
+    def test_inference_branching_importance_sampling(self):
+        samples = importance_sampling_samples
+        posterior_correct = util.empirical_to_categorical(self._model.true_posterior(), max_val=40)
+
+        start = time.time()
+        posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, observe={'obs': 6}), max_val=40)
+        add_importance_sampling_duration(time.time() - start)
+
+        posterior_probs = util.to_numpy(posterior._probs)
+        posterior_probs_correct = util.to_numpy(posterior_correct._probs)
+        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(posterior, posterior_correct))
+
+        util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+        add_importance_sampling_kl_divergence(kl_divergence)
+
+        self.assertLess(kl_divergence, 0.75)
+    #
+    # def test_inference_branching_importance_sampling_with_inference_network(self):
+    #     samples = importance_sampling_samples
+    #     posterior_correct = util.empirical_to_categorical(self._model.true_posterior(), max_val=40)
+    #
+    #     self._model.learn_inference_network(num_traces=2000, observe_embeddings={'obs': {'depth': 2, 'dim': 32}})
+    #
+    #     start = time.time()
+    #     posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs': 6}), max_val=40)
+    #     add_importance_sampling_with_inference_network_duration(time.time() - start)
+    #
+    #     posterior_probs = util.to_numpy(posterior._probs)
+    #     posterior_probs_correct = util.to_numpy(posterior_correct._probs)
+    #     kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(posterior, posterior_correct))
+    #
+    #     util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+    #     add_importance_sampling_with_inference_network_kl_divergence(kl_divergence)
+    #
+    #     self.assertLess(kl_divergence, 0.75)
+
+    def test_inference_branching_lightweight_metropolis_hastings(self):
+        samples = importance_sampling_samples
+        posterior_correct = util.empirical_to_categorical(self._model.true_posterior(), max_val=40)
+
+        start = time.time()
+        posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs': 6}), max_val=40)
+        add_lightweight_metropolis_hastings_duration(time.time() - start)
+
+        posterior_probs = util.to_numpy(posterior._probs)
+        posterior_probs_correct = util.to_numpy(posterior_correct._probs)
+        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(posterior, posterior_correct))
+
+        util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+        add_lightweight_metropolis_hastings_kl_divergence(kl_divergence)
+
+        self.assertLess(kl_divergence, 0.75)
+
+    def test_inference_branching_random_walk_metropolis_hastings(self):
+        samples = importance_sampling_samples
+        posterior_correct = util.empirical_to_categorical(self._model.true_posterior(), max_val=40)
+
+        start = time.time()
+        posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs': 6}), max_val=40)
+        add_random_walk_metropolis_hastings_duration(time.time() - start)
+
+        posterior_probs = util.to_numpy(posterior._probs)
+        posterior_probs_correct = util.to_numpy(posterior_correct._probs)
+        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(posterior, posterior_correct))
+
+        util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+        add_random_walk_metropolis_hastings_kl_divergence(kl_divergence)
+
+        self.assertLess(kl_divergence, 0.75)
 
 
 if __name__ == '__main__':

@@ -11,6 +11,8 @@ from functools import reduce
 import operator
 import datetime
 
+from .distributions import Categorical
+
 
 _device = torch.device('cpu')
 _dtype = torch.float
@@ -174,3 +176,15 @@ def is_hashable(v):
     except TypeError:
         return False
     return True
+
+
+def empirical_to_categorical(empirical_dist, max_val=None):
+    empirical_dist = empirical_dist.combine_duplicates().map(int)
+    if max_val is None:
+        max_val = int(empirical_dist.max)
+    probs = torch.zeros(max_val + 1)
+    for i in range(empirical_dist.length):
+        val = empirical_dist.values[i]
+        if val <= max_val:
+            probs[val] = float(empirical_dist.weights[i])
+    return Categorical(probs)
