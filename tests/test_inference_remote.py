@@ -1,3 +1,4 @@
+import torch.nn.functional as F
 import unittest
 import math
 import time
@@ -7,25 +8,25 @@ from termcolor import colored
 
 import pyprob
 from pyprob import util, ModelRemote, InferenceEngine
-from pyprob.distributions import Normal
+from pyprob.distributions import Normal, Categorical
 
 
-importance_sampling_samples = 500
+importance_sampling_samples = 5000
 importance_sampling_kl_divergence = 0
 importance_sampling_duration = 0
 
-importance_sampling_with_inference_network_samples = 500
+importance_sampling_with_inference_network_samples = 5000
 importance_sampling_with_inference_network_kl_divergence = 0
 importance_sampling_with_inference_network_duration = 0
-importance_sampling_with_inference_network_training_traces = 500
+importance_sampling_with_inference_network_training_traces = 25000
 
-lightweight_metropolis_hastings_samples = 500
-lightweight_metropolis_hastings_burn_in = 100
+lightweight_metropolis_hastings_samples = 5000
+lightweight_metropolis_hastings_burn_in = 500
 lightweight_metropolis_hastings_kl_divergence = 0
 lightweight_metropolis_hastings_duration = 0
 
-random_walk_metropolis_hastings_samples = 500
-random_walk_metropolis_hastings_burn_in = 100
+random_walk_metropolis_hastings_samples = 5000
+random_walk_metropolis_hastings_burn_in = 500
 random_walk_metropolis_hastings_kl_divergence = 0
 random_walk_metropolis_hastings_duration = 0
 
@@ -76,11 +77,14 @@ docker_client.images.pull('probprog/pyprob_cpp')
 print('Docker image pulled.')
 
 docker_containers = []
-docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum tcp://*:5555', network='host', detach=True))
-GaussianWithUnknownMeanCPP = ModelRemote('tcp://127.0.0.1:5555')
+docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum ipc://@GaussianWithUnknownMeanCPP', network='host', detach=True))
+GaussianWithUnknownMeanCPP = ModelRemote('ipc://@GaussianWithUnknownMeanCPP')
 
-docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia_replacement tcp://*:5556', network='host', detach=True))
-GaussianWithUnknownMeanMarsagliaWithReplacementCPP = ModelRemote('tcp://127.0.0.1:5556')
+docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia_replacement ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP', network='host', detach=True))
+GaussianWithUnknownMeanMarsagliaWithReplacementCPP = ModelRemote('ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP')
+
+docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_hmm ipc://@HiddenMarkovModelCPP', network='host', detach=True))
+HiddenMarkovModelCPP = ModelRemote('ipc://@HiddenMarkovModelCPP')
 
 
 class GaussianWithUnknownMeanTestCase(unittest.TestCase):
@@ -299,13 +303,126 @@ class GaussianWithUnknownMeanMarsagliaWithReplacementTestCase(unittest.TestCase)
         self.assertLess(kl_divergence, 0.25)
 
 
+class HiddenMarkovModelTestCase(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        self._model = HiddenMarkovModelCPP
+        self._observation = [0.9, 0.8, 0.7, 0.0, -0.025, -5.0, -2.0, -0.1, 0.0, 0.13, 0.45, 6, 0.2, 0.3, -1, -1]
+        self._posterior_mean_correct = util.to_tensor([[0.3775, 0.3092, 0.3133],
+                                                       [0.0416, 0.4045, 0.5539],
+                                                       [0.0541, 0.2552, 0.6907],
+                                                       [0.0455, 0.2301, 0.7244],
+                                                       [0.1062, 0.1217, 0.7721],
+                                                       [0.0714, 0.1732, 0.7554],
+                                                       [0.9300, 0.0001, 0.0699],
+                                                       [0.4577, 0.0452, 0.4971],
+                                                       [0.0926, 0.2169, 0.6905],
+                                                       [0.1014, 0.1359, 0.7626],
+                                                       [0.0985, 0.1575, 0.7440],
+                                                       [0.1781, 0.2198, 0.6022],
+                                                       [0.0000, 0.9848, 0.0152],
+                                                       [0.1130, 0.1674, 0.7195],
+                                                       [0.0557, 0.1848, 0.7595],
+                                                       [0.2017, 0.0472, 0.7511],
+                                                       [0.2545, 0.0611, 0.6844]])
+        super().__init__(*args, **kwargs)
+
+    def test_inference_hmm_posterior_importance_sampling(self):
+        samples = importance_sampling_samples
+        observation = {'obs{}'.format(i): self._observation[i] for i in range(len(self._observation))}
+        posterior_mean_correct = self._posterior_mean_correct
+        posterior_effective_sample_size_min = samples * 0.0015
+
+        start = time.time()
+        posterior = self._model.posterior_distribution(samples, observe=observation)
+        add_importance_sampling_duration(time.time() - start)
+        posterior_mean_unweighted = posterior.unweighted().mean
+        posterior_mean = posterior.mean
+        posterior_effective_sample_size = float(posterior.effective_sample_size)
+
+        print(posterior[0])
+        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+        kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(Categorical(i + util._epsilon), Categorical(j + util._epsilon)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
+
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'l2_distance', 'kl_divergence')
+        add_importance_sampling_kl_divergence(kl_divergence)
+
+        self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
+        self.assertLess(l2_distance, 3)
+        self.assertLess(kl_divergence, 1)
+
+    def test_inference_hmm_posterior_importance_sampling_with_inference_network(self):
+        samples = importance_sampling_with_inference_network_samples
+        observation = {'obs{}'.format(i): self._observation[i] for i in range(len(self._observation))}
+        posterior_mean_correct = self._posterior_mean_correct
+        posterior_effective_sample_size_min = samples * 0.05
+
+        self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs{}'.format(i): {'depth': 2, 'dim': 16} for i in range(len(observation))})
+
+        start = time.time()
+        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe=observation)
+        add_importance_sampling_with_inference_network_duration(time.time() - start)
+        posterior_mean_unweighted = posterior.unweighted().mean
+        posterior_mean = posterior.mean
+        posterior_effective_sample_size = float(posterior.effective_sample_size)
+
+        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+        kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(Categorical(i + util._epsilon), Categorical(j + util._epsilon)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
+
+        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'l2_distance', 'kl_divergence')
+        add_importance_sampling_with_inference_network_kl_divergence(kl_divergence)
+
+        self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
+        self.assertLess(l2_distance, 3)
+        self.assertLess(kl_divergence, 1)
+
+    def test_inference_hmm_posterior_lightweight_metropolis_hastings(self):
+        samples = lightweight_metropolis_hastings_samples
+        burn_in = lightweight_metropolis_hastings_burn_in
+        observation = {'obs{}'.format(i): self._observation[i] for i in range(len(self._observation))}
+        posterior_mean_correct = self._posterior_mean_correct
+
+        start = time.time()
+        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe=observation)[burn_in:]
+        add_lightweight_metropolis_hastings_duration(time.time() - start)
+        posterior_mean = posterior.mean
+
+        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+        kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(Categorical(i + util._epsilon), Categorical(j + util._epsilon)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
+
+        util.debug('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'l2_distance', 'kl_divergence')
+        add_lightweight_metropolis_hastings_kl_divergence(kl_divergence)
+
+        self.assertLess(l2_distance, 3)
+        self.assertLess(kl_divergence, 1)
+
+    def test_inference_hmm_posterior_random_walk_metropolis_hastings(self):
+        samples = lightweight_metropolis_hastings_samples
+        burn_in = lightweight_metropolis_hastings_burn_in
+        observation = {'obs{}'.format(i): self._observation[i] for i in range(len(self._observation))}
+        posterior_mean_correct = self._posterior_mean_correct
+
+        start = time.time()
+        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe=observation)[burn_in:]
+        add_random_walk_metropolis_hastings_duration(time.time() - start)
+        posterior_mean = posterior.mean
+
+        l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
+        kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(Categorical(i + util._epsilon), Categorical(j + util._epsilon)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
+
+        util.debug('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'l2_distance', 'kl_divergence')
+        add_random_walk_metropolis_hastings_kl_divergence(kl_divergence)
+
+        self.assertLess(l2_distance, 3)
+        self.assertLess(kl_divergence, 1)
+
+
 if __name__ == '__main__':
     pyprob.set_random_seed(123)
     pyprob.set_verbosity(2)
     tests = []
-    tests.append('GaussianWithUnknownMeanTestCase')
-    tests.append('GaussianWithUnknownMeanMarsagliaWithReplacementTestCase')
-    # tests.append('HiddenMarkovModelTestCase')
+    # tests.append('GaussianWithUnknownMeanTestCase')
+    # tests.append('GaussianWithUnknownMeanMarsagliaWithReplacementTestCase')
+    tests.append('HiddenMarkovModelTestCase')
     # tests.append('BranchingTestCase')
 
     time_start = time.time()
@@ -323,7 +440,8 @@ if __name__ == '__main__':
     print(colored('Random-walk Metropolis Hastings      : ', 'yellow', attrs=['bold']), end='')
     print(colored('{:+.6e}  {:+.6e}  {:+.6e}\n'.format(random_walk_metropolis_hastings_samples, random_walk_metropolis_hastings_kl_divergence, random_walk_metropolis_hastings_duration), 'white', attrs=['bold']))
 
-    for container in docker_containers:
-        print('Killing Docker container {}'.format(container.name))
-        container.kill()
+    # for container in docker_containers:
+    #     print('Killing Docker container {}'.format(container.name))
+    #     container.kill()
+
     sys.exit(0 if success else 1)

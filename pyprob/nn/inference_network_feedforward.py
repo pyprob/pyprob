@@ -331,3 +331,4 @@ class InferenceNetworkFeedForward(nn.Module):
                 max_print_line_len = max(len(print_line), max_print_line_len)
                 print(print_line.ljust(max_print_line_len), end='\r')
                 sys.stdout.flush()
+        print()
