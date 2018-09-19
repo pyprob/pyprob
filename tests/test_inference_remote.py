@@ -420,8 +420,8 @@ if __name__ == '__main__':
     pyprob.set_random_seed(123)
     pyprob.set_verbosity(2)
     tests = []
-    # tests.append('GaussianWithUnknownMeanTestCase')
-    # tests.append('GaussianWithUnknownMeanMarsagliaWithReplacementTestCase')
+    tests.append('GaussianWithUnknownMeanTestCase')
+    tests.append('GaussianWithUnknownMeanMarsagliaWithReplacementTestCase')
     tests.append('HiddenMarkovModelTestCase')
     # tests.append('BranchingTestCase')
 
