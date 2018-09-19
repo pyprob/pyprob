@@ -402,7 +402,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         samples = importance_sampling_with_inference_network_samples
         observation = {'obs{}'.format(i): self._observation[i] for i in range(len(self._observation))}
         posterior_mean_correct = self._posterior_mean_correct
-        posterior_effective_sample_size_min = samples * 0.05
+        posterior_effective_sample_size_min = samples * 0.03
 
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs{}'.format(i): {'depth': 2, 'dim': 16} for i in range(len(observation))})
 
