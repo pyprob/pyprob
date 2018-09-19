@@ -45,7 +45,7 @@ class InferenceNetwork(enum.Enum):
 
 
 class ObserveEmbedding(enum.Enum):
-    FULLY_CONNECTED = 0
+    FEEDFORWARD = 0
 
 
 def set_random_seed(seed=123):

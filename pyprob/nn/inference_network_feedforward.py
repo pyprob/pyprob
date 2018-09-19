@@ -19,7 +19,7 @@ from ..distributions import Normal, Uniform, Categorical, Poisson
 
 
 class InferenceNetworkFeedForward(nn.Module):
-    # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FULLY_CONNECTED, 'dim': 32, 'depth': 2}}
+    # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'dim': 32, 'depth': 2}}
     def __init__(self, model, valid_batch_size=64, observe_embeddings={}):
         super().__init__()
         self._model = model
@@ -76,9 +76,9 @@ class InferenceNetworkFeedForward(nn.Module):
             if 'embedding' in value:
                 embedding = value['embedding']
             else:
-                print('Observable {}: observe embedding not specified, using the default FULLY_CONNECTED.'.format(name))
-                embedding = ObserveEmbedding.FULLY_CONNECTED
-            if embedding == ObserveEmbedding.FULLY_CONNECTED:
+                print('Observable {}: observe embedding not specified, using the default FEEDFORWARD.'.format(name))
+                embedding = ObserveEmbedding.FEEDFORWARD
+            if embedding == ObserveEmbedding.FEEDFORWARD:
                 layer = EmbeddingFeedForward(input_shape=input_shape, output_shape=output_shape, num_layers=depth)
             else:
                 raise ValueError('Unknown embedding: {}'.format(embedding))
