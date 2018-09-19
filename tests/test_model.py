@@ -4,6 +4,7 @@ import torch
 import os
 import tempfile
 import uuid
+import shutil
 
 import pyprob
 from pyprob import util, Model, InferenceEngine
@@ -149,6 +150,20 @@ class ModelTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
+
+    def test_model_save_trace_store_load_train(self):
+        store_dir = tempfile.mkdtemp()
+        store_files = 4
+        store_traces_per_file = 128
+        training_traces = 128
+
+        self._model.save_trace_store(trace_store_dir=store_dir, files=store_files, traces_per_file=store_traces_per_file)
+        self._model.learn_inference_network(num_traces=training_traces, trace_store_dir=store_dir, batch_size=16, valid_batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
+        shutil.rmtree(store_dir)
+
+        util.debug('store_dir', 'store_files', 'store_traces_per_file', 'training_traces')
+
+        self.assertTrue(True)
 
 
 class ModelWithReplacementTestCase(unittest.TestCase):
@@ -296,5 +311,5 @@ class ModelObservationStyle2TestCase(unittest.TestCase):
 
 if __name__ == '__main__':
     pyprob.set_random_seed(123)
-    pyprob.set_verbosity(2)
+    pyprob.set_verbosity(1)
     unittest.main(verbosity=2)

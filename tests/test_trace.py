@@ -49,21 +49,6 @@ class TraceTestCase(unittest.TestCase):
         self.assertEqual(observed, observed_correct)
         self.assertTrue(observed_val)
 
-    # def test_trace_save_trace_cache_train(self):
-    #     cache_files = 4
-    #     cache_traces_per_file = 128
-    #     training_traces = 128
-    #     path_name = tempfile.mkdtemp()
-    #
-    #     self._model.use_trace_cache(path_name)
-    #     self._model.save_trace_cache(path_name, files=cache_files, traces_per_file=cache_traces_per_file, observation=[0, 0])
-    #     self._model.learn_inference_network(observation=[0, 0], num_traces=training_traces, use_trace_cache=True, batch_size=64, valid_size=256)
-    #     shutil.rmtree(path_name)
-    #
-    #     util.debug('path_name', 'cache_files', 'cache_traces_per_file', 'training_traces')
-    #
-    #     self.assertTrue(True)
-
 
 if __name__ == '__main__':
     pyprob.set_random_seed(123)

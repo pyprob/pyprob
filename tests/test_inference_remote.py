@@ -524,7 +524,7 @@ class BranchingTestCase(unittest.TestCase):
 
 if __name__ == '__main__':
     pyprob.set_random_seed(123)
-    pyprob.set_verbosity(2)
+    pyprob.set_verbosity(1)
     tests = []
     tests.append('GaussianWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanMarsagliaWithReplacementTestCase')
