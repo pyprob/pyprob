@@ -4,6 +4,7 @@ import math
 import random
 import copy
 from termcolor import colored
+import collections
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
@@ -191,6 +192,26 @@ class Empirical(Distribution):
             raise RuntimeError('Empirical distribution instance is empty.')
         # TODO: improve this with a better resampling algorithm
         return Empirical([self.sample() for i in range(samples)])
+
+    def combine_duplicates(self):
+        distribution = collections.defaultdict(float)
+        # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
+        hashable = util.is_hashable(self.values[0])
+        if hashable:
+            for i in range(self.length):
+                found = False
+                for key, value in distribution.items():
+                    if torch.equal(util.to_tensor(key), util.to_tensor(self.values[i])):
+                        # Differentiability warning: values[i] is discarded here. If we need to differentiate through all values, the gradients of values[i] and key should be tied here.
+                        distribution[key] = value + self.weights[i]
+                        found = True
+                if not found:
+                    distribution[self.values[i]] = self.weights[i]
+            values = list(distribution.keys())
+            weights = list(distribution.values())
+            return Empirical(values, weights=weights)
+        else:
+            raise RuntimeError('The values in this Empirical as not hashable. Combining of duplicates not currently supported.')
 
     @staticmethod
     def combine(empirical_distributions):

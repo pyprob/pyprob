@@ -166,3 +166,11 @@ def one_hot(dim, i):
     t = torch.zeros(dim)
     t.narrow(0, i, 1).fill_(1)
     return t
+
+
+def is_hashable(v):
+    try:
+        hash(v)
+    except TypeError:
+        return False
+    return True

@@ -49,6 +49,28 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_min, dist_min_correct, places=1)
         self.assertAlmostEqual(dist_max, dist_max_correct, places=1)
 
+    def test_dist_empirical_combine_duplicates(self):
+        values = [1, 2, 2, 3, 3, 3]
+        values_combined_correct = [1, 2, 3]
+        dist_mean_correct = 2.333333
+        dist_stddev_correct = 0.745356
+
+        dist = Empirical(values)
+        dist_combined = dist.combine_duplicates()
+        values_combined = dist_combined.values
+
+        dist_mean = float(dist.mean)
+        dist_stddev = float(dist.stddev)
+        dist_mean_combined = float(dist_combined.mean)
+        dist_stddev_combined = float(dist_combined.stddev)
+
+        util.debug('values', 'values_combined', 'values_combined_correct', 'dist_mean', 'dist_mean_combined', 'dist_mean_correct', 'dist_stddev', 'dist_stddev_combined', 'dist_stddev_correct')
+        self.assertEqual(set(values_combined), set(values_combined_correct))
+        self.assertAlmostEqual(dist_mean, dist_mean_correct, places=1)
+        self.assertAlmostEqual(dist_mean_combined, dist_mean_correct, places=1)
+        self.assertAlmostEqual(dist_stddev, dist_stddev_correct, places=1)
+        self.assertAlmostEqual(dist_stddev_combined, dist_stddev_correct, places=1)
+
     def test_dist_empirical_numpy(self):
         samples = 25
         dist_means_correct = 10
