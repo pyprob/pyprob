@@ -1,17 +1,15 @@
-import unittest
-import torch
 import torch.nn.functional as F
-import numpy as np
-import time
+import unittest
 import math
+import time
 import sys
+import docker
 import functools
-from PIL import Image, ImageDraw, ImageFont
 from termcolor import colored
 
 import pyprob
-from pyprob import util, Model, InferenceEngine, ObserveEmbedding
-from pyprob.distributions import Normal, Uniform, Categorical, Poisson, Empirical
+from pyprob import util, ModelRemote, InferenceEngine
+from pyprob.distributions import Normal, Categorical, Poisson, Empirical
 
 
 importance_sampling_samples = 5000
@@ -74,24 +72,28 @@ def add_random_walk_metropolis_hastings_duration(val):
     random_walk_metropolis_hastings_duration += val
 
 
+docker_client = docker.from_env()
+print('Pulling latest Docker image: probprog/pyprob_cpp')
+docker_client.images.pull('probprog/pyprob_cpp')
+print('Docker image pulled.')
+
+docker_containers = []
+docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum ipc://@GaussianWithUnknownMeanCPP', network='host', detach=True))
+GaussianWithUnknownMeanCPP = ModelRemote('ipc://@GaussianWithUnknownMeanCPP')
+
+docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia_replacement ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP', network='host', detach=True))
+GaussianWithUnknownMeanMarsagliaWithReplacementCPP = ModelRemote('ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP')
+
+docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_hmm ipc://@HiddenMarkovModelCPP', network='host', detach=True))
+HiddenMarkovModelCPP = ModelRemote('ipc://@HiddenMarkovModelCPP')
+
+docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_branching ipc://@BranchingCPP', network='host', detach=True))
+BranchingCPP = ModelRemote('ipc://@BranchingCPP')
+
+
 class GaussianWithUnknownMeanTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        # http://www.robots.ox.ac.uk/~fwood/assets/pdf/Wood-AISTATS-2014.pdf
-        class GaussianWithUnknownMean(Model):
-            def __init__(self, prior_mean=1, prior_stddev=math.sqrt(5), likelihood_stddev=math.sqrt(2)):
-                self.prior_mean = prior_mean
-                self.prior_stddev = prior_stddev
-                self.likelihood_stddev = likelihood_stddev
-                super().__init__('Gaussian with unknown mean')
-
-            def forward(self):
-                mu = pyprob.sample(Normal(self.prior_mean, self.prior_stddev))
-                likelihood = Normal(mu, self.likelihood_stddev)
-                pyprob.observe(likelihood, name='obs0')
-                pyprob.observe(likelihood, name='obs1')
-                return mu
-
-        self._model = GaussianWithUnknownMean()
+        self._model = GaussianWithUnknownMeanCPP
         super().__init__(*args, **kwargs)
 
     def test_inference_gum_posterior_importance_sampling(self):
@@ -129,7 +131,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
-        posterior_effective_sample_size_min = samples * 0.6
+        posterior_effective_sample_size_min = samples * 0.03
 
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs0': {'dim': 256, 'depth': 1}, 'obs1': {'dim': 256, 'depth': 1}})
 
@@ -197,36 +199,12 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         self.assertLess(kl_divergence, 0.25)
 
 
-class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
+class GaussianWithUnknownMeanMarsagliaWithReplacementTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        # http://www.robots.ox.ac.uk/~fwood/assets/pdf/Wood-AISTATS-2014.pdf
-        class GaussianWithUnknownMeanMarsaglia(Model):
-            def __init__(self, prior_mean=1, prior_stddev=math.sqrt(5), likelihood_stddev=math.sqrt(2)):
-                self.prior_mean = prior_mean
-                self.prior_stddev = prior_stddev
-                self.likelihood_stddev = likelihood_stddev
-                super().__init__('Gaussian with unknown mean (Marsaglia)')
-
-            def marsaglia(self, mean, stddev):
-                uniform = Uniform(-1, 1)
-                s = 1
-                while float(s) >= 1:
-                    x = pyprob.sample(uniform, replace=True)
-                    y = pyprob.sample(uniform, replace=True)
-                    s = x*x + y*y
-                return mean + stddev * (x * torch.sqrt(-2 * torch.log(s) / s))
-
-            def forward(self):
-                mu = self.marsaglia(self.prior_mean, self.prior_stddev)
-                likelihood = Normal(mu, self.likelihood_stddev)
-                pyprob.observe(likelihood, name='obs0')
-                pyprob.observe(likelihood, name='obs1')
-                return mu
-
-        self._model = GaussianWithUnknownMeanMarsaglia()
+        self._model = GaussianWithUnknownMeanMarsagliaWithReplacementCPP
         super().__init__(*args, **kwargs)
 
-    def test_inference_gum_marsaglia_posterior_importance_sampling(self):
+    def test_inference_gum_marsaglia_replacement_posterior_importance_sampling(self):
         samples = importance_sampling_samples
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
@@ -256,12 +234,12 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_inference_gum_marsaglia_posterior_importance_sampling_with_inference_network(self):
+    def test_inference_gum_marsaglia_replacement_posterior_importance_sampling_with_inference_network(self):
         samples = importance_sampling_samples
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
-        posterior_effective_sample_size_min = samples * 0.02
+        posterior_effective_sample_size_min = samples * 0.03
 
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs0': {'dim': 256, 'depth': 1}, 'obs1': {'dim': 256, 'depth': 1}})
 
@@ -284,7 +262,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_inference_gum_marsaglia_posterior_lightweight_metropolis_hastings(self):
+    def test_inference_gum_marsaglia_replacement_posterior_lightweight_metropolis_hastings(self):
         samples = lightweight_metropolis_hastings_samples
         burn_in = lightweight_metropolis_hastings_burn_in
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
@@ -306,7 +284,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_inference_gum_marsaglia_posterior_random_walk_metropolis_hastings(self):
+    def test_inference_gum_marsaglia_replacement_posterior_random_walk_metropolis_hastings(self):
         samples = random_walk_metropolis_hastings_samples
         burn_in = random_walk_metropolis_hastings_burn_in
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
@@ -331,33 +309,8 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
 
 class HiddenMarkovModelTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        # http://www.robots.ox.ac.uk/~fwood/assets/pdf/Wood-AISTATS-2014.pdf
-        class HiddenMarkovModel(Model):
-            def __init__(self, init_dist, trans_dists, obs_dists, obs_length):
-                self.init_dist = init_dist
-                self.trans_dists = trans_dists
-                self.obs_dists = obs_dists
-                self.obs_length = obs_length
-                super().__init__('Hidden Markov model')
-
-            def forward(self):
-                states = [pyprob.sample(init_dist)]
-                for i in range(self.obs_length):
-                    state = pyprob.sample(self.trans_dists[int(states[-1])])
-                    pyprob.observe(self.obs_dists[int(state)], name='obs{}'.format(i))
-                    states.append(state)
-                return torch.stack([util.one_hot(3, int(s)) for s in states])
-
-        init_dist = Categorical([1, 1, 1])
-        trans_dists = [Categorical([0.1, 0.5, 0.4]),
-                       Categorical([0.2, 0.2, 0.6]),
-                       Categorical([0.15, 0.15, 0.7])]
-        obs_dists = [Normal(-1, 1),
-                     Normal(1, 1),
-                     Normal(0, 1)]
-
+        self._model = HiddenMarkovModelCPP
         self._observation = [0.9, 0.8, 0.7, 0.0, -0.025, -5.0, -2.0, -0.1, 0.0, 0.13, 0.45, 6, 0.2, 0.3, -1, -1]
-        self._model = HiddenMarkovModel(init_dist, trans_dists, obs_dists, len(self._observation))
         self._posterior_mean_correct = util.to_tensor([[0.3775, 0.3092, 0.3133],
                                                        [0.0416, 0.4045, 0.5539],
                                                        [0.0541, 0.2552, 0.6907],
@@ -390,6 +343,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         posterior_mean = posterior.mean
         posterior_effective_sample_size = float(posterior.effective_sample_size)
 
+        print(posterior[0])
         l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
         kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(Categorical(i + util._epsilon), Categorical(j + util._epsilon)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
 
@@ -468,53 +422,38 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
 
 class BranchingTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        class Branching(Model):
-            def __init__(self):
-                super().__init__('Branching')
+        self._model = BranchingCPP
+        super().__init__(*args, **kwargs)
 
-            @functools.lru_cache(maxsize=None)  # 128 by default
-            def fibonacci(self, n):
-                if n < 2:
-                    return 1
+    @functools.lru_cache(maxsize=None)  # 128 by default
+    def fibonacci(self, n):
+        if n < 2:
+            return 1
 
-                a = 1
-                fib = 1
-                for i in range(n-2):
-                    a, fib = fib, a + fib
-                return fib
+        a = 1
+        fib = 1
+        for i in range(n-2):
+            a, fib = fib, a + fib
+        return fib
 
-            def forward(self):
-                count_prior = Poisson(4)
-                r = pyprob.sample(count_prior)
+    def true_posterior(self, observe=6):
+        count_prior = Poisson(4)
+        vals = []
+        log_weights = []
+        for r in range(40):
+            for s in range(40):
                 if 4 < float(r):
                     l = 6
                 else:
-                    l = 1 + self.fibonacci(3 * int(r)) + pyprob.sample(count_prior)
-
-                pyprob.observe(Poisson(l), name='obs')
-                return r
-
-            def true_posterior(self, observe=6):
-                count_prior = Poisson(4)
-                vals = []
-                log_weights = []
-                for r in range(40):
-                    for s in range(40):
-                        if 4 < float(r):
-                            l = 6
-                        else:
-                            f = self.fibonacci(3 * r)
-                            l = 1 + f + count_prior.sample()
-                        vals.append(r)
-                        log_weights.append(Poisson(l).log_prob(observe) + count_prior.log_prob(r) + count_prior.log_prob(s))
-                return Empirical(vals, log_weights)
-
-        self._model = Branching()
-        super().__init__(*args, **kwargs)
+                    f = self.fibonacci(3 * r)
+                    l = 1 + f + count_prior.sample()
+                vals.append(r)
+                log_weights.append(Poisson(l).log_prob(observe) + count_prior.log_prob(r) + count_prior.log_prob(s))
+        return Empirical(vals, log_weights)
 
     def test_inference_branching_importance_sampling(self):
         samples = importance_sampling_samples
-        posterior_correct = util.empirical_to_categorical(self._model.true_posterior(), max_val=40)
+        posterior_correct = util.empirical_to_categorical(self.true_posterior(), max_val=40)
 
         start = time.time()
         posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, observe={'obs': 6}), max_val=40)
@@ -550,7 +489,7 @@ class BranchingTestCase(unittest.TestCase):
 
     def test_inference_branching_lightweight_metropolis_hastings(self):
         samples = importance_sampling_samples
-        posterior_correct = util.empirical_to_categorical(self._model.true_posterior(), max_val=40)
+        posterior_correct = util.empirical_to_categorical(self.true_posterior(), max_val=40)
 
         start = time.time()
         posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs': 6}), max_val=40)
@@ -567,7 +506,7 @@ class BranchingTestCase(unittest.TestCase):
 
     def test_inference_branching_random_walk_metropolis_hastings(self):
         samples = importance_sampling_samples
-        posterior_correct = util.empirical_to_categorical(self._model.true_posterior(), max_val=40)
+        posterior_correct = util.empirical_to_categorical(self.true_posterior(), max_val=40)
 
         start = time.time()
         posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs': 6}), max_val=40)
@@ -583,137 +522,14 @@ class BranchingTestCase(unittest.TestCase):
         self.assertLess(kl_divergence, 0.75)
 
 
-class MiniCaptchaTestCase(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        class MiniCaptcha(Model):
-            def __init__(self, alphabet=['A', 'B', 'C', 'D', 'E', 'F'], noise=0.1):
-                self._alphabet = alphabet
-                self._probs = [1/len(alphabet) for i in range(len(alphabet))]
-                self._noise = noise
-                super().__init__('MiniCaptcha')
-
-            def render(self, text, size=18, height=28, width=28, x=6, y=6):
-                pil_font = ImageFont.truetype('Ubuntu-B.ttf', size=size)
-                text_width, text_height = pil_font.getsize(text)
-                canvas = Image.new('RGB', [height, width], (255, 255, 255))
-                draw = ImageDraw.Draw(canvas)
-                draw.text((x, y), text, font=pil_font, fill='#000000')
-                return torch.from_numpy(1 - (np.asarray(canvas) / 255.0))[:, :, 0].unsqueeze(0).float()
-
-            def forward(self):
-                letter_id = pyprob.sample(Categorical(self._probs))
-                image = self.render(self._alphabet[letter_id]).view(-1)
-                likelihood = Normal(image, self._noise)
-                pyprob.observe(likelihood, name='query_image')
-                return letter_id
-
-        self._model = MiniCaptcha()
-        self._test_images = [self._model.render(letter).view(-1) for letter in self._model._alphabet]
-        self._true_posteriors = [Categorical(util.one_hot(len(self._model._alphabet), i) + util._epsilon) for i in range(len(self._model._alphabet))]
-        super().__init__(*args, **kwargs)
-
-    def test_inference_mini_captcha_posterior_importance_sampling(self):
-        samples = int(importance_sampling_samples / len(self._model._alphabet))
-        test_letters = self._model._alphabet
-
-        start = time.time()
-        posteriors = []
-        map_estimates = []
-        for i in range(len(self._model._alphabet)):
-            posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'query_image': self._test_images[i]})
-            posteriors.append(posterior)
-            map_estimates.append(self._model._alphabet[int(posterior.mode)])
-        add_importance_sampling_duration(time.time() - start)
-
-        accuracy = sum([1 if map_estimates[i] == test_letters[i] else 0 for i in range(len(test_letters))])/len(test_letters)
-        kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(util.empirical_to_categorical(p, max_val=len(self._model._alphabet)-1), tp) for (p, tp) in zip(posteriors, self._true_posteriors)]))
-
-        util.debug('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
-        add_importance_sampling_kl_divergence(kl_divergence)
-
-        self.assertGreater(accuracy, 0.9)
-        self.assertLess(kl_divergence, 0.25)
-
-    def test_inference_mini_captcha_posterior_importance_sampling_with_inference_network(self):
-        samples = int(importance_sampling_with_inference_network_samples / len(self._model._alphabet))
-        test_letters = self._model._alphabet
-
-        self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'query_image': {'dim': 32, 'reshape': [1, 28, 28], 'embedding': ObserveEmbedding.CNN2D5C}})
-
-        start = time.time()
-        posteriors = []
-        map_estimates = []
-        for i in range(len(self._model._alphabet)):
-            posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'query_image': self._test_images[i]})
-            posteriors.append(posterior)
-            map_estimates.append(self._model._alphabet[int(posterior.mode)])
-        add_importance_sampling_with_inference_network_duration(time.time() - start)
-
-        accuracy = sum([1 if map_estimates[i] == test_letters[i] else 0 for i in range(len(test_letters))])/len(test_letters)
-        kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(util.empirical_to_categorical(p, max_val=len(self._model._alphabet)-1), tp) for (p, tp) in zip(posteriors, self._true_posteriors)]))
-
-        util.debug('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
-        add_importance_sampling_with_inference_network_kl_divergence(kl_divergence)
-
-        self.assertGreater(accuracy, 0.9)
-        self.assertLess(kl_divergence, 0.25)
-
-    def test_inference_mini_captcha_posterior_lightweight_metropolis_hastings(self):
-        samples = int(lightweight_metropolis_hastings_samples / len(self._model._alphabet))
-        burn_in = int(lightweight_metropolis_hastings_burn_in / len(self._model._alphabet))
-        test_letters = self._model._alphabet
-
-        start = time.time()
-        posteriors = []
-        map_estimates = []
-        for i in range(len(self._model._alphabet)):
-            posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'query_image': self._test_images[i]})[burn_in:]
-            posteriors.append(posterior)
-            map_estimates.append(self._model._alphabet[int(posterior.combine_duplicates().mode)])
-        add_lightweight_metropolis_hastings_duration(time.time() - start)
-
-        accuracy = sum([1 if map_estimates[i] == test_letters[i] else 0 for i in range(len(test_letters))])/len(test_letters)
-        kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(util.empirical_to_categorical(p, max_val=len(self._model._alphabet)-1), tp) for (p, tp) in zip(posteriors, self._true_posteriors)]))
-
-        util.debug('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
-        add_lightweight_metropolis_hastings_kl_divergence(kl_divergence)
-
-        self.assertGreater(accuracy, 0.9)
-        self.assertLess(kl_divergence, 0.25)
-
-    def test_inference_mini_captcha_posterior_random_walk_metropolis_hastings(self):
-        samples = int(random_walk_metropolis_hastings_samples / len(self._model._alphabet))
-        burn_in = int(random_walk_metropolis_hastings_burn_in / len(self._model._alphabet))
-        test_letters = self._model._alphabet
-
-        start = time.time()
-        posteriors = []
-        map_estimates = []
-        for i in range(len(self._model._alphabet)):
-            posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'query_image': self._test_images[i]})[burn_in:]
-            posteriors.append(posterior)
-            map_estimates.append(self._model._alphabet[int(posterior.combine_duplicates().mode)])
-        add_random_walk_metropolis_hastings_duration(time.time() - start)
-
-        accuracy = sum([1 if map_estimates[i] == test_letters[i] else 0 for i in range(len(test_letters))])/len(test_letters)
-        kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(util.empirical_to_categorical(p, max_val=len(self._model._alphabet)-1), tp) for (p, tp) in zip(posteriors, self._true_posteriors)]))
-
-        util.debug('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
-        add_random_walk_metropolis_hastings_kl_divergence(kl_divergence)
-
-        self.assertGreater(accuracy, 0.9)
-        self.assertLess(kl_divergence, 0.25)
-
-
 if __name__ == '__main__':
     pyprob.set_random_seed(123)
-    pyprob.set_verbosity(2)
+    pyprob.set_verbosity(1)
     tests = []
     tests.append('GaussianWithUnknownMeanTestCase')
-    tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
+    tests.append('GaussianWithUnknownMeanMarsagliaWithReplacementTestCase')
     tests.append('HiddenMarkovModelTestCase')
     # tests.append('BranchingTestCase')
-    tests.append('MiniCaptchaTestCase')
 
     time_start = time.time()
     success = unittest.main(defaultTest=tests, verbosity=2, exit=False).result.wasSuccessful()
@@ -729,4 +545,9 @@ if __name__ == '__main__':
     print(colored('{:+.6e}  {:+.6e}  {:+.6e}'.format(lightweight_metropolis_hastings_samples, lightweight_metropolis_hastings_kl_divergence, lightweight_metropolis_hastings_duration), 'white', attrs=['bold']))
     print(colored('Random-walk Metropolis Hastings      : ', 'yellow', attrs=['bold']), end='')
     print(colored('{:+.6e}  {:+.6e}  {:+.6e}\n'.format(random_walk_metropolis_hastings_samples, random_walk_metropolis_hastings_kl_divergence, random_walk_metropolis_hastings_duration), 'white', attrs=['bold']))
+
+    # for container in docker_containers:
+    #     print('Killing Docker container {}'.format(container.name))
+    #     container.kill()
+
     sys.exit(0 if success else 1)

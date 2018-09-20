@@ -1,15 +1,34 @@
 # pyprob [![Build Status](https://travis-ci.org/probprog/pyprob.svg?branch=master)](https://travis-ci.org/probprog/pyprob)
 
-`pyprob` is a [PyTorch](http://pytorch.org/)-based library for [probabilistic programming](http://probabilistic-programming.org) and inference compilation.
+`pyprob` is a [PyTorch](http://pytorch.org/)-based library for [probabilistic programming](http://probabilistic-programming.org) and inference compilation. The main focus of this library is on coupling existing simulation codebases with probabilistic inference with minimal intervention.
 
-Inference compilation is a technique for performing fast inference in generative models implemented as probabilistic programs, using deep neural networks to parameterize proposal distributions of a sequential importance sampling inference engine.
+`pyprob` is currently a research prototype in alpha testing stage, with more documentation and examples on the way. Watch this space!
+
+### Support for multiple languages
+
+We support front ends in multiple languages through the [PPX](https://github.com/probprog/ppx) interface that allows execution of models and inference engines in separate programming languages, processes, and machines connected over a network. The currently supported languages are Python and C++.
+
+* Python: `pyprob` is implemented and directly usable from Python
+* C++: A lightweight C++ front end is available through the [pyprob_cpp](https://github.com/probprog/pyprob_cpp) library
+
+### Inference engines
+
+`pyprob` currently provides the following inference engines:
+* Markov chain Monte Carlo
+  * Lightweight Metropolis Hastings (LMH)
+  * Random-walk Metropolis Hastings (RMH)
+* Importance sampling
+  * Regular sequential importance sampling (proposals from prior)
+  * Inference compilation
+
+Inference compilation is an amortized inference technique for performing fast repeated inference using deep neural networks to parameterize proposal distributions in the importance sampling family of inference engines. We are planning to add other inference engines, e.g., from the variational inference family.
 
 ## Installation
 
 ### Prerequisites:
 
 * Python 3.5 or higher. We recommend [Anaconda](https://www.continuum.io/).
-* Latest PyTorch, installed by following instructions on the [PyTorch web site](http://pytorch.org/).
+* PyTorch 0.4.0 or higher, installed by following instructions on the [PyTorch web site](http://pytorch.org/).
 
 ### Install from source
 To use a cutting-edge version, clone this repository and install the `pyprob` package using:
@@ -21,7 +40,7 @@ pip install .
 ```
 
 ### Install using `pip`
-To use the latest version available in [Python Package Index](https://pypi.python.org/), run:
+To use the latest version available in [Python Package Index](https://pypi.org/project/pyprob/), run:
 
 ```
 pip install pyprob
@@ -33,17 +52,13 @@ A CUDA + PyTorch + pyprob image with the latest passing commit is automatically 
 
 https://hub.docker.com/r/probprog/pyprob/
 
-## Usage
+## Usage, documentation, and examples
 
-`pyprob` has two main modes of operation:
+A website with documentation and examples will be available in due course.
 
-* Probabilistic programming and inference compilation fully in Python
-* Interfacing with 3rd party probabilistic programming libraries (e.g., [Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/index.html), CPProb) through a [ZeroMQ](http://zeromq.org/)/[FlatBuffers](https://google.github.io/flatbuffers/)-based protocol
+The [examples](https://github.com/probprog/pyprob/tree/master/examples) folder in this repository provides some working models and inference workflows as Jupyter notebooks.
 
-### Probabilistic programming in Python
-
-**NOTE**: This is currently a work in progress, and the code in this public repository is under development. A website with documentation and examples will be provided in due course.
-
+An set of continuous integration [tests](https://github.com/probprog/pyprob/tree/master/tests) are available in this repository, including those checking for correctness of inference over a range of reference models and inference engines.
 
 ## Information and citing
 
@@ -66,11 +81,11 @@ If you use `pyprob` and/or would like to cite our paper, please use the followin
 
 ## License
 
-`pyprob` is distributed under the MIT License.
+`pyprob` is distributed under the BSD License.
 
 ## Authors
 
-`pyprob` has been developed by [Tuan Anh Le](http://www.tuananhle.co.uk/) and [Atılım Güneş Baydin](http://www.robots.ox.ac.uk/~gunes/) within the [Probabilistic Programming Group at the University of Oxford](https://github.com/probprog), led by [Frank Wood](http://www.robots.ox.ac.uk/~fwood/index.html).
+`pyprob` has been developed by [Atılım Güneş Baydin](http://www.robots.ox.ac.uk/~gunes/) and [Tuan Anh Le](http://www.tuananhle.co.uk/) within the Programming Languages and AI group led by [Frank Wood](http://www.cs.ubc.ca/~fwood/index.html) at the University of Oxford and University of British Columbia.
 
 For the full list of contributors, see:
 

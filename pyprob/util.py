@@ -1,63 +1,58 @@
-import sys
 import torch
-from torch.autograd import Variable
 import numpy as np
 import random
-import datetime
+from termcolor import colored
 import inspect
+import sys
+import enum
 import time
 import math
-from termcolor import colored
-import enum
+from functools import reduce
+import operator
+import datetime
 
-import matplotlib
-matplotlib.use('Agg') # Do not use X server
-import matplotlib.pyplot as plt
-
-from .distributions import Empirical, Categorical
+from .distributions import Categorical
 
 
-_random_seed = 0
+_device = torch.device('cpu')
+_dtype = torch.float
+_cuda_enabled = False
+_verbosity = 2
+_print_refresh_rate = 0.25  # seconds
 _epsilon = 1e-8
-_log_epsilon = math.log(_epsilon)
-_print_refresh_rate = 0.2  # seconds
-
-
-class ObserveEmbedding(enum.Enum):
-    FULLY_CONNECTED = 0
-    CONVNET_2D_5C = 1
-    CONVNET_3D_4C = 2
-
-
-class SampleEmbedding(enum.Enum):
-    FULLY_CONNECTED = 0
+_log_epsilon = math.log(_epsilon)  # log(1e-8) = -18.420680743952367
 
 
 class TraceMode(enum.Enum):
-    NONE = 0  # No trace recording, forward sample trace results only
-    DEFAULT = 1  # Record traces, training data generation for inference network
-    IMPORTANCE_SAMPLING_WITH_PRIOR = 2  # Record traces, importance sampling with proposals from prior
-    IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK = 3  # Record traces, importance sampling with proposals from inference network
-    LIGHTWEIGHT_METROPOLIS_HASTINGS = 4  # Record traces for single-site Metropolis Hastings sampling, http://proceedings.mlr.press/v15/wingate11a/wingate11a.pdf and https://arxiv.org/abs/1507.00996
+    PRIOR = 1
+    POSTERIOR = 2
+
+
+class PriorInflation(enum.Enum):
+    DISABLED = 0
+    ENABLED = 1
 
 
 class InferenceEngine(enum.Enum):
-    IMPORTANCE_SAMPLING = 0  # Type: IS
-    IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK = 1  # Type: IS
-    LIGHTWEIGHT_METROPOLIS_HASTINGS = 2  # Type: MCMC
+    IMPORTANCE_SAMPLING = 0  # Type: IS; Importance sampling with proposals from prior
+    IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK = 1  # Type: IS; Importance sampling with proposals from inference network
+    LIGHTWEIGHT_METROPOLIS_HASTINGS = 2  # Type: MCMC; Lightweight (single-site) Metropolis Hastings sampling, http://proceedings.mlr.press/v15/wingate11a/wingate11a.pdf and https://arxiv.org/abs/1507.00996
+    RANDOM_WALK_METROPOLIS_HASTINGS = 3  # Type: MCMC; Lightweight Metropolis Hastings with single-site proposal kernels that depend on the value of the site
 
 
-class Optimizer(enum.Enum):
-    ADAM = 0
-    SGD = 1
+class InferenceNetwork(enum.Enum):
+    FEEDFORWARD = 0
 
 
-class InferenceNetworkTrainingMode(enum.Enum):
-    USE_OBSERVE_DIST_SAMPLE = 0
-    USE_OBSERVE_DIST_MEAN = 1
+class ObserveEmbedding(enum.Enum):
+    FEEDFORWARD = 0
+    CNN2D5C = 1
+    CNN3D4C = 2
 
 
 def set_random_seed(seed=123):
+    if seed is None:
+        seed = int((time.time()*1e6) % 1e8)
     global _random_seed
     _random_seed = seed
     random.seed(seed)
@@ -69,73 +64,31 @@ def set_random_seed(seed=123):
 
 set_random_seed()
 
-Tensor = torch.FloatTensor
-_cuda_enabled = False
-_cuda_device = -1
 
-
-def set_cuda(enabled, device=0):
-    global Tensor
+def set_cuda(enabled, device=None):
+    global _device
     global _cuda_enabled
-    global _cuda_device
     if torch.cuda.is_available() and enabled:
+        _device = torch.device('cuda')
         _cuda_enabled = True
-        _cuda_device = device
-        torch.cuda.set_device(device)
-        torch.backends.cudnn.enabled = True
-        Tensor = torch.cuda.FloatTensor
     else:
+        _device = torch.device('cpu')
         _cuda_enabled = False
-        Tensor = torch.FloatTensor
-
-
-verbosity = 2
 
 
 def set_verbosity(v=2):
-    global verbosity
-    verbosity = v
+    global _verbosity
+    _verbosity = v
 
 
-inference_network_training_mode = InferenceNetworkTrainingMode.USE_OBSERVE_DIST_SAMPLE
-
-
-def set_inference_network_training_mode(mode=InferenceNetworkTrainingMode.USE_OBSERVE_DIST_SAMPLE):
-    global inference_network_training_mode
-    inference_network_training_mode = mode
-
-
-def to_variable(value, requires_grad=False):
-    ret = None
-    if isinstance(value, Variable):
-        ret = value
-    elif torch.is_tensor(value):
-        ret = Variable(value.float(), requires_grad=requires_grad)
-    elif isinstance(value, np.ndarray):
-        ret = Variable(torch.from_numpy(value.astype(float)).float(), requires_grad=requires_grad)
-    elif value is None:
-        ret = None
-    elif isinstance(value, (list, tuple)):
-        if isinstance(value[0], Variable):
-            ret = torch.stack(value).float()
-        elif torch.is_tensor(value[0]):
-            ret = torch.stack(list(map(lambda x: Variable(x, requires_grad=requires_grad), value))).float()
-        elif (type(value[0]) is float) or (type(value[0]) is int):
-            ret = torch.stack(list(map(lambda x: Variable(Tensor([x]), requires_grad=requires_grad), value))).float().view(-1)
-        else:
-            ret = Variable(Tensor(value)).float()
-    else:
-        ret = Variable(Tensor([float(value)]), requires_grad=requires_grad)
-    if _cuda_enabled:
-        return ret.cuda()
-    else:
-        return ret
+def to_tensor(value, dtype=None):
+    if dtype is None:
+        dtype = _dtype
+    return torch.tensor(value).to(device=_device, dtype=dtype)
 
 
 def to_numpy(value):
-    if isinstance(value, Variable):
-        return value.data.cpu().numpy()
-    elif torch.is_tensor(value):
+    if torch.is_tensor(value):
         return value.cpu().numpy()
     elif isinstance(value, np.ndarray):
         return value
@@ -144,18 +97,6 @@ def to_numpy(value):
             return np.array(value)
         except:
             raise TypeError('Cannot convert to Numpy array.')
-
-
-def log_sum_exp(tensor, keepdim=True):
-    r"""
-    Numerically stable implementation for the `LogSumExp` operation. The
-    summing is done along the last dimension.
-    Args:
-        tensor (torch.Tensor or torch.autograd.Variable)
-        keepdim (Boolean): Whether to retain the last dimension on summing.
-    """
-    max_val = tensor.max(dim=-1, keepdim=True)[0]
-    return max_val + (tensor - max_val).exp().sum(dim=-1, keepdim=keepdim).log()
 
 
 def fast_np_random_choice(values, probs_cumsum):
@@ -177,54 +118,11 @@ def debug(*expressions):
         print('  {} = {}'.format(expression.ljust(max_str_length), repr(val)))
 
 
-def pack_observes_to_variable(observes):
-    try:
-        return torch.stack([to_variable(o) for o in observes])
-    except:
-        try:
-            return torch.cat([to_variable(o).view(-1) for o in observes])
-        except:
-            try:
-                return to_variable(observes)
-            except:
-                return to_variable(Tensor())
-
-
-def one_hot(dim, i):
-    t = Tensor(dim).zero_()
-    t.narrow(0, i, 1).fill_(1)
-    return to_variable(t)
-
-
-def kl_divergence_normal(p, q):
-    return torch.log(q.stddev) - torch.log(p.stddev) + (p.stddev.pow(2) + (p.mean - q.mean).pow(2)) / (2 * q.stddev.pow(2)) - 0.5
-
-
-def kl_divergence_categorical(p, q):
-    return safe_torch_sum(clamp_prob(p._probs) * torch.log(clamp_prob(p._probs) / clamp_prob(q._probs)))
-
-
-def empirical_to_categorical(empirical_dist, max_val=None):
-    empirical_dist = Empirical(empirical_dist.values, clamp_log_prob(torch.log(empirical_dist.weights)), combine_duplicates=True).map(int)
-    if max_val is None:
-        max_val = int(empirical_dist.max)
-    probs = Tensor(max_val + 1).zero_()
-    for i in range(empirical_dist.length):
-        val = empirical_dist.values[i]
-        if val <= max_val:
-            probs[val] = float(empirical_dist.weights[i])
-    return Categorical(probs)
-
-
-def has_nan_or_inf(value):
-    if isinstance(value, Variable):
-        value = value.data
-    if torch.is_tensor(value):
-        value = np.sum(value.cpu().numpy())
-        return np.isnan(value) or np.isinf(value)
-    else:
-        value = float(value)
-        return (value == float('inf')) or (value == float('-inf')) or (value == float('NaN'))
+def progress_bar(i, len):
+    bar_len = 20
+    filled_len = int(round(bar_len * i / len))
+    # percents = round(100.0 * i / len, 1)
+    return '#' * filled_len + '-' * (bar_len - filled_len)
 
 
 def days_hours_mins_secs_str(total_seconds):
@@ -234,27 +132,51 @@ def days_hours_mins_secs_str(total_seconds):
     return '{0}d:{1:02}:{2:02}:{3:02}'.format(int(d), int(h), int(m), int(s))
 
 
+def has_nan_or_inf(value):
+    if torch.is_tensor(value):
+        value = torch.sum(value)
+        isnan = int(torch.isnan(value)) > 0
+        isinf = int(torch.isinf(value)) > 0
+        return isnan or isinf
+    else:
+        value = float(value)
+        return (value == float('inf')) or (value == float('-inf')) or (value == float('NaN'))
+
+
+def replace_negative_inf(value):
+    value = value.clone()
+    value[value == -np.inf] = _log_epsilon
+    return value
+
+
+def rgb_to_hex(rgb):
+    # rgb is a triple of (r, g, b) where r, g, b are between 0 and 1.
+    return "#{:02x}{:02x}{:02x}".format(int(max(0, min(rgb[0], 1))*255), int(max(0, min(rgb[1], 1))*255), int(max(0, min(rgb[2], 1))*255))
+
+
+def prod(iterable):
+    return reduce(operator.mul, iterable, 1)
+
+
+def truncate_str(s, length=50):
+    return (s[:length] + '...') if len(s) > length else s
+
+
 def get_time_str():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def get_time_stamp():
-    return datetime.datetime.fromtimestamp(time.time()).strftime('_%Y%m%d_%H%M%S')
+    return datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d_%H%M%S')
 
 
-def progress_bar(i, len):
-    bar_len = 20
-    filled_len = int(round(bar_len * i / len))
-    # percents = round(100.0 * i / len, 1)
-    return '#' * filled_len + '-' * (bar_len - filled_len)
-
-
-def truncate_str(s, length=40):
-    return (s[:length] + '...') if len(s) > length else s
+def one_hot(dim, i):
+    t = torch.zeros(dim)
+    t.narrow(0, i, 1).fill_(1)
+    return t
 
 
 def is_hashable(v):
-    """Determine whether `v` can be hashed."""
     try:
         hash(v)
     except TypeError:
@@ -262,6 +184,7 @@ def is_hashable(v):
     return True
 
 
+<<<<<<< HEAD
 def clamp_prob(prob):
     return torch.clamp(prob, min=_epsilon, max=1)
 
@@ -376,3 +299,15 @@ def _sum_rightmost(value, dim):
     if dim == 0:
         return value
     return value.contiguous().view(value.shape[:-dim] + (-1,)).sum(-1)
+=======
+def empirical_to_categorical(empirical_dist, max_val=None):
+    empirical_dist = empirical_dist.combine_duplicates().map(int)
+    if max_val is None:
+        max_val = int(empirical_dist.max)
+    probs = torch.zeros(max_val + 1)
+    for i in range(empirical_dist.length):
+        val = empirical_dist.values[i]
+        if val <= max_val:
+            probs[val] = float(empirical_dist.weights[i])
+    return Categorical(probs)
+>>>>>>> origin/master

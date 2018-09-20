@@ -1,14 +1,6 @@
-__version__ = '0.10.0.dev14'
+__version__ = '0.11.dev1'
 
-from .util import ObserveEmbedding, SampleEmbedding, TraceMode, InferenceEngine, Optimizer, InferenceNetworkTrainingMode, set_random_seed, set_cuda, set_verbosity, set_inference_network_training_mode
-from .model import Model, ModelRemote
+from .util import TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, ObserveEmbedding, set_verbosity, set_random_seed, set_cuda
 from .state import sample, observe
-
-
-# import time
-# set_random_seed(int(time.time()))
-# set_cuda(True)
-
-del util
-del model
-del state
+from .model import Model, ModelRemote
+from .analytics import Analytics

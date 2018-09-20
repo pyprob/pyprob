@@ -1,104 +1,95 @@
-import os
-import sys
-import datetime
 import torch
-from pylatex import Document, Section, Subsection, Subsubsection, Command, Figure, SubFigure, Tabularx, LongTable, FootnoteText, FlushLeft
-from pylatex.utils import italic, NoEscape
-import matplotlib
-matplotlib.use('Agg') # Do not use X server
-matplotlib.rcParams.update({'font.size': 10})
-matplotlib.rcParams.update({'figure.max_open_warning': 0})
-matplotlib.rcParams['axes.axisbelow'] = True
-import seaborn as sns
-sns.set_style("ticks")
-colors = ["dark grey", "amber", "greyish", "faded green", "dusty purple"]
-sns.set_palette(sns.xkcd_palette(colors))
-import matplotlib.pyplot as plt
+import os
+from collections import OrderedDict
 import numpy as np
-import re
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
+from . import __version__, util, PriorInflation, InferenceEngine
+from .distributions import Empirical
+from .graph import Graph
 
 
-from . import util, __version__
+class Analytics():
+    def __init__(self, model):
+        self._model = model
 
+    def inference_network(self, report_dir=None):
+        if self._model._inference_network is None:
+            raise RuntimeError('The model does not have a trained inference network. Use learn_inference_network first.')
+        return self._network_statistics(self._model._inference_network, report_dir)
 
-def save_report(model, file_name):
-    print('Saving analytics report to {}.tex and {}.pdf'.format(file_name, file_name))
+    def prior_graph(self, num_traces=1000, prior_inflation=PriorInflation.DISABLED, use_address_base=True, bins=100, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, trace_dist=None, *args, **kwargs):
+        if trace_dist is None:
+            trace_dist = self._model.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, *args, **kwargs)
+        return self._graph_statistics(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, None, 'prior', bins, log_xscale, log_yscale)
 
-    inference_network = model._inference_network
-    iter_per_sec = inference_network._total_train_iterations / inference_network._total_train_seconds
-    traces_per_sec = inference_network._total_train_traces / inference_network._total_train_seconds
-    traces_per_iter = inference_network._total_train_traces / inference_network._total_train_iterations
-    train_loss_initial = inference_network._history_train_loss[0]
-    train_loss_final = inference_network._history_train_loss[-1]
-    train_loss_change = train_loss_final - train_loss_initial
-    train_loss_change_per_sec = train_loss_change / inference_network._total_train_seconds
-    train_loss_change_per_iter = train_loss_change / inference_network._total_train_iterations
-    train_loss_change_per_trace = train_loss_change / inference_network._total_train_traces
-    valid_loss_initial = inference_network._history_valid_loss[0]
-    valid_loss_final = inference_network._history_valid_loss[-1]
-    valid_loss_change = valid_loss_final - valid_loss_initial
-    valid_loss_change_per_sec = valid_loss_change / inference_network._total_train_seconds
-    valid_loss_change_per_iter = valid_loss_change / inference_network._total_train_iterations
-    valid_loss_change_per_trace = valid_loss_change / inference_network._total_train_traces
+    def posterior_graph(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe=None, use_address_base=True, bins=100, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, trace_dist=None, *args, **kwargs):
+        if trace_dist is None:
+            trace_dist = self._model.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, observe=observe, *args, **kwargs)
+        return self._graph_statistics(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, inference_engine.name, 'posterior', bins, log_xscale, log_yscale)
 
-    sys.stdout.write('Generating report...                                           \r')
-    sys.stdout.flush()
+    def _network_statistics(self, inference_network, report_dir=None):
+        train_iter_per_sec = inference_network._total_train_iterations / inference_network._total_train_seconds
+        train_traces_per_sec = inference_network._total_train_traces / inference_network._total_train_seconds
+        train_traces_per_iter = inference_network._total_train_traces / inference_network._total_train_iterations
+        train_loss_initial = inference_network._history_train_loss[0]
+        train_loss_final = inference_network._history_train_loss[-1]
+        train_loss_change = train_loss_final - train_loss_initial
+        train_loss_change_per_sec = train_loss_change / inference_network._total_train_seconds
+        train_loss_change_per_iter = train_loss_change / inference_network._total_train_iterations
+        train_loss_change_per_trace = train_loss_change / inference_network._total_train_traces
+        valid_loss_initial = inference_network._history_valid_loss[0]
+        valid_loss_final = inference_network._history_valid_loss[-1]
+        valid_loss_change = valid_loss_final - valid_loss_initial
+        valid_loss_change_per_sec = valid_loss_change / inference_network._total_train_seconds
+        valid_loss_change_per_iter = valid_loss_change / inference_network._total_train_iterations
+        valid_loss_change_per_trace = valid_loss_change / inference_network._total_train_traces
 
-    geometry_options = {'tmargin':'1.5cm', 'lmargin':'1cm', 'rmargin':'1cm', 'bmargin':'1.5cm'}
-    doc = Document('basic', geometry_options=geometry_options)
-    doc.preamble.append(NoEscape(r'\usepackage[none]{hyphenat}'))
-    doc.preamble.append(NoEscape(r'\usepackage{float}'))
-    # doc.preamble.append(NoEscape(r'\renewcommand{\familydefault}{\ttdefault}'))
+        stats = OrderedDict()
+        stats['pyprob_version'] = __version__
+        stats['torch_version'] = torch.__version__
+        stats['model_name'] = self._model.name
+        stats['modified'] = inference_network._modified
+        stats['updates'] = inference_network._updates
+        stats['trained_on_device'] = str(inference_network._device)
+        stats['valid_batch_size'] = inference_network._valid_batch_size
+        stats['total_train_seconds'] = inference_network._total_train_seconds
+        stats['total_train_traces'] = inference_network._total_train_traces
+        stats['total_train_iterations'] = inference_network._total_train_iterations
+        stats['train_iter_per_sec'] = train_iter_per_sec
+        stats['train_traces_per_sec'] = train_traces_per_sec
+        stats['train_traces_per_iter'] = train_traces_per_iter
+        stats['train_loss_initial'] = train_loss_initial
+        stats['train_loss_final'] = train_loss_final
+        stats['train_loss_change_per_sec'] = train_loss_change_per_sec
+        stats['train_loss_change_per_iter'] = train_loss_change_per_iter
+        stats['train_loss_change_per_trace'] = train_loss_change_per_trace
+        stats['valid_loss_initial'] = valid_loss_initial
+        stats['valid_loss_final'] = valid_loss_final
+        stats['valid_loss_change_per_sec'] = valid_loss_change_per_sec
+        stats['valid_loss_change_per_iter'] = valid_loss_change_per_iter
+        stats['valid_loss_change_per_trace'] = valid_loss_change_per_trace
 
-    doc.preamble.append(Command('title', 'pyprob analytics: ' + model.name))
-    doc.preamble.append(Command('date', NoEscape(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))))
-    doc.append(NoEscape(r'\maketitle'))
-    # doc.append(NoEscape(r'\small'))
+        if report_dir is not None:
+            if not os.path.exists(report_dir):
+                print('Directory does not exist, creating: {}'.format(report_dir))
+                os.makedirs(report_dir)
+            file_name_stats = os.path.join(report_dir, 'inference_network_stats.txt')
+            print('Saving analytics information to {} ...'.format(file_name_stats))
+            with open(file_name_stats, 'w') as file:
+                file.write('pyprob analytics report\n')
+                for key, value in stats.items():
+                    file.write('{}: {}\n'.format(key, value))
+                file.write('architecture:\n')
+                file.write(str(next(inference_network.modules())))
 
-    with doc.create(Section('Current system', numbering=False)):
-        with doc.create(Tabularx('ll')) as table:
-            table.add_row(('pyprob version', __version__))
-            table.add_row(('PyTorch version', torch.__version__))
+            mpl.rcParams['axes.unicode_minus'] = False
+            plt.switch_backend('agg')
 
-    # doc.append(NoEscape(r'\newpage'))
-    with doc.create(Section('Inference network', numbering=False)):
-        with doc.create(Section('File')):
-            with doc.create(Tabularx('ll')) as table:
-                # table.add_row(('File name', file_name))
-                # file_size = '{:,}'.format(os.path.getsize(file_name))
-                # table.add_row(('File size', file_size + ' Bytes'))
-                table.add_row(('Created', inference_network._created))
-                table.add_row(('Modified', inference_network._modified))
-                table.add_row(('Updates to file', inference_network._updates))
-        with doc.create(Section('Training')):
-            with doc.create(Tabularx('ll')) as table:
-                table.add_row(('pyprob version', inference_network._pyprob_version))
-                table.add_row(('PyTorch version', inference_network._torch_version))
-                table.add_row(('Trained on', inference_network._trained_on))
-                table.add_row(('Total training time', '{0}'.format(util.days_hours_mins_secs_str(inference_network._total_train_seconds))))
-                table.add_row(('Total training traces', '{:,}'.format(inference_network._total_train_traces)))
-                table.add_row(('Traces / s', '{:,.2f}'.format(traces_per_sec)))
-                table.add_row(('Traces / iteration', '{:,.2f}'.format(traces_per_iter)))
-                table.add_row(('Iterations', '{:,}'.format(inference_network._total_train_iterations)))
-                table.add_row(('Iterations / s', '{:,.2f}'.format(iter_per_sec)))
-                table.add_row(('Optimizer', inference_network._optimizer_type))
-                table.add_row(('Validation set size', inference_network._valid_batch.length))
-        with doc.create(Subsection('Training loss')):
-            with doc.create(Tabularx('ll')) as table:
-                table.add_row(('Initial loss', '{:+.6e}'.format(train_loss_initial)))
-                table.add_row(('Final loss', '{:+.6e}'.format(train_loss_final)))
-                table.add_row(('Loss change / s', '{:+.6e}'.format(train_loss_change_per_sec)))
-                table.add_row(('Loss change / iteration', '{:+.6e}'.format(train_loss_change_per_iter)))
-                table.add_row(('Loss change / trace', '{:+.6e}'.format(train_loss_change_per_trace)))
-        with doc.create(Subsection('Validation loss')):
-            with doc.create(Tabularx('ll')) as table:
-                table.add_row(('Initial loss', '{:+.6e}'.format(valid_loss_initial)))
-                table.add_row(('Final loss', '{:+.6e}'.format(valid_loss_final)))
-                table.add_row(('Loss change / s', '{:+.6e}'.format(valid_loss_change_per_sec)))
-                table.add_row(('Loss change / iteration', '{:+.6e}'.format(valid_loss_change_per_iter)))
-                table.add_row(('Loss change / trace', '{:+.6e}'.format(valid_loss_change_per_trace)))
-        with doc.create(Figure(position='H')) as plot:
-            fig = plt.figure(figsize=(10,6))
+            file_name_loss = os.path.join(report_dir, 'loss.pdf')
+            print('Plotting loss to file: {} ...'.format(file_name_loss))
+            fig = plt.figure(figsize=(10, 7))
             ax = plt.subplot(111)
             ax.plot(inference_network._history_train_loss_trace, inference_network._history_train_loss, label='Training')
             ax.plot(inference_network._history_valid_loss_trace, inference_network._history_valid_loss, label='Validation')
@@ -107,59 +98,198 @@ def save_report(model, file_name):
             plt.ylabel('Loss')
             plt.grid()
             fig.tight_layout()
-            plot.add_plot(width=NoEscape(r'\textwidth'))
-            plot.add_caption('Loss plot.')
+            plt.savefig(file_name_loss)
 
-        with doc.create(Section('Neural network modules')):
-            with doc.create(Tabularx('ll')) as table:
-                table.add_row(('Total trainable parameters', '{:,}'.format(inference_network._history_num_params[-1])))
-                # table.add_row(('Softmax boost', inference_network.softmax_boost))
-                # table.add_row(('Dropout', inference_network.dropout))
-                # table.add_row(('Standardize inputs', inference_network.standardize_observes))
-            with doc.create(Figure(position='H')) as plot:
-                fig = plt.figure(figsize=(10,4))
-                ax = plt.subplot(111)
-                ax.plot(inference_network._history_num_params_trace, inference_network._history_num_params)
-                plt.xlabel('Training traces')
-                plt.ylabel('Number of parameters')
-                plt.grid()
-                fig.tight_layout()
-                plot.add_plot(width=NoEscape(r'\textwidth'))
-                plot.add_caption('Number of parameters.')
+            file_name_num_params = os.path.join(report_dir, 'num_params.pdf')
+            print('Plotting number of parameters to file: {} ...'.format(file_name_num_params))
+            fig = plt.figure(figsize=(10, 7))
+            ax = plt.subplot(111)
+            ax.plot(inference_network._history_num_params_trace, inference_network._history_num_params, label='Training')
+            plt.xlabel('Training traces')
+            plt.ylabel('Number of parameters')
+            plt.grid()
+            fig.tight_layout()
+            plt.savefig(file_name_num_params)
 
-            doc.append(NoEscape(r'\newpage'))
-            with doc.create(Subsection('All modules')):
-                doc.append(str(inference_network))
+            report_dir_params = os.path.join(report_dir, 'params')
+            if not os.path.exists(report_dir_params):
+                print('Directory does not exist, creating: {}'.format(report_dir_params))
+                os.makedirs(report_dir_params)
+            for param in inference_network.named_parameters():
+                param_name = param[0]
+                file_name_param = os.path.join(report_dir_params, param_name + '.png')
+                print('Plotting parameter to file: {} ...'.format(file_name_param))
+                param_val = param[1].detach().numpy()
+                if param_val.ndim == 1:
+                    param_val = np.expand_dims(param_val, 1)
+                if param_val.ndim > 2:
+                    print('Cannot render parameter {} because it is {}-dimensional.'.format(param_name, param_val.ndim))
+                else:
+                    fig = plt.figure()
+                    ax = plt.subplot(111)
+                    heatmap = ax.pcolor(param_val, cmap=plt.cm.jet)
+                    ax.invert_yaxis()
+                    plt.xlabel('{} {}'.format(param_name, param_val.shape))
+                    plt.colorbar(heatmap)
+                    # fig.tight_layout()
+                    plt.savefig(file_name_param)
+        return stats
 
-            for m_name, m in inference_network.named_modules():
-                if (m_name != ''):
-                    regex = r'(sample_embedding_layer\(\S*\)._)|(proposal_layer\(\S*\)._)|(_observe_embedding_layer.)|(_lstm)'
-                    if len(list(re.finditer(regex, m_name))) > 0:
-                    # if ('_observe_embedding_layer.' in m_name) or ('sample_embedding_layer.' in m_name) or ('proposal_layer.' in m_name):
-                        doc.append(NoEscape(r'\newpage'))
-                        with doc.create(Subsubsection(m_name)):
-                            doc.append(str(m))
-                            for p_name, p in m.named_parameters():
-                                if not 'bias' in p_name:
-                                    with doc.create(Figure(position='H')) as plot:
-                                        fig = plt.figure(figsize=(10,10))
-                                        ax = plt.subplot(111)
-                                        plt.imshow(np.transpose(util.weights_to_image(p),(1,2,0)), interpolation='none')
-                                        plt.axis('off')
-                                        plot.add_plot(width=NoEscape(r'\textwidth'))
-                                        plot.add_caption(m_name + '_' + p_name)
-            doc.append(NoEscape(r'\newpage'))
-            with doc.create(Subsection('Address embeddings')):
-                for p_name, p in inference_network.named_parameters():
-                    if ('address_embedding' in p_name):
-                        with doc.create(Figure(position='H')) as plot:
-                            fig = plt.figure(figsize=(10,10))
-                            ax = plt.subplot(111)
-                            plt.imshow(np.transpose(util.weights_to_image(p),(1,2,0)), interpolation='none')
-                            plt.axis('off')
-                            plot.add_plot(width=NoEscape(r'\textwidth'))
-                            plot.add_caption(p_name)
+    def _graph_statistics(self, trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, report_sub_dir, report_name, bins, log_xscale, log_yscale):
+        stats = OrderedDict()
+        stats['pyprob_version'] = __version__
+        stats['torch_version'] = torch.__version__
+        stats['model_name'] = self._model.name
 
-    doc.generate_pdf(file_name, clean_tex=False)
-    sys.stdout.write('                                                               \r')
-    sys.stdout.flush()
+        print('Building graph...')
+        if base_graph is not None:
+            use_address_base = base_graph.use_address_base
+        master_graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent, base_graph=base_graph)
+        address_stats = master_graph.address_stats
+        stats['addresses'] = len(address_stats)
+        stats['addresses_controlled'] = len([1 for value in list(address_stats.values()) if value['variable'].control])
+        stats['addresses_replaced'] = len([1 for value in list(address_stats.values()) if value['variable'].replace])
+        stats['addresses_observable'] = len([1 for value in list(address_stats.values()) if value['variable'].observable])
+        stats['addresses_observed'] = len([1 for value in list(address_stats.values()) if value['variable'].observed])
+
+        address_ids = [i for i in range(len(address_stats))]
+        address_weights = []
+        for key, value in address_stats.items():
+            address_weights.append(value['count'])
+        address_id_dist = Empirical(address_ids, weights=address_weights, name='Address ID')
+
+        trace_stats = master_graph.trace_stats
+        trace_ids = [i for i in range(len(trace_stats))]
+        trace_weights = []
+        for key, value in trace_stats.items():
+            trace_weights.append(value['count'])
+        trace_id_dist = Empirical(trace_ids, weights=trace_ids, name='Unique trace ID')
+        trace_dist_unweighted = trace_dist.unweighted()
+        trace_length_dist = trace_dist_unweighted.map(lambda trace: trace.length).rename('Trace length (all)')
+        trace_length_controlled_dist = trace_dist_unweighted.map(lambda trace: trace.length_controlled).rename('Trace length (controlled)')
+        trace_execution_time_dist = trace_dist_unweighted.map(lambda trace: trace.execution_time_sec).rename('Trace execution time (s)')
+
+        stats['traces'] = len(trace_stats)
+        stats['trace_length_min'] = float(trace_length_dist.min)
+        stats['trace_length_max'] = float(trace_length_dist.max)
+        stats['trace_length_mean'] = float(trace_length_dist.mean)
+        stats['trace_length_stddev'] = float(trace_length_dist.stddev)
+        stats['trace_length_controlled_min'] = float(trace_length_controlled_dist.min)
+        stats['trace_length_controlled_max'] = float(trace_length_controlled_dist.max)
+        stats['trace_length_controlled_mean'] = float(trace_length_controlled_dist.mean)
+        stats['trace_length_controlled_stddev'] = float(trace_length_controlled_dist.stddev)
+        stats['trace_execution_time_min'] = float(trace_execution_time_dist.min)
+        stats['trace_execution_time_max'] = float(trace_execution_time_dist.max)
+        stats['trace_execution_time_mean'] = float(trace_execution_time_dist.mean)
+        stats['trace_execution_time_stddev'] = float(trace_execution_time_dist.stddev)
+
+        if report_dir is not None:
+            report_root = os.path.join(report_dir, report_name)
+            if report_sub_dir is not None:
+                report_root = os.path.join(report_root, report_sub_dir)
+            if not os.path.exists(report_root):
+                print('Directory does not exist, creating: {}'.format(report_root))
+                os.makedirs(report_root)
+            file_name_stats = os.path.join(report_root, report_name + '_stats.txt')
+            print('Saving analytics information to {} ...'.format(file_name_stats))
+            with open(file_name_stats, 'w') as file:
+                file.write('pyprob analytics report\n')
+                for key, value in stats.items():
+                    file.write('{}: {}\n'.format(key, value))
+
+            file_name_addresses = os.path.join(report_root, report_name + '_addresses.csv')
+            print('Saving addresses to {} ...'.format(file_name_addresses))
+            with open(file_name_addresses, 'w') as file:
+                file.write('address_id, weight, name, controlled, replaced, observable, observed, {}\n'.format('address_base' if use_address_base else 'address'))
+                for key, value in address_stats.items():
+                    name = '' if value['variable'].name is None else value['variable'].name
+                    file.write('{}, {}, {}, {}, {}, {}, {}, {}\n'.format(value['address_id'], value['weight'], name, value['variable'].control, value['variable'].replace, value['variable'].observable, value['variable'].observed, key))
+
+            file_name_traces = os.path.join(report_root, report_name + '_traces.csv')
+            print('Saving addresses to {} ...'.format(file_name_traces))
+            with open(file_name_traces, 'w') as file:
+                file.write('trace_id, weight, length, length_controlled, address_id_sequence\n')
+                for key, value in trace_stats.items():
+                    file.write('{}, {}, {}, {}, {}\n'.format(value['trace_id'], value['weight'], len(value['trace'].variables), len(value['trace'].variables_controlled), ' '.join(value['address_id_sequence'])))
+
+            file_name_address_id_dist = os.path.join(report_root, report_name + '_address_ids.pdf')
+            print('Saving trace type distribution to {} ...'.format(file_name_address_id_dist))
+            address_id_dist.plot_histogram(bins=range(len(address_stats)), xticks=range(len(address_stats)), log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_address_id_dist)
+
+            file_name_trace_id_dist = os.path.join(report_root, report_name + '_trace_ids.pdf')
+            print('Saving trace type distribution to {} ...'.format(file_name_trace_id_dist))
+            trace_id_dist.plot_histogram(bins=range(len(trace_stats)), xticks=range(len(trace_stats)), log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_id_dist)
+
+            file_name_trace_length_dist = os.path.join(report_root, report_name + '_trace_length_all.pdf')
+            print('Saving trace length (all) distribution to {} ...'.format(file_name_trace_length_dist))
+            trace_length_dist.plot_histogram(bins=bins, log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_length_dist)
+
+            file_name_trace_length_controlled_dist = os.path.join(report_root, report_name + '_trace_length_controlled.pdf')
+            print('Saving trace length (controlled) distribution to {} ...'.format(file_name_trace_length_controlled_dist))
+            trace_length_controlled_dist.plot_histogram(bins=bins, log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_length_controlled_dist)
+
+            file_name_trace_execution_time_dist = os.path.join(report_root, report_name + '_trace_execution_time.pdf')
+            print('Saving trace execution time distribution to {} ...'.format(file_name_trace_execution_time_dist))
+            trace_execution_time_dist.plot_histogram(bins=bins, log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_execution_time_dist)
+
+            report_latent_root = os.path.join(report_root, 'latent_structure')
+            if not os.path.exists(report_latent_root):
+                print('Directory does not exist, creating: {}'.format(report_latent_root))
+                os.makedirs(report_latent_root)
+            file_name_latent_structure_all_pdf = os.path.join(report_latent_root, report_name + '_latent_structure_all')
+            print('Rendering latent structure graph (all) to {} ...'.format(file_name_latent_structure_all_pdf))
+            if base_graph is None:
+                master_graph.render_to_file(file_name_latent_structure_all_pdf)
+            else:
+                master_graph.render_to_file(file_name_latent_structure_all_pdf, background_graph=base_graph)
+
+            for i in range(len(trace_stats)):
+                trace_id = list(trace_stats.values())[i]['trace_id']
+                file_name_latent_structure = os.path.join(report_latent_root, report_name + '_latent_structure_most_freq_{}_{}'.format(i+1, trace_id))
+                print('Saving latent structure graph {} of {} to {} ...'.format(i+1, len(trace_stats), file_name_latent_structure))
+                graph = master_graph.get_sub_graph(i)
+                if base_graph is None:
+                    graph.render_to_file(file_name_latent_structure, background_graph=master_graph)
+                else:
+                    graph.render_to_file(file_name_latent_structure, background_graph=base_graph)
+
+            print('Rendering distributions...')
+            report_distribution_root = os.path.join(report_root, 'distributions')
+            if not os.path.exists(report_distribution_root):
+                print('Directory does not exist, creating: {}'.format(report_distribution_root))
+                os.makedirs(report_distribution_root)
+
+            i = 0
+            for key, value in address_stats.items():
+                i += 1
+                address_id = value['address_id']
+                variable = value['variable']
+                can_render = True
+                try:
+                    if use_address_base:
+                        address_base = variable.address_base
+                        dist = trace_dist.filter(lambda trace: address_base in trace.variables_dict_address_base).map(lambda trace: util.to_tensor(trace.variables_dict_address_base[address_base].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
+                    else:
+                        address = variable.address
+                        dist = trace_dist.filter(lambda trace: address in trace.variables_dict_address).map(lambda trace: util.to_tensor(trace.variables_dict_address[address].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
+
+                    dist.rename(address_id + '' if variable.name is None else '{} (name: {})'.format(address_id, variable.name))
+                    if dist.length == 0:
+                        can_render = False
+                except:
+                    can_render = False
+
+                if can_render:
+                    file_name_dist = os.path.join(report_distribution_root, '{}_{}_distribution.pdf'.format(address_id, report_name))
+                    print('Saving distribution {} of {} to {} ...'.format(i, len(address_stats), file_name_dist))
+                    dist.plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
+                    if report_sub_dir is not None:
+                        if report_sub_dir == InferenceEngine.IMPORTANCE_SAMPLING.name or report_sub_dir == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK.name:
+                            file_name_dist = os.path.join(report_distribution_root, '{}_{}_distribution.pdf'.format(address_id, 'proposal'))
+                            print('Saving distribution {} of {} to {} ...'.format(i, len(address_stats), file_name_dist))
+                            dist.unweighted().plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
+
+                else:
+                    print('Cannot render histogram for {} because it is not scalar valued. Example value: {}'.format(address_id, variable.value))
+
+        return master_graph, stats

@@ -14,10 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates &&\
     rm -rf /var/lib/apt/lists/*
 
-RUN git clone --branch v1.8.0 https://github.com/google/flatbuffers.git /code/flatbuffers && cd /code/flatbuffers && cmake -G "Unix Makefiles" && make install
-RUN git clone --branch 0.4.0 https://github.com/QuantStack/xtl.git /code/xtl && cd /code/xtl && cmake . && make install
-RUN git clone --branch 0.15.4 https://github.com/QuantStack/xtensor.git /code/xtensor && cd /code/xtensor && cmake . && make install
-RUN git clone --branch 0.1.0 https://github.com/probprog/cpproblight.git /code/cpproblight && cd /code/cpproblight && mkdir build && cd build && cmake ../src && cmake --build . && make install
+RUN git clone --branch v1.9.0 https://github.com/google/flatbuffers.git /code/flatbuffers && cd /code/flatbuffers && cmake -G "Unix Makefiles" && make install
+RUN git clone --branch 0.4.16 https://github.com/QuantStack/xtl.git /code/xtl && cd /code/xtl && cmake . && make install
+RUN git clone --branch 0.17.4 https://github.com/QuantStack/xtensor.git /code/xtensor && cd /code/xtensor && cmake . && make install
+RUN git clone --branch v0.1.6 https://github.com/probprog/pyprob_cpp.git /code/pyprob_cpp && cd /code/pyprob_cpp && mkdir build && cd build && cmake ../src && cmake --build . && make install
 
 RUN curl -o ~/miniconda.sh -O  https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh  && \
      chmod +x ~/miniconda.sh && \
@@ -25,17 +25,17 @@ RUN curl -o ~/miniconda.sh -O  https://repo.continuum.io/miniconda/Miniconda3-la
      rm ~/miniconda.sh
 ENV PATH /opt/conda/bin:$PATH
 
+RUN pip install --upgrade pip
+RUN pip install 'torch==0.4.1.post2' 'torchvision==0.2.1'
+
 RUN mkdir -p /code/pyprob
 COPY . /code/pyprob
-
-RUN pip install http://download.pytorch.org/whl/cu90/torch-0.3.1-cp36-cp36m-linux_x86_64.whl
-RUN pip install torchvision
 RUN pip install /code/pyprob
 
 ARG PYPROB_VERSION="unknown"
 ARG GIT_COMMIT="unknown"
 
-LABEL project="pyprob (with cpproblight)"
+LABEL project="pyprob"
 LABEL url="https://github.com/probprog/pyprob"
 LABEL maintainer="Atilim Gunes Baydin <gunes@robots.ox.ac.uk>"
 LABEL version=$PYPROB_VERSION
