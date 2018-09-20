@@ -261,7 +261,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
-        posterior_effective_sample_size_min = samples * 0.03
+        posterior_effective_sample_size_min = samples * 0.02
 
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs0': {'dim': 256, 'depth': 1}, 'obs1': {'dim': 256, 'depth': 1}})
 
@@ -593,7 +593,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
                 super().__init__('MiniCaptcha')
 
             def render(self, text, size=18, height=28, width=28, x=6, y=6):
-                pil_font = ImageFont.truetype('arial', size=size)
+                pil_font = ImageFont.truetype('Ubuntu-B.ttf', size=size)
                 text_width, text_height = pil_font.getsize(text)
                 canvas = Image.new('RGB', [height, width], (255, 255, 255))
                 draw = ImageDraw.Draw(canvas)
