@@ -190,6 +190,9 @@ class Analytics():
             if not os.path.exists(report_root):
                 print('Directory does not exist, creating: {}'.format(report_root))
                 os.makedirs(report_root)
+            file_name_dist = os.path.join(report_root, report_name + '_traces.distribution')
+            print('Saving trace distribution to {} ...'.format(file_name_dist))
+            trace_dist.save(file_name_dist)
             file_name_stats = os.path.join(report_root, report_name + '_stats.txt')
             print('Saving analytics information to {} ...'.format(file_name_stats))
             with open(file_name_stats, 'w') as file:
