@@ -1,14 +1,16 @@
 import unittest
 import torch
 import torch.nn.functional as F
+import numpy as np
 import time
 import math
 import sys
 import functools
+from PIL import Image, ImageDraw, ImageFont
 from termcolor import colored
 
 import pyprob
-from pyprob import util, Model, InferenceEngine
+from pyprob import util, Model, InferenceEngine, ObserveEmbedding
 from pyprob.distributions import Normal, Uniform, Categorical, Poisson, Empirical
 
 
@@ -581,14 +583,137 @@ class BranchingTestCase(unittest.TestCase):
         self.assertLess(kl_divergence, 0.75)
 
 
+class MiniCaptchaTestCase(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        class MiniCaptcha(Model):
+            def __init__(self, alphabet=['A', 'B', 'C', 'D', 'E', 'F'], noise=0.1):
+                self._alphabet = alphabet
+                self._probs = [1/len(alphabet) for i in range(len(alphabet))]
+                self._noise = noise
+                super().__init__('MiniCaptcha')
+
+            def render(self, text, size=18, height=28, width=28, x=6, y=6):
+                pil_font = ImageFont.truetype('arial', size=size)
+                text_width, text_height = pil_font.getsize(text)
+                canvas = Image.new('RGB', [height, width], (255, 255, 255))
+                draw = ImageDraw.Draw(canvas)
+                draw.text((x, y), text, font=pil_font, fill='#000000')
+                return torch.from_numpy(1 - (np.asarray(canvas) / 255.0))[:, :, 0].unsqueeze(0).float()
+
+            def forward(self):
+                letter_id = pyprob.sample(Categorical(self._probs))
+                image = self.render(self._alphabet[letter_id]).view(-1)
+                likelihood = Normal(image, self._noise)
+                pyprob.observe(likelihood, name='query_image')
+                return letter_id
+
+        self._model = MiniCaptcha()
+        self._test_images = [self._model.render(letter).view(-1) for letter in self._model._alphabet]
+        self._true_posteriors = [Categorical(util.one_hot(len(self._model._alphabet), i) + util._epsilon) for i in range(len(self._model._alphabet))]
+        super().__init__(*args, **kwargs)
+
+    def test_inference_mini_captcha_posterior_importance_sampling(self):
+        samples = int(importance_sampling_samples / len(self._model._alphabet))
+        test_letters = self._model._alphabet
+
+        start = time.time()
+        posteriors = []
+        map_estimates = []
+        for i in range(len(self._model._alphabet)):
+            posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'query_image': self._test_images[i]})
+            posteriors.append(posterior)
+            map_estimates.append(self._model._alphabet[int(posterior.mode)])
+        add_importance_sampling_duration(time.time() - start)
+
+        accuracy = sum([1 if map_estimates[i] == test_letters[i] else 0 for i in range(len(test_letters))])/len(test_letters)
+        kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(util.empirical_to_categorical(p, max_val=len(self._model._alphabet)-1), tp) for (p, tp) in zip(posteriors, self._true_posteriors)]))
+
+        util.debug('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
+        add_importance_sampling_kl_divergence(kl_divergence)
+
+        self.assertGreater(accuracy, 0.9)
+        self.assertLess(kl_divergence, 0.25)
+
+    def test_inference_mini_captcha_posterior_importance_sampling_with_inference_network(self):
+        samples = int(importance_sampling_with_inference_network_samples / len(self._model._alphabet))
+        test_letters = self._model._alphabet
+
+        self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'query_image': {'dim': 32, 'reshape': [1, 28, 28], 'embedding': ObserveEmbedding.CNN2D5C}})
+
+        start = time.time()
+        posteriors = []
+        map_estimates = []
+        for i in range(len(self._model._alphabet)):
+            posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'query_image': self._test_images[i]})
+            posteriors.append(posterior)
+            map_estimates.append(self._model._alphabet[int(posterior.mode)])
+        add_importance_sampling_with_inference_network_duration(time.time() - start)
+
+        accuracy = sum([1 if map_estimates[i] == test_letters[i] else 0 for i in range(len(test_letters))])/len(test_letters)
+        kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(util.empirical_to_categorical(p, max_val=len(self._model._alphabet)-1), tp) for (p, tp) in zip(posteriors, self._true_posteriors)]))
+
+        util.debug('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
+        add_importance_sampling_with_inference_network_kl_divergence(kl_divergence)
+
+        self.assertGreater(accuracy, 0.9)
+        self.assertLess(kl_divergence, 0.25)
+
+    def test_inference_mini_captcha_posterior_lightweight_metropolis_hastings(self):
+        samples = int(lightweight_metropolis_hastings_samples / len(self._model._alphabet))
+        burn_in = int(lightweight_metropolis_hastings_burn_in / len(self._model._alphabet))
+        test_letters = self._model._alphabet
+
+        start = time.time()
+        posteriors = []
+        map_estimates = []
+        for i in range(len(self._model._alphabet)):
+            posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'query_image': self._test_images[i]})[burn_in:]
+            posteriors.append(posterior)
+            map_estimates.append(self._model._alphabet[int(posterior.combine_duplicates().mode)])
+        add_lightweight_metropolis_hastings_duration(time.time() - start)
+
+        accuracy = sum([1 if map_estimates[i] == test_letters[i] else 0 for i in range(len(test_letters))])/len(test_letters)
+        kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(util.empirical_to_categorical(p, max_val=len(self._model._alphabet)-1), tp) for (p, tp) in zip(posteriors, self._true_posteriors)]))
+
+        util.debug('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
+        add_lightweight_metropolis_hastings_kl_divergence(kl_divergence)
+
+        self.assertGreater(accuracy, 0.9)
+        self.assertLess(kl_divergence, 0.25)
+
+    def test_inference_mini_captcha_posterior_random_walk_metropolis_hastings(self):
+        samples = int(random_walk_metropolis_hastings_samples / len(self._model._alphabet))
+        burn_in = int(random_walk_metropolis_hastings_burn_in / len(self._model._alphabet))
+        test_letters = self._model._alphabet
+
+        start = time.time()
+        posteriors = []
+        map_estimates = []
+        for i in range(len(self._model._alphabet)):
+            posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'query_image': self._test_images[i]})[burn_in:]
+            posteriors.append(posterior)
+            map_estimates.append(self._model._alphabet[int(posterior.combine_duplicates().mode)])
+        add_random_walk_metropolis_hastings_duration(time.time() - start)
+
+        accuracy = sum([1 if map_estimates[i] == test_letters[i] else 0 for i in range(len(test_letters))])/len(test_letters)
+        kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(util.empirical_to_categorical(p, max_val=len(self._model._alphabet)-1), tp) for (p, tp) in zip(posteriors, self._true_posteriors)]))
+
+        util.debug('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
+        add_random_walk_metropolis_hastings_kl_divergence(kl_divergence)
+
+        self.assertGreater(accuracy, 0.9)
+        self.assertLess(kl_divergence, 0.25)
+
+
 if __name__ == '__main__':
     pyprob.set_random_seed(123)
-    pyprob.set_verbosity(1)
+    pyprob.set_verbosity(2)
     tests = []
     tests.append('GaussianWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
     tests.append('HiddenMarkovModelTestCase')
     # tests.append('BranchingTestCase')
+    tests.append('MiniCaptchaTestCase')
 
     time_start = time.time()
     success = unittest.main(defaultTest=tests, verbosity=2, exit=False).result.wasSuccessful()
