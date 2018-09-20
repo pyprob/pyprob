@@ -163,8 +163,8 @@ class Model():
 class ModelRemote(Model):
     def __init__(self, server_address='tcp://127.0.0.1:5555'):
         self._server_address = server_address
-        self._model_server = ModelServer(server_address)
-        super().__init__('{} running on {}'.format(self._model_server.model_name, self._model_server.system_name))
+        self._model_server = None
+        super().__init__('ModelRemote')
 
     def __enter__(self):
         return self
@@ -179,4 +179,8 @@ class ModelRemote(Model):
         self._model_server.close()
 
     def forward(self):
+        if self._model_server is None:
+            self._model_server = ModelServer(self._server_address)
+            self.name = '{} running on {}'.format(self._model_server.model_name, self._model_server.system_name)
+
         return self._model_server.forward()
