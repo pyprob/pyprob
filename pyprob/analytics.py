@@ -21,24 +21,26 @@ class Analytics():
 
     def prior_graph(self, num_traces=1000, prior_inflation=PriorInflation.DISABLED, use_address_base=True, bins=100, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, *args, **kwargs):
         trace_dist = self._model.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, *args, **kwargs)
-        report_dir = os.path.join(report_dir, 'prior')
-        if not os.path.exists(report_dir):
-            print('Directory does not exist, creating: {}'.format(report_dir))
-            os.makedirs(report_dir)
-        file_name_dist = os.path.join(report_dir, 'traces.distribution')
-        print('Saving trace distribution to {} ...'.format(file_name_dist))
-        trace_dist.save(file_name_dist)
+        if report_dir is not None:
+            report_dir = os.path.join(report_dir, 'prior')
+            if not os.path.exists(report_dir):
+                print('Directory does not exist, creating: {}'.format(report_dir))
+                os.makedirs(report_dir)
+            file_name_dist = os.path.join(report_dir, 'traces.distribution')
+            print('Saving trace distribution to {} ...'.format(file_name_dist))
+            trace_dist.save(file_name_dist)
         return self.graph(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, bins, log_xscale, log_yscale)
 
     def posterior_graph(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe=None, use_address_base=True, bins=100, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, *args, **kwargs):
         trace_dist = self._model.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, observe=observe, *args, **kwargs)
-        report_dir = os.path.join(report_dir, 'posterior/' + inference_engine.name)
-        if not os.path.exists(report_dir):
-            print('Directory does not exist, creating: {}'.format(report_dir))
-            os.makedirs(report_dir)
-        file_name_dist = os.path.join(report_dir, 'traces.distribution')
-        print('Saving trace distribution to {} ...'.format(file_name_dist))
-        trace_dist.save(file_name_dist)
+        if report_dir is not None:
+            report_dir = os.path.join(report_dir, 'posterior/' + inference_engine.name)
+            if not os.path.exists(report_dir):
+                print('Directory does not exist, creating: {}'.format(report_dir))
+                os.makedirs(report_dir)
+            file_name_dist = os.path.join(report_dir, 'traces.distribution')
+            print('Saving trace distribution to {} ...'.format(file_name_dist))
+            trace_dist.save(file_name_dist)
         return self.graph(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, bins, log_xscale, log_yscale)
 
     @staticmethod
