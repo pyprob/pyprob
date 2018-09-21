@@ -176,7 +176,8 @@ class ModelRemote(Model):
         self.close()
 
     def close(self):
-        self._model_server.close()
+        if self._model_server is not None:
+            self._model_server.close()
 
     def forward(self):
         if self._model_server is None:
