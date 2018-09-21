@@ -17,19 +17,32 @@ class Analytics():
     def inference_network(self, report_dir=None):
         if self._model._inference_network is None:
             raise RuntimeError('The model does not have a trained inference network. Use learn_inference_network first.')
-        return self._network_statistics(self._model._inference_network, report_dir)
+        return self.network_statistics(self._model._inference_network, report_dir)
 
-    def prior_graph(self, num_traces=1000, prior_inflation=PriorInflation.DISABLED, use_address_base=True, bins=100, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, trace_dist=None, *args, **kwargs):
-        if trace_dist is None:
-            trace_dist = self._model.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, *args, **kwargs)
-        return self._graph_statistics(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, None, 'prior', bins, log_xscale, log_yscale)
+    def prior_graph(self, num_traces=1000, prior_inflation=PriorInflation.DISABLED, use_address_base=True, bins=100, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, *args, **kwargs):
+        trace_dist = self._model.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, *args, **kwargs)
+        report_dir = os.path.join(report_dir, 'prior')
+        if not os.path.exists(report_dir):
+            print('Directory does not exist, creating: {}'.format(report_dir))
+            os.makedirs(report_dir)
+        file_name_dist = os.path.join(report_dir, 'traces.distribution')
+        print('Saving trace distribution to {} ...'.format(file_name_dist))
+        trace_dist.save(file_name_dist)
+        return self.graph(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, bins, log_xscale, log_yscale)
 
-    def posterior_graph(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe=None, use_address_base=True, bins=100, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, trace_dist=None, *args, **kwargs):
-        if trace_dist is None:
-            trace_dist = self._model.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, observe=observe, *args, **kwargs)
-        return self._graph_statistics(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, inference_engine.name, 'posterior', bins, log_xscale, log_yscale)
+    def posterior_graph(self, num_traces=1000, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe=None, use_address_base=True, bins=100, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, *args, **kwargs):
+        trace_dist = self._model.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, observe=observe, *args, **kwargs)
+        report_dir = os.path.join(report_dir, 'posterior/' + inference_engine.name)
+        if not os.path.exists(report_dir):
+            print('Directory does not exist, creating: {}'.format(report_dir))
+            os.makedirs(report_dir)
+        file_name_dist = os.path.join(report_dir, 'traces.distribution')
+        print('Saving trace distribution to {} ...'.format(file_name_dist))
+        trace_dist.save(file_name_dist)
+        return self.graph(trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, bins, log_xscale, log_yscale)
 
-    def _network_statistics(self, inference_network, report_dir=None):
+    @staticmethod
+    def network_statistics(inference_network, report_dir=None):
         train_iter_per_sec = inference_network._total_train_iterations / inference_network._total_train_seconds
         train_traces_per_sec = inference_network._total_train_traces / inference_network._total_train_seconds
         train_traces_per_iter = inference_network._total_train_traces / inference_network._total_train_iterations
@@ -49,7 +62,6 @@ class Analytics():
         stats = OrderedDict()
         stats['pyprob_version'] = __version__
         stats['torch_version'] = torch.__version__
-        stats['model_name'] = self._model.name
         stats['modified'] = inference_network._modified
         stats['updates'] = inference_network._updates
         stats['trained_on_device'] = str(inference_network._device)
@@ -135,11 +147,11 @@ class Analytics():
                     plt.savefig(file_name_param)
         return stats
 
-    def _graph_statistics(self, trace_dist, use_address_base, n_most_frequent, base_graph, report_dir, report_sub_dir, report_name, bins, log_xscale, log_yscale):
+    @staticmethod
+    def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=None, report_dir=None, bins=100, log_xscale=False, log_yscale=False):
         stats = OrderedDict()
         stats['pyprob_version'] = __version__
         stats['torch_version'] = torch.__version__
-        stats['model_name'] = self._model.name
 
         print('Building graph...')
         if base_graph is not None:
@@ -184,23 +196,17 @@ class Analytics():
         stats['trace_execution_time_stddev'] = float(trace_execution_time_dist.stddev)
 
         if report_dir is not None:
-            report_root = os.path.join(report_dir, report_name)
-            if report_sub_dir is not None:
-                report_root = os.path.join(report_root, report_sub_dir)
-            if not os.path.exists(report_root):
-                print('Directory does not exist, creating: {}'.format(report_root))
-                os.makedirs(report_root)
-            file_name_dist = os.path.join(report_root, report_name + '_traces.distribution')
-            print('Saving trace distribution to {} ...'.format(file_name_dist))
-            trace_dist.save(file_name_dist)
-            file_name_stats = os.path.join(report_root, report_name + '_stats.txt')
+            if not os.path.exists(report_dir):
+                print('Directory does not exist, creating: {}'.format(report_dir))
+                os.makedirs(report_dir)
+            file_name_stats = os.path.join(report_dir, 'stats.txt')
             print('Saving analytics information to {} ...'.format(file_name_stats))
             with open(file_name_stats, 'w') as file:
                 file.write('pyprob analytics report\n')
                 for key, value in stats.items():
                     file.write('{}: {}\n'.format(key, value))
 
-            file_name_addresses = os.path.join(report_root, report_name + '_addresses.csv')
+            file_name_addresses = os.path.join(report_dir, 'addresses.csv')
             print('Saving addresses to {} ...'.format(file_name_addresses))
             with open(file_name_addresses, 'w') as file:
                 file.write('address_id, weight, name, controlled, replaced, observable, observed, {}\n'.format('address_base' if use_address_base else 'address'))
@@ -208,38 +214,38 @@ class Analytics():
                     name = '' if value['variable'].name is None else value['variable'].name
                     file.write('{}, {}, {}, {}, {}, {}, {}, {}\n'.format(value['address_id'], value['weight'], name, value['variable'].control, value['variable'].replace, value['variable'].observable, value['variable'].observed, key))
 
-            file_name_traces = os.path.join(report_root, report_name + '_traces.csv')
+            file_name_traces = os.path.join(report_dir, 'traces.csv')
             print('Saving addresses to {} ...'.format(file_name_traces))
             with open(file_name_traces, 'w') as file:
                 file.write('trace_id, weight, length, length_controlled, address_id_sequence\n')
                 for key, value in trace_stats.items():
                     file.write('{}, {}, {}, {}, {}\n'.format(value['trace_id'], value['weight'], len(value['trace'].variables), len(value['trace'].variables_controlled), ' '.join(value['address_id_sequence'])))
 
-            file_name_address_id_dist = os.path.join(report_root, report_name + '_address_ids.pdf')
+            file_name_address_id_dist = os.path.join(report_dir, 'address_ids.pdf')
             print('Saving trace type distribution to {} ...'.format(file_name_address_id_dist))
             address_id_dist.plot_histogram(bins=range(len(address_stats)), xticks=range(len(address_stats)), log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_address_id_dist)
 
-            file_name_trace_id_dist = os.path.join(report_root, report_name + '_trace_ids.pdf')
+            file_name_trace_id_dist = os.path.join(report_dir, 'trace_ids.pdf')
             print('Saving trace type distribution to {} ...'.format(file_name_trace_id_dist))
             trace_id_dist.plot_histogram(bins=range(len(trace_stats)), xticks=range(len(trace_stats)), log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_id_dist)
 
-            file_name_trace_length_dist = os.path.join(report_root, report_name + '_trace_length_all.pdf')
+            file_name_trace_length_dist = os.path.join(report_dir, 'trace_length_all.pdf')
             print('Saving trace length (all) distribution to {} ...'.format(file_name_trace_length_dist))
             trace_length_dist.plot_histogram(bins=bins, log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_length_dist)
 
-            file_name_trace_length_controlled_dist = os.path.join(report_root, report_name + '_trace_length_controlled.pdf')
+            file_name_trace_length_controlled_dist = os.path.join(report_dir, 'trace_length_controlled.pdf')
             print('Saving trace length (controlled) distribution to {} ...'.format(file_name_trace_length_controlled_dist))
             trace_length_controlled_dist.plot_histogram(bins=bins, log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_length_controlled_dist)
 
-            file_name_trace_execution_time_dist = os.path.join(report_root, report_name + '_trace_execution_time.pdf')
+            file_name_trace_execution_time_dist = os.path.join(report_dir, 'trace_execution_time.pdf')
             print('Saving trace execution time distribution to {} ...'.format(file_name_trace_execution_time_dist))
             trace_execution_time_dist.plot_histogram(bins=bins, log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_execution_time_dist)
 
-            report_latent_root = os.path.join(report_root, 'latent_structure')
+            report_latent_root = os.path.join(report_dir, 'latent_structure')
             if not os.path.exists(report_latent_root):
                 print('Directory does not exist, creating: {}'.format(report_latent_root))
                 os.makedirs(report_latent_root)
-            file_name_latent_structure_all_pdf = os.path.join(report_latent_root, report_name + '_latent_structure_all')
+            file_name_latent_structure_all_pdf = os.path.join(report_latent_root, 'latent_structure_all')
             print('Rendering latent structure graph (all) to {} ...'.format(file_name_latent_structure_all_pdf))
             if base_graph is None:
                 master_graph.render_to_file(file_name_latent_structure_all_pdf)
@@ -248,7 +254,7 @@ class Analytics():
 
             for i in range(len(trace_stats)):
                 trace_id = list(trace_stats.values())[i]['trace_id']
-                file_name_latent_structure = os.path.join(report_latent_root, report_name + '_latent_structure_most_freq_{}_{}'.format(i+1, trace_id))
+                file_name_latent_structure = os.path.join(report_latent_root, 'latent_structure_most_freq_{}_{}'.format(i+1, trace_id))
                 print('Saving latent structure graph {} of {} to {} ...'.format(i+1, len(trace_stats), file_name_latent_structure))
                 graph = master_graph.get_sub_graph(i)
                 if base_graph is None:
@@ -257,7 +263,7 @@ class Analytics():
                     graph.render_to_file(file_name_latent_structure, background_graph=base_graph)
 
             print('Rendering distributions...')
-            report_distribution_root = os.path.join(report_root, 'distributions')
+            report_distribution_root = os.path.join(report_dir, 'distributions')
             if not os.path.exists(report_distribution_root):
                 print('Directory does not exist, creating: {}'.format(report_distribution_root))
                 os.makedirs(report_distribution_root)
@@ -283,14 +289,13 @@ class Analytics():
                     can_render = False
 
                 if can_render:
-                    file_name_dist = os.path.join(report_distribution_root, '{}_{}_distribution.pdf'.format(address_id, report_name))
+                    file_name_dist = os.path.join(report_distribution_root, '{}_distribution.pdf'.format(address_id))
                     print('Saving distribution {} of {} to {} ...'.format(i, len(address_stats), file_name_dist))
                     dist.plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
-                    if report_sub_dir is not None:
-                        if report_sub_dir == InferenceEngine.IMPORTANCE_SAMPLING.name or report_sub_dir == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK.name:
-                            file_name_dist = os.path.join(report_distribution_root, '{}_{}_distribution.pdf'.format(address_id, 'proposal'))
-                            print('Saving distribution {} of {} to {} ...'.format(i, len(address_stats), file_name_dist))
-                            dist.unweighted().plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
+                    if not dist._uniform_weights:
+                        file_name_dist = os.path.join(report_distribution_root, '{}_{}_distribution.pdf'.format(address_id, 'proposal'))
+                        print('Saving distribution {} of {} to {} ...'.format(i, len(address_stats), file_name_dist))
+                        dist.unweighted().plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
 
                 else:
                     print('Cannot render histogram for {} because it is not scalar valued. Example value: {}'.format(address_id, variable.value))

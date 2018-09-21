@@ -87,7 +87,7 @@ class Distribution():
             tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
             tmp_file_name = os.path.join(tmp_dir, 'pyprob_distribution')
             torch.save(data, tmp_file_name)
-            tar = tarfile.open(file_name, 'w:gz', compresslevel=2)
+            tar = tarfile.open(file_name, 'w:gz', compresslevel=9)
             tar.add(tmp_file_name, arcname='pyprob_distribution')
             tar.close()
             shutil.rmtree(tmp_dir)

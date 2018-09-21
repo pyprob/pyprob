@@ -158,8 +158,9 @@ class Graph():
             edge_weight_total = 0
             for edge in node.outgoing_edges:
                 edge_weight_total += edge.weight
-            for edge in node.outgoing_edges:
-                edge.weight /= edge_weight_total
+            if edge_weight_total > 0:
+                for edge in node.outgoing_edges:
+                    edge.weight /= edge_weight_total
 
         for node in self.nodes:
             node.weight /= node_weight_total
