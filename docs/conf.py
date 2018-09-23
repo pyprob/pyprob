@@ -24,8 +24,8 @@ sys.path.insert(0, os.path.abspath('../..'))
 # -- Project information -----------------------------------------------------
 
 project = u'pyprob'
-copyright = u'2018, Atilim Gunes Baydin'
-author = u'Atilim Gunes Baydin'
+copyright = u'2018, Atılım Güneş Baydin'
+author = u'Atılım Güneş Baydin'
 
 # The short X.Y version
 version = ''
@@ -167,7 +167,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'pyprob.tex', u'pyprob Documentation',
-     u'Atilim Gunes Baydin', 'manual'),
+     u'Atılım Güneş Baydin', 'manual'),
 ]
 
 
