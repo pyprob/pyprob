@@ -8,13 +8,8 @@ import tempfile
 
 import pyprob
 from pyprob import util
-<<<<<<< HEAD
-from pyprob.distributions import Distribution, Categorical, Empirical, Mixture, Normal, TruncatedNormal, Uniform, Poisson
-from pyprob import constraints
-=======
 from pyprob.distributions import Distribution, Empirical, Normal, Categorical, Uniform, Poisson, Beta, Mixture, TruncatedNormal
 
->>>>>>> origin/master
 
 empirical_samples = 20000
 
@@ -112,52 +107,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.25))
 
-<<<<<<< HEAD
-    def test_dist_categorical(self):
-        dist_sample_shape_correct = [1]
-        dist_log_probs_correct = [-2.30259]
-        probs = [0.1,0.2,0.7]
-        dist = Categorical(probs=probs)
-
-        dist_sample_shape = list(dist.sample().size())
-        dist_log_probs = util.to_numpy(dist.log_prob(0))
-        dist_support = dist.support
-
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
-
-        # self.assertEqual(dist_support, constraints.integer_interval)
-        self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
-        self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        # self.assertIsInstance(dist_support, constraints.integer_interval)
-
-    def test_dist_categorical_batched(self):
-        dist_sample_shape_correct = [2]
-        dist_log_probs_correct = [[-2.30259], [-0.693147]]
-        probs = [[0.1, 0.2, 0.7],
-                [0.2, 0.5, 0.3]]
-        dist = Categorical(probs=probs)
-
-        dist_sample_shape = list(dist.sample().size())
-        dist_log_probs = util.to_numpy(dist.log_prob([[0, 1]]))
-        dist_support = dist.support
-
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
-
-        self.assertIsInstance(dist_support, constraints.integer_interval)
-        self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
-        self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-
-    def test_dist_mixture(self):
-        dist_sample_shape_correct = [1]
-        dist_1 = Normal(0, 0.1)
-        dist_2 = Normal(2, 0.1)
-        dist_3 = Normal(3, 0.1)
-        dist_means_correct = [0.7]
-        dist_stddevs_correct = [1.10454]
-        dist_log_probs_correct = [-23.473]
-
-        dist = Mixture([dist_1, dist_2, dist_3], probs=[0.7, 0.2, 0.1])
-=======
     def test_dist_empirical_slice_and_index(self):
         dist_slice_elements_correct = [0, 1, 2]
         dist_first_correct = 0
@@ -219,7 +168,6 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddev_correct = 0.6514633893966675
         dist_expectation_sin_correct = 0.3921678960323334
         dist_map_sin_mean_correct = 0.3921678960323334
->>>>>>> origin/master
 
         dist_on_file = Empirical(values, log_weights)
         dist_on_file.save(file_name)
@@ -294,15 +242,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
-<<<<<<< HEAD
-        dist_support = dist.support
-
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_support')
-=======
         dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
 
         util.debug('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
->>>>>>> origin/master
 
         self.assertEqual(dist_batch_shape, dist_batch_shape_correct)
         self.assertEqual(dist_event_shape, dist_event_shape_correct)
@@ -313,7 +255,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertEqual(dist_support, constraints.real)
 
     def test_dist_normal_batched_2_1(self):
         dist_batch_shape_correct = torch.Size([2, 1])
@@ -334,15 +275,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
-<<<<<<< HEAD
-        dist_support = dist.support
-
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_support')
-=======
         dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
 
         util.debug('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
->>>>>>> origin/master
 
         self.assertEqual(dist_batch_shape, dist_batch_shape_correct)
         self.assertEqual(dist_event_shape, dist_event_shape_correct)
@@ -353,7 +288,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertEqual(dist_support, constraints.real)
 
     def test_dist_normal_batched_2_3(self):
         dist_batch_shape_correct = torch.Size([2, 3])
@@ -374,15 +308,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
-<<<<<<< HEAD
-        dist_support = dist.support
-
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
-=======
         dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
 
         util.debug('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
->>>>>>> origin/master
 
         self.assertEqual(dist_batch_shape, dist_batch_shape_correct)
         self.assertEqual(dist_event_shape, dist_event_shape_correct)
@@ -393,41 +321,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertEqual(dist_support, constraints.real)
 
-<<<<<<< HEAD
-    def test_dist_normal_multivariate_from_flat_params(self):
-        dist_sample_shape_correct = [1, 3]
-        dist_means_correct = [[0, 2, 0]]
-        dist_stddevs_correct = [[1, 3, 1]]
-        dist_log_probs_correct = [sum([-0.918939, -2.01755, -0.918939])]
-
-        dist = Normal(dist_means_correct[0], dist_stddevs_correct[0])
-        dist_sample_shape = list(dist.sample().size())
-        dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
-        dist_means = util.to_numpy(dist.mean)
-        dist_means_empirical = util.to_numpy(dist_empirical.mean)
-        dist_stddevs = util.to_numpy(dist.stddev)
-        dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
-        dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct[0]))
-        dist_support = dist.support
-
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
-
-        self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
-        self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
-        self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.1))
-        self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
-        self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
-        self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertEqual(dist_support, constraints.real)
-
-    def test_dist_normal_multivariate_batched(self):
-        dist_sample_shape_correct = [2, 3]
-        dist_means_correct = [[0, 2, 0], [2, 0, 2]]
-        dist_stddevs_correct = [[1, 3, 1], [3, 1, 3]]
-        dist_log_probs_correct = [[sum([-0.918939, -2.01755, -0.918939])], [sum([-2.01755, -0.918939, -2.01755])]]
-=======
     def test_dist_truncated_normal(self):
         dist_batch_shape_correct = torch.Size()
         dist_event_shape_correct = torch.Size()
@@ -440,7 +334,6 @@ class DistributionsTestCase(unittest.TestCase):
         dist_lows_correct = -4
         dist_highs_correct = 4
         dist_log_probs_correct = -1.69563
->>>>>>> origin/master
 
         dist = TruncatedNormal(dist_means_non_truncated_correct, dist_stddevs_non_truncated_correct, dist_lows_correct, dist_highs_correct)
         dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
@@ -448,12 +341,6 @@ class DistributionsTestCase(unittest.TestCase):
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
-<<<<<<< HEAD
-        dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
-        dist_support = dist.support
-
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_support')
-=======
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_non_truncated_correct))
         dist_batch_shape = dist.batch_shape
         dist_event_shape = dist.event_shape
@@ -461,7 +348,6 @@ class DistributionsTestCase(unittest.TestCase):
         dist_log_prob_shape = dist.log_prob(dist_means_non_truncated_correct).size()
 
         util.debug('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
->>>>>>> origin/master
 
         self.assertEqual(dist_batch_shape, dist_batch_shape_correct)
         self.assertEqual(dist_event_shape, dist_event_shape_correct)
@@ -472,7 +358,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertEqual(dist_support, constraints.real)
 
     def test_dist_truncated_normal_batched_2(self):
         dist_batch_shape_correct = torch.Size([2])
@@ -658,18 +543,10 @@ class DistributionsTestCase(unittest.TestCase):
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
-<<<<<<< HEAD
-        dist_support = dist.support
-=======
->>>>>>> origin/master
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
         dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
 
-<<<<<<< HEAD
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_lows', 'dist_lows_correct', 'dist_highs', 'dist_highs_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_support')
-=======
         util.debug('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_lows', 'dist_lows_correct', 'dist_highs', 'dist_highs_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
->>>>>>> origin/master
 
         self.assertEqual(dist_batch_shape, dist_batch_shape_correct)
         self.assertEqual(dist_event_shape, dist_event_shape_correct)
@@ -682,7 +559,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_lows, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertIsInstance(dist_support, constraints.interval)
 
     def test_dist_uniform_batched_4_1(self):
         dist_batch_shape_correct = torch.Size([4, 1])
@@ -707,18 +583,10 @@ class DistributionsTestCase(unittest.TestCase):
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
-<<<<<<< HEAD
-        dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
-        dist_support = dist.support
-
-
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_lows', 'dist_lows_correct', 'dist_highs', 'dist_highs_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_support')
-=======
         dist_log_probs = util.to_numpy(dist.log_prob(dist_values))
         dist_log_prob_shape = dist.log_prob(dist_values).size()
 
         util.debug('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_lows', 'dist_lows_correct', 'dist_highs', 'dist_highs_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
->>>>>>> origin/master
 
         self.assertEqual(dist_batch_shape, dist_batch_shape_correct)
         self.assertEqual(dist_event_shape, dist_event_shape_correct)
@@ -731,7 +599,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_lows, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertIsInstance(dist_support, constraints.interval)
 
     def test_dist_poisson(self):
         dist_batch_shape_correct = torch.Size()
@@ -753,19 +620,10 @@ class DistributionsTestCase(unittest.TestCase):
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
-<<<<<<< HEAD
-        dist_support = dist.support
-
-=======
->>>>>>> origin/master
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
         dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
 
-<<<<<<< HEAD
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_support')
-=======
         util.debug('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
->>>>>>> origin/master
 
         self.assertEqual(dist_batch_shape, dist_batch_shape_correct)
         self.assertEqual(dist_event_shape, dist_event_shape_correct)
@@ -777,7 +635,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_rates, dist_rates_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertEqual(dist_support, constraints.nonnegative_integer)
 
     def test_dist_poisson_batched_2_1(self):
         dist_batch_shape_correct = torch.Size([2, 1])
@@ -802,12 +659,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
         dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
 
-<<<<<<< HEAD
-        dist_support = dist.support
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
-=======
         util.debug('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
->>>>>>> origin/master
 
         self.assertEqual(dist_batch_shape, dist_batch_shape_correct)
         self.assertEqual(dist_event_shape, dist_event_shape_correct)
@@ -819,7 +671,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_rates, dist_rates_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertEqual(dist_support, constraints.nonnegative_integer)
 
     def test_dist_poisson_batched_1_3(self):
         dist_batch_shape_correct = torch.Size([1, 3])
@@ -844,13 +695,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
         dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
 
-<<<<<<< HEAD
-        dist_support = dist.support
-
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct','dist_support')
-=======
         util.debug('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
->>>>>>> origin/master
 
         self.assertEqual(dist_batch_shape, dist_batch_shape_correct)
         self.assertEqual(dist_event_shape, dist_event_shape_correct)
@@ -862,7 +707,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_rates, dist_rates_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertEqual(dist_support, constraints.nonnegative_integer)
 
     def test_dist_beta(self):
         dist_batch_shape_correct = torch.Size()
@@ -920,12 +764,8 @@ class DistributionsTestCase(unittest.TestCase):
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
-<<<<<<< HEAD
-        dist_support = dist.support
-=======
         dist_log_probs = util.to_numpy(dist.log_prob(dist_values))
         dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
->>>>>>> origin/master
 
         util.debug('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
 
@@ -968,11 +808,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
         dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
 
-<<<<<<< HEAD
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_support', 'dist_log_probs_correct')
-=======
         util.debug('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_lows', 'dist_lows_empirical', 'dist_lows_correct', 'dist_highs', 'dist_highs_empirical', 'dist_highs_correct', 'dist_log_probs', 'dist_log_probs_correct')
->>>>>>> origin/master
 
         self.assertEqual(dist_batch_shape, dist_batch_shape_correct)
         self.assertEqual(dist_event_shape, dist_event_shape_correct)
@@ -987,7 +823,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs_empirical, dist_highs_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertEqual(dist_support, constraints.nonnegative_integer)
 
     def test_dist_beta_low_high_batched_2(self):
         dist_batch_shape_correct = torch.Size([2])
@@ -1011,16 +846,12 @@ class DistributionsTestCase(unittest.TestCase):
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
-<<<<<<< HEAD
-        dist_support = dist.support
-=======
         dist_lows = util.to_numpy(dist.low)
         dist_lows_empirical = util.to_numpy([dist_empirical.map(lambda x: x[0]).min, dist_empirical.map(lambda x: x[1]).min])
         dist_highs = util.to_numpy(dist.high)
         dist_highs_empirical = util.to_numpy([dist_empirical.map(lambda x: x[0]).max, dist_empirical.map(lambda x: x[1]).max])
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
         dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
->>>>>>> origin/master
 
         util.debug('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_lows', 'dist_lows_empirical', 'dist_lows_correct', 'dist_highs', 'dist_highs_empirical', 'dist_highs_correct', 'dist_log_probs', 'dist_log_probs_correct')
 
@@ -1067,11 +898,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
         dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
 
-<<<<<<< HEAD
-        util.debug('dist_sample_shape', 'dist_sample_shape_correct', 'dist_rates', 'dist_rates_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_support','dist_log_probs', 'dist_log_probs_correct')
-=======
         util.debug('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_lows', 'dist_lows_empirical', 'dist_lows_correct', 'dist_highs', 'dist_highs_empirical', 'dist_highs_correct', 'dist_log_probs', 'dist_log_probs_correct')
->>>>>>> origin/master
 
         self.assertEqual(dist_batch_shape, dist_batch_shape_correct)
         self.assertEqual(dist_event_shape, dist_event_shape_correct)
@@ -1086,7 +913,6 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs_empirical, dist_highs_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
-        self.assertEqual(dist_support, constraints.nonnegative_integer)
 
     def test_dist_mixture(self):
         dist_batch_shape_correct = torch.Size()
