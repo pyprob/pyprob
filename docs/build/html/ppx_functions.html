@@ -1,0 +1,666 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>PPX &mdash; pyprob 0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Probabilistic Programming eXecution protocol" href="PPX.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> pyprob
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">PyProb Core:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="distributions.html">Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="NN.html">Neural Network Library</a></li>
+<li class="toctree-l1"><a class="reference internal" href="PPX.html">Probabilistic Programming eXecution protocol</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="PPX.html#ppx-build-status">PPX </a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="PPX.html#supported-languages">Supported languages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="PPX.html#license">License</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="PPX.html#authors">Authors</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">PPX</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#observe">Observe</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#observe-result">Observe Result</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sample">Sample</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sample-result">Sample Result</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#handshake">Handshake</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#handshake-result">Handshake Result</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#message">Message</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#message-body">Message Body</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#distribution">Distribution</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#run">Run</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#run-result">Run Result</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#reset">Reset</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tensor">Tensor</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">pyprob</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="PPX.html">Probabilistic Programming eXecution protocol</a> &raquo;</li>
+        
+      <li>PPX</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/ppx_functions.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="ppx">
+<h1>PPX<a class="headerlink" href="#ppx" title="Permalink to this headline">¶</a></h1>
+<p>A list of the PPX classes</p>
+<div class="section" id="observe">
+<h2>Observe<a class="headerlink" href="#observe" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.ppx.Observe.Observe">
+<em class="property">class </em><code class="descname">Observe</code><a class="reference internal" href="_modules/pyprob/ppx/Observe.html#Observe"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Observe.Observe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="method">
+<dt id="pyprob.ppx.Observe.Observe.Address">
+<code class="descname">Address</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Observe.html#Observe.Address"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Observe.Observe.Address" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Observe.Observe.Distribution">
+<code class="descname">Distribution</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Observe.html#Observe.Distribution"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Observe.Observe.Distribution" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Observe.Observe.DistributionType">
+<code class="descname">DistributionType</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Observe.html#Observe.DistributionType"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Observe.Observe.DistributionType" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="pyprob.ppx.Observe.Observe.GetRootAsObserve">
+<em class="property">classmethod </em><code class="descname">GetRootAsObserve</code><span class="sig-paren">(</span><em>buf</em>, <em>offset</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Observe.html#Observe.GetRootAsObserve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Observe.Observe.GetRootAsObserve" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Observe.Observe.Init">
+<code class="descname">Init</code><span class="sig-paren">(</span><em>buf</em>, <em>pos</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Observe.html#Observe.Init"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Observe.Observe.Init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Observe.Observe.Name">
+<code class="descname">Name</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Observe.html#Observe.Name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Observe.Observe.Name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Observe.Observe.Value">
+<code class="descname">Value</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Observe.html#Observe.Value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Observe.Observe.Value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="observe-result">
+<h2>Observe Result<a class="headerlink" href="#observe-result" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.ppx.ObserveResult.ObserveResult">
+<em class="property">class </em><code class="descname">ObserveResult</code><a class="reference internal" href="_modules/pyprob/ppx/ObserveResult.html#ObserveResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.ObserveResult.ObserveResult" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="classmethod">
+<dt id="pyprob.ppx.ObserveResult.ObserveResult.GetRootAsObserveResult">
+<em class="property">classmethod </em><code class="descname">GetRootAsObserveResult</code><span class="sig-paren">(</span><em>buf</em>, <em>offset</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/ObserveResult.html#ObserveResult.GetRootAsObserveResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.ObserveResult.ObserveResult.GetRootAsObserveResult" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.ObserveResult.ObserveResult.Init">
+<code class="descname">Init</code><span class="sig-paren">(</span><em>buf</em>, <em>pos</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/ObserveResult.html#ObserveResult.Init"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.ObserveResult.ObserveResult.Init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="sample">
+<h2>Sample<a class="headerlink" href="#sample" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.ppx.Sample.Sample">
+<em class="property">class </em><code class="descname">Sample</code><a class="reference internal" href="_modules/pyprob/ppx/Sample.html#Sample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Sample.Sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="method">
+<dt id="pyprob.ppx.Sample.Sample.Address">
+<code class="descname">Address</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Sample.html#Sample.Address"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Sample.Sample.Address" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Sample.Sample.Control">
+<code class="descname">Control</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Sample.html#Sample.Control"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Sample.Sample.Control" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Sample.Sample.Distribution">
+<code class="descname">Distribution</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Sample.html#Sample.Distribution"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Sample.Sample.Distribution" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Sample.Sample.DistributionType">
+<code class="descname">DistributionType</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Sample.html#Sample.DistributionType"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Sample.Sample.DistributionType" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="pyprob.ppx.Sample.Sample.GetRootAsSample">
+<em class="property">classmethod </em><code class="descname">GetRootAsSample</code><span class="sig-paren">(</span><em>buf</em>, <em>offset</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Sample.html#Sample.GetRootAsSample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Sample.Sample.GetRootAsSample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Sample.Sample.Init">
+<code class="descname">Init</code><span class="sig-paren">(</span><em>buf</em>, <em>pos</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Sample.html#Sample.Init"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Sample.Sample.Init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Sample.Sample.Name">
+<code class="descname">Name</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Sample.html#Sample.Name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Sample.Sample.Name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Sample.Sample.Replace">
+<code class="descname">Replace</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Sample.html#Sample.Replace"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Sample.Sample.Replace" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="sample-result">
+<h2>Sample Result<a class="headerlink" href="#sample-result" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.ppx.SampleResult.SampleResult">
+<em class="property">class </em><code class="descname">SampleResult</code><a class="reference internal" href="_modules/pyprob/ppx/SampleResult.html#SampleResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.SampleResult.SampleResult" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="classmethod">
+<dt id="pyprob.ppx.SampleResult.SampleResult.GetRootAsSampleResult">
+<em class="property">classmethod </em><code class="descname">GetRootAsSampleResult</code><span class="sig-paren">(</span><em>buf</em>, <em>offset</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/SampleResult.html#SampleResult.GetRootAsSampleResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.SampleResult.SampleResult.GetRootAsSampleResult" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.SampleResult.SampleResult.Init">
+<code class="descname">Init</code><span class="sig-paren">(</span><em>buf</em>, <em>pos</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/SampleResult.html#SampleResult.Init"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.SampleResult.SampleResult.Init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.SampleResult.SampleResult.Result">
+<code class="descname">Result</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/SampleResult.html#SampleResult.Result"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.SampleResult.SampleResult.Result" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="handshake">
+<h2>Handshake<a class="headerlink" href="#handshake" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.ppx.Handshake.Handshake">
+<em class="property">class </em><code class="descname">Handshake</code><a class="reference internal" href="_modules/pyprob/ppx/Handshake.html#Handshake"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Handshake.Handshake" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="classmethod">
+<dt id="pyprob.ppx.Handshake.Handshake.GetRootAsHandshake">
+<em class="property">classmethod </em><code class="descname">GetRootAsHandshake</code><span class="sig-paren">(</span><em>buf</em>, <em>offset</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Handshake.html#Handshake.GetRootAsHandshake"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Handshake.Handshake.GetRootAsHandshake" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Handshake.Handshake.Init">
+<code class="descname">Init</code><span class="sig-paren">(</span><em>buf</em>, <em>pos</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Handshake.html#Handshake.Init"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Handshake.Handshake.Init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Handshake.Handshake.SystemName">
+<code class="descname">SystemName</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Handshake.html#Handshake.SystemName"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Handshake.Handshake.SystemName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="handshake-result">
+<h2>Handshake Result<a class="headerlink" href="#handshake-result" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.ppx.HandshakeResult.HandshakeResult">
+<em class="property">class </em><code class="descname">HandshakeResult</code><a class="reference internal" href="_modules/pyprob/ppx/HandshakeResult.html#HandshakeResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.HandshakeResult.HandshakeResult" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="classmethod">
+<dt id="pyprob.ppx.HandshakeResult.HandshakeResult.GetRootAsHandshakeResult">
+<em class="property">classmethod </em><code class="descname">GetRootAsHandshakeResult</code><span class="sig-paren">(</span><em>buf</em>, <em>offset</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/HandshakeResult.html#HandshakeResult.GetRootAsHandshakeResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.HandshakeResult.HandshakeResult.GetRootAsHandshakeResult" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.HandshakeResult.HandshakeResult.Init">
+<code class="descname">Init</code><span class="sig-paren">(</span><em>buf</em>, <em>pos</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/HandshakeResult.html#HandshakeResult.Init"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.HandshakeResult.HandshakeResult.Init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.HandshakeResult.HandshakeResult.ModelName">
+<code class="descname">ModelName</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/HandshakeResult.html#HandshakeResult.ModelName"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.HandshakeResult.HandshakeResult.ModelName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.HandshakeResult.HandshakeResult.SystemName">
+<code class="descname">SystemName</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/HandshakeResult.html#HandshakeResult.SystemName"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.HandshakeResult.HandshakeResult.SystemName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="message">
+<h2>Message<a class="headerlink" href="#message" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.ppx.Message.Message">
+<em class="property">class </em><code class="descname">Message</code><a class="reference internal" href="_modules/pyprob/ppx/Message.html#Message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Message.Message" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="method">
+<dt id="pyprob.ppx.Message.Message.Body">
+<code class="descname">Body</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Message.html#Message.Body"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Message.Message.Body" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Message.Message.BodyType">
+<code class="descname">BodyType</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Message.html#Message.BodyType"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Message.Message.BodyType" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="pyprob.ppx.Message.Message.GetRootAsMessage">
+<em class="property">classmethod </em><code class="descname">GetRootAsMessage</code><span class="sig-paren">(</span><em>buf</em>, <em>offset</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Message.html#Message.GetRootAsMessage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Message.Message.GetRootAsMessage" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Message.Message.Init">
+<code class="descname">Init</code><span class="sig-paren">(</span><em>buf</em>, <em>pos</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Message.html#Message.Init"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Message.Message.Init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="message-body">
+<h2>Message Body<a class="headerlink" href="#message-body" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.ppx.MessageBody.MessageBody">
+<em class="property">class </em><code class="descname">MessageBody</code><a class="reference internal" href="_modules/pyprob/ppx/MessageBody.html#MessageBody"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.MessageBody.MessageBody" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="attribute">
+<dt id="pyprob.ppx.MessageBody.MessageBody.Handshake">
+<code class="descname">Handshake</code><em class="property"> = 1</em><a class="headerlink" href="#pyprob.ppx.MessageBody.MessageBody.Handshake" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.ppx.MessageBody.MessageBody.HandshakeResult">
+<code class="descname">HandshakeResult</code><em class="property"> = 2</em><a class="headerlink" href="#pyprob.ppx.MessageBody.MessageBody.HandshakeResult" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.ppx.MessageBody.MessageBody.NONE">
+<code class="descname">NONE</code><em class="property"> = 0</em><a class="headerlink" href="#pyprob.ppx.MessageBody.MessageBody.NONE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.ppx.MessageBody.MessageBody.Observe">
+<code class="descname">Observe</code><em class="property"> = 7</em><a class="headerlink" href="#pyprob.ppx.MessageBody.MessageBody.Observe" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.ppx.MessageBody.MessageBody.ObserveResult">
+<code class="descname">ObserveResult</code><em class="property"> = 8</em><a class="headerlink" href="#pyprob.ppx.MessageBody.MessageBody.ObserveResult" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.ppx.MessageBody.MessageBody.Reset">
+<code class="descname">Reset</code><em class="property"> = 9</em><a class="headerlink" href="#pyprob.ppx.MessageBody.MessageBody.Reset" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.ppx.MessageBody.MessageBody.Run">
+<code class="descname">Run</code><em class="property"> = 3</em><a class="headerlink" href="#pyprob.ppx.MessageBody.MessageBody.Run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.ppx.MessageBody.MessageBody.RunResult">
+<code class="descname">RunResult</code><em class="property"> = 4</em><a class="headerlink" href="#pyprob.ppx.MessageBody.MessageBody.RunResult" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.ppx.MessageBody.MessageBody.Sample">
+<code class="descname">Sample</code><em class="property"> = 5</em><a class="headerlink" href="#pyprob.ppx.MessageBody.MessageBody.Sample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.ppx.MessageBody.MessageBody.SampleResult">
+<code class="descname">SampleResult</code><em class="property"> = 6</em><a class="headerlink" href="#pyprob.ppx.MessageBody.MessageBody.SampleResult" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="distribution">
+<h2>Distribution<a class="headerlink" href="#distribution" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.ppx.Distribution.Distribution">
+<em class="property">class </em><code class="descname">Distribution</code><a class="reference internal" href="_modules/pyprob/ppx/Distribution.html#Distribution"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Distribution.Distribution" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="attribute">
+<dt id="pyprob.ppx.Distribution.Distribution.Categorical">
+<code class="descname">Categorical</code><em class="property"> = 3</em><a class="headerlink" href="#pyprob.ppx.Distribution.Distribution.Categorical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.ppx.Distribution.Distribution.NONE">
+<code class="descname">NONE</code><em class="property"> = 0</em><a class="headerlink" href="#pyprob.ppx.Distribution.Distribution.NONE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.ppx.Distribution.Distribution.Normal">
+<code class="descname">Normal</code><em class="property"> = 1</em><a class="headerlink" href="#pyprob.ppx.Distribution.Distribution.Normal" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.ppx.Distribution.Distribution.Poisson">
+<code class="descname">Poisson</code><em class="property"> = 4</em><a class="headerlink" href="#pyprob.ppx.Distribution.Distribution.Poisson" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.ppx.Distribution.Distribution.Uniform">
+<code class="descname">Uniform</code><em class="property"> = 2</em><a class="headerlink" href="#pyprob.ppx.Distribution.Distribution.Uniform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="run">
+<h2>Run<a class="headerlink" href="#run" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.ppx.Run.Run">
+<em class="property">class </em><code class="descname">Run</code><a class="reference internal" href="_modules/pyprob/ppx/Run.html#Run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Run.Run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="classmethod">
+<dt id="pyprob.ppx.Run.Run.GetRootAsRun">
+<em class="property">classmethod </em><code class="descname">GetRootAsRun</code><span class="sig-paren">(</span><em>buf</em>, <em>offset</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Run.html#Run.GetRootAsRun"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Run.Run.GetRootAsRun" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Run.Run.Init">
+<code class="descname">Init</code><span class="sig-paren">(</span><em>buf</em>, <em>pos</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Run.html#Run.Init"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Run.Run.Init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="run-result">
+<h2>Run Result<a class="headerlink" href="#run-result" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.ppx.RunResult.RunResult">
+<em class="property">class </em><code class="descname">RunResult</code><a class="reference internal" href="_modules/pyprob/ppx/RunResult.html#RunResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.RunResult.RunResult" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="classmethod">
+<dt id="pyprob.ppx.RunResult.RunResult.GetRootAsRunResult">
+<em class="property">classmethod </em><code class="descname">GetRootAsRunResult</code><span class="sig-paren">(</span><em>buf</em>, <em>offset</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/RunResult.html#RunResult.GetRootAsRunResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.RunResult.RunResult.GetRootAsRunResult" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.RunResult.RunResult.Init">
+<code class="descname">Init</code><span class="sig-paren">(</span><em>buf</em>, <em>pos</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/RunResult.html#RunResult.Init"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.RunResult.RunResult.Init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.RunResult.RunResult.Result">
+<code class="descname">Result</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/RunResult.html#RunResult.Result"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.RunResult.RunResult.Result" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="reset">
+<h2>Reset<a class="headerlink" href="#reset" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.ppx.Reset.Reset">
+<em class="property">class </em><code class="descname">Reset</code><a class="reference internal" href="_modules/pyprob/ppx/Reset.html#Reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Reset.Reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="classmethod">
+<dt id="pyprob.ppx.Reset.Reset.GetRootAsReset">
+<em class="property">classmethod </em><code class="descname">GetRootAsReset</code><span class="sig-paren">(</span><em>buf</em>, <em>offset</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Reset.html#Reset.GetRootAsReset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Reset.Reset.GetRootAsReset" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Reset.Reset.Init">
+<code class="descname">Init</code><span class="sig-paren">(</span><em>buf</em>, <em>pos</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Reset.html#Reset.Init"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Reset.Reset.Init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="tensor">
+<h2>Tensor<a class="headerlink" href="#tensor" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.ppx.Tensor.Tensor">
+<em class="property">class </em><code class="descname">Tensor</code><a class="reference internal" href="_modules/pyprob/ppx/Tensor.html#Tensor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Tensor.Tensor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="method">
+<dt id="pyprob.ppx.Tensor.Tensor.Data">
+<code class="descname">Data</code><span class="sig-paren">(</span><em>j</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Tensor.html#Tensor.Data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Tensor.Tensor.Data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Tensor.Tensor.DataAsNumpy">
+<code class="descname">DataAsNumpy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Tensor.html#Tensor.DataAsNumpy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Tensor.Tensor.DataAsNumpy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Tensor.Tensor.DataLength">
+<code class="descname">DataLength</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Tensor.html#Tensor.DataLength"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Tensor.Tensor.DataLength" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="pyprob.ppx.Tensor.Tensor.GetRootAsTensor">
+<em class="property">classmethod </em><code class="descname">GetRootAsTensor</code><span class="sig-paren">(</span><em>buf</em>, <em>offset</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Tensor.html#Tensor.GetRootAsTensor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Tensor.Tensor.GetRootAsTensor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Tensor.Tensor.Init">
+<code class="descname">Init</code><span class="sig-paren">(</span><em>buf</em>, <em>pos</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Tensor.html#Tensor.Init"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Tensor.Tensor.Init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Tensor.Tensor.Shape">
+<code class="descname">Shape</code><span class="sig-paren">(</span><em>j</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Tensor.html#Tensor.Shape"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Tensor.Tensor.Shape" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Tensor.Tensor.ShapeAsNumpy">
+<code class="descname">ShapeAsNumpy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Tensor.html#Tensor.ShapeAsNumpy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Tensor.Tensor.ShapeAsNumpy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.ppx.Tensor.Tensor.ShapeLength">
+<code class="descname">ShapeLength</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/ppx/Tensor.html#Tensor.ShapeLength"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.ppx.Tensor.Tensor.ShapeLength" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="PPX.html" class="btn btn-neutral" title="Probabilistic Programming eXecution protocol" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, Atilim Gunes Baydin.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.1',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

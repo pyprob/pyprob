@@ -1,0 +1,619 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Distributions &mdash; pyprob 0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Neural Network Library" href="NN.html" />
+    <link rel="prev" title="Pyfo Documentation" href="index.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> pyprob
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">PyProb Core:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Distributions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#pytorch-distributions">PyTorch Distributions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pyprob-distributions">PyProb Distributions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#base-class">Base Class</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#beta">Beta</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#categorical">Categorical</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#empirical">Empirical</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#normal">Normal</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mixture">Mixture</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#poisson">Poisson</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#truncated-normal">Truncated Normal</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#uniform">Uniform</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="NN.html">Neural Network Library</a></li>
+<li class="toctree-l1"><a class="reference internal" href="PPX.html">Probabilistic Programming eXecution protocol</a></li>
+<li class="toctree-l1"><a class="reference internal" href="PPX.html#ppx-build-status">PPX </a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">pyprob</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Distributions</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/distributions.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="distributions">
+<h1>Distributions<a class="headerlink" href="#distributions" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+</div>
+<div class="section" id="pytorch-distributions">
+<h2>PyTorch Distributions<a class="headerlink" href="#pytorch-distributions" title="Permalink to this headline">¶</a></h2>
+<p>Where possible <cite>PyProb</cite> uses PyTorch distributions.
+<a class="reference external" href="https://pytorch.org/docs/master/distributions.html#torch.distributions.distribution.Distribution" title="(in PyTorch vmaster (1.0.0a0+76ab26c ))"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.distributions.distribution.Distribution</span></code></a>.
+However, there are some differences between the two libraries. See
+<a class="reference internal" href="#pyprob.distributions.distribution.Distribution" title="pyprob.distributions.distribution.Distribution"><code class="xref py py-class docutils literal notranslate"><span class="pre">Distribution</span></code></a> for more details.</p>
+<span class="target" id="module-pyprob.distributions"></span></div>
+<div class="section" id="pyprob-distributions">
+<h2>PyProb Distributions<a class="headerlink" href="#pyprob-distributions" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="base-class">
+<h3>Base Class<a class="headerlink" href="#base-class" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.distributions.distribution.Distribution">
+<em class="property">class </em><code class="descname">Distribution</code><span class="sig-paren">(</span><em>name</em>, <em>address_suffix=''</em>, <em>batch_shape=torch.Size([])</em>, <em>event_shape=torch.Size([])</em>, <em>torch_dist=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/distribution.html#Distribution"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.distribution.Distribution" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="attribute">
+<dt id="pyprob.distributions.distribution.Distribution.batch_shape">
+<code class="descname">batch_shape</code><a class="headerlink" href="#pyprob.distributions.distribution.Distribution.batch_shape" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.distribution.Distribution.event_shape">
+<code class="descname">event_shape</code><a class="headerlink" href="#pyprob.distributions.distribution.Distribution.event_shape" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.distribution.Distribution.expectation">
+<code class="descname">expectation</code><span class="sig-paren">(</span><em>func</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/distribution.html#Distribution.expectation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.distribution.Distribution.expectation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="pyprob.distributions.distribution.Distribution.kl_divergence">
+<em class="property">static </em><code class="descname">kl_divergence</code><span class="sig-paren">(</span><em>distribution_1</em>, <em>distribution_2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/distribution.html#Distribution.kl_divergence"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.distribution.Distribution.kl_divergence" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="pyprob.distributions.distribution.Distribution.load">
+<em class="property">static </em><code class="descname">load</code><span class="sig-paren">(</span><em>file_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/distribution.html#Distribution.load"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.distribution.Distribution.load" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.distribution.Distribution.log_prob">
+<code class="descname">log_prob</code><span class="sig-paren">(</span><em>value</em>, <em>sum=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/distribution.html#Distribution.log_prob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.distribution.Distribution.log_prob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.distribution.Distribution.mean">
+<code class="descname">mean</code><a class="headerlink" href="#pyprob.distributions.distribution.Distribution.mean" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.distribution.Distribution.prob">
+<code class="descname">prob</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/distribution.html#Distribution.prob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.distribution.Distribution.prob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.distribution.Distribution.sample">
+<code class="descname">sample</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/distribution.html#Distribution.sample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.distribution.Distribution.sample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.distribution.Distribution.save">
+<code class="descname">save</code><span class="sig-paren">(</span><em>file_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/distribution.html#Distribution.save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.distribution.Distribution.save" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.distribution.Distribution.stddev">
+<code class="descname">stddev</code><a class="headerlink" href="#pyprob.distributions.distribution.Distribution.stddev" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.distribution.Distribution.variance">
+<code class="descname">variance</code><a class="headerlink" href="#pyprob.distributions.distribution.Distribution.variance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="beta">
+<h3>Beta<a class="headerlink" href="#beta" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.distributions.beta.Beta">
+<em class="property">class </em><code class="descname">Beta</code><span class="sig-paren">(</span><em>concentration1</em>, <em>concentration0</em>, <em>low=0</em>, <em>high=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/beta.html#Beta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.beta.Beta" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyprob.distributions.distribution.Distribution" title="pyprob.distributions.distribution.Distribution"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyprob.distributions.distribution.Distribution</span></code></a></p>
+<dl class="attribute">
+<dt id="pyprob.distributions.beta.Beta.concentration0">
+<code class="descname">concentration0</code><a class="headerlink" href="#pyprob.distributions.beta.Beta.concentration0" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.beta.Beta.concentration1">
+<code class="descname">concentration1</code><a class="headerlink" href="#pyprob.distributions.beta.Beta.concentration1" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.beta.Beta.high">
+<code class="descname">high</code><a class="headerlink" href="#pyprob.distributions.beta.Beta.high" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.beta.Beta.log_prob">
+<code class="descname">log_prob</code><span class="sig-paren">(</span><em>value</em>, <em>sum=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/beta.html#Beta.log_prob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.beta.Beta.log_prob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.beta.Beta.low">
+<code class="descname">low</code><a class="headerlink" href="#pyprob.distributions.beta.Beta.low" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.beta.Beta.mean">
+<code class="descname">mean</code><a class="headerlink" href="#pyprob.distributions.beta.Beta.mean" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.beta.Beta.sample">
+<code class="descname">sample</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/beta.html#Beta.sample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.beta.Beta.sample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.beta.Beta.variance">
+<code class="descname">variance</code><a class="headerlink" href="#pyprob.distributions.beta.Beta.variance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="categorical">
+<h3>Categorical<a class="headerlink" href="#categorical" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.distributions.categorical.Categorical">
+<em class="property">class </em><code class="descname">Categorical</code><span class="sig-paren">(</span><em>probs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/categorical.html#Categorical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.categorical.Categorical" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyprob.distributions.distribution.Distribution" title="pyprob.distributions.distribution.Distribution"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyprob.distributions.distribution.Distribution</span></code></a></p>
+<dl class="attribute">
+<dt id="pyprob.distributions.categorical.Categorical.num_categories">
+<code class="descname">num_categories</code><a class="headerlink" href="#pyprob.distributions.categorical.Categorical.num_categories" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.categorical.Categorical.probs">
+<code class="descname">probs</code><a class="headerlink" href="#pyprob.distributions.categorical.Categorical.probs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="empirical">
+<h3>Empirical<a class="headerlink" href="#empirical" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.distributions.empirical.Empirical">
+<em class="property">class </em><code class="descname">Empirical</code><span class="sig-paren">(</span><em>values</em>, <em>log_weights=None</em>, <em>weights=None</em>, <em>sorted_by_weights=True</em>, <em>name='Empirical'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/empirical.html#Empirical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.empirical.Empirical" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyprob.distributions.distribution.Distribution" title="pyprob.distributions.distribution.Distribution"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyprob.distributions.distribution.Distribution</span></code></a></p>
+<dl class="staticmethod">
+<dt id="pyprob.distributions.empirical.Empirical.combine">
+<em class="property">static </em><code class="descname">combine</code><span class="sig-paren">(</span><em>empirical_distributions</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/empirical.html#Empirical.combine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.combine" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.empirical.Empirical.combine_duplicates">
+<code class="descname">combine_duplicates</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/empirical.html#Empirical.combine_duplicates"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.combine_duplicates" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.empirical.Empirical.effective_sample_size">
+<code class="descname">effective_sample_size</code><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.effective_sample_size" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.empirical.Empirical.expectation">
+<code class="descname">expectation</code><span class="sig-paren">(</span><em>func</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/empirical.html#Empirical.expectation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.expectation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.empirical.Empirical.filter">
+<code class="descname">filter</code><span class="sig-paren">(</span><em>func</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/empirical.html#Empirical.filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.filter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.empirical.Empirical.map">
+<code class="descname">map</code><span class="sig-paren">(</span><em>func</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/empirical.html#Empirical.map"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.map" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.empirical.Empirical.max">
+<code class="descname">max</code><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.max" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.empirical.Empirical.mean">
+<code class="descname">mean</code><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.mean" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.empirical.Empirical.min">
+<code class="descname">min</code><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.min" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.empirical.Empirical.mode">
+<code class="descname">mode</code><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.mode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.empirical.Empirical.plot_histogram">
+<code class="descname">plot_histogram</code><span class="sig-paren">(</span><em>figsize=(10</em>, <em>5)</em>, <em>xlabel=None</em>, <em>ylabel='Frequency'</em>, <em>xticks=None</em>, <em>yticks=None</em>, <em>log_xscale=False</em>, <em>log_yscale=False</em>, <em>file_name=None</em>, <em>show=True</em>, <em>density=1</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/empirical.html#Empirical.plot_histogram"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.plot_histogram" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.empirical.Empirical.rename">
+<code class="descname">rename</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/empirical.html#Empirical.rename"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.rename" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.empirical.Empirical.resample">
+<code class="descname">resample</code><span class="sig-paren">(</span><em>samples</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/empirical.html#Empirical.resample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.resample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.empirical.Empirical.sample">
+<code class="descname">sample</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/empirical.html#Empirical.sample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.sample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.empirical.Empirical.unweighted">
+<code class="descname">unweighted</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/empirical.html#Empirical.unweighted"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.unweighted" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.empirical.Empirical.values_numpy">
+<code class="descname">values_numpy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/empirical.html#Empirical.values_numpy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.values_numpy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.empirical.Empirical.variance">
+<code class="descname">variance</code><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.variance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.empirical.Empirical.weights_numpy">
+<code class="descname">weights_numpy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/empirical.html#Empirical.weights_numpy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.empirical.Empirical.weights_numpy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="normal">
+<h3>Normal<a class="headerlink" href="#normal" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.distributions.normal.Normal">
+<em class="property">class </em><code class="descname">Normal</code><span class="sig-paren">(</span><em>loc</em>, <em>scale</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/normal.html#Normal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.normal.Normal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyprob.distributions.distribution.Distribution" title="pyprob.distributions.distribution.Distribution"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyprob.distributions.distribution.Distribution</span></code></a></p>
+<dl class="method">
+<dt id="pyprob.distributions.normal.Normal.cdf">
+<code class="descname">cdf</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/normal.html#Normal.cdf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.normal.Normal.cdf" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.normal.Normal.icdf">
+<code class="descname">icdf</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/normal.html#Normal.icdf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.normal.Normal.icdf" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="mixture">
+<h3>Mixture<a class="headerlink" href="#mixture" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.distributions.mixture.Mixture">
+<em class="property">class </em><code class="descname">Mixture</code><span class="sig-paren">(</span><em>distributions</em>, <em>probs=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/mixture.html#Mixture"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.mixture.Mixture" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyprob.distributions.distribution.Distribution" title="pyprob.distributions.distribution.Distribution"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyprob.distributions.distribution.Distribution</span></code></a></p>
+<dl class="method">
+<dt id="pyprob.distributions.mixture.Mixture.log_prob">
+<code class="descname">log_prob</code><span class="sig-paren">(</span><em>value</em>, <em>sum=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/mixture.html#Mixture.log_prob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.mixture.Mixture.log_prob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.mixture.Mixture.mean">
+<code class="descname">mean</code><a class="headerlink" href="#pyprob.distributions.mixture.Mixture.mean" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.mixture.Mixture.sample">
+<code class="descname">sample</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/mixture.html#Mixture.sample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.mixture.Mixture.sample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.mixture.Mixture.variance">
+<code class="descname">variance</code><a class="headerlink" href="#pyprob.distributions.mixture.Mixture.variance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="poisson">
+<h3>Poisson<a class="headerlink" href="#poisson" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.distributions.poisson.Poisson">
+<em class="property">class </em><code class="descname">Poisson</code><span class="sig-paren">(</span><em>rate</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/poisson.html#Poisson"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.poisson.Poisson" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyprob.distributions.distribution.Distribution" title="pyprob.distributions.distribution.Distribution"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyprob.distributions.distribution.Distribution</span></code></a></p>
+<dl class="attribute">
+<dt id="pyprob.distributions.poisson.Poisson.rate">
+<code class="descname">rate</code><a class="headerlink" href="#pyprob.distributions.poisson.Poisson.rate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="truncated-normal">
+<h3>Truncated Normal<a class="headerlink" href="#truncated-normal" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.distributions.truncated_normal.TruncatedNormal">
+<em class="property">class </em><code class="descname">TruncatedNormal</code><span class="sig-paren">(</span><em>mean_non_truncated</em>, <em>stddev_non_truncated</em>, <em>low</em>, <em>high</em>, <em>clamp_mean_between_low_high=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/truncated_normal.html#TruncatedNormal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.truncated_normal.TruncatedNormal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyprob.distributions.distribution.Distribution" title="pyprob.distributions.distribution.Distribution"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyprob.distributions.distribution.Distribution</span></code></a></p>
+<dl class="attribute">
+<dt id="pyprob.distributions.truncated_normal.TruncatedNormal.high">
+<code class="descname">high</code><a class="headerlink" href="#pyprob.distributions.truncated_normal.TruncatedNormal.high" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.truncated_normal.TruncatedNormal.log_prob">
+<code class="descname">log_prob</code><span class="sig-paren">(</span><em>value</em>, <em>sum=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/truncated_normal.html#TruncatedNormal.log_prob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.truncated_normal.TruncatedNormal.log_prob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.truncated_normal.TruncatedNormal.low">
+<code class="descname">low</code><a class="headerlink" href="#pyprob.distributions.truncated_normal.TruncatedNormal.low" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.truncated_normal.TruncatedNormal.mean">
+<code class="descname">mean</code><a class="headerlink" href="#pyprob.distributions.truncated_normal.TruncatedNormal.mean" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.truncated_normal.TruncatedNormal.mean_non_truncated">
+<code class="descname">mean_non_truncated</code><a class="headerlink" href="#pyprob.distributions.truncated_normal.TruncatedNormal.mean_non_truncated" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.distributions.truncated_normal.TruncatedNormal.sample">
+<code class="descname">sample</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/truncated_normal.html#TruncatedNormal.sample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.truncated_normal.TruncatedNormal.sample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.truncated_normal.TruncatedNormal.stddev_non_truncated">
+<code class="descname">stddev_non_truncated</code><a class="headerlink" href="#pyprob.distributions.truncated_normal.TruncatedNormal.stddev_non_truncated" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.truncated_normal.TruncatedNormal.variance">
+<code class="descname">variance</code><a class="headerlink" href="#pyprob.distributions.truncated_normal.TruncatedNormal.variance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.truncated_normal.TruncatedNormal.variance_non_truncated">
+<code class="descname">variance_non_truncated</code><a class="headerlink" href="#pyprob.distributions.truncated_normal.TruncatedNormal.variance_non_truncated" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="uniform">
+<h3>Uniform<a class="headerlink" href="#uniform" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.distributions.uniform.Uniform">
+<em class="property">class </em><code class="descname">Uniform</code><span class="sig-paren">(</span><em>low</em>, <em>high</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/distributions/uniform.html#Uniform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.distributions.uniform.Uniform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pyprob.distributions.distribution.Distribution" title="pyprob.distributions.distribution.Distribution"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyprob.distributions.distribution.Distribution</span></code></a></p>
+<dl class="attribute">
+<dt id="pyprob.distributions.uniform.Uniform.high">
+<code class="descname">high</code><a class="headerlink" href="#pyprob.distributions.uniform.Uniform.high" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="pyprob.distributions.uniform.Uniform.low">
+<code class="descname">low</code><a class="headerlink" href="#pyprob.distributions.uniform.Uniform.low" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="NN.html" class="btn btn-neutral float-right" title="Neural Network Library" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="index.html" class="btn btn-neutral" title="Pyfo Documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, Atilim Gunes Baydin.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.1',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

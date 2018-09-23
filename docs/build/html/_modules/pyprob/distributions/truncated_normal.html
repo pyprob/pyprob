@@ -1,0 +1,318 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>pyprob.distributions.truncated_normal &mdash; pyprob 0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> pyprob
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">PyProb Core:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../distributions.html">Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../NN.html">Neural Network Library</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../PPX.html">Probabilistic Programming eXecution protocol</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../PPX.html#ppx-build-status">PPX </a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">pyprob</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>pyprob.distributions.truncated_normal</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for pyprob.distributions.truncated_normal</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">torch</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">Distribution</span><span class="p">,</span> <span class="n">Normal</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="k">import</span> <span class="n">util</span>
+
+
+<span class="c1"># Beware: clamp_mean_between_low_high=True prevents derivative computation with respect to mean when it&#39;s outside [low, high]</span>
+<div class="viewcode-block" id="TruncatedNormal"><a class="viewcode-back" href="../../../distributions.html#pyprob.distributions.truncated_normal.TruncatedNormal">[docs]</a><span class="k">class</span> <span class="nc">TruncatedNormal</span><span class="p">(</span><span class="n">Distribution</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mean_non_truncated</span><span class="p">,</span> <span class="n">stddev_non_truncated</span><span class="p">,</span> <span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">,</span> <span class="n">clamp_mean_between_low_high</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">to_tensor</span><span class="p">(</span><span class="n">mean_non_truncated</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stddev_non_truncated</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">to_tensor</span><span class="p">(</span><span class="n">stddev_non_truncated</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_low</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">to_tensor</span><span class="p">(</span><span class="n">low</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_high</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">to_tensor</span><span class="p">(</span><span class="n">high</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">clamp_mean_between_low_high</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_high</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_low</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_batch_length</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="c1"># elif self._mean_non_truncated.dim() == 1:</span>
+        <span class="c1">#     self.length_variates = self._mean_non_truncated.size(0)</span>
+        <span class="c1">#     self._batch_length = 1</span>
+            <span class="c1"># self._mean_non_truncated = self._mean_non_truncated.unsqueeze(0)</span>
+            <span class="c1"># self._stddev_non_truncated = self._stddev_non_truncated.unsqueeze(0)</span>
+            <span class="c1"># self._low = self._low.unsqueeze(0)</span>
+            <span class="c1"># self._high = self._high.unsqueeze(0)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="c1"># self.length_variates = self._mean_non_truncated.size(1)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_batch_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Expecting 1d or 2d (batched) probabilities.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_dist</span> <span class="o">=</span> <span class="n">Normal</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_stddev_non_truncated</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_alpha</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_low</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stddev_non_truncated</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_beta</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_high</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stddev_non_truncated</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_cdf_alpha</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_dist</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_alpha</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_cdf_beta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_dist</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beta</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_Z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_cdf_beta</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_cdf_alpha</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log_stddev_Z</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_stddev_non_truncated</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Z</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_variance</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">batch_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+        <span class="n">event_shape</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Size</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;TruncatedNormal&#39;</span><span class="p">,</span> <span class="n">address_suffix</span><span class="o">=</span><span class="s1">&#39;TruncatedNormal&#39;</span><span class="p">,</span> <span class="n">batch_shape</span><span class="o">=</span><span class="n">batch_shape</span><span class="p">,</span> <span class="n">event_shape</span><span class="o">=</span><span class="n">event_shape</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;TruncatedNormal(mean_non_truncated:</span><span class="si">{}</span><span class="s1">, stddev_non_truncated:</span><span class="si">{}</span><span class="s1">, low:</span><span class="si">{}</span><span class="s1">, high:</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stddev_non_truncated</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_low</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_high</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TruncatedNormal.log_prob"><a class="viewcode-back" href="../../../distributions.html#pyprob.distributions.truncated_normal.TruncatedNormal.log_prob">[docs]</a>    <span class="k">def</span> <span class="nf">log_prob</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="nb">sum</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">to_tensor</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="c1"># value = value.view(self._batch_length, self.length_variates)</span>
+        <span class="c1">#  TODO: With the following handling of low and high bounds, the derivative is not correct for a value outside the truncation domain</span>
+        <span class="n">lb</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">ge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_low</span><span class="p">)</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_low</span><span class="p">)</span>
+        <span class="n">ub</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">le</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_high</span><span class="p">)</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_low</span><span class="p">)</span>
+        <span class="n">lp</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">lb</span><span class="o">.</span><span class="n">mul</span><span class="p">(</span><span class="n">ub</span><span class="p">))</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_dist</span><span class="o">.</span><span class="n">log_prob</span><span class="p">((</span><span class="n">value</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stddev_non_truncated</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_log_stddev_Z</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_length</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">lp</span> <span class="o">=</span> <span class="n">lp</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">lp</span><span class="p">)</span> <span class="k">if</span> <span class="nb">sum</span> <span class="k">else</span> <span class="n">lp</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">low</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_low</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">high</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_high</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">mean_non_truncated</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">stddev_non_truncated</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stddev_non_truncated</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">variance_non_truncated</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stddev_non_truncated</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">mean</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stddev_non_truncated</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_dist</span><span class="o">.</span><span class="n">prob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_alpha</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_dist</span><span class="o">.</span><span class="n">prob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beta</span><span class="p">))</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Z</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_length</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">variance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">standard_normal_prob_alpha</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_dist</span><span class="o">.</span><span class="n">prob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_alpha</span><span class="p">)</span>
+            <span class="n">standard_normal_prob_beta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_dist</span><span class="o">.</span><span class="n">prob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_beta</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_variance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stddev_non_truncated</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_alpha</span> <span class="o">*</span> <span class="n">standard_normal_prob_alpha</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_beta</span> <span class="o">*</span> <span class="n">standard_normal_prob_beta</span><span class="p">)</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">_Z</span><span class="p">)</span> <span class="o">-</span> <span class="p">((</span><span class="n">standard_normal_prob_alpha</span> <span class="o">-</span> <span class="n">standard_normal_prob_beta</span><span class="p">)</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">_Z</span><span class="p">)</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_length</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_variance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variance</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variance</span>
+
+<div class="viewcode-block" id="TruncatedNormal.sample"><a class="viewcode-back" href="../../../distributions.html#pyprob.distributions.truncated_normal.TruncatedNormal.sample">[docs]</a>    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_low</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+        <span class="n">attempt_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">fill_</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;NaN&#39;</span><span class="p">))</span>
+        <span class="n">outside_domain</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">while</span> <span class="n">util</span><span class="o">.</span><span class="n">has_nan_or_inf</span><span class="p">(</span><span class="n">ret</span><span class="p">)</span> <span class="ow">or</span> <span class="n">outside_domain</span><span class="p">:</span>
+            <span class="n">attempt_count</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">attempt_count</span> <span class="o">==</span> <span class="mi">10000</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Warning: trying to sample from the tail of a truncated normal distribution, which can take a long time. A more efficient implementation is pending.&#39;</span><span class="p">)</span>
+            <span class="n">rand</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">uniform_</span><span class="p">()</span>
+            <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_dist</span><span class="o">.</span><span class="n">icdf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_cdf_alpha</span> <span class="o">+</span> <span class="n">rand</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_cdf_beta</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standard_normal_cdf_alpha</span><span class="p">))</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stddev_non_truncated</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mean_non_truncated</span>
+            <span class="n">lb</span> <span class="o">=</span> <span class="n">ret</span><span class="o">.</span><span class="n">ge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_low</span><span class="p">)</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_low</span><span class="p">)</span>
+            <span class="n">ub</span> <span class="o">=</span> <span class="n">ret</span><span class="o">.</span><span class="n">lt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_high</span><span class="p">)</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_low</span><span class="p">)</span>
+            <span class="n">outside_domain</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">lb</span><span class="o">.</span><span class="n">mul</span><span class="p">(</span><span class="n">ub</span><span class="p">)))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_length</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">ret</span> <span class="o">=</span> <span class="n">ret</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ret</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, Atilim Gunes Baydin.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,367 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Neural Network Library &mdash; pyprob 0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Probabilistic Programming eXecution protocol" href="PPX.html" />
+    <link rel="prev" title="Distributions" href="distributions.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> pyprob
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">PyProb Core:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="distributions.html">Distributions</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Neural Network Library</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#inference-network">Inference Network</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#embedding">Embedding</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#proposal-networks">Proposal Networks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#normal">Normal</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#normal-mixture">Normal Mixture</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#poisson">Poisson</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#uniform-beta">Uniform Beta</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#uniform-beta-mixture">Uniform Beta Mixture</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#uniform-truncated-normal-mixture">Uniform Truncated Normal Mixture</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="PPX.html">Probabilistic Programming eXecution protocol</a></li>
+<li class="toctree-l1"><a class="reference internal" href="PPX.html#ppx-build-status">PPX </a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">pyprob</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Neural Network Library</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/NN.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="neural-network-library">
+<h1>Neural Network Library<a class="headerlink" href="#neural-network-library" title="Permalink to this headline">¶</a></h1>
+<p>This library enables the composition of different NN architectures for inference compilation.</p>
+<div class="toctree-wrapper compound">
+</div>
+<div class="section" id="inference-network">
+<h2>Inference Network<a class="headerlink" href="#inference-network" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.nn.inference_network_feedforward.InferenceNetworkFeedForward">
+<em class="property">class </em><code class="descname">InferenceNetworkFeedForward</code><span class="sig-paren">(</span><em>model</em>, <em>valid_batch_size=64</em>, <em>observe_embeddings={}</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/inference_network_feedforward.html#InferenceNetworkFeedForward"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.inference_network_feedforward.InferenceNetworkFeedForward" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<dl class="method">
+<dt id="pyprob.nn.inference_network_feedforward.InferenceNetworkFeedForward.infer_trace_init">
+<code class="descname">infer_trace_init</code><span class="sig-paren">(</span><em>observe=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/inference_network_feedforward.html#InferenceNetworkFeedForward.infer_trace_init"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.inference_network_feedforward.InferenceNetworkFeedForward.infer_trace_init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.nn.inference_network_feedforward.InferenceNetworkFeedForward.infer_trace_step">
+<code class="descname">infer_trace_step</code><span class="sig-paren">(</span><em>variable</em>, <em>previous_variable=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/inference_network_feedforward.html#InferenceNetworkFeedForward.infer_trace_step"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.inference_network_feedforward.InferenceNetworkFeedForward.infer_trace_step" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.nn.inference_network_feedforward.InferenceNetworkFeedForward.optimize">
+<code class="descname">optimize</code><span class="sig-paren">(</span><em>num_traces</em>, <em>batch_generator</em>, <em>batch_size=64</em>, <em>valid_interval=1000</em>, <em>learning_rate=0.0001</em>, <em>weight_decay=1e-05</em>, <em>auto_save_file_name=None</em>, <em>auto_save_interval_sec=600</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/inference_network_feedforward.html#InferenceNetworkFeedForward.optimize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.inference_network_feedforward.InferenceNetworkFeedForward.optimize" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pyprob.nn.inference_network_feedforward.InferenceNetworkFeedForward.to">
+<code class="descname">to</code><span class="sig-paren">(</span><em>device=None</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/inference_network_feedforward.html#InferenceNetworkFeedForward.to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.inference_network_feedforward.InferenceNetworkFeedForward.to" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="embedding">
+<h2>Embedding<a class="headerlink" href="#embedding" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pyprob.nn.embedding_feedforward.EmbeddingFeedForward">
+<em class="property">class </em><code class="descname">EmbeddingFeedForward</code><span class="sig-paren">(</span><em>input_shape</em>, <em>output_shape</em>, <em>num_layers=3</em>, <em>activation=&lt;built-in method relu of type object&gt;</em>, <em>activation_last=&lt;built-in method relu of type object&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/embedding_feedforward.html#EmbeddingFeedForward"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.embedding_feedforward.EmbeddingFeedForward" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<dl class="method">
+<dt id="pyprob.nn.embedding_feedforward.EmbeddingFeedForward.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>x</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/embedding_feedforward.html#EmbeddingFeedForward.forward"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.embedding_feedforward.EmbeddingFeedForward.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="proposal-networks">
+<h2>Proposal Networks<a class="headerlink" href="#proposal-networks" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="normal">
+<h3>Normal<a class="headerlink" href="#normal" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.nn.proposal_normal_normal.ProposalNormalNormal">
+<em class="property">class </em><code class="descname">ProposalNormalNormal</code><span class="sig-paren">(</span><em>input_shape</em>, <em>output_shape</em>, <em>num_layers=3</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/proposal_normal_normal.html#ProposalNormalNormal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.proposal_normal_normal.ProposalNormalNormal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<dl class="method">
+<dt id="pyprob.nn.proposal_normal_normal.ProposalNormalNormal.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>x</em>, <em>prior_variables</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/proposal_normal_normal.html#ProposalNormalNormal.forward"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.proposal_normal_normal.ProposalNormalNormal.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="normal-mixture">
+<h3>Normal Mixture<a class="headerlink" href="#normal-mixture" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.nn.proposal_normal_normal_mixture.ProposalNormalNormalMixture">
+<em class="property">class </em><code class="descname">ProposalNormalNormalMixture</code><span class="sig-paren">(</span><em>input_shape</em>, <em>output_shape</em>, <em>num_layers=3</em>, <em>mixture_components=10</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/proposal_normal_normal_mixture.html#ProposalNormalNormalMixture"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.proposal_normal_normal_mixture.ProposalNormalNormalMixture" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<dl class="method">
+<dt id="pyprob.nn.proposal_normal_normal_mixture.ProposalNormalNormalMixture.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>x</em>, <em>prior_variables</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/proposal_normal_normal_mixture.html#ProposalNormalNormalMixture.forward"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.proposal_normal_normal_mixture.ProposalNormalNormalMixture.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="poisson">
+<h3>Poisson<a class="headerlink" href="#poisson" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.nn.proposal_poisson_truncated_normal_mixture.ProposalPoissonTruncatedNormalMixture">
+<em class="property">class </em><code class="descname">ProposalPoissonTruncatedNormalMixture</code><span class="sig-paren">(</span><em>input_shape</em>, <em>output_shape</em>, <em>low=0</em>, <em>high=40</em>, <em>num_layers=3</em>, <em>mixture_components=10</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/proposal_poisson_truncated_normal_mixture.html#ProposalPoissonTruncatedNormalMixture"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.proposal_poisson_truncated_normal_mixture.ProposalPoissonTruncatedNormalMixture" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<dl class="method">
+<dt id="pyprob.nn.proposal_poisson_truncated_normal_mixture.ProposalPoissonTruncatedNormalMixture.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>x</em>, <em>prior_variables</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/proposal_poisson_truncated_normal_mixture.html#ProposalPoissonTruncatedNormalMixture.forward"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.proposal_poisson_truncated_normal_mixture.ProposalPoissonTruncatedNormalMixture.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="uniform-beta">
+<h3>Uniform Beta<a class="headerlink" href="#uniform-beta" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.nn.proposal_uniform_beta.ProposalUniformBeta">
+<em class="property">class </em><code class="descname">ProposalUniformBeta</code><span class="sig-paren">(</span><em>input_shape</em>, <em>output_shape</em>, <em>num_layers=3</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/proposal_uniform_beta.html#ProposalUniformBeta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.proposal_uniform_beta.ProposalUniformBeta" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<dl class="method">
+<dt id="pyprob.nn.proposal_uniform_beta.ProposalUniformBeta.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>x</em>, <em>prior_variables</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/proposal_uniform_beta.html#ProposalUniformBeta.forward"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.proposal_uniform_beta.ProposalUniformBeta.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="uniform-beta-mixture">
+<h3>Uniform Beta Mixture<a class="headerlink" href="#uniform-beta-mixture" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.nn.proposal_uniform_beta_mixture.ProposalUniformBetaMixture">
+<em class="property">class </em><code class="descname">ProposalUniformBetaMixture</code><span class="sig-paren">(</span><em>input_shape</em>, <em>output_shape</em>, <em>num_layers=3</em>, <em>mixture_components=10</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/proposal_uniform_beta_mixture.html#ProposalUniformBetaMixture"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.proposal_uniform_beta_mixture.ProposalUniformBetaMixture" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<dl class="method">
+<dt id="pyprob.nn.proposal_uniform_beta_mixture.ProposalUniformBetaMixture.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>x</em>, <em>prior_variables</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/proposal_uniform_beta_mixture.html#ProposalUniformBetaMixture.forward"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.proposal_uniform_beta_mixture.ProposalUniformBetaMixture.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="uniform-truncated-normal-mixture">
+<h3>Uniform Truncated Normal Mixture<a class="headerlink" href="#uniform-truncated-normal-mixture" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="pyprob.nn.proposal_uniform_truncated_normal_mixture.ProposalUniformTruncatedNormalMixture">
+<em class="property">class </em><code class="descname">ProposalUniformTruncatedNormalMixture</code><span class="sig-paren">(</span><em>input_shape</em>, <em>output_shape</em>, <em>num_layers=3</em>, <em>mixture_components=10</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/proposal_uniform_truncated_normal_mixture.html#ProposalUniformTruncatedNormalMixture"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.proposal_uniform_truncated_normal_mixture.ProposalUniformTruncatedNormalMixture" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.module.Module</span></code></p>
+<dl class="method">
+<dt id="pyprob.nn.proposal_uniform_truncated_normal_mixture.ProposalUniformTruncatedNormalMixture.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>x</em>, <em>prior_variables</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pyprob/nn/proposal_uniform_truncated_normal_mixture.html#ProposalUniformTruncatedNormalMixture.forward"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pyprob.nn.proposal_uniform_truncated_normal_mixture.ProposalUniformTruncatedNormalMixture.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="PPX.html" class="btn btn-neutral float-right" title="Probabilistic Programming eXecution protocol" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="distributions.html" class="btn btn-neutral" title="Distributions" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, Atilim Gunes Baydin.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.1',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
