@@ -2,7 +2,7 @@ Probabilistic Programming eXecution protocol
 ============================================
 
 PPX |Build Status|
-==================
+------------------
 
 .. raw:: html
 
@@ -12,8 +12,8 @@ PPX |Build Status|
 
    </p>
 
-``PPX`` is a cross-platform `**P**\ robabilistic
-**P**\ rogramming <http://www.probabilistic-programming.org>`__
+``PPX`` is a cross-platform `Probabilistic
+Programming <http://www.probabilistic-programming.org>`__
 e\ **X**\ ecution protocol and API based on
 `flatbuffers <https://google.github.io/flatbuffers/>`__. It is intended
 as an open interoperability protocol between models and inference
@@ -29,6 +29,13 @@ across networks.
 Network Exchange project allowing interoperability between major deep
 learning frameworks.
 
+.. toctree::
+   :glob:
+   :maxdepth: 2
+   :caption: Contents:
+
+   ppx_functions
+
 Supported languages
 -------------------
 
@@ -43,6 +50,7 @@ supported by flatbuffers. These are:
 -  PHP
 -  Python
 -  TypeScript
+
 
 License
 -------
@@ -64,9 +72,3 @@ Authors
    :target: https://travis-ci.org/probprog/ppx
 
 
-.. toctree::
-   :glob:
-   :maxdepth: 2
-   :caption: Contents:
-
-   ppx_functions

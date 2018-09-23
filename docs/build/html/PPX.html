@@ -82,14 +82,14 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="distributions.html">Distributions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="NN.html">Neural Network Library</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Probabilistic Programming eXecution protocol</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#ppx-build-status">PPX </a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#supported-languages">Supported languages</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#license">License</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#authors">Authors</a><ul>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Probabilistic Programming eXecution protocol</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#ppx-build-status">PPX </a><ul>
 <li class="toctree-l3"><a class="reference internal" href="ppx_functions.html">PPX</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#supported-languages">Supported languages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#license">License</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#authors">Authors</a></li>
 </ul>
 </li>
 </ul>
@@ -158,11 +158,10 @@
             
   <div class="section" id="probabilistic-programming-execution-protocol">
 <h1>Probabilistic Programming eXecution protocol<a class="headerlink" href="#probabilistic-programming-execution-protocol" title="Permalink to this headline">¶</a></h1>
-</div>
 <div class="section" id="ppx-build-status">
-<h1>PPX <a class="reference external" href="https://travis-ci.org/probprog/ppx"><img alt="Build Status" src="https://travis-ci.org/probprog/ppx.svg?branch=master" /></a><a class="headerlink" href="#ppx-build-status" title="Permalink to this headline">¶</a></h1>
-<p align="left"></p><p><code class="docutils literal notranslate"><span class="pre">PPX</span></code> is a cross-platform <a class="reference external" href="http://www.probabilistic-programming.org">**P**robabilistic
-**P**rogramming</a>
+<h2>PPX <a class="reference external" href="https://travis-ci.org/probprog/ppx"><img alt="Build Status" src="https://travis-ci.org/probprog/ppx.svg?branch=master" /></a><a class="headerlink" href="#ppx-build-status" title="Permalink to this headline">¶</a></h2>
+<p align="left"></p><p><code class="docutils literal notranslate"><span class="pre">PPX</span></code> is a cross-platform <a class="reference external" href="http://www.probabilistic-programming.org">Probabilistic
+Programming</a>
 e<strong>X</strong>ecution protocol and API based on
 <a class="reference external" href="https://google.github.io/flatbuffers/">flatbuffers</a>. It is intended
 as an open interoperability protocol between models and inference
@@ -175,6 +174,28 @@ across networks.</p>
 <p><code class="docutils literal notranslate"><span class="pre">PPX</span></code> is inspired by <a class="reference external" href="https://onnx.ai/">ONNX</a>, the Open Neural
 Network Exchange project allowing interoperability between major deep
 learning frameworks.</p>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="ppx_functions.html">PPX</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#observe">Observe</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#observe-result">Observe Result</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#sample">Sample</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#sample-result">Sample Result</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#handshake">Handshake</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#handshake-result">Handshake Result</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#message">Message</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#message-body">Message Body</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#distribution">Distribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#run">Run</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#run-result">Run Result</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#reset">Reset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#tensor">Tensor</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
 <div class="section" id="supported-languages">
 <h2>Supported languages<a class="headerlink" href="#supported-languages" title="Permalink to this headline">¶</a></h2>
 <p>We provide <code class="docutils literal notranslate"><span class="pre">PPX</span></code> compiled to all programming languages officially
@@ -204,27 +225,6 @@ supported by flatbuffers. These are:</p>
 <li><a class="reference external" href="http://theoryandpractice.org/">Kyle Cranmer</a></li>
 <li><a class="reference external" href="http://www.cs.ubc.ca/~fwood/index.html">Frank Wood</a></li>
 </ul>
-<div class="toctree-wrapper compound">
-<p class="caption"><span class="caption-text">Contents:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="ppx_functions.html">PPX</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#observe">Observe</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#observe-result">Observe Result</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#sample">Sample</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#sample-result">Sample Result</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#handshake">Handshake</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#handshake-result">Handshake Result</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#message">Message</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#message-body">Message Body</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#distribution">Distribution</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#run">Run</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#run-result">Run Result</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#reset">Reset</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ppx_functions.html#tensor">Tensor</a></li>
-</ul>
-</li>
-</ul>
-</div>
 </div>
 </div>
 
