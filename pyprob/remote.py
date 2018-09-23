@@ -236,7 +236,9 @@ class ModelServer(object):
                     name = None
                 value = self._protocol_tensor_to_variable(message_body.Value())
                 distribution_type = message_body.DistributionType()
-                if distribution_type == ppx_Distribution.Distribution().Uniform:
+                if distribution_type == ppx_Distribution.Distribution().NONE:
+                    dist = None
+                elif distribution_type == ppx_Distribution.Distribution().Uniform:
                     uniform = ppx_Uniform.Uniform()
                     uniform.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
                     low = self._protocol_tensor_to_variable(uniform.Low())
@@ -259,7 +261,7 @@ class ModelServer(object):
                     rate = self._protocol_tensor_to_variable(poisson.Rate())
                     dist = Poisson(rate)
                 else:
-                    raise RuntimeError('ppx (Python): Sample from an unexpected distribution requested.')
+                    raise RuntimeError('ppx (Python): Sample from an unexpected distribution requested: {}'.format(distribution_type))
 
                 state.observe(distribution=dist, value=value, name=name, address=address)
                 builder = flatbuffers.Builder(64)
