@@ -83,9 +83,9 @@ class InferenceNetworkFeedForward(nn.Module):
                 embedding = ObserveEmbedding.FEEDFORWARD
             if embedding == ObserveEmbedding.FEEDFORWARD:
                 layer = EmbeddingFeedForward(input_shape=input_shape, output_shape=output_shape, num_layers=depth)
-            elif embedding == ObserveEmbedding.CNN2D5C:
+            elif embedding == ObserveEmbedding.Cnn2D5C:
                 layer = EmbeddingCNN2D5C(input_shape=input_shape, output_shape=output_shape)
-            elif embedding == ObserveEmbedding.CNN3D4C:
+            elif embedding == ObserveEmbedding.Cnn3D4C:
                 layer = EmbeddingCNN3D4C(input_shape=input_shape, output_shape=output_shape)
             else:
                 raise ValueError('Unknown embedding: {}'.format(embedding))
