@@ -16,6 +16,8 @@ Pyfo Documentation
    distributions
    NN
    PPX
+   pyprob_coroutines
+
 
 
 
