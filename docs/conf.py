@@ -206,7 +206,37 @@ epub_title = project
 # A unique identification for the text.
 #
 # epub_uid = ''
+def run_hmc_parallel(chain_id,PATH):
+    print('Running chain {}'.format(chain_id))
+    n_param = dim
+    n_disc = n_param
+    hmc_obj = HMC(f, n_disc, n_param, f_update)
+    inference= 'hmc'
+    dt = np.array([.1, 0.15])
+    nstep = [5, 10]
+    n_burnin = 0
+    n_sample = 100000
 
+    seed = chain_id
+    torch.manual_seed(seed=seed)
+    np.random.seed(seed)
+
+    print("Start Sampling Chain = ", chain_id, "\n")
+
+    x0 = Variable(torch.zeros(dim,1))
+    for d in range(dim):
+        x0[d, 0] = Normal(0, 1).sample()
+    t0 = time.time()
+    samples, accept =\
+        hmc_obj.run_hmc(x0, dt, nstep, n_burnin, n_sample, seed=seed)
+    t1 = time.time()
+    total = t1-t0
+    print('Total : {0}'.format(total))
+    print(' Total time for {3} to generate {0} samples in {1} dims is: {2}'.format(n_sample, dim, total, inference))
+    df = pd.DataFrame(samples.numpy())
+    PATH = PATH +'/data/{}d/'.format(dim)
+    os.makedirs(PATH, exist_ok=True)
+    df.to_csv(PATH + 'hmc_' + str(n_sample) + '_chain_' + str(chain_id) +'.csv')
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ['search.html']
 
