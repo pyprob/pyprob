@@ -31,22 +31,19 @@ class Batch(object):
         self.traces_lengths = []
         self.traces_max_length = 0
 
-        if preprocessed:
-            self.sub_batches= [traces] #Lei
-        else:
-            sb = {}
-            for trace in traces:
-                if trace.length == 0:
-                    raise ValueError('Trace of length zero')
-                if trace.length > self.traces_max_length:
-                    self.traces_max_length = trace.length
-                h = trace.length#hash(trace.addresses()) #Lei
-                if h not in sb:
-                    sb[h] = []
-                sb[h].append(trace)
-            self.sub_batches = []
-            for _, t in sb.items():
-                self.sub_batches.append(t)
+        sb = {}
+        for trace in traces:
+            if trace.length == 0:
+                raise ValueError('Trace of length zero')
+            if trace.length > self.traces_max_length:
+                self.traces_max_length = trace.length
+            h = hash(trace.addresses())
+            if h not in sb:
+                sb[h] = []
+            sb[h].append(trace)
+        self.sub_batches = []
+        for _, t in sb.items():
+            self.sub_batches.append(t)
         
         if sort:
             # Sort the batch in descreasing trace length
@@ -1606,58 +1603,54 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
          
 
 
-    #def loss(self, batch, optimizer=None, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE):
-    def loss(self, batch, time_steps_chosen, optimizer=None, training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE):#modified for multi-bucketing
-        gc.collect()
+    def loss(self, batch,  training_observation=TrainingObservation.OBSERVE_DIST_SAMPLE):#modified for multi-bucketing
+        #gc.collect()#not needed
 
-
-
+        #use hybrid grouping method now
+        #print("number of traces in this batch={}".format(batch.length))
+        #print("number of subbatches in this batch={}".format(len(batch.sub_batches)))
         batch_loss = 0
-        for sub_batch in batch.sub_batches:
+        for i,sub_batch in enumerate(batch.sub_batches):
             obs = torch.stack([trace.pack_observes(training_observation) for trace in sub_batch])
             obs_emb = self._observe_embedding_layer(obs)
 
             sub_batch_length = len(sub_batch)
 
-            #example_trace = sub_batch[0] #Lei blocked it
-          
-            traces_max_length=time_steps_chosen# for the timebeing, need to double check!!
+            example_trace = sub_batch[0]
+            #print("subbatch idx={},subbatch length={}, trace_max_len={}".format(i,sub_batch_length, example_trace.length))
+            traces_max_length=example_trace.length
 
             lstm_input = []
             for time_step in range(traces_max_length):#range(example_trace.length): #Lei
-                lstm_input_time_step = [] #Lei moved it here
-                for b, trace in enumerate(sub_batch):#Lei
-                    if time_step< trace.length:
-                        current_sample = trace.samples[time_step]
-                        current_address = current_sample.address
-                        current_distribution = current_sample.distribution
-                        current_addres_embedding = self._address_embeddings[current_address]
-                        current_distribution_type_embedding = self._distribution_type_embeddings[current_distribution.name]
+                    current_sample = example_trace.samples[time_step] #trace.samples[time_step]
+                    current_address = current_sample.address
+                    current_distribution = current_sample.distribution
+                    current_addres_embedding = self._address_embeddings[current_address]
+                    current_distribution_type_embedding = self._distribution_type_embeddings[current_distribution.name]
 
-                        if time_step == 0:
-                            prev_sample_embedding = util.to_variable(torch.zeros( self._sample_embedding_dim))#modified by Lei
-                            prev_addres_embedding = self._address_embedding_empty
-                            prev_distribution_type_embedding = self._distribution_type_embedding_empty
-                        else:
-                            prev_sample = trace.samples[time_step - 1]
-                            prev_address = prev_sample.address
-                            prev_distribution = prev_sample.distribution
-                            smp = trace.samples[time_step - 1].value.float()
-                            prev_sample_embedding = torch.squeeze(self._sample_embedding_layers[prev_address](smp))#Lei squeeze it
-                            prev_addres_embedding = self._address_embeddings[prev_address]
-                            prev_distribution_type_embedding = self._distribution_type_embeddings[prev_distribution.name]
+                    if time_step == 0:
+                        prev_sample_embedding = util.to_variable(torch.zeros(sub_batch_length, self._sample_embedding_dim))
+                        prev_addres_embedding = self._address_embedding_empty
+                        prev_distribution_type_embedding = self._distribution_type_embedding_empty
+                    else:
+                        prev_sample = example_trace.samples[time_step - 1]
+                        prev_address = prev_sample.address
+                        prev_distribution = prev_sample.distribution
+                        smp = torch.stack([trace.samples[time_step - 1].value.float() for trace in sub_batch])
+                        prev_sample_embedding = self._sample_embedding_layers[prev_address](smp)#Lei squeeze it
+                        prev_addres_embedding = self._address_embeddings[prev_address]
+                        prev_distribution_type_embedding = self._distribution_type_embeddings[prev_distribution.name]
 
-                            
+                    lstm_input_time_step = []
+                    for b in range(sub_batch_length):                            
                         t = torch.cat([obs_emb[b],
-                                   prev_sample_embedding,
+                                   prev_sample_embedding[b],
                                    prev_distribution_type_embedding,
                                    prev_addres_embedding,
                                    current_distribution_type_embedding,
                                    current_addres_embedding])
-                    else:
-                        t= util.to_variable(torch.zeros(self._lstm_input_dim))#Lei
-                    lstm_input_time_step.append(t)
-                lstm_input.append(torch.stack(lstm_input_time_step))
+                        lstm_input_time_step.append(t)
+                    lstm_input.append(torch.stack(lstm_input_time_step))
 
             lstm_input = torch.stack(lstm_input)
 
@@ -1665,46 +1658,33 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
             c0 = util.to_variable(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
             lstm_output, _ = self._lstm(lstm_input, (h0, c0))
             log_prob = 0
-            for time_step in range(traces_max_length):#range(example_trace.length):
-                for b, trace in enumerate(sub_batch):#Lei
-                    if time_step< trace.length:#Lei
-                        current_sample = trace.samples[time_step]
-                        current_address = current_sample.address
+            for time_step in range(example_trace.length):
+                current_sample = example_trace.samples[time_step]
+                current_address = current_sample.address
 
-                        proposal_input = lstm_output[time_step][b] #for current trace only!!! #Lei
+                proposal_input = lstm_output[time_step]
 
-                        current_samples = [trace.samples[time_step]]# add [] to make it iterable
-                        current_samples_values = current_samples[0].value#torch.stack([s.value for s in current_samples]) #Lei
+                current_samples = [trace.samples[time_step] for trace in sub_batch]
+                current_samples_values = torch.stack([s.value for s in current_samples]) 
                 
-                        proposal_distribution = self._proposal_layers[current_address](proposal_input, current_samples)
-                        l = proposal_distribution.log_prob(current_samples_values)
-                        if util.has_nan_or_inf(l):
-                            print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))
-                            print('proposal_distribution', proposal_distribution)
-                            print('current_samples_values', current_samples_values)
-                            print('log_prob', l)
-                            print('Fixing -Inf')
-                            l = util.replace_negative_inf(l)
-                            print('log_prob', l)
-                            if util.has_nan_or_inf(l):
-                                print(colored('Nan or Inf present in proposal log_prob.', 'red', attrs=['bold']))
-                                return False, 0
-                        log_prob += util.safe_torch_sum(l)
+                proposal_distribution = self._proposal_layers[current_address](proposal_input, current_samples)
+                l = proposal_distribution.log_prob(current_samples_values)
+                if util.has_nan_or_inf(l):
+                    print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))
+                    print('proposal_distribution', proposal_distribution)
+                    print('current_samples_values', current_samples_values)
+                    print('log_prob', l)
+                    print('Fixing -Inf')
+                    l = util.replace_negative_inf(l)
+                    print('log_prob', l)
+                    if util.has_nan_or_inf(l):
+                        print(colored('Nan or Inf present in proposal log_prob.', 'red', attrs=['bold']))
+                        return False, 0
+                log_prob +=  util.safe_torch_sum(l)
 
             sub_batch_loss = -log_prob / sub_batch_length
-            batch_loss += float(sub_batch_loss * sub_batch_length)
+            batch_loss += sub_batch_loss * sub_batch_length
 
-            if optimizer is not None:
-                optimizer.zero_grad()
-                
-                sub_batch_loss.backward(retain_graph=True)#added retain_graph=True by Lei
-                if (dist.get_world_size() >1):
-                    for param in self.parameters():
-                        if (param.grad is None):
-                            param.grad = torch.Tensor(torch.zeros_like(param.data)) # force it to be zero for all-reduce!!i
-                    #all_reduce grads               
-                    self.sync_grads()#added by Lei for distributed training                
-                optimizer.step()
 
  
         return True, batch_loss / batch.length
@@ -1753,18 +1733,20 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
 
       ######################
         if (dist.get_rank() == 0):
-            num_params = 0
-            for p in self.parameters():
-                num_params += p.nelement()
-            #num_named_params = 0
-            #for _, p in self.named_parameters():
-            #    num_named_params += p.nelement()
+            #num_params = 0
+            #for p in self.parameters():
+            #    num_params += p.nelement()
+            num_named_params = 0
+            for k, p in self.named_parameters():
+                num_named_params += p.nelement()
+                #if k.startswith('_lstm'):
+                #    print("key of self._lstm is {}".format(k))
             #totsize=sum(p.numel() for p in self.parameters() if p.requires_grad)
             
             print("+------------------------------+")
             print("| Etalumis                    |")
             print("| # Ranks = {:5d}              |".format(world_size))
-            print("| # trainable parameters = {:,}     |".format(num_params))
+            print("| # trainable parameters = {:,}     |".format(num_named_params))#.format(num_params))
             print("| Eff. Learning Rate ={} |".format(learning_rate*world_size))
 
             print("+------------------------------+")
@@ -1778,7 +1760,7 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
         time_last_batch = time.time()
         iteration = 0
         trace = 0
-        last_validation_trace = -valid_interval + 1  #modified by Lei to 0 for profiling!!!
+        last_validation_trace = 0# -valid_interval + 1  #modified by Lei to 0 for profiling!!!
         stop = False
         print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
         max_print_line_len = 0
@@ -1786,7 +1768,7 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
         param_sync_interval = 10000# iterations
 
         # for multibucketing (sorted). Assume 1 trace per file #Lei
-        num_files_per_bucket =self.num_files_per_bucket#1244 #hard coded for now, will change later
+        num_files_per_bucket =self.num_files_per_bucket#1244 
         num_buckets = self.num_buckets#10
         num_iter_per_bucket = self.num_iter_per_bucket
        
@@ -1810,8 +1792,7 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
                         bucket_idx = int(self._bucket_idx.item())
             #########pre-processed with multi-bucketing, need to find the correct bucket for processing
             batch = new_batch_func(bucket_idx=bucket_idx)
-            traces_max_length=max(batch.traces_lengths)
-            time_steps_chosen= min(int(sum(batch.traces_lengths)/batch.length)+1, traces_max_length)# to be decided!!!
+            traces_max_length=batch.traces_max_length#max(batch.traces_lengths)
             #layers_changed = self.polymorph(batch) #no longer needed since the global preprocessed files are available #lei
             layers_changed =True #Lei
 
@@ -1822,15 +1803,24 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
                 else:  # optimizer_type == Optimizer.SGD:
                     optimizer = optim.SGD(self.parameters(), lr=learning_rate*world_size, momentum=momentum, nesterov=True, weight_decay=weight_decay)
           
-  
-
-
- 
+   
             #success, loss = self.loss(batch, optimizer, training_observation)
-            success, loss = self.loss(batch, time_steps_chosen, optimizer, training_observation)#mmodified by Lei for multi-bucketing!! 
+            success, loss = self.loss(batch, training_observation)#modified by Lei for multi-bucketing!! 
             if not success:
                 print(colored('Cannot compute loss, skipping batch. Loss: {}'.format(loss), 'red', attrs=['bold']))
             else:
+                optimizer.zero_grad()
+                if (dist.get_world_size() >1):
+                    for param in self.parameters():
+                        if (param.grad is None):
+                            param.grad = torch.Tensor(torch.zeros_like(param.data)) # force it to be zero for all-reduce!!
+                loss.backward()#loss.backward(retain_graph=True)#added retain_graph=True by Lei
+                if (dist.get_world_size() >1):
+                    #average gradients across ranks
+                    self.sync_grads()#added by Lei for distributed training
+                optimizer.step()
+                loss=float(loss)
+                
                 if self._loss_initial is None:
                     self._loss_initial = loss
                     self._loss_max = loss
