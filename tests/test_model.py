@@ -51,10 +51,28 @@ class ModelTestCase(unittest.TestCase):
         prior = self._model.prior_distribution(num_traces)
         prior_mean = float(prior.mean)
         prior_stddev = float(prior.stddev)
-        util.debug('num_traces', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
+        util.eval_print('num_traces', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
 
         self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
+
+    def test_model_prior_to_disk(self):
+        file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        num_traces = 1000
+        prior_mean_correct = 1
+        prior_stddev_correct = math.sqrt(5)
+        prior_length_correct = 2 * num_traces
+
+        prior = self._model.prior_distribution(num_traces, file_name=file_name)
+        prior = self._model.prior_distribution(num_traces, file_name=file_name)
+        prior_length = prior.length
+        prior_mean = float(prior.mean)
+        prior_stddev = float(prior.stddev)
+        util.eval_print('num_traces', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct', 'prior_length', 'prior_length_correct')
+
+        self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
+        self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
+        self.assertEqual(prior_length, prior_length_correct)
 
     def test_model_trace_length_statistics(self):
         num_traces = 2000
@@ -69,7 +87,7 @@ class ModelTestCase(unittest.TestCase):
         trace_length_min = float(trace_length_dist.min)
         trace_length_max = (trace_length_dist.max)
 
-        util.debug('num_traces', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max')
+        util.eval_print('num_traces', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max')
 
         self.assertAlmostEqual(trace_length_mean, trace_length_mean_correct, places=0)
         self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)
@@ -85,7 +103,7 @@ class ModelTestCase(unittest.TestCase):
         os.remove(file_name)
         self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
 
-        util.debug('training_traces', 'file_name')
+        util.eval_print('training_traces', 'file_name')
 
         self.assertTrue(True)
 
@@ -113,7 +131,7 @@ class ModelTestCase(unittest.TestCase):
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('posterior_num_runs', 'posterior_num_traces_each_run', 'posterior_num_traces', 'posterior_num_traces_correct', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        util.eval_print('posterior_num_runs', 'posterior_num_traces_each_run', 'posterior_num_traces', 'posterior_num_traces_correct', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
 
         self.assertEqual(posterior_num_traces, posterior_num_traces_correct)
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
@@ -144,7 +162,74 @@ class ModelTestCase(unittest.TestCase):
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('posterior_num_runs', 'posterior_num_traces_each_run', 'posterior_num_traces', 'posterior_num_traces_correct', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        util.eval_print('posterior_num_runs', 'posterior_num_traces_each_run', 'posterior_num_traces', 'posterior_num_traces_correct', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+
+        self.assertEqual(posterior_num_traces, posterior_num_traces_correct)
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+        self.assertLess(kl_divergence, 0.25)
+
+
+    def test_model_lmh_posterior_with_stop_and_resume_to_disk(self):
+        file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        posterior_num_runs = 50
+        posterior_num_traces_each_run = 50
+        posterior_num_traces_correct = posterior_num_traces_each_run * posterior_num_runs
+        true_posterior = Normal(7.25, math.sqrt(1/1.2))
+        posterior_mean_correct = float(true_posterior.mean)
+        posterior_stddev_correct = float(true_posterior.stddev)
+        prior_mean_correct = 1.
+        prior_stddev_correct = math.sqrt(5)
+
+        initial_trace = None
+        for i in range(posterior_num_runs):
+            posterior_traces = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace, file_name=file_name)
+            initial_trace = posterior_traces[-1]
+            posterior_traces.close()
+        posterior = Empirical(file_name=file_name)
+        posterior.finalize()
+        posterior = posterior.map(lambda trace: trace.result)
+        posterior_num_traces = posterior.length
+        posterior_mean = float(posterior.mean)
+        posterior_mean_unweighted = float(posterior.unweighted().mean)
+        posterior_stddev = float(posterior.stddev)
+        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
+
+        util.eval_print('posterior_num_runs', 'posterior_num_traces_each_run', 'posterior_num_traces', 'posterior_num_traces_correct', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+
+        self.assertEqual(posterior_num_traces, posterior_num_traces_correct)
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+        self.assertLess(kl_divergence, 0.25)
+
+    def test_model_rmh_posterior_with_stop_and_resume_to_disk(self):
+        file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        posterior_num_runs = 50
+        posterior_num_traces_each_run = 50
+        posterior_num_traces_correct = posterior_num_traces_each_run * posterior_num_runs
+        true_posterior = Normal(7.25, math.sqrt(1/1.2))
+        posterior_mean_correct = float(true_posterior.mean)
+        posterior_stddev_correct = float(true_posterior.stddev)
+        prior_mean_correct = 1.
+        prior_stddev_correct = math.sqrt(5)
+
+        initial_trace = None
+        for i in range(posterior_num_runs):
+            posterior_traces = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace, file_name=file_name)
+            initial_trace = posterior_traces[-1]
+            posterior_traces.close()
+        posterior = Empirical(file_name=file_name)
+        posterior.finalize()
+        posterior = posterior.map(lambda trace: trace.result)
+        posterior_num_traces = posterior.length
+        posterior_mean = float(posterior.mean)
+        posterior_mean_unweighted = float(posterior.unweighted().mean)
+        posterior_stddev = float(posterior.stddev)
+        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
+
+        util.eval_print('posterior_num_runs', 'posterior_num_traces_each_run', 'posterior_num_traces', 'posterior_num_traces_correct', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
 
         self.assertEqual(posterior_num_traces, posterior_num_traces_correct)
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
@@ -161,7 +246,7 @@ class ModelTestCase(unittest.TestCase):
         self._model.learn_inference_network(num_traces=training_traces, trace_store_dir=store_dir, batch_size=16, valid_batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
         shutil.rmtree(store_dir)
 
-        util.debug('store_dir', 'store_files', 'store_traces_per_file', 'training_traces')
+        util.eval_print('store_dir', 'store_files', 'store_traces_per_file', 'training_traces')
 
         self.assertTrue(True)
 
@@ -209,7 +294,7 @@ class ModelWithReplacementTestCase(unittest.TestCase):
         trace_length_min = float(trace_length_dist.min)
         trace_length_max = (trace_length_dist.max)
 
-        util.debug('num_traces', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max', 'trace_length_max_correct')
+        util.eval_print('num_traces', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max', 'trace_length_max_correct')
 
         self.assertAlmostEqual(trace_length_mean, trace_length_mean_correct, places=0)
         self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)
@@ -254,7 +339,7 @@ class ModelObservationStyle1TestCase(unittest.TestCase):
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        util.eval_print('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
 
         self.assertAlmostEqual(posterior_mean_unweighted, prior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev_unweighted, prior_stddev_correct, places=0)
@@ -300,7 +385,7 @@ class ModelObservationStyle2TestCase(unittest.TestCase):
         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        util.eval_print('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
 
         self.assertAlmostEqual(posterior_mean_unweighted, prior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev_unweighted, prior_stddev_correct, places=0)

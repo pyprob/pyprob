@@ -104,7 +104,7 @@ def fast_np_random_choice(values, probs_cumsum):
     return values[min(np.searchsorted(probs_cumsum, random.random()), len(values) - 1)]
 
 
-def debug(*expressions):
+def eval_print(*expressions):
     print('\n\n' + colored(inspect.stack()[1][3], 'white', attrs=['bold']))
     frame = sys._getframe(1)
     max_str_length = 0
@@ -190,7 +190,7 @@ def empirical_to_categorical(empirical_dist, max_val=None):
         max_val = int(empirical_dist.max)
     probs = torch.zeros(max_val + 1)
     for i in range(empirical_dist.length):
-        val = empirical_dist.values[i]
+        val = empirical_dist._get_value(i)
         if val <= max_val:
-            probs[val] = float(empirical_dist.weights[i])
+            probs[val] = float(empirical_dist._get_weight(i))
     return Categorical(probs)

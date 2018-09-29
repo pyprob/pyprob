@@ -28,10 +28,9 @@ class Model():
             trace = state.end_trace(result)
             yield trace
 
-    def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=None, silent=False, observe=None, *args, **kwargs):
+    def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=None, silent=False, observe=None, file_name=None, *args, **kwargs):
         generator = self._trace_generator(trace_mode=trace_mode, prior_inflation=prior_inflation, inference_engine=inference_engine, inference_network=inference_network, observe=observe, *args, **kwargs)
-        traces = []
-        log_weights = []
+        traces = Empirical(file_name=file_name)
         time_start = time.time()
         if (util._verbosity > 1) and not silent:
             len_str_num_traces = len(str(num_traces))
@@ -46,33 +45,37 @@ class Model():
                     print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
                     sys.stdout.flush()
             trace = next(generator)
-            if map_func is not None:
-                traces.append(map_func(trace))
+            if trace_mode == TraceMode.PRIOR:
+                log_weight = 1.
             else:
-                traces.append(trace)
-            log_weights.append(trace.log_importance_weight)
+                log_weight = trace.log_importance_weight
+            if map_func is not None:
+                trace = map_func(trace)
+            traces.add(trace, log_weight)
         if (util._verbosity > 1) and not silent:
             print()
-        return traces, log_weights
+        traces.finalize()
+        return traces
 
-    def prior_traces(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=None, *args, **kwargs):
-        traces, _ = self._traces(num_traces=num_traces, trace_mode=TraceMode.PRIOR, prior_inflation=prior_inflation, map_func=map_func, *args, **kwargs)
-        return Empirical(traces, name='Prior, num_traces={:,}'.format(num_traces))
+    def prior_traces(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=None, file_name=None, *args, **kwargs):
+        prior = self._traces(num_traces=num_traces, trace_mode=TraceMode.PRIOR, prior_inflation=prior_inflation, map_func=map_func, file_name=file_name, *args, **kwargs)
+        prior.rename('Prior, num_traces={:,}'.format(num_traces))
+        return prior
 
-    def prior_distribution(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=lambda trace: trace.result, *args, **kwargs):
-        return self.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, map_func=map_func, *args, **kwargs)
+    def prior_distribution(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=lambda trace: trace.result, file_name=None, *args, **kwargs):
+        return self.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, map_func=map_func, file_name=file_name, *args, **kwargs)
 
-    def posterior_traces(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=None, observe=None, *args, **kwargs):
+    def posterior_traces(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=None, observe=None, file_name=None, *args, **kwargs):
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
-            traces, log_weights = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, map_func=map_func, observe=observe, *args, **kwargs)
-            name = 'Posterior, importance sampling (prior as proposal, num_traces: {:,})'.format(num_traces)
+            posterior = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, map_func=map_func, observe=observe, file_name=file_name, *args, **kwargs)
+            posterior.rename('Posterior, importance sampling (prior as proposal, num_traces: {:,})'.format(num_traces))
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             if self._inference_network is None:
                 raise RuntimeError('Cannot run inference engine IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK because no inference network for this model is available. Use learn_inference_network or load_inference_network first.')
-            traces, log_weights = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=self._inference_network, map_func=map_func, observe=observe, *args, **kwargs)
-            name = 'Posterior, importance sampling with inference network (learned proposal, num_traces: {:,}, training_traces: {})'.format(num_traces, self._inference_network._total_train_traces)
+            posterior = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=self._inference_network, map_func=map_func, observe=observe, file_name=file_name, *args, **kwargs)
+            posterior.rename('Posterior, importance sampling with inference network (learned proposal, num_traces: {:,}, training_traces: {})'.format(num_traces, self._inference_network._total_train_traces))
         else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
-            traces = []
+            posterior = Empirical(file_name=file_name)
             if initial_trace is None:
                 current_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, observe=observe, *args, **kwargs))
             else:
@@ -113,19 +116,19 @@ class Model():
                     traces_accepted += 1
                     current_trace = candidate_trace
                 if map_func is not None:
-                    traces.append(map_func(current_trace))
+                    posterior.add(map_func(current_trace))
                 else:
-                    traces.append(current_trace)
+                    posterior.add(current_trace)
             if util._verbosity > 1:
                 print()
 
-            log_weights = None
-            name = 'Posterior, {} Metropolis Hastings, num_traces={:,}, accepted={:,.2f}%, sample_reuse={:,.2f}%'.format('lightweight' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'random-walk', num_traces, 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all)
+            posterior.finalize()
+            posterior.rename('Posterior, {} Metropolis Hastings, num_traces={:,}, accepted={:,.2f}%, sample_reuse={:,.2f}%'.format('lightweight' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'random-walk', num_traces, 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all))
 
-        return Empirical(traces, log_weights, name=name)
+        return posterior
 
-    def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, *args, **kwargs):
-        return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, *args, **kwargs)
+    def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, *args, **kwargs):
+        return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, file_name=file_name, *args, **kwargs)
 
     def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, trace_store_dir=None, observe_embeddings={}, batch_size=64, valid_batch_size=64, valid_interval=5000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name=None, auto_save_interval_sec=600):
         if self._inference_network is None:

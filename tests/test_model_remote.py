@@ -33,7 +33,7 @@ class ModelRemoteSetDefaultsAndAddressesTestCase(unittest.TestCase):
         prior = self._model.prior_distribution(samples)
         prior_mean = float(prior.mean)
         prior_stddev = float(prior.stddev)
-        util.debug('samples', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
+        util.eval_print('samples', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
 
         self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
@@ -46,7 +46,7 @@ class ModelRemoteSetDefaultsAndAddressesTestCase(unittest.TestCase):
         addresses_controlled = [s.address for s in trace.variables_controlled]
         addresses_all = [s.address for s in trace.variables]
 
-        util.debug('addresses_controlled', 'addresses_controlled_correct', 'addresses_all', 'addresses_all_correct')
+        util.eval_print('addresses_controlled', 'addresses_controlled_correct', 'addresses_all', 'addresses_all_correct')
 
         self.assertEqual(addresses_controlled, addresses_controlled_correct)
         self.assertEqual(addresses_all, addresses_all_correct)

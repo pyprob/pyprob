@@ -36,13 +36,13 @@ class TraceTestCase(unittest.TestCase):
         uncontrolled_correct = 3
         observed_correct = 5
 
-        trace = self._model._traces(1)[0][0]
+        trace = self._model._traces(1)[0]
         controlled = len(trace.variables_controlled)
         uncontrolled = len(trace.variables_uncontrolled)
         observed = len(trace.variables_observed)
         observed_val = 'val' in trace.named_variables
 
-        util.debug('controlled', 'controlled_correct', 'uncontrolled', 'uncontrolled_correct', 'observed', 'observed_correct', 'observed_val')
+        util.eval_print('controlled', 'controlled_correct', 'uncontrolled', 'uncontrolled_correct', 'observed', 'observed_correct', 'observed_val')
 
         self.assertEqual(controlled, controlled_correct)
         self.assertEqual(uncontrolled, uncontrolled_correct)

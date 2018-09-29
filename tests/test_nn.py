@@ -19,7 +19,7 @@ class NNTestCase(unittest.TestCase):
         output_batch = nn(input_batch)
         output_batch_shape = list(output_batch.size())
 
-        util.debug('input_shape', 'output_shape', 'batch_size', 'input_batch_shape', 'output_batch_shape', 'output_batch_shape_correct')
+        util.eval_print('input_shape', 'output_shape', 'batch_size', 'input_batch_shape', 'output_batch_shape', 'output_batch_shape_correct')
 
         self.assertEqual(output_batch_shape, output_batch_shape_correct)
 
@@ -35,7 +35,7 @@ class NNTestCase(unittest.TestCase):
         output_batch = nn(input_batch)
         output_batch_shape = list(output_batch.size())
 
-        util.debug('input_shape', 'output_shape', 'batch_size', 'input_batch_shape', 'output_batch_shape', 'output_batch_shape_correct')
+        util.eval_print('input_shape', 'output_shape', 'batch_size', 'input_batch_shape', 'output_batch_shape', 'output_batch_shape_correct')
 
         self.assertEqual(output_batch_shape, output_batch_shape_correct)
 
@@ -51,7 +51,7 @@ class NNTestCase(unittest.TestCase):
         output_batch = nn(input_batch)
         output_batch_shape = list(output_batch.size())
 
-        util.debug('input_shape', 'output_shape', 'batch_size', 'input_batch_shape', 'output_batch_shape', 'output_batch_shape_correct')
+        util.eval_print('input_shape', 'output_shape', 'batch_size', 'input_batch_shape', 'output_batch_shape', 'output_batch_shape_correct')
 
         self.assertEqual(output_batch_shape, output_batch_shape_correct)
 

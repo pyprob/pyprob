@@ -17,7 +17,7 @@ class StateTestCase(unittest.TestCase):
     def test_address(self):
         address = self._sample_address()
         address_correct = '4__test_address__address'
-        util.debug('address', 'address_correct')
+        util.eval_print('address', 'address_correct')
         self.assertEqual(address, address_correct)
 
 
@@ -63,7 +63,7 @@ class PriorInflationTestCase(unittest.TestCase):
         normal_prior_inflated_mean = float(normal_prior_inflated.mean)
         normal_prior_inflated_stddev = float(normal_prior_inflated.stddev)
 
-        util.debug('samples', 'categorical_prior_mean', 'categorical_prior_mean_correct', 'categorical_prior_stddev', 'categorical_prior_stddev_correct', 'categorical_prior_inflated_mean', 'categorical_prior_inflated_mean_correct', 'categorical_prior_inflated_stddev', 'categorical_prior_inflated_stddev_correct', 'normal_prior_mean', 'normal_prior_mean_correct', 'normal_prior_stddev', 'normal_prior_stddev_correct', 'normal_prior_inflated_mean', 'normal_prior_inflated_mean_correct', 'normal_prior_inflated_stddev', 'normal_prior_inflated_stddev_correct')
+        util.eval_print('samples', 'categorical_prior_mean', 'categorical_prior_mean_correct', 'categorical_prior_stddev', 'categorical_prior_stddev_correct', 'categorical_prior_inflated_mean', 'categorical_prior_inflated_mean_correct', 'categorical_prior_inflated_stddev', 'categorical_prior_inflated_stddev_correct', 'normal_prior_mean', 'normal_prior_mean_correct', 'normal_prior_stddev', 'normal_prior_stddev_correct', 'normal_prior_inflated_mean', 'normal_prior_inflated_mean_correct', 'normal_prior_inflated_stddev', 'normal_prior_inflated_stddev_correct')
 
         self.assertAlmostEqual(categorical_prior_mean, categorical_prior_mean_correct, places=0)
         self.assertAlmostEqual(categorical_prior_stddev, categorical_prior_stddev_correct, places=0)

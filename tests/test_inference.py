@@ -114,7 +114,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_effective_sample_size = float(posterior.effective_sample_size)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
+        util.eval_print('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
         add_importance_sampling_kl_divergence(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean_unweighted, prior_mean_correct, places=0)
@@ -129,7 +129,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
-        posterior_effective_sample_size_min = samples * 0.6
+        posterior_effective_sample_size_min = samples * 0.5
 
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs0': {'dim': 256, 'depth': 1}, 'obs1': {'dim': 256, 'depth': 1}})
 
@@ -144,7 +144,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_effective_sample_size = float(posterior.effective_sample_size)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
+        util.eval_print('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
         add_importance_sampling_with_inference_network_kl_divergence(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
@@ -167,7 +167,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev = float(posterior.stddev)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        util.eval_print('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
         add_lightweight_metropolis_hastings_kl_divergence(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
@@ -189,7 +189,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev = float(posterior.stddev)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        util.eval_print('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
         add_random_walk_metropolis_hastings_kl_divergence(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
@@ -233,7 +233,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
         prior_mean_correct = 1.
         prior_stddev_correct = math.sqrt(5)
-        posterior_effective_sample_size_min = samples * 0.005
+        posterior_effective_sample_size_min = samples * 0.002
 
         start = time.time()
         posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
@@ -246,7 +246,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_effective_sample_size = float(posterior.effective_sample_size)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
+        util.eval_print('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
         add_importance_sampling_kl_divergence(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean_unweighted, prior_mean_correct, places=0)
@@ -276,7 +276,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_effective_sample_size = float(posterior.effective_sample_size)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
+        util.eval_print('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
         add_importance_sampling_with_inference_network_kl_divergence(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
@@ -299,7 +299,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_stddev = float(posterior.stddev)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        util.eval_print('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
         add_lightweight_metropolis_hastings_kl_divergence(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
@@ -321,7 +321,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_stddev = float(posterior.stddev)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        util.debug('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+        util.eval_print('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
         add_random_walk_metropolis_hastings_kl_divergence(kl_divergence)
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
@@ -393,7 +393,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
         kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(Categorical(i + util._epsilon), Categorical(j + util._epsilon)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
 
-        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'l2_distance', 'kl_divergence')
+        util.eval_print('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'l2_distance', 'kl_divergence')
         add_importance_sampling_kl_divergence(kl_divergence)
 
         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
@@ -418,7 +418,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
         kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(Categorical(i + util._epsilon), Categorical(j + util._epsilon)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
 
-        util.debug('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'l2_distance', 'kl_divergence')
+        util.eval_print('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'l2_distance', 'kl_divergence')
         add_importance_sampling_with_inference_network_kl_divergence(kl_divergence)
 
         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
@@ -439,7 +439,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
         kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(Categorical(i + util._epsilon), Categorical(j + util._epsilon)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
 
-        util.debug('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'l2_distance', 'kl_divergence')
+        util.eval_print('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'l2_distance', 'kl_divergence')
         add_lightweight_metropolis_hastings_kl_divergence(kl_divergence)
 
         self.assertLess(l2_distance, 3)
@@ -459,7 +459,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         l2_distance = float(F.pairwise_distance(posterior_mean, posterior_mean_correct).sum())
         kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(Categorical(i + util._epsilon), Categorical(j + util._epsilon)) for (i, j) in zip(posterior_mean, posterior_mean_correct)]))
 
-        util.debug('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'l2_distance', 'kl_divergence')
+        util.eval_print('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'l2_distance', 'kl_divergence')
         add_random_walk_metropolis_hastings_kl_divergence(kl_divergence)
 
         self.assertLess(l2_distance, 3)
@@ -524,7 +524,7 @@ class BranchingTestCase(unittest.TestCase):
         posterior_probs_correct = util.to_numpy(posterior_correct._probs)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(posterior, posterior_correct))
 
-        util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+        util.eval_print('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
         add_importance_sampling_kl_divergence(kl_divergence)
 
         self.assertLess(kl_divergence, 0.75)
@@ -543,7 +543,7 @@ class BranchingTestCase(unittest.TestCase):
     #     posterior_probs_correct = util.to_numpy(posterior_correct._probs)
     #     kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(posterior, posterior_correct))
     #
-    #     util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+    #     util.eval_print('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
     #     add_importance_sampling_with_inference_network_kl_divergence(kl_divergence)
     #
     #     self.assertLess(kl_divergence, 0.75)
@@ -560,7 +560,7 @@ class BranchingTestCase(unittest.TestCase):
         posterior_probs_correct = util.to_numpy(posterior_correct._probs)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(posterior, posterior_correct))
 
-        util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+        util.eval_print('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
         add_lightweight_metropolis_hastings_kl_divergence(kl_divergence)
 
         self.assertLess(kl_divergence, 0.75)
@@ -577,7 +577,7 @@ class BranchingTestCase(unittest.TestCase):
         posterior_probs_correct = util.to_numpy(posterior_correct._probs)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(posterior, posterior_correct))
 
-        util.debug('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
+        util.eval_print('samples', 'posterior_probs', 'posterior_probs_correct', 'kl_divergence')
         add_random_walk_metropolis_hastings_kl_divergence(kl_divergence)
 
         self.assertLess(kl_divergence, 0.75)
@@ -628,7 +628,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         accuracy = sum([1 if map_estimates[i] == test_letters[i] else 0 for i in range(len(test_letters))])/len(test_letters)
         kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(util.empirical_to_categorical(p, max_val=len(self._model._alphabet)-1), tp) for (p, tp) in zip(posteriors, self._true_posteriors)]))
 
-        util.debug('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
+        util.eval_print('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
         add_importance_sampling_kl_divergence(kl_divergence)
 
         self.assertGreater(accuracy, 0.9)
@@ -652,7 +652,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         accuracy = sum([1 if map_estimates[i] == test_letters[i] else 0 for i in range(len(test_letters))])/len(test_letters)
         kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(util.empirical_to_categorical(p, max_val=len(self._model._alphabet)-1), tp) for (p, tp) in zip(posteriors, self._true_posteriors)]))
 
-        util.debug('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
+        util.eval_print('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
         add_importance_sampling_with_inference_network_kl_divergence(kl_divergence)
 
         self.assertGreater(accuracy, 0.9)
@@ -675,7 +675,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         accuracy = sum([1 if map_estimates[i] == test_letters[i] else 0 for i in range(len(test_letters))])/len(test_letters)
         kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(util.empirical_to_categorical(p, max_val=len(self._model._alphabet)-1), tp) for (p, tp) in zip(posteriors, self._true_posteriors)]))
 
-        util.debug('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
+        util.eval_print('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
         add_lightweight_metropolis_hastings_kl_divergence(kl_divergence)
 
         self.assertGreater(accuracy, 0.9)
@@ -698,7 +698,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         accuracy = sum([1 if map_estimates[i] == test_letters[i] else 0 for i in range(len(test_letters))])/len(test_letters)
         kl_divergence = float(sum([pyprob.distributions.Distribution.kl_divergence(util.empirical_to_categorical(p, max_val=len(self._model._alphabet)-1), tp) for (p, tp) in zip(posteriors, self._true_posteriors)]))
 
-        util.debug('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
+        util.eval_print('samples', 'test_letters', 'map_estimates', 'accuracy', 'kl_divergence')
         add_random_walk_metropolis_hastings_kl_divergence(kl_divergence)
 
         self.assertGreater(accuracy, 0.9)

@@ -64,8 +64,9 @@ class Graph():
 
         self.address_stats = OrderedDict()
         address_id_to_variable = {}
-        for trace, trace_weight in trace_dist:
-            trace_weight = float(trace_weight)
+        for i in range(trace_dist.length):
+            trace = trace_dist._get_value(i)
+            trace_weight = float(trace_dist._get_weight(i))
             for variable in trace.variables:
                 address = variable.address_base if use_address_base else variable.address
                 if address not in self.address_stats:
@@ -81,8 +82,9 @@ class Graph():
                     self.address_stats[address]['weight'] += trace_weight
 
         self.trace_stats = OrderedDict()
-        for trace, trace_weight in trace_dist:
-            trace_weight = float(trace_weight)
+        for i in range(trace_dist.length):
+            trace = trace_dist._get_value(i)
+            trace_weight = float(trace_dist._get_weight(i))
             trace_str = ''.join([variable.address_base if use_address_base else variable.address for variable in trace.variables])
             if trace_str not in self.trace_stats:
                 if trace_str in self.trace_ids:

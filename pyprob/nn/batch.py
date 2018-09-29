@@ -45,7 +45,7 @@ class BatchGenerator():
     def get_batch(self, length=64, discard_source=False, *args, **kwargs):
         if self._trace_store_dir is None:
             # There is no trace store on disk, sample traces online from the model
-            traces, _ = self._model._traces(length, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs)
+            traces = self._model._traces(length, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs).get_values()
         else:
             # There is a trace store on disk, load traces from disk
             if discard_source:
@@ -87,7 +87,7 @@ class BatchGenerator():
         f = 0
         done = False
         while not done:
-            traces, _ = self._model._traces(traces_per_file, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, *args, **kwargs)
+            traces = self._model._traces(traces_per_file, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, *args, **kwargs).get_values()
             file_name = os.path.join(trace_store_dir, 'pyprob_traces_{}_{}'.format(traces_per_file, str(uuid.uuid4())))
             self._save_traces(traces, file_name)
             f += 1

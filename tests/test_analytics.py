@@ -29,8 +29,8 @@ class AnalyticsTestCase(unittest.TestCase):
             def forward(self):
                 mu = self.marsaglia(self.prior_mean, self.prior_stddev)
                 likelihood = Normal(mu, self.likelihood_stddev)
+                pyprob.observe(likelihood, name='obs0')
                 pyprob.observe(likelihood, name='obs1')
-                pyprob.observe(likelihood, name='obs2')
                 return mu
 
         self._model = GaussianWithUnknownMeanMarsaglia()
@@ -49,7 +49,7 @@ class AnalyticsTestCase(unittest.TestCase):
         trace_length_min = stats['trace_length_min']
         trace_length_max = stats['trace_length_max']
 
-        util.debug('num_traces', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max')
+        util.eval_print('num_traces', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max')
 
         self.assertAlmostEqual(trace_length_mean, trace_length_mean_correct, places=0)
         self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)
@@ -62,13 +62,13 @@ class AnalyticsTestCase(unittest.TestCase):
         trace_length_min_correct = 4
 
         analytics = Analytics(self._model)
-        _, stats = analytics.posterior_graph(num_traces, observe={'obs1': 8, 'obs2': 9})
+        _, stats = analytics.posterior_graph(num_traces, observe={'obs0': 8, 'obs1': 9})
         trace_length_mean = stats['trace_length_mean']
         trace_length_stddev = stats['trace_length_stddev']
         trace_length_min = stats['trace_length_min']
         trace_length_max = stats['trace_length_max']
 
-        util.debug('num_traces', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max')
+        util.eval_print('num_traces', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max')
 
         self.assertAlmostEqual(trace_length_mean, trace_length_mean_correct, places=0)
         self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)

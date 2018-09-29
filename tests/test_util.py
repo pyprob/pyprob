@@ -25,7 +25,7 @@ class UtilTestCase(unittest.TestCase):
             sample = dist.sample()
             deterministic_samples.append(float(sample))
 
-        util.debug('samples', 'stochastic_samples', 'deterministic_samples')
+        util.eval_print('samples', 'stochastic_samples', 'deterministic_samples')
         self.assertTrue(not all(sample == stochastic_samples[0] for sample in stochastic_samples))
         self.assertTrue(all(sample == deterministic_samples[0] for sample in deterministic_samples))
 

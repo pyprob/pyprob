@@ -1,245 +1,356 @@
 import torch
 import numpy as np
-import math
-import random
 import copy
-from termcolor import colored
+import shelve
 import collections
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from . import Distribution
+from . import Distribution, Categorical
 from .. import util
 
 
 class Empirical(Distribution):
-    def __init__(self, values, log_weights=None, weights=None, sorted_by_weights=True, name='Empirical'):
-        self.length = len(values)
-        if isinstance(values, list):
-            self.values = values
+    def __init__(self, values=None, log_weights=None, weights=None, file_name=None, file_sync_timeout=1000, name='Empirical'):
+        if file_name is None:
+            self._on_disk = False
+            self._values = []
+            self._log_weights = []
+            self._categorical = None
+            self._length = 0
         else:
-            self.values = [values[i] for i in range(self.length)]
-        self.sorted_by_weights = sorted_by_weights
-        if self.length == 0:
-            super().__init__(name + ' (Empty)')
-        else:
-            if log_weights is not None:
-                self.log_weights = util.to_tensor(log_weights, dtype=torch.float64).view(-1)
-                self.weights = torch.exp(self.log_weights - torch.logsumexp(self.log_weights, dim=0))
-                self._uniform_weights = torch.eq(self.weights, self.weights[0]).all()
-            elif weights is not None:
-                self.weights = util.to_tensor(weights, dtype=torch.float64).view(-1)
-                self.weights = self.weights / self.weights.sum()
-                self._uniform_weights = torch.eq(self.weights, self.weights[0]).all()
-                self.log_weights = torch.log(self.weights)
+            self._on_disk = True
+            self._file_name = file_name
+            self._shelf = shelve.open(self._file_name, writeback=True)
+            if 'log_weights' in self._shelf:
+                self._log_weights = self._shelf['log_weights']
+                self._file_last_key = self._shelf['last_key']
+                self._categorical = Categorical(logits=self._log_weights)
+                self._length = len(self._log_weights)
             else:
-                # assume uniform distribution if no log_weights or weights are given
-                self.weights = util.to_tensor(torch.zeros(self.length), dtype=torch.float64).fill_(1./self.length)
-                self.log_weights = torch.zeros(self.length).fill_(-math.log(self.length))
-                self._uniform_weights = True
+                self._log_weights = []
+                self._file_last_key = -1
+                self._categorical = None
+                self._length = 0
+            self._file_sync_timeout = file_sync_timeout
+            self._file_sync_countdown = self._file_sync_timeout
+        self._finalized = False
+        self._closed = False
+        self._mean = None
+        self._variance = None
+        self._mode = None
+        self._min = None
+        self._max = None
+        self._effective_sample_size = None
+        if values is not None:
+            self.add_sequence(values, log_weights, weights)
+            self.finalize()
+        super().__init__(name)
 
-            if sorted_by_weights and not self._uniform_weights:
-                self.weights, indices = torch.sort(self.weights, descending=True)
-                log_weights = util.to_tensor([self.log_weights[int(i)] for i in indices], dtype=torch.float64).view(-1)
-                self.values = [values[int(i)] for i in indices]
+    def __enter__(self):
+        return self
 
-            self._weights_numpy = self.weights.cpu().numpy()
-            self._weights_numpy_cumsum = (self._weights_numpy / self._weights_numpy.sum()).cumsum()
-            self._mean = None
-            self._variance = None
-            self._mode = None
-            self._min = None
-            self._max = None
-            self._effective_sample_size = None
-            super().__init__(name)
+    def __exit__(self, exception_type, exception_value, traceback):
+        if not self._closed:
+            self.close()
+
+    def __del__(self):
+        if not self._closed:
+            self.close()
 
     def __len__(self):
-        return self.length
+        return self._length
 
-    def __repr__(self):
-        return 'Empirical(name:{}, length:{})'.format(self.name, self.length)
+    @property
+    def length(self):
+        return self._length
 
-    def __getitem__(self, index):
-        if isinstance(index, slice):
-            return Empirical(self.values[index], self.log_weights[index])
+    def close(self):
+        if self._on_disk:
+            self.finalize()
+            if not self._closed:
+                self._shelf.close()
+                self._closed = True
+
+    def copy(self, file_name=None):
+        self._check_finalized()
+        if self._on_disk:
+            if file_name is None:
+                print('Copying Empirical(file_name: {}) to Empirical(on memory)...'.format(self._file_name))
+                return Empirical(values=self.get_values(), log_weights=self._log_weights)
+            else:
+                print('Copying Empirical(file_name: {}) to Empirical(file_name: {})...'.format(self._file_name, file_name))
+                ret = Empirical(file_name=file_name)
+                for i in range(self._length):
+                    ret.add(value=self._shelf[str(i)], log_weight=self._log_weights[i])
+                ret.finalize()
+                return ret
         else:
-            return self.values[index]
+            if file_name is None:
+                print('Copying Empirical(on memory) to Empirical(on memory)...')
+                return copy.copy(self)
+            else:
+                print('Copying Empirical(on memory) to Empirical(file_name: {})...'.format(file_name))
+                return Empirical(values=self._values, log_weights=self._log_weights, file_name=file_name)
 
-    def __iter__(self):
-        for i in range(len(self.values)):
-            yield self.values[i], self.weights[i]
+    def finalize(self):
+        self._categorical = Categorical(logits=self._log_weights)
+        self._length = len(self._log_weights)
+        if self._on_disk:
+            self._shelf['log_weights'] = self._log_weights
+            self._shelf['last_key'] = self._file_last_key
+            self._shelf.sync()
+        self._finalized = True
+
+    def _check_finalized(self):
+        if not self._finalized:
+            raise RuntimeError('Empirical not finalized. Call finalize first.')
+
+    def add(self, value, log_weight=None, weight=None):
+        self._finalized = False
+        self._mean = None
+        self._variance = None
+        self._mode = None
+        self._min = None
+        self._max = None
+        self._effective_sample_size = None
+        if log_weight is not None:
+            self._log_weights.append(util.to_tensor(log_weight))
+        elif weight is not None:
+            self._log_weights.append(torch.log(util.to_tensor(weight)))
+        else:
+            self._log_weights.append(util.to_tensor(0.))
+
+        if self._on_disk:
+            self._file_last_key += 1
+            self._shelf[str(self._file_last_key)] = value
+            self._file_sync_countdown -= 1
+            if self._file_sync_countdown == 0:
+                self.finalize()
+                self._file_sync_countdown = self._file_sync_timeout
+        else:
+            self._values.append(value)
+
+    def add_sequence(self, values, log_weights=None, weights=None):
+        if log_weights is not None:
+            for i in range(len(values)):
+                self.add(values[i], log_weight=log_weights[i])
+        elif weights is not None:
+            for i in range(len(values)):
+                self.add(values[i], weight=weights[i])
+        else:
+            for i in range(len(values)):
+                self.add(values[i])
 
     def rename(self, name):
         self.name = name
         return self
 
-    def sample(self):
-        if self.length == 0:
-            raise RuntimeError('Empirical distribution instance is empty.')
-        if self._uniform_weights:
-            return random.choice(self.values)
+    def _get_value(self, index):
+        if self._on_disk:
+            if index < 0:
+                return self._get_value(self._length + index)
+            return self._shelf[str(index)]
         else:
-            return util.fast_np_random_choice(self.values, self._weights_numpy_cumsum)
+            return self._values[index]
+
+    def _get_log_weight(self, index):
+        return self._categorical.logits[index]
+
+    def _get_weight(self, index):
+        return self._categorical.probs[index]
+
+    def get_values(self):
+        self._check_finalized()
+        if self._on_disk:
+            return [self._shelf[str(i)] for i in range(self._length)]
+        else:
+            return self._values
+
+    def sample(self):
+        self._check_finalized()
+        index = int(self._categorical.sample())
+        return self._get_value(index)
+
+    def __iter__(self):
+        self._check_finalized()
+        for i in range(self._length):
+            yield self._get_value(i)
+
+    def __getitem__(self, index):
+        self._check_finalized()
+        if isinstance(index, slice):
+            if self._on_disk:
+                raise NotImplementedError()
+            return Empirical(values=self._values[index], log_weights=self._log_weights[index])
+        else:
+            return self._get_value(index)
 
     def expectation(self, func):
-        if self.length == 0:
-            raise RuntimeError('Empirical distribution instance is empty.')
-        if self._uniform_weights:
-            return util.to_tensor(sum(map(func, self.values)) / self.length)
+        self._check_finalized()
+        ret = 0.
+        if self._on_disk:
+            for i in range(self._length):
+                ret += util.to_tensor(func(self._shelf[str(i)]), dtype=torch.float64) * self._categorical.probs[i].double()
         else:
-            ret = 0.
-            for i in range(self.length):
-                ret += util.to_tensor(func(self.values[i]), dtype=torch.float64) * self.weights[i]
-            return util.to_tensor(ret)
+            for i in range(self._length):
+                ret += util.to_tensor(func(self._values[i]), dtype=torch.float64) * self._categorical.probs[i].double()
+        return util.to_tensor(ret)
 
     def map(self, func):
-        if self.length == 0:
-            return self
-        ret = copy.copy(self)
-        ret.values = list(map(func, self.values))
-        ret._mean = None
-        ret._variance = None
-        ret._mode = None
-        ret._min = None
-        ret._max = None
-        ret._effective_sample_size = None
-        return ret
-
-    def filter(self, func):
-        if self.length == 0:
-            return self
-        filtered_values = []
-        filtered_weights = []
-        for i in range(len(self.values)):
-            value = self.values[i]
-            if func(value):
-                filtered_values.append(value)
-                filtered_weights.append(self.weights[i])
-        return Empirical(filtered_values, weights=filtered_weights)
-
-    @property
-    def min(self):
-        if self.length == 0:
-            raise RuntimeError('Empirical distribution instance is empty.')
-        if self._min is None:
-            try:
-                sorted_values = sorted(map(float, self.values))
-                self._min = sorted_values[0]
-                self._max = sorted_values[-1]
-            except:
-                raise RuntimeError('Cannot compute the minimum of values in this Empirical. Make sure the distribution is over values that are scalar or castable to scalar, e.g., a PyTorch tensor of one element.')
-        return self._min
-
-    @property
-    def max(self):
-        if self.length == 0:
-            raise RuntimeError('Empirical distribution instance is empty.')
-        if self._max is None:
-            try:
-                sorted_values = sorted(map(float, self.values))
-                self._min = sorted_values[0]
-                self._max = sorted_values[-1]
-            except:
-                raise RuntimeError('Cannot compute the maximum of values in this Empirical. Make sure the distribution is over values that are scalar or castable to scalar, e.g., a PyTorch tensor of one element.')
-        return self._max
+        self._check_finalized()
+        if self._on_disk:
+            values = []
+            for i in range(self._length):
+                values.append(func(self._shelf[str(i)]))
+            return Empirical(values=values, log_weights=self._log_weights)
+        else:
+            ret = copy.copy(self)
+            ret._values = list(map(func, self._values))
+            ret._mean = None
+            ret._variance = None
+            ret._mode = None
+            ret._min = None
+            ret._max = None
+            ret._effective_sample_size = None
+            return ret
 
     @property
     def mean(self):
-        if self.length == 0:
-            raise RuntimeError('Empirical distribution instance is empty.')
         if self._mean is None:
             self._mean = self.expectation(lambda x: x)
         return self._mean
 
     @property
-    def mode(self):
-        if self.length == 0:
-            raise RuntimeError('Empirical distribution instance is empty.')
-        if self._uniform_weights:
-            print(colored('Warning: weights are uniform and there is no unique mode.', 'red', attrs=['bold']))
-        if self._mode is None:
-            if self.sorted_by_weights:
-                self._mode = self.values[0]
-            else:
-                _, max_index = self.weights.max(-1)
-                self._mode = self.values[int(max_index)]
-        return self._mode
-
-    @property
     def variance(self):
-        if self.length == 0:
-            raise RuntimeError('Empirical distribution instance is empty.')
         if self._variance is None:
             mean = self.mean
             self._variance = self.expectation(lambda x: (x - mean)**2)
         return self._variance
 
     @property
+    def mode(self):
+        self._check_finalized()
+        # if self._uniform_weights:
+        #     print(colored('Warning: weights are uniform and there is no unique mode.', 'red', attrs=['bold']))
+        if self._mode is None:
+            _, max_index = util.to_tensor(self._log_weights).max(-1)
+            self._mode = self._get_value(int(max_index))
+        return self._mode
+
+    @property
     def effective_sample_size(self):
-        if self.length == 0:
-            raise RuntimeError('Empirical distribution instance is empty.')
+        self._check_finalized()
         if self._effective_sample_size is None:
-            self._effective_sample_size = 1. / self.weights.pow(2).sum()
+            weights = util.to_tensor(self._log_weights).exp()
+            self._effective_sample_size = 1. / weights.pow(2).sum()
         return self._effective_sample_size
 
     def unweighted(self):
-        if self.length == 0:
-            raise RuntimeError('Empirical distribution instance is empty.')
-        return Empirical(self.values, name=self.name)
+        self._check_finalized()
+        if self._on_disk:
+            raise NotImplementedError()
+        else:
+            return Empirical(values=self._values, name=self.name)
 
-    def resample(self, samples):
-        if self.length == 0:
-            raise RuntimeError('Empirical distribution instance is empty.')
-        # TODO: improve this with a better resampling algorithm
-        return Empirical([self.sample() for i in range(samples)])
+    def _find_min_max(self):
+        try:
+            sorted_values = sorted(map(float, self.get_values()))
+            self._min = sorted_values[0]
+            self._max = sorted_values[-1]
+        except:
+            raise RuntimeError('Cannot compute the minimum and maximum of values in this Empirical. Make sure the distribution is over values that are scalar or castable to scalar, e.g., a PyTorch tensor of one element.')
+
+    @property
+    def min(self):
+        if self._min is None:
+            self._find_min_max()
+        return self._min
+
+    @property
+    def max(self):
+        if self._max is None:
+            self._find_min_max()
+        return self._max
 
     def combine_duplicates(self):
-        distribution = collections.defaultdict(float)
-        # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
-        hashable = util.is_hashable(self.values[0])
-        if hashable:
-            for i in range(self.length):
-                found = False
-                for key, value in distribution.items():
-                    if torch.equal(util.to_tensor(key), util.to_tensor(self.values[i])):
-                        # Differentiability warning: values[i] is discarded here. If we need to differentiate through all values, the gradients of values[i] and key should be tied here.
-                        distribution[key] = value + self.weights[i]
-                        found = True
-                if not found:
-                    distribution[self.values[i]] = self.weights[i]
-            values = list(distribution.keys())
-            weights = list(distribution.values())
-            return Empirical(values, weights=weights)
+        self._check_finalized()
+        if self._on_disk:
+            raise NotImplementedError()
         else:
-            raise RuntimeError('The values in this Empirical as not hashable. Combining of duplicates not currently supported.')
+            distribution = collections.defaultdict(float)
+            # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
+            hashable = util.is_hashable(self._values[0])
+            if hashable:
+                for i in range(self.length):
+                    found = False
+                    for key, value in distribution.items():
+                        if torch.equal(util.to_tensor(key), util.to_tensor(self._values[i])):
+                            # Differentiability warning: values[i] is discarded here. If we need to differentiate through all values, the gradients of values[i] and key should be tied here.
+                            distribution[key] = torch.logsumexp(torch.stack((value, self._log_weights[i])), dim=0)
+                            found = True
+                    if not found:
+                        distribution[self._values[i]] = self._log_weights[i]
+                values = list(distribution.keys())
+                log_weights = list(distribution.values())
+                return Empirical(values=values, log_weights=log_weights)
+            else:
+                raise RuntimeError('The values in this Empirical as not hashable. Combining of duplicates not currently supported.')
 
     @staticmethod
-    def combine(empirical_distributions):
+    def combine(empirical_distributions, file_name=None):
+        on_disk = empirical_distributions[0]._on_disk
         for dist in empirical_distributions:
+            if dist._on_disk != on_disk:
+                raise RuntimeError('Expecting all Empirical distributions to be on disk or in memory.')
             if not isinstance(dist, Empirical):
                 raise TypeError('Combination is only supported between Empirical distributions.')
 
-        values = []
-        log_weights = []
-        length = empirical_distributions[0].length
-        for dist in empirical_distributions:
-            if dist.length != length:
-                raise RuntimeError('Combination is only supported between Empirical distributions of equal length.')
-            values += dist.values
-            log_weights.append(dist.log_weights)
-        return Empirical(values, torch.cat(log_weights))
+        if on_disk:
+            if file_name is None:
+                raise RuntimeError('Expecting a target file_name for the combined Empirical.')
+            ret = Empirical(file_name=file_name)
+            for dist in empirical_distributions:
+                for i in range(dist._length):
+                    ret.add(value=dist._shelf[str(i)], log_weight=dist._log_weights[i])
+            ret.finalize()
+            return ret
+        else:
+            values = []
+            log_weights = []
+            length = empirical_distributions[0].length
+            for dist in empirical_distributions:
+                if dist.length != length:
+                    raise RuntimeError('Combination is only supported between Empirical distributions of equal length.')
+                values += dist._values
+                log_weights += dist._log_weights
+            return Empirical(values=values, log_weights=log_weights, file_name=file_name)
 
     def values_numpy(self):
+        self._check_finalized()
         try:  # This can fail in the case values are an iterable collection of non-numeric types (strings, etc.)
-            return torch.stack(self.values).cpu().numpy()
+            return torch.stack(self.get_values()).cpu().numpy()
         except:
             try:
-                return np.array(self.values)
+                return np.array(self.get_values())
             except:
                 raise RuntimeError('Cannot convert values to numpy.')
 
     def weights_numpy(self):
-        return self._weights_numpy
+        self._check_finalized()
+        return util.to_numpy(util.to_tensor(self._log_weights).exp())
+
+    def log_weights_numpy(self):
+        self._check_finalized()
+        return util.to_numpy(util.to_tensor(self._log_weights))
+
+    def resample(self, samples):
+        self._check_finalized()
+        # TODO: improve this with a better resampling algorithm
+        if self._on_disk:
+            raise NotImplementedError()
+        else:
+            return Empirical([self.sample() for i in range(samples)])
 
     def plot_histogram(self, figsize=(10, 5), xlabel=None, ylabel='Frequency', xticks=None, yticks=None, log_xscale=False, log_yscale=False, file_name=None, show=True, density=1, *args, **kwargs):
         if not show:
