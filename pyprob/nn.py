@@ -1760,7 +1760,7 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
         time_last_batch = time.time()
         iteration = 0
         trace = 0
-        last_validation_trace = 0# -valid_interval + 1  #modified by Lei to 0 for profiling!!!
+        last_validation_trace =  -valid_interval + 1  #modified by Lei to 0 for profiling!!!
         stop = False
         print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
         max_print_line_len = 0
@@ -1877,13 +1877,13 @@ class InferenceNetworkLSTMwithPreprocessing(nn.Module):
                 self._history_train_loss_trace.append(self._total_train_traces)
                 if trace - last_validation_trace > valid_interval:
                     print('\rComputing validation loss...', end='\r')
-                    traces_max_length=max(self._valid_batch.traces_lengths)
-                    time_steps_chosen= min(int(sum(self._valid_batch.traces_lengths)/self._valid_batch.length)+1, traces_max_length)#
-                    _, valid_loss = self.loss(self._valid_batch, time_steps_chosen)
+                    #traces_max_length=max(self._valid_batch.traces_lengths)
+                    #time_steps_chosen= min(int(sum(self._valid_batch.traces_lengths)/self._valid_batch.length)+1, traces_max_length)#
+                    _, valid_loss = self.loss(self._valid_batch)
                     if world_size>1:
                         self._val_loss= torch.tensor(valid_loss)
                         dist.all_reduce(self._val_loss)
-                        global_loss = self._val_loss.numpy()/world_size
+                        global_loss = self._val_loss.detach().numpy()/world_size
                         self._train_loss=torch.tensor(loss)
                         dist.all_reduce(self._train_loss)
                         aver_loss_train = self._train_loss.numpy()/world_size
