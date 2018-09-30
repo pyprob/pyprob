@@ -1,6 +1,6 @@
-FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
+FROM nvidia/cuda:9.2-cudnn7-devel-ubuntu18.04
 
-ENV PYTHON_VERSION=3.6
+ENV PYTHON_VERSION=3.7
 ENV CC=gcc-5
 ENV CXX=g++-5
 
@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         gcc-5 \
         g++-5 \
         curl \
+        python3-gdbm \
         ca-certificates &&\
     rm -rf /var/lib/apt/lists/*
 
@@ -24,6 +25,9 @@ RUN curl -o ~/miniconda.sh -O  https://repo.continuum.io/miniconda/Miniconda3-la
      ~/miniconda.sh -b -p /opt/conda && \
      rm ~/miniconda.sh
 ENV PATH /opt/conda/bin:$PATH
+
+# Enable dbm.gnu
+RUN cp /usr/lib/python3.7/lib-dynload/_gdbm.cpython-37m-x86_64-linux-gnu.so /opt/conda/lib/python3.7/lib-dynload/
 
 RUN pip install --upgrade pip
 RUN pip install 'torch==0.4.1.post2' 'torchvision==0.2.1'
