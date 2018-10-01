@@ -258,7 +258,7 @@ class Empirical(Distribution):
     def effective_sample_size(self):
         self._check_finalized()
         if self._effective_sample_size is None:
-            weights = util.to_tensor(self._log_weights).exp()
+            weights = self._categorical.probs
             self._effective_sample_size = 1. / weights.pow(2).sum()
         return self._effective_sample_size
 
@@ -354,11 +354,11 @@ class Empirical(Distribution):
 
     def weights_numpy(self):
         self._check_finalized()
-        return util.to_numpy(util.to_tensor(self._log_weights).exp())
+        return util.to_numpy(self._categorical.probs)
 
     def log_weights_numpy(self):
         self._check_finalized()
-        return util.to_numpy(util.to_tensor(self._log_weights))
+        return util.to_numpy(self._categorical.logits)
 
     def resample(self, samples):
         self._check_finalized()

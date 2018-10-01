@@ -154,6 +154,7 @@ class Analytics():
         stats = OrderedDict()
         stats['pyprob_version'] = __version__
         stats['torch_version'] = torch.__version__
+        stats['num_distribution_elements'] = len(trace_dist)
 
         print('Building graph...')
         if base_graph is not None:
@@ -182,7 +183,7 @@ class Analytics():
         trace_length_controlled_dist = trace_dist.map(lambda trace: trace.length_controlled).unweighted().rename('Trace length (controlled)')
         trace_execution_time_dist = trace_dist.map(lambda trace: trace.execution_time_sec).unweighted().rename('Trace execution time (s)')
 
-        stats['traces'] = len(trace_stats)
+        stats['trace_types'] = len(trace_stats)
         stats['trace_length_min'] = float(trace_length_dist.min)
         stats['trace_length_max'] = float(trace_length_dist.max)
         stats['trace_length_mean'] = float(trace_length_dist.mean)
