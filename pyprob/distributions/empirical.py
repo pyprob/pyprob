@@ -42,9 +42,11 @@ class Empirical(Distribution):
         self._min = None
         self._max = None
         self._effective_sample_size = None
+        self._uniform_weights = False
         if values is not None:
-            self.add_sequence(values, log_weights, weights)
-            self.finalize()
+            if len(values) > 0:
+                self.add_sequence(values, log_weights, weights)
+                self.finalize()
         super().__init__(name)
 
     def __enter__(self):
@@ -95,6 +97,7 @@ class Empirical(Distribution):
 
     def finalize(self):
         self._categorical = Categorical(logits=self._log_weights)
+        self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
         self._length = len(self._log_weights)
         if self._on_disk:
             self._shelf['log_weights'] = self._log_weights
@@ -214,6 +217,19 @@ class Empirical(Distribution):
             ret._max = None
             ret._effective_sample_size = None
             return ret
+
+    def filter(self, func):
+        self._check_finalized()
+        if self.length == 0:
+            return self
+        filtered_values = []
+        filtered_log_weights = []
+        for i in range(self._length):
+            value = self._get_value(i)
+            if func(value):
+                filtered_values.append(value)
+                filtered_log_weights.append(self._get_log_weight(i))
+        return Empirical(filtered_values, log_weights=filtered_log_weights)
 
     @property
     def mean(self):

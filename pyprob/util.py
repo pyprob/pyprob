@@ -84,6 +84,10 @@ def set_verbosity(v=2):
 def to_tensor(value, dtype=None):
     if dtype is None:
         dtype = _dtype
+    if type(value) == np.int64:
+        value = float(value)
+    elif type(value) == np.float32:
+        value = float(value)
     return torch.tensor(value).to(device=_device, dtype=dtype)
 
 

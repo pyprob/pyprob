@@ -178,10 +178,9 @@ class Analytics():
         for key, value in trace_stats.items():
             trace_weights.append(value['count'])
         trace_id_dist = Empirical(trace_ids, weights=trace_ids, name='Unique trace ID')
-        trace_dist_unweighted = trace_dist.unweighted()
-        trace_length_dist = trace_dist_unweighted.map(lambda trace: trace.length).rename('Trace length (all)')
-        trace_length_controlled_dist = trace_dist_unweighted.map(lambda trace: trace.length_controlled).rename('Trace length (controlled)')
-        trace_execution_time_dist = trace_dist_unweighted.map(lambda trace: trace.execution_time_sec).rename('Trace execution time (s)')
+        trace_length_dist = trace_dist.map(lambda trace: trace.length).unweighted().rename('Trace length (all)')
+        trace_length_controlled_dist = trace_dist.map(lambda trace: trace.length_controlled).unweighted().rename('Trace length (controlled)')
+        trace_execution_time_dist = trace_dist.map(lambda trace: trace.execution_time_sec).unweighted().rename('Trace execution time (s)')
 
         stats['traces'] = len(trace_stats)
         stats['trace_length_min'] = float(trace_length_dist.min)
