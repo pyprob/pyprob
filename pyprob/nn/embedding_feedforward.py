@@ -27,7 +27,7 @@ class EmbeddingFeedForward(nn.Module):
         self._layers = nn.ModuleList(layers)
 
     def forward(self, x):
-        x = x.view(-1, self._input_dim)
+        x = x.view(-1, self._input_dim).float()
         for i in range(len(self._layers)):
             layer = self._layers[i]
             x = layer(x)

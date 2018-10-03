@@ -363,10 +363,7 @@ class Empirical(Distribution):
     def resample(self, samples):
         self._check_finalized()
         # TODO: improve this with a better resampling algorithm
-        if self._on_disk:
-            raise NotImplementedError()
-        else:
-            return Empirical([self.sample() for i in range(samples)])
+        return Empirical(values=[self.sample() for i in range(samples)])
 
     def plot_histogram(self, figsize=(10, 5), xlabel=None, ylabel='Frequency', xticks=None, yticks=None, log_xscale=False, log_yscale=False, file_name=None, show=True, density=1, *args, **kwargs):
         if not show:
