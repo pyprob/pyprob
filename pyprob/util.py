@@ -206,3 +206,7 @@ def check_gnu_dbm():
     except ModuleNotFoundError:
         return False
     return True
+
+
+if not check_gnu_dbm():
+    print(colored(r'Warning: Empirical distributions on disk may perform slow because GNU DBM is not available. Please install and configure gdbm library for Python for better speed.', 'red', attrs=['bold']))

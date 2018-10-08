@@ -129,24 +129,28 @@ class Analytics():
             if not os.path.exists(report_dir_params):
                 print('Directory does not exist, creating: {}'.format(report_dir_params))
                 os.makedirs(report_dir_params)
-            for param in inference_network.named_parameters():
-                param_name = param[0]
-                file_name_param = os.path.join(report_dir_params, param_name + '.png')
-                print('Plotting parameter to file: {} ...'.format(file_name_param))
-                param_val = param[1].detach().numpy()
-                if param_val.ndim == 1:
-                    param_val = np.expand_dims(param_val, 1)
-                if param_val.ndim > 2:
-                    print('Cannot render parameter {} because it is {}-dimensional.'.format(param_name, param_val.ndim))
-                else:
-                    fig = plt.figure()
-                    ax = plt.subplot(111)
-                    heatmap = ax.pcolor(param_val, cmap=plt.cm.jet)
-                    ax.invert_yaxis()
-                    plt.xlabel('{} {}'.format(param_name, param_val.shape))
-                    plt.colorbar(heatmap)
-                    # fig.tight_layout()
-                    plt.savefig(file_name_param)
+            file_name_params = os.path.join(report_dir_params, 'params.csv')
+            with open(file_name_params, 'w') as file:
+                file.write('file_name, param_name\n')
+                for index, param in enumerate(inference_network.named_parameters()):
+                    file_name_param = os.path.join(report_dir_params, 'param_{}.png'.format(index))
+                    param_name = param[0]
+                    file.write('{}, {}\n'.format(os.path.basename(file_name_param), param_name))
+                    print('Plotting to file: {}  parameter: {} ...'.format(file_name_param, param_name))
+                    param_val = param[1].detach().numpy()
+                    if param_val.ndim == 1:
+                        param_val = np.expand_dims(param_val, 1)
+                    if param_val.ndim > 2:
+                        print('Cannot render parameter {} because it is {}-dimensional.'.format(param_name, param_val.ndim))
+                    else:
+                        fig = plt.figure(figsize=(10, 7))
+                        ax = plt.subplot(111)
+                        heatmap = ax.pcolor(param_val, cmap=plt.cm.jet)
+                        ax.invert_yaxis()
+                        plt.xlabel('{} {}'.format(param_name, param_val.shape))
+                        plt.colorbar(heatmap)
+                        # fig.tight_layout()
+                        plt.savefig(file_name_param)
         return stats
 
     @staticmethod
