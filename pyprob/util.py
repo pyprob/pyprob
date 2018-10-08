@@ -198,3 +198,11 @@ def empirical_to_categorical(empirical_dist, max_val=None):
         if val <= max_val:
             probs[val] = float(empirical_dist._get_weight(i))
     return Categorical(probs)
+
+
+def check_gnu_dbm():
+    try:
+        import dbm.gnu
+    except ModuleNotFoundError:
+        return False
+    return True
