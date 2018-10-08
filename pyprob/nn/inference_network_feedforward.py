@@ -20,7 +20,7 @@ from ..distributions import Normal, Uniform, Categorical, Poisson
 
 class InferenceNetworkFeedForward(nn.Module):
     # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'reshape': [10, 10], 'dim': 32, 'depth': 2}}
-    def __init__(self, model, valid_batch_size=64, observe_embeddings={}):
+    def __init__(self, model, valid_size=64, observe_embeddings={}):
         super().__init__()
         self._model = model
         self._layer_proposal = nn.ModuleDict()
@@ -49,7 +49,7 @@ class InferenceNetworkFeedForward(nn.Module):
         self._on_cuda = False
         self._device = torch.device('cpu')
 
-        self._valid_batch_size = valid_batch_size
+        self._valid_size = valid_size
         self._observe_embeddings = observe_embeddings
         self._valid_batch = None
 
@@ -71,17 +71,17 @@ class InferenceNetworkFeedForward(nn.Module):
             else:
                 print('Observable {}: embedding dim not specified, using the default 256.'.format(name))
                 output_shape = torch.Size([256])
-            if 'depth' in value:
-                depth = value['depth']
-            else:
-                print('Observable {}: embedding depth not specified, using the default 2.'.format(name))
-                depth = 2
             if 'embedding' in value:
                 embedding = value['embedding']
             else:
                 print('Observable {}: observe embedding not specified, using the default FEEDFORWARD.'.format(name))
                 embedding = ObserveEmbedding.FEEDFORWARD
             if embedding == ObserveEmbedding.FEEDFORWARD:
+                if 'depth' in value:
+                    depth = value['depth']
+                else:
+                    print('Observable {}: embedding depth not specified, using the default 2.'.format(name))
+                    depth = 2
                 layer = EmbeddingFeedForward(input_shape=input_shape, output_shape=output_shape, num_layers=depth)
             elif embedding == ObserveEmbedding.CNN2D5C:
                 layer = EmbeddingCNN2D5C(input_shape=input_shape, output_shape=output_shape)
@@ -89,10 +89,12 @@ class InferenceNetworkFeedForward(nn.Module):
                 layer = EmbeddingCNN3D4C(input_shape=input_shape, output_shape=output_shape)
             else:
                 raise ValueError('Unknown embedding: {}'.format(embedding))
+            layer.to(device=util._device)
             self._layer_observe_embedding[name] = layer
             observe_embedding_total_dim += util.prod(output_shape)
         self._layer_hidden_shape = torch.Size([observe_embedding_total_dim])
         self._layer_observe_embedding_final = EmbeddingFeedForward(input_shape=self._layer_hidden_shape, output_shape=self._layer_hidden_shape, num_layers=1)
+        self._layer_observe_embedding_final.to(device=util._device)
 
     def _save(self, file_name):
         self._modified = util.get_time_str()
@@ -161,7 +163,7 @@ class InferenceNetworkFeedForward(nn.Module):
     def _embed_observe(self, traces=None):
         embedding = []
         for name, layer in self._layer_observe_embedding.items():
-            values = torch.stack([trace.named_variables[name].value for trace in traces]).view(len(traces), -1)
+            values = torch.stack([util.to_tensor(trace.named_variables[name].value) for trace in traces]).view(len(traces), -1)
             embedding.append(layer(values))
         embedding = torch.cat(embedding, dim=1)
         embedding = self._layer_observe_embedding_final(embedding)
@@ -248,10 +250,10 @@ class InferenceNetworkFeedForward(nn.Module):
             batch_loss += sub_batch_loss
         return True, batch_loss / batch.length
 
-    def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name=None, auto_save_interval_sec=600, *args, **kwargs):
+    def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, *args, **kwargs):
         if self._valid_batch is None:
             print('Initializing inference network...')
-            self._valid_batch = batch_generator.get_batch(self._valid_batch_size, discard_source=True)
+            self._valid_batch = batch_generator.get_batch(self._valid_size, discard_source=True)
             self._init_layer_observe_embeddings(self._observe_embeddings)
             self._polymorph(self._valid_batch)
 
@@ -335,10 +337,10 @@ class InferenceNetworkFeedForward(nn.Module):
                     self._history_valid_loss_trace.append(self._total_train_traces)
                     last_validation_trace = trace - 1
 
-                if auto_save_file_name is not None:
+                if auto_save_file_name_prefix is not None:
                     if time.time() - last_auto_save_time > auto_save_interval_sec:
                         last_auto_save_time = time.time()
-                        file_name = auto_save_file_name + '_' + util.get_time_stamp()
+                        file_name = '{}_{}.network'.format(auto_save_file_name_prefix, util.get_time_stamp())
                         print('\rSaving to disk...', end='\r')
                         self._save(file_name)
 

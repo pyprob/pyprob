@@ -67,7 +67,7 @@ class Analytics():
         stats['modified'] = inference_network._modified
         stats['updates'] = inference_network._updates
         stats['trained_on_device'] = str(inference_network._device)
-        stats['valid_batch_size'] = inference_network._valid_batch_size
+        stats['valid_size'] = inference_network._valid_size
         stats['total_train_seconds'] = inference_network._total_train_seconds
         stats['total_train_traces'] = inference_network._total_train_traces
         stats['total_train_iterations'] = inference_network._total_train_iterations

@@ -3,6 +3,7 @@ import torch.nn as nn
 
 from . import EmbeddingFeedForward
 from ..distributions import TruncatedNormal, Mixture
+from .. import util
 
 
 class ProposalUniformTruncatedNormalMixture(nn.Module):
@@ -23,8 +24,8 @@ class ProposalUniformTruncatedNormalMixture(nn.Module):
         coeffs = torch.softmax(coeffs, dim=1)
         means = means.view(batch_size, -1)
         stddevs = stddevs.view(batch_size, -1)
-        prior_lows = torch.stack([v.distribution.low for v in prior_variables]).view(batch_size)
-        prior_highs = torch.stack([v.distribution.high for v in prior_variables]).view(batch_size)
+        prior_lows = torch.stack([util.to_tensor(v.distribution.low) for v in prior_variables]).view(batch_size)
+        prior_highs = torch.stack([util.to_tensor(v.distribution.high) for v in prior_variables]).view(batch_size)
         means = prior_lows.view(batch_size, -1).expand_as(means) + (means * (prior_highs - prior_lows).view(batch_size, -1).expand_as(means))
         # stddevs = stddevs * prior_stddevs
         distributions = [TruncatedNormal(means[:, i:i+1].view(batch_size), stddevs[:, i:i+1].view(batch_size), low=prior_lows, high=prior_highs) for i in range(self._mixture_components)]

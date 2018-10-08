@@ -64,7 +64,9 @@ class ModelTestCase(unittest.TestCase):
         prior_length_correct = 2 * num_traces
 
         prior = self._model.prior_distribution(num_traces, file_name=file_name)
+        prior.close()
         prior = self._model.prior_distribution(num_traces, file_name=file_name)
+        # prior.close()
         prior_length = prior.length
         prior_mean = float(prior.mean)
         prior_stddev = float(prior.stddev)
@@ -243,7 +245,7 @@ class ModelTestCase(unittest.TestCase):
         training_traces = 128
 
         self._model.save_trace_store(trace_store_dir=store_dir, files=store_files, traces_per_file=store_traces_per_file)
-        self._model.learn_inference_network(num_traces=training_traces, trace_store_dir=store_dir, batch_size=16, valid_batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
+        self._model.learn_inference_network(num_traces=training_traces, trace_store_dir=store_dir, batch_size=16, valid_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
         shutil.rmtree(store_dir)
 
         util.eval_print('store_dir', 'store_files', 'store_traces_per_file', 'training_traces')
