@@ -5,6 +5,8 @@ import shelve
 import collections
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import random
+from termcolor import colored
 
 from . import Distribution, Categorical
 from .. import util
@@ -172,7 +174,10 @@ class Empirical(Distribution):
 
     def sample(self):
         self._check_finalized()
-        index = int(self._categorical.sample())
+        if self._uniform_weights:
+            index = random.randint(0, self._length - 1)
+        else:
+            index = int(self._categorical.sample())
         return self._get_value(index)
 
     def __iter__(self):
@@ -196,29 +201,21 @@ class Empirical(Distribution):
             for i in range(self._length):
                 ret += util.to_tensor(func(self._shelf[str(i)]), dtype=torch.float64) * self._categorical.probs[i].double()
         else:
-            for i in range(self._length):
-                ret += util.to_tensor(func(self._values[i]), dtype=torch.float64) * self._categorical.probs[i].double()
+            if self._uniform_weights:
+                ret = sum(map(func, self._values)) / self._length
+            else:
+                for i in range(self._length):
+                    ret += util.to_tensor(func(self._values[i]), dtype=torch.float64) * self._categorical.probs[i].double()
         return util.to_tensor(ret)
 
-    def map(self, func):
+    def map(self, func, *args, **kwargs):
         self._check_finalized()
-        if self._on_disk:
-            values = []
-            for i in range(self._length):
-                values.append(func(self._shelf[str(i)]))
-            return Empirical(values=values, log_weights=self._log_weights)
-        else:
-            ret = copy.copy(self)
-            ret._values = list(map(func, self._values))
-            ret._mean = None
-            ret._variance = None
-            ret._mode = None
-            ret._min = None
-            ret._max = None
-            ret._effective_sample_size = None
-            return ret
+        values = []
+        for i in range(self._length):
+            values.append(func(self._get_value(i)))
+        return Empirical(values=values, log_weights=self._log_weights, *args, **kwargs)
 
-    def filter(self, func):
+    def filter(self, func, *args, **kwargs):
         self._check_finalized()
         if self.length == 0:
             return self
@@ -229,7 +226,14 @@ class Empirical(Distribution):
             if func(value):
                 filtered_values.append(value)
                 filtered_log_weights.append(self._get_log_weight(i))
-        return Empirical(filtered_values, log_weights=filtered_log_weights)
+        return Empirical(filtered_values, log_weights=filtered_log_weights, *args, **kwargs)
+
+    def resample(self, num_samples, map_func=None, *args, **kwargs):
+        self._check_finalized()
+        # TODO: improve this with a better resampling algorithm
+        if map_func is None:
+            map_func = lambda x: x
+        return Empirical(values=[map_func(self.sample()) for i in range(num_samples)], *args, **kwargs)
 
     @property
     def mean(self):
@@ -247,8 +251,8 @@ class Empirical(Distribution):
     @property
     def mode(self):
         self._check_finalized()
-        # if self._uniform_weights:
-        #     print(colored('Warning: weights are uniform and there is no unique mode.', 'red', attrs=['bold']))
+        if self._uniform_weights:
+            print(colored('Warning: weights are uniform and there is no unique mode.', 'red', attrs=['bold']))
         if self._mode is None:
             _, max_index = util.to_tensor(self._log_weights).max(-1)
             self._mode = self._get_value(int(max_index))
@@ -262,12 +266,12 @@ class Empirical(Distribution):
             self._effective_sample_size = 1. / weights.pow(2).sum()
         return self._effective_sample_size
 
-    def unweighted(self):
+    def unweighted(self, *args, **kwargs):
         self._check_finalized()
         if self._on_disk:
             raise NotImplementedError()
         else:
-            return Empirical(values=self._values, name=self.name)
+            return Empirical(values=self._values, name=self.name, *args, **kwargs)
 
     def _find_min_max(self):
         try:
@@ -289,7 +293,7 @@ class Empirical(Distribution):
             self._find_min_max()
         return self._max
 
-    def combine_duplicates(self):
+    def combine_duplicates(self, *args, **kwargs):
         self._check_finalized()
         if self._on_disk:
             raise NotImplementedError()
@@ -309,7 +313,7 @@ class Empirical(Distribution):
                         distribution[self._values[i]] = self._log_weights[i]
                 values = list(distribution.keys())
                 log_weights = list(distribution.values())
-                return Empirical(values=values, log_weights=log_weights)
+                return Empirical(values=values, log_weights=log_weights, *args, **kwargs)
             else:
                 raise RuntimeError('The values in this Empirical as not hashable. Combining of duplicates not currently supported.')
 
@@ -359,11 +363,6 @@ class Empirical(Distribution):
     def log_weights_numpy(self):
         self._check_finalized()
         return util.to_numpy(self._categorical.logits)
-
-    def resample(self, samples):
-        self._check_finalized()
-        # TODO: improve this with a better resampling algorithm
-        return Empirical(values=[self.sample() for i in range(samples)])
 
     def plot_histogram(self, figsize=(10, 5), xlabel=None, ylabel='Frequency', xticks=None, yticks=None, log_xscale=False, log_yscale=False, file_name=None, show=True, density=1, *args, **kwargs):
         if not show:
