@@ -138,8 +138,8 @@ class BatchGenerator():
             return []
 
         # print('Loading trace cache of length {}'.format(data['length']))
-        if data['model_name'] != self._model.name:
-            print(colored('Warning: different model names (loaded traces: {}, current model: {})'.format(data['model_name'], self._model.name), 'red', attrs=['bold']))
+        # if data['model_name'] != self._model.name:
+            # print(colored('Warning: different model names (loaded traces: {}, current model: {})'.format(data['model_name'], self._model.name), 'red', attrs=['bold']))
         if data['pyprob_version'] != __version__:
             print(colored('Warning: different pyprob versions (loaded traces: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
         if data['torch_version'] != torch.__version__:
