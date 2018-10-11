@@ -25,6 +25,8 @@ class Empirical(Distribution):
             self._file_name = file_name
             self._shelf = shelve.open(self._file_name, writeback=True)
             if 'log_weights' in self._shelf:
+                if 'name' in self._shelf:
+                    name = self._shelf['name']
                 self._log_weights = self._shelf['log_weights']
                 self._file_last_key = self._shelf['last_key']
                 self._categorical = Categorical(logits=self._log_weights)
@@ -102,6 +104,7 @@ class Empirical(Distribution):
         self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
         self._length = len(self._log_weights)
         if self._on_disk:
+            self._shelf['name'] = self.name
             self._shelf['log_weights'] = self._log_weights
             self._shelf['last_key'] = self._file_last_key
             self._shelf.sync()
@@ -149,6 +152,8 @@ class Empirical(Distribution):
 
     def rename(self, name):
         self.name = name
+        if self._on_disk:
+            self._shelf['name'] = self.name
         return self
 
     def _get_value(self, index):

@@ -156,8 +156,7 @@ class InferenceNetworkFeedForward(nn.Module):
 
     def to(self, device=None, *args, **kwargs):
         self._device = device
-        if 'cuda' in str(device):
-            self._on_cuda = True
+        self._on_cuda = 'cuda' in str(device)
         super().to(device=device, *args, *kwargs)
 
     def _embed_observe(self, traces=None):
@@ -213,6 +212,7 @@ class InferenceNetworkFeedForward(nn.Module):
                         layer = ProposalCategoricalCategorical(self._layer_hidden_shape, distribution.num_categories)
                     else:
                         raise RuntimeError('Distribution currently unsupported: {}'.format(distribution.name))
+                    layer.to(device=util._device)
                     self._layer_proposal[address] = layer
                     layers_changed = True
         if layers_changed:
