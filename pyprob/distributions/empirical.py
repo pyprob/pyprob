@@ -47,11 +47,11 @@ class Empirical(Distribution):
         self._max = None
         self._effective_sample_size = None
         self._uniform_weights = False
+        super().__init__(name)
         if values is not None:
             if len(values) > 0:
                 self.add_sequence(values, log_weights, weights)
                 self.finalize()
-        super().__init__(name)
 
     def __enter__(self):
         return self
