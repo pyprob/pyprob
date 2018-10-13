@@ -245,6 +245,22 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertEqual(dist_first, dist_first_correct)
         self.assertEqual(dist_last, dist_last_correct)
 
+    def test_dist_empirical_sample_min_max_index(self):
+        dist_mean_1_correct = 2
+        dist_mean_2_correct = 3
+        dist_mean_3_correct = 4
+        #                 0  1  2  3  4  5  6  7  8
+        dist = Empirical([2, 2, 2, 2, 3, 3, 3, 4, 4])
+        dist_mean_1 = float(Empirical([dist.sample(min_index=0, max_index=3)]).mean)
+        dist_mean_2 = float(Empirical([dist.sample(min_index=4, max_index=6)]).mean)
+        dist_mean_3 = float(Empirical([dist.sample(min_index=7, max_index=8)]).mean)
+
+        util.eval_print('dist_mean_1', 'dist_mean_1_correct', 'dist_mean_2', 'dist_mean_2_correct', 'dist_mean_3', 'dist_mean_3_correct')
+
+        self.assertAlmostEqual(dist_mean_1, dist_mean_1_correct, places=1)
+        self.assertAlmostEqual(dist_mean_2, dist_mean_2_correct, places=1)
+        self.assertAlmostEqual(dist_mean_3, dist_mean_3_correct, places=1)
+
     def test_dist_empirical_combine_uniform_weights(self):
         dist1_mean_correct = 1
         dist1_stddev_correct = 3

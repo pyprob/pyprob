@@ -177,11 +177,17 @@ class Empirical(Distribution):
         else:
             return self._values
 
-    def sample(self):
+    def sample(self, min_index=None, max_index=None):
         self._check_finalized()
         if self._uniform_weights:
-            index = random.randint(0, self._length - 1)
+            if min_index is None:
+                min_index = 0
+            if max_index is None:
+                max_index = self._length - 1
+            index = random.randint(min_index, max_index)
         else:
+            if min_index is not None or max_index is not None:
+                raise NotImplementedError()
             index = int(self._categorical.sample())
         return self._get_value(index)
 
