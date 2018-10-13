@@ -3,11 +3,11 @@ import math
 import torch
 
 import pyprob
-from pyprob import util, Model, Analytics
+from pyprob import util, Model, Diagnostics
 from pyprob.distributions import Normal, Uniform
 
 
-class AnalyticsTestCase(unittest.TestCase):
+class DiagnosticsTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         # http://www.robots.ox.ac.uk/~fwood/assets/pdf/Wood-AISTATS-2014.pdf
         class GaussianWithUnknownMeanMarsaglia(Model):
@@ -42,8 +42,8 @@ class AnalyticsTestCase(unittest.TestCase):
         trace_length_stddev_correct = 1.177796721458435  # Reference value from 100k runs
         trace_length_min_correct = 4
 
-        analytics = Analytics(self._model)
-        _, stats = analytics.prior_graph(num_traces)
+        diagnostics = Diagnostics(self._model)
+        _, stats = diagnostics.prior_graph(num_traces)
         trace_length_mean = stats['trace_length_mean']
         trace_length_stddev = stats['trace_length_stddev']
         trace_length_min = stats['trace_length_min']
@@ -61,8 +61,8 @@ class AnalyticsTestCase(unittest.TestCase):
         trace_length_stddev_correct = 1.1909255981445312  # Reference value from 100k runs
         trace_length_min_correct = 4
 
-        analytics = Analytics(self._model)
-        _, stats = analytics.posterior_graph(num_traces, observe={'obs0': 8, 'obs1': 9})
+        diagnostics = Diagnostics(self._model)
+        _, stats = diagnostics.posterior_graph(num_traces, observe={'obs0': 8, 'obs1': 9})
         trace_length_mean = stats['trace_length_mean']
         trace_length_stddev = stats['trace_length_stddev']
         trace_length_min = stats['trace_length_min']

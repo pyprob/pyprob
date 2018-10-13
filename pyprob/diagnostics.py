@@ -10,7 +10,7 @@ from .distributions import Empirical
 from .graph import Graph
 
 
-class Analytics():
+class Diagnostics():
     def __init__(self, model):
         self._model = model
 
@@ -90,9 +90,9 @@ class Analytics():
                 print('Directory does not exist, creating: {}'.format(report_dir))
                 os.makedirs(report_dir)
             file_name_stats = os.path.join(report_dir, 'inference_network_stats.txt')
-            print('Saving analytics information to {} ...'.format(file_name_stats))
+            print('Saving diagnostics information to {} ...'.format(file_name_stats))
             with open(file_name_stats, 'w') as file:
-                file.write('pyprob analytics report\n')
+                file.write('pyprob diagnostics report\n')
                 for key, value in stats.items():
                     file.write('{}: {}\n'.format(key, value))
                 file.write('architecture:\n')
@@ -206,9 +206,9 @@ class Analytics():
                 print('Directory does not exist, creating: {}'.format(report_dir))
                 os.makedirs(report_dir)
             file_name_stats = os.path.join(report_dir, 'stats.txt')
-            print('Saving analytics information to {} ...'.format(file_name_stats))
+            print('Saving diagnostics information to {} ...'.format(file_name_stats))
             with open(file_name_stats, 'w') as file:
-                file.write('pyprob analytics report\n')
+                file.write('pyprob diagnostics report\n')
                 for key, value in stats.items():
                     file.write('{}: {}\n'.format(key, value))
 
