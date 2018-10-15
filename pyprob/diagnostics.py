@@ -308,7 +308,7 @@ def plot_mcmc_logprob(trace_dists, figsize=(10, 5), xlabel="Iteration", ylabel='
         plt.show()
 
 
-def plot_mcmc_autocorrelations(trace_dist, lags=None, figsize=(10, 5), xlabel="Lag", ylabel='Autocorrelation', xticks=None, yticks=None, log_xscale=True, file_name=None, show=True, *args, **kwargs):
+def plot_mcmc_autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5), xlabel="Lag", ylabel='Autocorrelation', xticks=None, yticks=None, log_xscale=True, file_name=None, show=True, *args, **kwargs):
     if type(trace_dist) != Empirical:
         raise TypeError('Expecting an MCMC posterior trace distribution, from a call to posterior_traces with an MCMC inference engine.')
     if type(trace_dist[0]) != Trace:
@@ -320,8 +320,12 @@ def plot_mcmc_autocorrelations(trace_dist, lags=None, figsize=(10, 5), xlabel="L
     if lags is None:
         lags = np.unique(np.logspace(0, np.log10(trace_dist.length/2)).astype(int))
     variable_values = {}
-    for name, variable in trace_dist[-1].named_variables.items():
-        if not variable.observed and variable.value.nelement() == 1:
+    if names is None:
+        for name, variable in trace_dist[-1].named_variables.items():
+            if not variable.observed and variable.value.nelement() == 1:
+                variable_values[name] = np.zeros(trace_dist.length)
+    else:
+        for name in names:
             variable_values[name] = np.zeros(trace_dist.length)
     if len(variable_values) == 0:
         raise RuntimeError('No named variables with scalar value are found.')
