@@ -350,7 +350,7 @@ def plot_mcmc_autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5
         plt.xticks(yticks)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.legend(loc='upper right')
+    plt.legend(loc='lower left')
     plt.axhline(y=0, color='black')
     fig.tight_layout()
     if file_name is not None:
