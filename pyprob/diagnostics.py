@@ -276,20 +276,22 @@ def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=No
     return master_graph, stats
 
 
-def plot_mcmc_logprob(trace_dists, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, file_name=None, show=True, *args, **kwargs):
+def plot_mcmc_logprob(trace_dists, resolution=500, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, file_name=None, show=True, *args, **kwargs):
     if type(trace_dists) != list:
         raise TypeError('Expecting a list of MCMC posterior trace distributions, each from a call to posterior_traces with an MCMC inference engine.')
     if not show:
         mpl.rcParams['axes.unicode_minus'] = False
         plt.switch_backend('agg')
     fig = plt.figure(figsize=figsize)
+    iters = []
     values = []
     for i in range(len(trace_dists)):
         if type(trace_dists[i][0]) != Trace:
             raise TypeError('Expecting a list of MCMC posterior trace distributions, each from a call to posterior_traces with an MCMC inference engine.')
-        values.append([trace_dists[i]._get_value(j).log_prob for j in range(trace_dists[i].length)])
+        iters.append(list(range(0, trace_dists[i].length, max(1, int(trace_dists[i].length / resolution)))))
+        values.append([trace_dists[i]._get_value(j).log_prob for j in iters[i]])
     for i in range(len(values)):
-        plt.plot(values[i], *args, **kwargs, label='Chain {}'.format(i))
+        plt.plot(iters[i], values[i], *args, **kwargs, label='Chain {}'.format(i))
     if log_xscale:
         plt.xscale('log')
     if log_yscale:
@@ -315,7 +317,10 @@ def plot_mcmc_autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5
         raise TypeError('Expecting an MCMC posterior trace distribution, from a call to posterior_traces with an MCMC inference engine.')
 
     def autocorrelation(values, lags):
-        return np.array([1. if lag == 0 else np.corrcoef(values[lag:], values[:-lag])[0][1] for lag in lags])
+        ret = np.array([1. if lag == 0 else np.corrcoef(values[lag:], values[:-lag])[0][1] for lag in lags])
+        # nan is encountered when there is no variance in the values, the foloowing might be used to assign autocorrelation of 1 to such cases
+        # ret[np.isnan(ret)] = 1.
+        return ret
 
     if lags is None:
         lags = np.unique(np.logspace(0, np.log10(trace_dist.length/2)).astype(int))
