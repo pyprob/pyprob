@@ -276,7 +276,7 @@ def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=No
     return master_graph, stats
 
 
-def plot_mcmc_logprob(trace_dists, resolution=500, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, file_name=None, show=True, *args, **kwargs):
+def plot_mcmc_logprob(trace_dists, resolution=500, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, file_name=None, show=True, *args, **kwargs):
     if type(trace_dists) != list:
         raise TypeError('Expecting a list of MCMC posterior trace distributions, each from a call to posterior_traces with an MCMC inference engine.')
     if not show:
@@ -290,8 +290,10 @@ def plot_mcmc_logprob(trace_dists, resolution=500, figsize=(10, 5), xlabel="Iter
             raise TypeError('Expecting a list of MCMC posterior trace distributions, each from a call to posterior_traces with an MCMC inference engine.')
         iters.append(list(range(0, trace_dists[i].length, max(1, int(trace_dists[i].length / resolution)))))
         values.append([trace_dists[i]._get_value(j).log_prob for j in iters[i]])
+    if names is None:
+        names = ['Chain {}'.format(i) for i in range(len(values))]
     for i in range(len(values)):
-        plt.plot(iters[i], values[i], *args, **kwargs, label='Chain {}'.format(i))
+        plt.plot(iters[i], values[i], *args, **kwargs, label=names[i])
     if log_xscale:
         plt.xscale('log')
     if log_yscale:
