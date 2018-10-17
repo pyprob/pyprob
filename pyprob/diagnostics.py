@@ -4,6 +4,8 @@ from collections import OrderedDict
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import time
+import sys
 
 from . import __version__, util, PriorInflation, InferenceEngine
 from .distributions import Empirical
@@ -285,11 +287,28 @@ def plot_mcmc_logprob(trace_dists, resolution=500, names=None, figsize=(10, 5), 
     fig = plt.figure(figsize=figsize)
     iters = []
     values = []
-    for i in range(len(trace_dists)):
-        if type(trace_dists[i][0]) != Trace:
+    for j in range(len(trace_dists)):
+        if type(trace_dists[j][0]) != Trace:
             raise TypeError('Expecting a list of MCMC posterior trace distributions, each from a call to posterior_traces with an MCMC inference engine.')
-        iters.append(list(range(0, trace_dists[i].length, max(1, int(trace_dists[i].length / resolution)))))
-        values.append([trace_dists[i]._get_value(j).log_prob for j in iters[i]])
+        iters.append(list(range(0, trace_dists[j].length, max(1, int(trace_dists[j].length / resolution)))))
+        time_start = time.time()
+        prev_duration = 0
+        num_traces = trace_dists[j].length
+        len_str_num_traces = len(str(num_traces))
+        print('Loading trace log-probabilities to memory...')
+        print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
+        vals = []
+        for i in iters[j]:
+            vals.append(trace_dists[j]._get_value(i).log_prob)
+            duration = time.time() - time_start
+            if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
+                prev_duration = duration
+                traces_per_second = (i + 1) / duration
+                print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
+                sys.stdout.flush()
+        print()
+        values.append(vals)
+
     if names is None:
         names = ['Chain {}'.format(i) for i in range(len(values))]
     for i in range(len(values)):
@@ -307,6 +326,7 @@ def plot_mcmc_logprob(trace_dists, resolution=500, names=None, figsize=(10, 5), 
     plt.legend(loc='lower right')
     fig.tight_layout()
     if file_name is not None:
+        print('Plotting to file {} ...'.format(file_name))
         plt.savefig(file_name)
     if show:
         plt.show()
@@ -336,10 +356,24 @@ def plot_mcmc_autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5
             variable_values[name] = np.zeros(trace_dist.length)
     if len(variable_values) == 0:
         raise RuntimeError('No named variables with scalar value are found.')
-    for i in range(trace_dist.length):
+
+    time_start = time.time()
+    prev_duration = 0
+    num_traces = trace_dist.length
+    len_str_num_traces = len(str(num_traces))
+    print('Loading selected variables to memory...')
+    print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
+    for i in range(num_traces):
         trace = trace_dist._get_value(i)
         for name, values in variable_values.items():
             values[i] = float(trace.named_variables[name].value)
+        duration = time.time() - time_start
+        if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
+            prev_duration = duration
+            traces_per_second = (i + 1) / duration
+            print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
+            sys.stdout.flush()
+    print()
 
     fig = plt.figure(figsize=figsize)
     variable_autocorrelations = {}
@@ -361,6 +395,7 @@ def plot_mcmc_autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5
     plt.axhline(y=0, color='black')
     fig.tight_layout()
     if file_name is not None:
+        print('Plotting to file {} ...'.format(file_name))
         plt.savefig(file_name)
     if show:
         plt.show()

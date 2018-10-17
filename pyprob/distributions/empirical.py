@@ -14,12 +14,14 @@ from .. import util
 
 class Empirical(Distribution):
     def __init__(self, values=None, log_weights=None, weights=None, file_name=None, file_sync_timeout=1000, name='Empirical'):
+        self._finalized = False
+        self._closed = False
+        self._categorical = None
+        self._log_weights = []
+        self._length = 0
         if file_name is None:
             self._on_disk = False
             self._values = []
-            self._log_weights = []
-            self._categorical = None
-            self._length = 0
         else:
             self._on_disk = True
             self._file_name = file_name
@@ -29,17 +31,11 @@ class Empirical(Distribution):
                     name = self._shelf['name']
                 self._log_weights = self._shelf['log_weights']
                 self._file_last_key = self._shelf['last_key']
-                self._categorical = Categorical(logits=self._log_weights)
                 self._length = len(self._log_weights)
             else:
-                self._log_weights = []
                 self._file_last_key = -1
-                self._categorical = None
-                self._length = 0
             self._file_sync_timeout = file_sync_timeout
             self._file_sync_countdown = self._file_sync_timeout
-        self._finalized = False
-        self._closed = False
         self._mean = None
         self._variance = None
         self._mode = None
