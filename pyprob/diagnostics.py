@@ -401,6 +401,159 @@ def plot_mcmc_autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5
         plt.show()
 
 
+def plot_gelman_rubin_diagnostics(trace_dist_list, names=None, plot_trace_lengths=None, figsize=(10, 5), xlabel="Trace length", ylabel='Rhat', xticks=None, yticks=None, log_xscale=True, file_name=None, show=True, *args, **kwargs):
+    def merge_dicts(d1, d2):
+        for k, v in d2.items():
+            if k in d1:
+                d1[k] = np.vstack((d1[k], v))
+            else:
+                d1[k] = v
+        return d1
+
+    def gelman_rubin_diagnostic(x, mu=None, logger=None):
+        '''
+        Notes
+        -----
+        The diagnostic is computed by:  math:: \hat{R} = \frac{\hat{V}}{W}
+
+        where :math:`W` is the within-chain variance and :math:`\hat{V}` is
+        the posterior variance estimate for the pooled traces.
+
+        :param x: samples
+        :param mu, var: true posterior mean and variance; if None, Monte Carlo estimates
+        :param logger: None
+        :return: r_hat
+
+        References
+        ----------
+        Brooks and Gelman (1998)
+        Gelman and Rubin (1992)
+        '''
+        m, n = x.shape[0], x.shape[1]
+        if m < 2:
+            raise ValueError(
+                'Gelman-Rubin diagnostic requires multiple chains '
+                'of the same length.')
+        theta = np.mean(x, axis=1)
+        sigma = np.var(x, axis=1)
+        # theta_m = np.mean(theta, axis=0)
+        theta_m = mu if mu else np.mean(theta, axis=0)
+
+        # Calculate between-chain variance
+        b = float(n) / float(m-1) * np.sum((theta - theta_m) ** 2)
+        # Calculate within-chain variance
+        w = 1. / float(m) * np.sum(sigma, axis=0)
+        # Estimate of marginal posterior variance
+        v_hat = float(n-1) / float(n) * w + float(m+1) / float(m * n) * b
+        r_hat = np.sqrt(v_hat / w)
+        # logger.info('R: max [%f] min [%f]' % (np.max(r_hat), np.min(r_hat)))
+        return r_hat
+
+    def rhat(values):
+        ret = np.array([0.0 for _ in plot_trace_lengths])
+        num_missing_samples = trace_dist_length - values.shape[1]
+        for i, t in enumerate(plot_trace_lengths):
+            ret[i] = np.nan if t <= num_missing_samples else gelman_rubin_diagnostic(values[:, :t-num_missing_samples])
+        # nan is encountered when there is no variance in the values, the following might be used to assign autocorrelation of 1 to such cases
+        # ret[np.isnan(ret)] = 1.
+        # nan is also injected when the values length is less than the trace_dist length
+        return ret
+
+    def single_trace_dist_values(trace_dist):
+        if type(trace_dist) != Empirical:
+            raise TypeError('Expecting an MCMC posterior trace distribution, from a call to posterior_traces with an MCMC inference engine.')
+        if type(trace_dist[0]) != Trace:
+            raise TypeError('Expecting an MCMC posterior trace distribution, from a call to posterior_traces with an MCMC inference engine.')
+
+        variable_values = {}
+
+        time_start = time.time()
+        prev_duration = 0
+        num_traces = trace_dist.length
+        if num_traces != trace_dist_length:
+            raise ValueError('Expecting a list of MCMC posterior trace distributions with the same length.')
+        len_str_num_traces = len(str(num_traces))
+        print('Loading selected variables to memory...')
+        print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
+        for i in range(num_traces):
+            trace = trace_dist._get_value(i)
+            name_list = trace_dist[i].named_variables.keys() if names is None else names
+            for name in name_list:
+                if name not in trace_dist[i].named_variables:
+                    # This random variable is not sampled in the ith trace
+                    continue
+                variable = trace_dist[i].named_variables[name]
+                if not variable.observed and variable.value.nelement() == 1: # Do not include latent variables or vector-valued variables
+                    if name not in variable_values:
+                        # This is the first trace this random variable sample appeared in
+                        # Initialize values as a vector of nans. nan means the random variable is not appeared
+                        variable_values[name] = np.ones(trace_dist.length) * np.nan
+                    variable_values[name][i] = float(trace.named_variables[name].value)
+            duration = time.time() - time_start
+            if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
+                prev_duration = duration
+                traces_per_second = (i + 1) / duration
+                print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
+                sys.stdout.flush()
+        print()
+        return variable_values
+
+    variable_values = {}
+    trace_dist_length = trace_dist_list[0].length
+    for trace in trace_dist_list:
+        variable_values = merge_dicts(variable_values, single_trace_dist_values(trace))
+
+    if plot_trace_lengths is None:
+        plot_trace_lengths = np.unique(np.logspace(0, np.log10(trace_dist_list[-1].length)).astype(int))
+
+    # Fill in the spots where a random variable sample is missing
+    # and remove all the values before its first appearance in all chains.
+    for name, value in variable_values.items():
+        r, c = np.where(~np.isnan(value)) # Find all nans i.e. missing random variable samples
+        first_non_nans = [np.min(c[r == i]) for i in range(value.shape[0]) if i in r] # For each chain, find the first non-nan value
+        starting_col = max(first_non_nans) if first_non_nans else value.shape[1]+1 # Set the strating timestep for all chains
+                                                                                   # i.e. the first time it is sampled in all chains
+        if starting_col != 0:
+            # Remove the initial nans
+            value = value[:, starting_col:]
+            variable_values[name] = value
+
+        #assert trace_dist_list[0].length == value.shape[1] + starting_col
+        # Fill in the remaining nans with the last value appeared before them
+        for chain_idx in range(len(trace_dist_list)):
+            last_value = value[chain_idx, 0]
+            #assert not np.isnan(last_value)
+            for i in range(value.shape[1]):
+                if np.isnan(value[chain_idx, i]):
+                    value[chain_idx, i] = last_value
+                last_value = value[chain_idx, i]
+
+    fig = plt.figure(figsize=figsize)
+    variable_rhats = {}
+    i = 0
+    for name, values in variable_values.items():
+        i += 1
+        print('Computing Rhat for named variable {} ({} of {})...'.format(name, i, len(variable_values)))
+        variable_rhats[name] = rhat(variable_values[name])
+        plt.plot(plot_trace_lengths, variable_rhats[name], *args, **kwargs, label=name)
+    if log_xscale:
+        plt.xscale('log')
+    if xticks is not None:
+        plt.xticks(xticks)
+    if yticks is not None:
+        plt.xticks(yticks)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.legend(loc='lower left')
+    plt.axhline(y=0, color='black')
+    fig.tight_layout()
+    if file_name is not None:
+        print('Plotting to file {} ...'.format(file_name))
+        plt.savefig(file_name)
+    if show:
+        plt.show()
+
+
 class Diagnostics():
     def __init__(self, model):
         self._model = model
