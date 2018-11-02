@@ -4,7 +4,7 @@ from . import util
 
 
 class Variable():
-    def __init__(self, distribution=None, value=None, address_base=None, address=None, instance=None, log_prob=None, control=False, replace=False, name=None, observed=False, reused=False):
+    def __init__(self, distribution=None, value=None, address_base=None, address=None, instance=None, log_prob=None, control=False, replace=False, name=None, observed=False, reused=False, tagged=False):
         self.distribution = distribution
         self.value = value
         self.address_base = address_base
@@ -14,17 +14,19 @@ class Variable():
         self.control = control
         self.replace = replace
         self.name = name
-        self.observable = (name is not None) or observed
+        self.observable = ((not tagged) and (name is not None)) or observed
         self.observed = observed
         self.reused = reused
+        self.tagged = tagged
 
     def __repr__(self):
-        return 'Variable(name:{}, control:{}, replace:{}, observable:{}, observed:{}, address:{}, distribution:{}, value:{}: log_prob:{})'.format(
+        return 'Variable(name:{}, control:{}, replace:{}, observable:{}, observed:{}, tagged:{}, address:{}, distribution:{}, value:{}: log_prob:{})'.format(
             self.name,
             self.control,
             self.replace,
             self.observable,
             self.observed,
+            self.tagged,
             self.address,
             str(self.distribution),
             str(self.value),
@@ -45,6 +47,7 @@ class Trace():
         self.variables_replaced = []
         self.variables_observed = []
         self.variables_observable = []
+        self.variables_tagged = []
         self.variables_dict_address = {}
         self.variables_dict_address_base = {}
         self.named_variables = {}
@@ -57,12 +60,13 @@ class Trace():
         self.execution_time_sec = None
 
     def __repr__(self):
-        return 'Trace(all:{:,}, controlled:{:,}, replaced:{:,}, observeable:{:,}, observed:{:,}, uncontrolled:{:,}, log_prob:{}, log_importance_weight:{})'.format(
+        return 'Trace(all:{:,}, controlled:{:,}, replaced:{:,}, observeable:{:,}, observed:{:,}, tagged:{:,}, uncontrolled:{:,}, log_prob:{}, log_importance_weight:{})'.format(
             len(self.variables),
             len(self.variables_controlled),
             len(self.variables_replaced),
             len(self.variables_observable),
             len(self.variables_observed),
+            len(self.variables_tagged),
             len(self.variables_uncontrolled),
             str(self.log_prob),
             str(self.log_importance_weight))
@@ -88,9 +92,10 @@ class Trace():
                             variable = self.variables[j]
                             replaced_indices.append(j)
                 self.variables_controlled.append(variable)
-        self.variables_uncontrolled = [v for v in self.variables if (not v.control) and (not v.observed)]
+        self.variables_uncontrolled = [v for v in self.variables if (not v.control) and (not v.observed) and (not v.tagged)]
         self.variables_observed = [v for v in self.variables if v.observed]
         self.variables_observable = [v for v in self.variables if v.observable]
+        self.variables_tagged = [v for v in self.variables if v.tagged]
         self.log_prob = sum([torch.sum(v.log_prob) for v in self.variables if v.control or v.observed])
         self.log_prob_observed = sum([torch.sum(v.log_prob) for v in self.variables_observed])
         self.length = len(self.variables)

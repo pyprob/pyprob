@@ -23,14 +23,14 @@ class Sample(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
-        return bytes()
+        return None
 
     # Sample
     def Name(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
-        return bytes()
+        return None
 
     # Sample
     def DistributionType(self):
@@ -53,15 +53,15 @@ class Sample(object):
     def Control(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos)
-        return 1
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return True
 
     # Sample
     def Replace(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
-            return self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos)
-        return 0
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
 
 def SampleStart(builder): builder.StartObject(6)
 def SampleAddAddress(builder, address): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(address), 0)

@@ -6,6 +6,7 @@ import uuid
 import tempfile
 import tarfile
 import random
+import sys
 from threading import Thread
 from termcolor import colored
 
@@ -84,15 +85,11 @@ class BatchGenerator():
         return Batch(traces)
 
     def save_trace_store(self, trace_store_dir, files=16, traces_per_file=16, *args, **kwargs):
-        f = 0
-        done = False
-        while not done:
+        for file in range(files):
             traces = self._model._traces(traces_per_file, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, *args, **kwargs).get_values()
             file_name = os.path.join(trace_store_dir, 'pyprob_traces_{}_{}'.format(traces_per_file, str(uuid.uuid4())))
             self._save_traces(traces, file_name)
-            f += 1
-            if (files is not None) and (f >= files):
-                done = True
+            print('Traces {:,}/{:,}, file {:,}/{:,}: {}'.format((file + 1) * traces_per_file, files * traces_per_file, file + 1, files, file_name))
 
     def _trace_store_current_files(self):
         files = [name for name in os.listdir(self._trace_store_dir)]

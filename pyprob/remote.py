@@ -21,6 +21,8 @@ from .ppx import Sample as ppx_Sample
 from .ppx import SampleResult as ppx_SampleResult
 from .ppx import Observe as ppx_Observe
 from .ppx import ObserveResult as ppx_ObserveResult
+from .ppx import Tag as ppx_Tag
+from .ppx import TagResult as ppx_TagResult
 from .ppx import Reset as ppx_Reset
 
 
@@ -123,6 +125,8 @@ class ModelServer(object):
             message_body = ppx_Sample.Sample()
         elif body_type == ppx_MessageBody.MessageBody().Observe:
             message_body = ppx_Observe.Observe()
+        elif body_type == ppx_MessageBody.MessageBody().Tag:
+            message_body = ppx_Tag.Tag()
         elif body_type == ppx_MessageBody.MessageBody().Reset:
             message_body = ppx_Reset.Reset()
         else:
@@ -271,6 +275,26 @@ class ModelServer(object):
                 # construct Message
                 ppx_Message.MessageStart(builder)
                 ppx_Message.MessageAddBodyType(builder, ppx_MessageBody.MessageBody().ObserveResult)
+                ppx_Message.MessageAddBody(builder, message_body)
+                message = ppx_Message.MessageEnd(builder)
+                builder.Finish(message)
+
+                message = builder.Output()
+                self._requester.send_request(message)
+            elif isinstance(message_body, ppx_Tag.Tag):
+                address = message_body.Address().decode('utf-8')
+                name = message_body.Name().decode('utf-8')
+                if name == '':
+                    name = None
+                value = self._protocol_tensor_to_variable(message_body.Value())
+                state.tag(value=value, name=name, address=address)
+                builder = flatbuffers.Builder(64)
+                ppx_TagResult.TagResultStart(builder)
+                message_body = ppx_TagResult.TagResultEnd(builder)
+
+                # construct Message
+                ppx_Message.MessageStart(builder)
+                ppx_Message.MessageAddBodyType(builder, ppx_MessageBody.MessageBody().TagResult)
                 ppx_Message.MessageAddBody(builder, message_body)
                 message = ppx_Message.MessageEnd(builder)
                 builder.Finish(message)

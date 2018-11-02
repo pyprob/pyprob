@@ -23,14 +23,14 @@ class HandshakeResult(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
-        return bytes()
+        return None
 
     # HandshakeResult
     def ModelName(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.String(o + self._tab.Pos)
-        return bytes()
+        return None
 
 def HandshakeResultStart(builder): builder.StartObject(2)
 def HandshakeResultAddSystemName(builder, systemName): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(systemName), 0)

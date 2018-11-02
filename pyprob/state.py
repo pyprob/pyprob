@@ -91,7 +91,23 @@ def _sample_with_prior_inflation(distribution):
     return distribution.sample()
 
 
-def observe(distribution=None, value=None, name=None, address=None):
+def tag(value, name=None, address=None):
+    global _current_trace
+    if address is None:
+        address_base = extract_address(_current_trace_root_function_name)
+    else:
+        address_base = address
+    instance = _current_trace.last_instance(address_base) + 1
+    address_suffix = 'None'
+    address = '{}__{}__{}'.format(address_base, address_suffix, instance)
+
+    value = util.to_tensor(value)
+
+    variable = Variable(distribution=None, value=value, address_base=address_base, address=address, instance=instance, log_prob=0., tagged=True, name=name)
+    _current_trace.add(variable)
+
+
+def observe(distribution, value=None, name=None, address=None):
     global _current_trace
     if address is None:
         address_base = extract_address(_current_trace_root_function_name)
@@ -109,10 +125,7 @@ def observe(distribution=None, value=None, name=None, address=None):
     elif distribution is not None:
         value = distribution.sample()
 
-    if distribution is None or value is None:
-        log_prob = 0.
-    else:
-        log_prob = distribution.log_prob(value, sum=True)
+    log_prob = distribution.log_prob(value, sum=True)
     if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
         _current_trace.log_importance_weight += log_prob
 
@@ -199,9 +212,9 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                         _metropolis_hastings_site_transition_log_prob = util.to_tensor(0.)
                         if _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
                             if isinstance(distribution, Normal):
-                                proposal_kernel_func = lambda x: Normal(x, 1)
+                                proposal_kernel_func = lambda x: Normal(x, distribution.stddev)
                             elif isinstance(distribution, Uniform):
-                                proposal_kernel_func = lambda x: TruncatedNormal(x, 0.1, low=distribution.low, high=distribution.high)
+                                proposal_kernel_func = lambda x: TruncatedNormal(x, 0.1*(distribution.high - distribution.low), low=distribution.low, high=distribution.high)
                             else:
                                 proposal_kernel_func = None
 

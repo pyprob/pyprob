@@ -122,9 +122,9 @@ class Model():
             if util._verbosity > 1:
                 print()
 
-            posterior.finalize()
             posterior.rename('Posterior, {} Metropolis Hastings, num_traces={:,}, accepted={:,.2f}%, sample_reuse={:,.2f}%'.format('lightweight' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'random-walk', posterior.length, 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all))
 
+        posterior.finalize()
         return posterior
 
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, *args, **kwargs):

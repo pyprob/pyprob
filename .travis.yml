@@ -19,7 +19,7 @@ before_install:
 - export PATH="$HOME/miniconda/bin:$PATH"
 - hash -r
 - pip install --upgrade pip
-- pip install 'torch==0.4.1.post2' 'torchvision==0.2.1' docker
+- pip install --progress-bar off 'torch==0.4.1.post2' 'torchvision==0.2.1' docker
 install:
 - pip install .
 script:

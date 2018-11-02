@@ -50,7 +50,12 @@ class Mixture(Distribution):
             return self._distributions[i].sample()
         else:
             indices = self._mixing_dist.sample()
-            dist_samples = [d.sample() for d in self._distributions]
+            dist_samples = []
+            for d in self._distributions:
+                sample = d.sample()
+                if sample.dim == 0:
+                    sample = sample.unsqueeze(-1)
+                dist_samples.append(sample)
             ret = []
             for b in range(self._batch_length):
                 i = int(indices[b])
