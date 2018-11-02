@@ -278,18 +278,14 @@ def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=No
     return master_graph, stats
 
 
-def plot_mcmc_logprob(trace_dists, resolution=500, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, file_name=None, show=True, *args, **kwargs):
+def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
     if type(trace_dists) != list:
-        raise TypeError('Expecting a list of MCMC posterior trace distributions, each from a call to posterior_traces with an MCMC inference engine.')
-    if not show:
-        mpl.rcParams['axes.unicode_minus'] = False
-        plt.switch_backend('agg')
-    fig = plt.figure(figsize=figsize)
+        raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s posterior_traces.')
     iters = []
-    values = []
+    log_probs = []
     for j in range(len(trace_dists)):
         if type(trace_dists[j][0]) != Trace:
-            raise TypeError('Expecting a list of MCMC posterior trace distributions, each from a call to posterior_traces with an MCMC inference engine.')
+            raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s posterior_traces.')
         iters.append(list(range(0, trace_dists[j].length, max(1, int(trace_dists[j].length / resolution)))))
         time_start = time.time()
         prev_duration = 0
@@ -307,36 +303,43 @@ def plot_mcmc_logprob(trace_dists, resolution=500, names=None, figsize=(10, 5), 
                 print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
                 sys.stdout.flush()
         print()
-        values.append(vals)
+        log_probs.append(vals)
 
-    if names is None:
-        names = ['Chain {}'.format(i) for i in range(len(values))]
-    for i in range(len(values)):
-        plt.plot(iters[i], values[i], *args, **kwargs, label=names[i])
-    if log_xscale:
-        plt.xscale('log')
-    if log_yscale:
-        plt.yscale('log', nonposy='clip')
-    if xticks is not None:
-        plt.xticks(xticks)
-    if yticks is not None:
-        plt.xticks(yticks)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.legend(loc='lower right')
-    fig.tight_layout()
-    if file_name is not None:
-        print('Plotting to file {} ...'.format(file_name))
-        plt.savefig(file_name)
-    if show:
-        plt.show()
+    if plot:
+        if not plot_show:
+            mpl.rcParams['axes.unicode_minus'] = False
+            plt.switch_backend('agg')
+        fig = plt.figure(figsize=figsize)
+        if names is None:
+            names = ['{}'.format(trace_dists[i].name) for i in range(len(log_probs))]
+        for i in range(len(log_probs)):
+            plt.plot(iters[i], log_probs[i], *args, **kwargs, label=names[i])
+        if log_xscale:
+            plt.xscale('log')
+        if log_yscale:
+            plt.yscale('log', nonposy='clip')
+        if xticks is not None:
+            plt.xticks(xticks)
+        if yticks is not None:
+            plt.xticks(yticks)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.legend(loc='best')
+        fig.tight_layout()
+        if plot_file_name is not None:
+            print('Plotting to file {} ...'.format(plot_file_name))
+            plt.savefig(plot_file_name)
+        if plot_show:
+            plt.show()
+
+    return np.array(iters), np.array(log_probs)
 
 
-def plot_mcmc_autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5), xlabel="Lag", ylabel='Autocorrelation', xticks=None, yticks=None, log_xscale=True, file_name=None, show=True, *args, **kwargs):
+def autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5), xlabel="Lag", ylabel='Autocorrelation', xticks=None, yticks=None, log_xscale=True, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
     if type(trace_dist) != Empirical:
-        raise TypeError('Expecting an MCMC posterior trace distribution, from a call to posterior_traces with an MCMC inference engine.')
+        raise TypeError('Expecting a posterior trace distribution, from a call to a Model\'s posterior_traces.')
     if type(trace_dist[0]) != Trace:
-        raise TypeError('Expecting an MCMC posterior trace distribution, from a call to posterior_traces with an MCMC inference engine.')
+        raise TypeError('Expecting a posterior trace distribution, from a call to a Model\'s posterior_traces.')
 
     def autocorrelation(values, lags):
         ret = np.array([1. if lag == 0 else np.corrcoef(values[lag:], values[:-lag])[0][1] for lag in lags])
@@ -374,34 +377,39 @@ def plot_mcmc_autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5
             print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
             sys.stdout.flush()
     print()
-
-    fig = plt.figure(figsize=figsize)
     variable_autocorrelations = {}
     i = 0
     for name, values in variable_values.items():
         i += 1
         print('Computing autocorrelation for named variable {} ({} of {})...'.format(name, i, len(variable_values)))
         variable_autocorrelations[name] = autocorrelation(variable_values[name], lags)
-        plt.plot(lags, variable_autocorrelations[name], *args, **kwargs, label=name)
-    if log_xscale:
-        plt.xscale('log')
-    if xticks is not None:
-        plt.xticks(xticks)
-    if yticks is not None:
-        plt.xticks(yticks)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.legend(loc='lower left')
-    plt.axhline(y=0, color='black')
-    fig.tight_layout()
-    if file_name is not None:
-        print('Plotting to file {} ...'.format(file_name))
-        plt.savefig(file_name)
-    if show:
-        plt.show()
+    if plot:
+        if not plot_show:
+            mpl.rcParams['axes.unicode_minus'] = False
+            plt.switch_backend('agg')
+        fig = plt.figure(figsize=figsize)
+        plt.axhline(y=0, color='black')
+        for name, values in variable_values.items():
+            plt.plot(lags, variable_autocorrelations[name], *args, **kwargs, label=name)
+        if log_xscale:
+            plt.xscale('log')
+        if xticks is not None:
+            plt.xticks(xticks)
+        if yticks is not None:
+            plt.xticks(yticks)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.legend(loc='best')
+        fig.tight_layout()
+        if plot_file_name is not None:
+            print('Plotting to file {} ...'.format(plot_file_name))
+            plt.savefig(plot_file_name)
+        if plot_show:
+            plt.show()
+    return lags, variable_autocorrelations
 
 
-def plot_gelman_rubin_diagnostics(trace_dist_list, names=None, plot_trace_lengths=None, figsize=(10, 5), xlabel="Trace length", ylabel='Rhat', xticks=None, yticks=None, log_xscale=True, file_name=None, show=True, *args, **kwargs):
+def gelman_rubin(trace_dists, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='R-hat', xticks=None, yticks=None, log_xscale=False, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
     def merge_dicts(d1, d2):
         for k, v in d2.items():
             if k in d1:
@@ -449,10 +457,10 @@ def plot_gelman_rubin_diagnostics(trace_dist_list, names=None, plot_trace_length
         # logger.info('R: max [%f] min [%f]' % (np.max(r_hat), np.min(r_hat)))
         return r_hat
 
-    def rhat(values):
-        ret = np.array([0.0 for _ in plot_trace_lengths])
+    def rhat(values, iters):
+        ret = np.zeros_like(iters, dtype=float)
         num_missing_samples = trace_dist_length - values.shape[1]
-        for i, t in enumerate(plot_trace_lengths):
+        for i, t in enumerate(iters):
             ret[i] = np.nan if t <= num_missing_samples else gelman_rubin_diagnostic(values[:, :t-num_missing_samples])
         # nan is encountered when there is no variance in the values, the following might be used to assign autocorrelation of 1 to such cases
         # ret[np.isnan(ret)] = 1.
@@ -499,12 +507,11 @@ def plot_gelman_rubin_diagnostics(trace_dist_list, names=None, plot_trace_length
         return variable_values
 
     variable_values = {}
-    trace_dist_length = trace_dist_list[0].length
-    for trace in trace_dist_list:
+    trace_dist_length = trace_dists[0].length
+    for trace in trace_dists:
         variable_values = merge_dicts(variable_values, single_trace_dist_values(trace))
 
-    if plot_trace_lengths is None:
-        plot_trace_lengths = np.unique(np.logspace(0, np.log10(trace_dist_list[-1].length)).astype(int))
+    iters = np.unique(np.logspace(0, np.log10(trace_dists[-1].length)).astype(int))
 
     # Fill in the spots where a random variable sample is missing
     # and remove all the values before its first appearance in all chains.
@@ -518,9 +525,9 @@ def plot_gelman_rubin_diagnostics(trace_dist_list, names=None, plot_trace_length
             value = value[:, starting_col:]
             variable_values[name] = value
 
-        #assert trace_dist_list[0].length == value.shape[1] + starting_col
+        #assert trace_dists[0].length == value.shape[1] + starting_col
         # Fill in the remaining nans with the last value appeared before them
-        for chain_idx in range(len(trace_dist_list)):
+        for chain_idx in range(len(trace_dists)):
             last_value = value[chain_idx, 0]
             #assert not np.isnan(last_value)
             for i in range(value.shape[1]):
@@ -528,30 +535,38 @@ def plot_gelman_rubin_diagnostics(trace_dist_list, names=None, plot_trace_length
                     value[chain_idx, i] = last_value
                 last_value = value[chain_idx, i]
 
-    fig = plt.figure(figsize=figsize)
     variable_rhats = {}
     i = 0
     for name, values in variable_values.items():
         i += 1
-        print('Computing Rhat for named variable {} ({} of {})...'.format(name, i, len(variable_values)))
-        variable_rhats[name] = rhat(variable_values[name])
-        plt.plot(plot_trace_lengths, variable_rhats[name], *args, **kwargs, label=name)
-    if log_xscale:
-        plt.xscale('log')
-    if xticks is not None:
-        plt.xticks(xticks)
-    if yticks is not None:
-        plt.xticks(yticks)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.legend(loc='lower left')
-    plt.axhline(y=0, color='black')
-    fig.tight_layout()
-    if file_name is not None:
-        print('Plotting to file {} ...'.format(file_name))
-        plt.savefig(file_name)
-    if show:
-        plt.show()
+        print('Computing R-hat for named variable {} ({} of {})...'.format(name, i, len(variable_values)))
+        variable_rhats[name] = rhat(variable_values[name], iters)
+
+    if plot:
+        if not plot_show:
+            mpl.rcParams['axes.unicode_minus'] = False
+            plt.switch_backend('agg')
+        fig = plt.figure(figsize=figsize)
+        plt.axhline(y=1, color='black')
+        for name, values in variable_values.items():
+            plt.plot(iters, variable_rhats[name], *args, **kwargs, label=name)
+        if log_xscale:
+            plt.xscale('log')
+        if xticks is not None:
+            plt.xticks(xticks)
+        if yticks is not None:
+            plt.xticks(yticks)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.legend(loc='best')
+        fig.tight_layout()
+        if plot_file_name is not None:
+            print('Plotting to file {} ...'.format(plot_file_name))
+            plt.savefig(plot_file_name)
+        if plot_show:
+            plt.show()
+
+    return iters, variable_rhats
 
 
 class Diagnostics():

@@ -59,7 +59,7 @@ class Model():
 
     def prior_traces(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=None, file_name=None, *args, **kwargs):
         prior = self._traces(num_traces=num_traces, trace_mode=TraceMode.PRIOR, prior_inflation=prior_inflation, map_func=map_func, file_name=file_name, *args, **kwargs)
-        prior.rename('Prior, num_traces={:,}'.format(prior.length))
+        prior.rename('Prior, traces: {:,}'.format(prior.length))
         return prior
 
     def prior_distribution(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=lambda trace: trace.result, file_name=None, *args, **kwargs):
@@ -68,12 +68,12 @@ class Model():
     def posterior_traces(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=None, observe=None, file_name=None, *args, **kwargs):
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
             posterior = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, map_func=map_func, observe=observe, file_name=file_name, *args, **kwargs)
-            posterior.rename('Posterior, importance sampling (prior as proposal, num_traces: {:,}, effective_sample_size: {:,.2f})'.format(posterior.length, posterior.effective_sample_size))
+            posterior.rename('Posterior, IS, traces: {:,}, ESS: {:,.2f}'.format(posterior.length, posterior.effective_sample_size))
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             if self._inference_network is None:
                 raise RuntimeError('Cannot run inference engine IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK because no inference network for this model is available. Use learn_inference_network or load_inference_network first.')
             posterior = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=self._inference_network, map_func=map_func, observe=observe, file_name=file_name, *args, **kwargs)
-            posterior.rename('Posterior, importance sampling with inference network (learned proposal, num_traces: {:,}, training_traces: {}, effective_sample_size: {:,.2f})'.format(posterior.length, self._inference_network._total_train_traces, posterior.effective_sample_size))
+            posterior.rename('Posterior, IC, traces: {:,}, train. traces: {:,}, ESS: {:,.2f}'.format(posterior.length, self._inference_network._total_train_traces, posterior.effective_sample_size))
         else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
             posterior = Empirical(file_name=file_name)
             if initial_trace is None:
@@ -122,9 +122,9 @@ class Model():
             if util._verbosity > 1:
                 print()
 
-            posterior.rename('Posterior, {} Metropolis Hastings, num_traces={:,}, accepted={:,.2f}%, sample_reuse={:,.2f}%'.format('lightweight' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'random-walk', posterior.length, 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all))
+            posterior.finalize()
+            posterior.rename('Posterior, {}, traces: {:,}, accepted: {:,.2f}%, sample reuse: {:,.2f}%'.format('LMH' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'RMH', posterior.length, 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all))
 
-        posterior.finalize()
         return posterior
 
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, *args, **kwargs):
