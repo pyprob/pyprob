@@ -344,7 +344,7 @@ def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, fi
     def autocorrelation(values, lags):
         ret = np.array([1. if lag == 0 else np.corrcoef(values[lag:], values[:-lag])[0][1] for lag in lags])
         # nan is encountered when there is no variance in the values, the foloowing might be used to assign autocorrelation of 1 to such cases
-        ret[np.isnan(ret)] = 1.
+        # ret[np.isnan(ret)] = 1.
         return ret
 
     if lags is None:
@@ -363,7 +363,9 @@ def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, fi
     if n_most_frequent is not None:
         address_counts = {}
         num_traces = trace_dist.length
+        util.progress_bar_init('Collecting most frequent addresses...', num_traces)
         for i in range(num_traces):
+            util.progress_bar_update(i)
             trace = trace_dist._get_value(i)
             for variable in trace.variables_controlled:
                 if variable.value.nelement() == 1:
@@ -380,27 +382,20 @@ def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, fi
             all_variables_count += 1
             if all_variables_count == n_most_frequent:
                 break
+        print()
 
     if len(variable_values) == 0:
         raise RuntimeError('No variables with scalar value have been selected.')
 
     variable_values = OrderedDict(sorted(variable_values.items(), reverse=True))
-    time_start = time.time()
-    prev_duration = 0
+
     num_traces = trace_dist.length
-    len_str_num_traces = len(str(num_traces))
-    print('Loading selected variables to memory...')
-    print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
+    util.progress_bar_init('Loading selected variables to memory...', num_traces)
     for i in range(num_traces):
         trace = trace_dist._get_value(i)
         for (address, name), values in variable_values.items():
             values[i] = float(trace.variables_dict_address[address].value)
-        duration = time.time() - time_start
-        if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
-            prev_duration = duration
-            traces_per_second = (i + 1) / duration
-            print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
-            sys.stdout.flush()
+        util.progress_bar_update(i)
     print()
     variable_autocorrelations = {}
     i = 0
