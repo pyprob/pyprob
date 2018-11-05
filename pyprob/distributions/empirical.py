@@ -235,12 +235,12 @@ class Empirical(Distribution):
                 filtered_log_weights.append(self._get_log_weight(i))
         return Empirical(filtered_values, log_weights=filtered_log_weights, *args, **kwargs)
 
-    def resample(self, num_samples, map_func=None, *args, **kwargs):
+    def resample(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):
         self._check_finalized()
         # TODO: improve this with a better resampling algorithm
         if map_func is None:
             map_func = lambda x: x
-        return Empirical(values=[map_func(self.sample()) for i in range(num_samples)], *args, **kwargs)
+        return Empirical(values=[map_func(self.sample(min_index=None, max_index=None)) for i in range(num_samples)], *args, **kwargs)
 
     @property
     def mean(self):
@@ -264,6 +264,17 @@ class Empirical(Distribution):
             _, max_index = util.to_tensor(self._log_weights).max(-1)
             self._mode = self._get_value(int(max_index))
         return self._mode
+
+    def arg_max(self, map_func):
+        self._check_finalized()
+        max_val = map_func(self._get_value(0))
+        max_i = 0
+        for i in range(self._length):
+            val = map_func(self._get_value(i))
+            if val >= max_val:
+                max_val = val
+                max_i = i
+        return self._get_value(max_i)
 
     @property
     def effective_sample_size(self):

@@ -344,7 +344,7 @@ def autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5), xlabel=
     def autocorrelation(values, lags):
         ret = np.array([1. if lag == 0 else np.corrcoef(values[lag:], values[:-lag])[0][1] for lag in lags])
         # nan is encountered when there is no variance in the values, the foloowing might be used to assign autocorrelation of 1 to such cases
-        # ret[np.isnan(ret)] = 1.
+        ret[np.isnan(ret)] = 1.
         return ret
 
     if lags is None:
@@ -388,7 +388,7 @@ def autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5), xlabel=
             mpl.rcParams['axes.unicode_minus'] = False
             plt.switch_backend('agg')
         fig = plt.figure(figsize=figsize)
-        plt.axhline(y=0, color='black')
+        plt.axhline(y=0, linewidth=1, color='black')
         for name, values in variable_values.items():
             plt.plot(lags, variable_autocorrelations[name], *args, **kwargs, label=name)
         if log_xscale:
@@ -547,7 +547,7 @@ def gelman_rubin(trace_dists, names=None, figsize=(10, 5), xlabel="Iteration", y
             mpl.rcParams['axes.unicode_minus'] = False
             plt.switch_backend('agg')
         fig = plt.figure(figsize=figsize)
-        plt.axhline(y=1, color='black')
+        plt.axhline(y=1, linewidth=1, color='black')
         for name, values in variable_values.items():
             plt.plot(iters, variable_rhats[name], *args, **kwargs, label=name)
         if log_xscale:
