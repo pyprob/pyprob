@@ -335,7 +335,7 @@ def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="
     return np.array(iters), np.array(log_probs)
 
 
-def autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5), xlabel="Lag", ylabel='Autocorrelation', xticks=None, yticks=None, log_xscale=True, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
+def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, figsize=(10, 5), xlabel="Lag", ylabel='Autocorrelation', xticks=None, yticks=None, log_xscale=True, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
     if type(trace_dist) != Empirical:
         raise TypeError('Expecting a posterior trace distribution, from a call to a Model\'s posterior_traces.')
     if type(trace_dist[0]) != Trace:
@@ -349,17 +349,42 @@ def autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5), xlabel=
 
     if lags is None:
         lags = np.unique(np.logspace(0, np.log10(trace_dist.length/2)).astype(int))
-    variable_values = {}
+    variable_values = OrderedDict()
     if names is None:
         for name, variable in trace_dist[-1].named_variables.items():
             if not variable.observed and variable.value.nelement() == 1:
-                variable_values[name] = np.zeros(trace_dist.length)
+                variable_values[(variable.address, name)] = np.zeros(trace_dist.length)
     else:
         for name in names:
-            variable_values[name] = np.zeros(trace_dist.length)
-    if len(variable_values) == 0:
-        raise RuntimeError('No named variables with scalar value are found.')
+            address = trace_dist[-1].named_variables[name].address
+            variable_values[(address, name)] = np.zeros(trace_dist.length)
+    named_variables_count = len(variable_values)
 
+    if n_most_frequent is not None:
+        address_counts = {}
+        num_traces = trace_dist.length
+        for i in range(num_traces):
+            trace = trace_dist._get_value(i)
+            for variable in trace.variables_controlled:
+                if variable.value.nelement() == 1:
+                    address = variable.address
+                    if address not in address_counts:
+                        address_counts[address] = 1
+                    else:
+                        address_counts[address] += 1
+        address_counts = {k: v for k, v in address_counts.items() if v >= num_traces}
+        address_counts = OrderedDict(sorted(address_counts.items(), key=lambda x: x[1], reverse=True))
+        all_variables_count = 0
+        for address, count in address_counts.items():
+            variable_values[(address, None)] = np.zeros(trace_dist.length)
+            all_variables_count += 1
+            if all_variables_count == n_most_frequent:
+                break
+
+    if len(variable_values) == 0:
+        raise RuntimeError('No variables with scalar value have been selected.')
+
+    variable_values = OrderedDict(sorted(variable_values.items(), reverse=True))
     time_start = time.time()
     prev_duration = 0
     num_traces = trace_dist.length
@@ -368,8 +393,8 @@ def autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5), xlabel=
     print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
     for i in range(num_traces):
         trace = trace_dist._get_value(i)
-        for name, values in variable_values.items():
-            values[i] = float(trace.named_variables[name].value)
+        for (address, name), values in variable_values.items():
+            values[i] = float(trace.variables_dict_address[address].value)
         duration = time.time() - time_start
         if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
             prev_duration = duration
@@ -379,18 +404,26 @@ def autocorrelations(trace_dist, names=None, lags=None, figsize=(10, 5), xlabel=
     print()
     variable_autocorrelations = {}
     i = 0
-    for name, values in variable_values.items():
+    for (address, name), values in variable_values.items():
         i += 1
-        print('Computing autocorrelation for named variable {} ({} of {})...'.format(name, i, len(variable_values)))
-        variable_autocorrelations[name] = autocorrelation(variable_values[name], lags)
+        print('Computing autocorrelation for variable name: {} ({} of {})...'.format(name, i, len(variable_values)))
+        variable_autocorrelations[address] = autocorrelation(values, lags)
     if plot:
         if not plot_show:
             mpl.rcParams['axes.unicode_minus'] = False
             plt.switch_backend('agg')
         fig = plt.figure(figsize=figsize)
         plt.axhline(y=0, linewidth=1, color='black')
-        for name, values in variable_values.items():
-            plt.plot(lags, variable_autocorrelations[name], *args, **kwargs, label=name)
+        other_legend_added = False
+        for (address, name), values in variable_values.items():
+            if name is None:
+                label = None
+                if not other_legend_added:
+                    label = '{} most frequent addresses'.format(all_variables_count - named_variables_count + 1)
+                    other_legend_added = True
+                plt.plot(lags, variable_autocorrelations[address], *args, **kwargs, linewidth=1, color='gray', label=label)
+            else:
+                plt.plot(lags, variable_autocorrelations[address], *args, **kwargs, label=name)
         if log_xscale:
             plt.xscale('log')
         if xticks is not None:
