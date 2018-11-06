@@ -437,7 +437,7 @@ def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, fi
     return lags, variable_autocorrelations
 
 
-def gelman_rubin(trace_dists, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='R-hat', xticks=None, yticks=None, log_xscale=False, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
+def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5), xlabel="Iteration", ylabel='R-hat', xticks=None, yticks=None, log_xscale=False, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
     def merge_dicts(d1, d2):
         for k, v in d2.items():
             if k in d1:
@@ -503,35 +503,54 @@ def gelman_rubin(trace_dists, names=None, figsize=(10, 5), xlabel="Iteration", y
 
         variable_values = {}
 
-        time_start = time.time()
-        prev_duration = 0
         num_traces = trace_dist.length
         if num_traces != trace_dist_length:
             raise ValueError('Expecting a list of MCMC posterior trace distributions with the same length.')
-        len_str_num_traces = len(str(num_traces))
-        print('Loading selected variables to memory...')
-        print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
+        util.progress_bar_init('Loading selected variables to memory...', num_traces)
         for i in range(num_traces):
             trace = trace_dist._get_value(i)
-            name_list = trace_dist[i].named_variables.keys() if names is None else names
+            name_list = trace.named_variables.keys() if names is None else names
             for name in name_list:
-                if name not in trace_dist[i].named_variables:
+                if name not in trace.named_variables:
                     # This random variable is not sampled in the ith trace
                     continue
-                variable = trace_dist[i].named_variables[name]
-                if not variable.observed and variable.value.nelement() == 1: # Do not include latent variables or vector-valued variables
-                    if name not in variable_values:
+                variable = trace.named_variables[name]
+                if not variable.control and variable.value.nelement() == 1:
+                    address = variable.address
+                    if (address, name) not in variable_values:
                         # This is the first trace this random variable sample appeared in
                         # Initialize values as a vector of nans. nan means the random variable is not appeared
-                        variable_values[name] = np.ones(trace_dist.length) * np.nan
-                    variable_values[name][i] = float(trace.named_variables[name].value)
-            duration = time.time() - time_start
-            if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
-                prev_duration = duration
-                traces_per_second = (i + 1) / duration
-                print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
-                sys.stdout.flush()
+                        variable_values[(address, name)] = np.ones(trace_dist.length) * np.nan
+                    variable_values[(address, name)][i] = float(trace.named_variables[name].value)
+            util.progress_bar_update(i)
         print()
+
+        n_most_frequent = 50
+        if n_most_frequent is not None:
+            address_counts = {}
+            num_traces = trace_dist.length
+            util.progress_bar_init('Collecting most frequent addresses...', num_traces)
+            for i in range(num_traces):
+                util.progress_bar_update(i)
+                trace = trace_dist._get_value(i)
+                for variable in trace.variables_controlled:
+                    if variable.value.nelement() == 1:
+                        address = variable.address
+                        if address not in address_counts:
+                            address_counts[address] = 1
+                        else:
+                            address_counts[address] += 1
+            address_counts = {k: v for k, v in address_counts.items() if v >= num_traces}
+            address_counts = OrderedDict(sorted(address_counts.items(), key=lambda x: x[1], reverse=True))
+            all_variables_count = 0
+            for address, count in address_counts.items():
+                variable_values[(address, None)] = np.zeros(trace_dist.length)
+                all_variables_count += 1
+                if all_variables_count == n_most_frequent:
+                    break
+            print()
+            # TODO: populate values variable_values[(address, name)][i] = float(trace.named_variables[name].value)
+
         return variable_values
 
     variable_values = {}
@@ -543,15 +562,15 @@ def gelman_rubin(trace_dists, names=None, figsize=(10, 5), xlabel="Iteration", y
 
     # Fill in the spots where a random variable sample is missing
     # and remove all the values before its first appearance in all chains.
-    for name, value in variable_values.items():
+    for (address, name), value in variable_values.items():
         r, c = np.where(~np.isnan(value)) # Find all nans i.e. missing random variable samples
         first_non_nans = [np.min(c[r == i]) for i in range(value.shape[0]) if i in r] # For each chain, find the first non-nan value
-        starting_col = max(first_non_nans) if first_non_nans else value.shape[1]+1 # Set the strating timestep for all chains
+        starting_col = max(first_non_nans) if first_non_nans else value.shape[1]+1 # Set the starting timestep for all chains
                                                                                    # i.e. the first time it is sampled in all chains
         if starting_col != 0:
             # Remove the initial nans
             value = value[:, starting_col:]
-            variable_values[name] = value
+            variable_values[(address, name)] = value
 
         #assert trace_dists[0].length == value.shape[1] + starting_col
         # Fill in the remaining nans with the last value appeared before them
@@ -565,10 +584,13 @@ def gelman_rubin(trace_dists, names=None, figsize=(10, 5), xlabel="Iteration", y
 
     variable_rhats = {}
     i = 0
-    for name, values in variable_values.items():
+    for (address, name), values in variable_values.items():
         i += 1
         print('Computing R-hat for named variable {} ({} of {})...'.format(name, i, len(variable_values)))
-        variable_rhats[name] = rhat(variable_values[name], iters)
+        print(address)
+        variable_rhats[address] = rhat(values, iters)
+        print(variable_rhats[address])
+        print()
 
     if plot:
         if not plot_show:
@@ -576,8 +598,16 @@ def gelman_rubin(trace_dists, names=None, figsize=(10, 5), xlabel="Iteration", y
             plt.switch_backend('agg')
         fig = plt.figure(figsize=figsize)
         plt.axhline(y=1, linewidth=1, color='black')
-        for name, values in variable_values.items():
-            plt.plot(iters, variable_rhats[name], *args, **kwargs, label=name)
+        other_legend_added = False
+        for (address, name), values in variable_values.items():
+            if name is None:
+                label = None
+                if not other_legend_added:
+                    label = 'Other'
+                    other_legend_added = True
+                plt.plot(iters, variable_rhats[address], *args, **kwargs, linewidth=1, color='gray', label=label)
+            else:
+                plt.plot(iters, variable_rhats[address], *args, **kwargs, label=name)
         if log_xscale:
             plt.xscale('log')
         if xticks is not None:
