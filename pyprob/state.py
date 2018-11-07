@@ -185,7 +185,9 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                         proposal_distribution = _current_trace_inference_network.infer_trace_step(variable, previous_variable=_current_trace_previous_variable)
                         update_previous_variable = True
 
-                    value = proposal_distribution.sample()[0]
+                    value = proposal_distribution.sample()
+                    if value.dim() > 0:
+                        value = value[0]
                     log_prob = distribution.log_prob(value, sum=True)
                     proposal_log_prob = proposal_distribution.log_prob(value, sum=True)
                     if util.has_nan_or_inf(log_prob):

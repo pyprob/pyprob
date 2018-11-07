@@ -53,7 +53,7 @@ class Mixture(Distribution):
             dist_samples = []
             for d in self._distributions:
                 sample = d.sample()
-                if sample.dim == 0:
+                if sample.dim() == 0:
                     sample = sample.unsqueeze(-1)
                 dist_samples.append(sample)
             ret = []

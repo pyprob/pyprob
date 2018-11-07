@@ -257,6 +257,7 @@ class InferenceNetworkFeedForward(nn.Module):
             self._init_layer_observe_embeddings(self._observe_embeddings)
             self._polymorph(self._valid_batch)
 
+        self.train()
         prev_total_train_seconds = self._total_train_seconds
         time_start = time.time()
         time_loss_min = time.time()
