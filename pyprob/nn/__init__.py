@@ -1,4 +1,4 @@
-from .batch import Batch, BatchGenerator
+from .batch import Batch, BatchGeneratorOnline, BatchGeneratorOffline
 from .embedding_feedforward import EmbeddingFeedForward
 from .embedding_cnn_2d_5c import EmbeddingCNN2D5C
 from .embedding_cnn_3d_4c import EmbeddingCNN3D4C

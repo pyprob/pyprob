@@ -13,7 +13,7 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D4C, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
+from . import BatchGeneratorOffline, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D4C, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
 from .. import __version__, util, ObserveEmbedding
 from ..distributions import Normal, Uniform, Categorical, Poisson
 
@@ -192,6 +192,12 @@ class InferenceNetworkFeedForward(nn.Module):
             print('Warning: no proposal can be made, prior will be used.')
             return distribution
 
+    def _pre_create_layers(self, batch_generator_offline):
+        if not isinstance(batch_generator_offline, BatchGeneratorOffline):
+            raise ValueError('Expecting a BatchGeneratorOffline.')
+        for batch in batch_generator_offline.batches(size=128):
+            self._polymorph(batch)
+
     def _polymorph(self, batch):
         layers_changed = False
         for sub_batch in batch.sub_batches:
@@ -248,12 +254,12 @@ class InferenceNetworkFeedForward(nn.Module):
                         return False, 0
                 sub_batch_loss += -torch.sum(log_prob)
             batch_loss += sub_batch_loss
-        return True, batch_loss / batch.length
+        return True, batch_loss / batch.size
 
     def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, *args, **kwargs):
         if self._valid_batch is None:
             print('Initializing inference network...')
-            self._valid_batch = batch_generator.get_batch(self._valid_size, discard_source=True)
+            self._valid_batch = next(batch_generator.batches(self._valid_size, discard_source=True))
             self._init_layer_observe_embeddings(self._observe_embeddings)
             self._polymorph(self._valid_batch)
 
@@ -263,6 +269,7 @@ class InferenceNetworkFeedForward(nn.Module):
         time_loss_min = time.time()
         time_last_batch = time.time()
         last_validation_trace = -valid_interval + 1
+        epoch = 0
         iteration = 0
         trace = 0
         stop = False
@@ -272,81 +279,82 @@ class InferenceNetworkFeedForward(nn.Module):
         time_since_loss_min_str = ''
         last_auto_save_time = time.time() - auto_save_interval_sec
         while not stop:
-            iteration += 1
-            batch = batch_generator.get_batch(batch_size)
-            layers_changed = self._polymorph(batch)
+            epoch += 1
+            for batch in batch_generator.batches(batch_size):
+                iteration += 1
+                layers_changed = self._polymorph(batch)
 
-            if (self._optimizer is None) or layers_changed:
-                self._optimizer = optim.Adam(self.parameters(), lr=learning_rate, weight_decay=weight_decay)
+                if (self._optimizer is None) or layers_changed:
+                    self._optimizer = optim.Adam(self.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
-            self._optimizer.zero_grad()
-            success, loss = self._loss(batch)
-            if not success:
-                print(colored('Cannot compute loss, skipping batch. Loss: {}'.format(loss), 'red', attrs=['bold']))
-            else:
-                loss.backward()
-                self._optimizer.step()
-                loss = float(loss)
-
-                if self._loss_initial is None:
-                    self._loss_initial = loss
-                    self._loss_max = loss
-                loss_initial_str = '{:+.2e}'.format(self._loss_initial)
-                # loss_max_str = '{:+.3e}'.format(self._loss_max)
-                if loss < self._loss_min:
-                    self._loss_min = loss
-                    loss_str = colored('{:+.2e}'.format(loss), 'green', attrs=['bold'])
-                    loss_min_str = colored('{:+.2e}'.format(self._loss_min), 'green', attrs=['bold'])
-                    time_loss_min = time.time()
-                    time_since_loss_min_str = colored(util.days_hours_mins_secs_str(0), 'green', attrs=['bold'])
-                elif loss > self._loss_max:
-                    self._loss_max = loss
-                    loss_str = colored('{:+.2e}'.format(loss), 'red', attrs=['bold'])
-                    # loss_max_str = colored('{:+.3e}'.format(self._loss_max), 'red', attrs=['bold'])
+                self._optimizer.zero_grad()
+                success, loss = self._loss(batch)
+                if not success:
+                    print(colored('Cannot compute loss, skipping batch. Loss: {}'.format(loss), 'red', attrs=['bold']))
                 else:
-                    if loss < self._loss_previous:
-                        loss_str = colored('{:+.2e}'.format(loss), 'green')
-                    elif loss > self._loss_previous:
-                        loss_str = colored('{:+.2e}'.format(loss), 'red')
-                    else:
-                        loss_str = '{:+.2e}'.format(loss)
-                    loss_min_str = '{:+.2e}'.format(self._loss_min)
+                    loss.backward()
+                    self._optimizer.step()
+                    loss = float(loss)
+
+                    if self._loss_initial is None:
+                        self._loss_initial = loss
+                        self._loss_max = loss
+                    loss_initial_str = '{:+.2e}'.format(self._loss_initial)
                     # loss_max_str = '{:+.3e}'.format(self._loss_max)
-                    time_since_loss_min_str = util.days_hours_mins_secs_str(time.time() - time_loss_min)
+                    if loss < self._loss_min:
+                        self._loss_min = loss
+                        loss_str = colored('{:+.2e}'.format(loss), 'green', attrs=['bold'])
+                        loss_min_str = colored('{:+.2e}'.format(self._loss_min), 'green', attrs=['bold'])
+                        time_loss_min = time.time()
+                        time_since_loss_min_str = colored(util.days_hours_mins_secs_str(0), 'green', attrs=['bold'])
+                    elif loss > self._loss_max:
+                        self._loss_max = loss
+                        loss_str = colored('{:+.2e}'.format(loss), 'red', attrs=['bold'])
+                        # loss_max_str = colored('{:+.3e}'.format(self._loss_max), 'red', attrs=['bold'])
+                    else:
+                        if loss < self._loss_previous:
+                            loss_str = colored('{:+.2e}'.format(loss), 'green')
+                        elif loss > self._loss_previous:
+                            loss_str = colored('{:+.2e}'.format(loss), 'red')
+                        else:
+                            loss_str = '{:+.2e}'.format(loss)
+                        loss_min_str = '{:+.2e}'.format(self._loss_min)
+                        # loss_max_str = '{:+.3e}'.format(self._loss_max)
+                        time_since_loss_min_str = util.days_hours_mins_secs_str(time.time() - time_loss_min)
 
-                self._loss_previous = loss
-                self._total_train_iterations += 1
-                trace += batch.length
-                self._total_train_traces += batch.length
-                total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
-                self._total_train_seconds = prev_total_train_seconds + (time.time() - time_start)
-                total_training_seconds_str = util.days_hours_mins_secs_str(self._total_train_seconds)
-                traces_per_second_str = '{:,.1f}'.format(int(batch.length / (time.time() - time_last_batch)))
-                time_last_batch = time.time()
-                if num_traces is not None:
-                    if trace >= num_traces:
-                        stop = True
+                    self._loss_previous = loss
+                    self._total_train_iterations += 1
+                    trace += batch.size
+                    self._total_train_traces += batch.size
+                    total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
+                    self._total_train_seconds = prev_total_train_seconds + (time.time() - time_start)
+                    total_training_seconds_str = util.days_hours_mins_secs_str(self._total_train_seconds)
+                    traces_per_second_str = '{:,.1f}'.format(int(batch.size / (time.time() - time_last_batch)))
+                    time_last_batch = time.time()
+                    if num_traces is not None:
+                        if trace >= num_traces:
+                            stop = True
 
-                self._history_train_loss.append(loss)
-                self._history_train_loss_trace.append(self._total_train_traces)
-                if trace - last_validation_trace > valid_interval:
-                    print('\rComputing validation loss...', end='\r')
-                    with torch.no_grad():
-                        _, valid_loss = self._loss(self._valid_batch)
-                    valid_loss = float(valid_loss)
-                    self._history_valid_loss.append(valid_loss)
-                    self._history_valid_loss_trace.append(self._total_train_traces)
-                    last_validation_trace = trace - 1
+                    self._history_train_loss.append(loss)
+                    self._history_train_loss_trace.append(self._total_train_traces)
+                    if trace - last_validation_trace > valid_interval:
+                        print('\rComputing validation loss...', end='\r')
+                        with torch.no_grad():
+                            _, valid_loss = self._loss(self._valid_batch)
+                        valid_loss = float(valid_loss)
+                        self._history_valid_loss.append(valid_loss)
+                        self._history_valid_loss_trace.append(self._total_train_traces)
+                        last_validation_trace = trace - 1
 
-                if auto_save_file_name_prefix is not None:
-                    if time.time() - last_auto_save_time > auto_save_interval_sec:
-                        last_auto_save_time = time.time()
-                        file_name = '{}_{}.network'.format(auto_save_file_name_prefix, util.get_time_stamp())
-                        print('\rSaving to disk...', end='\r')
-                        self._save(file_name)
+                    if auto_save_file_name_prefix is not None:
+                        if time.time() - last_auto_save_time > auto_save_interval_sec:
+                            last_auto_save_time = time.time()
+                            file_name = '{}_{}.network'.format(auto_save_file_name_prefix, util.get_time_stamp())
+                            print('\rSaving to disk...', end='\r')
+                            self._save(file_name)
 
-                print_line = '{} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
-                max_print_line_len = max(len(print_line), max_print_line_len)
-                print(print_line.ljust(max_print_line_len), end='\r')
-                sys.stdout.flush()
+                    print_line = '{} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
+                    max_print_line_len = max(len(print_line), max_print_line_len)
+                    print(print_line.ljust(max_print_line_len), end='\r')
+                    sys.stdout.flush()
         print()

@@ -8,7 +8,7 @@ from termcolor import colored
 
 from .distributions import Empirical
 from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, AddressDictionary
-from .nn import BatchGenerator, InferenceNetworkFeedForward
+from .nn import BatchGeneratorOnline, BatchGeneratorOffline, InferenceNetworkFeedForward
 from .remote import ModelServer
 
 
@@ -24,6 +24,19 @@ class Model():
 
     def forward(self):
         raise NotImplementedError()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.close()
+
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        if self._address_dictionary is not None:
+            self._address_dictionary.close()
 
     def _trace_generator(self, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None, *args, **kwargs):
         while True:
@@ -136,7 +149,7 @@ class Model():
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, *args, **kwargs):
         return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, file_name=file_name, *args, **kwargs)
 
-    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, trace_store_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600):
+    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, trace_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600):
         if self._inference_network is None:
             print('Creating new inference network...')
             if inference_network == InferenceNetwork.FEEDFORWARD:
@@ -147,7 +160,10 @@ class Model():
             print('Continuing to train existing inference network...')
             print('Total number of parameters: {:,}'.format(self._inference_network._history_num_params[-1]))
 
-        batch_generator = BatchGenerator(self, prior_inflation, trace_store_dir)
+        if trace_dir is None:
+            batch_generator = BatchGeneratorOnline(self, prior_inflation)
+        else:
+            batch_generator = BatchGeneratorOffline(trace_dir)
         self._inference_network.to(device=util._device)
         self._inference_network.optimize(num_traces, batch_generator, batch_size=batch_size, valid_interval=valid_interval, learning_rate=learning_rate, weight_decay=weight_decay, auto_save_file_name_prefix=auto_save_file_name_prefix, auto_save_interval_sec=auto_save_interval_sec)
 
@@ -161,12 +177,12 @@ class Model():
         # The following is due to a temporary hack related with https://github.com/pytorch/pytorch/issues/9981 and can be deprecated by using dill as pickler with torch > 0.4.1
         self._inference_network._model = self
 
-    def save_trace_store(self, trace_store_dir, files=16, traces_per_file=16, prior_inflation=PriorInflation.DISABLED, *args, **kwargs):
-        if not os.path.exists(trace_store_dir):
-            print('Directory does not exist, creating: {}'.format(trace_store_dir))
-            os.makedirs(trace_store_dir)
-        batch_generator = BatchGenerator(self, prior_inflation)
-        batch_generator.save_trace_store(trace_store_dir, files, traces_per_file)
+    def save_traces(self, trace_dir, files=16, traces_per_file=16, prior_inflation=PriorInflation.DISABLED, *args, **kwargs):
+        if not os.path.exists(trace_dir):
+            print('Directory does not exist, creating: {}'.format(trace_dir))
+            os.makedirs(trace_dir)
+        batch_generator = BatchGeneratorOnline(self, prior_inflation)
+        batch_generator.save_traces(trace_dir, files, traces_per_file)
 
 
 class ModelRemote(Model):
@@ -175,18 +191,10 @@ class ModelRemote(Model):
         self._model_server = None
         super().__init__(*args, **kwargs)
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exception_type, exception_value, traceback):
-        self.close()
-
-    def __del__(self):
-        self.close()
-
     def close(self):
         if self._model_server is not None:
             self._model_server.close()
+        super().close()
 
     def forward(self):
         if self._model_server is None:

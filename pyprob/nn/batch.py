@@ -1,5 +1,5 @@
 import torch
-import time
+import copy
 import os
 import shutil
 import uuid
@@ -15,7 +15,7 @@ from .. import __version__, util, TraceMode
 class Batch():
     def __init__(self, traces):
         self.traces = traces
-        self.length = len(traces)
+        self.size = len(traces)
         sub_batches = {}
         for trace in traces:
             if trace.length == 0:
@@ -31,72 +31,21 @@ class Batch():
             trace.to(device=device)
 
 
-class BatchGenerator():
-    def __init__(self, model, prior_inflation, trace_store_dir=None):
+class BatchGeneratorOnline():
+    def __init__(self, model, prior_inflation):
         self._model = model
         self._prior_inflation = prior_inflation
-        self._trace_store_dir = trace_store_dir
-        if trace_store_dir is not None:
-            self._trace_store_cache = []
-            self._trace_store_discarded_file_names = []
-            num_files = len(self._trace_store_current_files())
-            print('Monitoring trace cache (currently with {} files) at {}'.format(num_files, trace_store_dir))
 
-    def get_batch(self, length=64, discard_source=False, *args, **kwargs):
-        if self._trace_store_dir is None:
-            # There is no trace store on disk, sample traces online from the model
-            traces = self._model._traces(length, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs).get_values()
-        else:
-            # There is a trace store on disk, load traces from disk
-            if discard_source:
-                self._trace_store_cache = []
+    def batches(self, size=64, discard_source=False, *args, **kwargs):
+        traces = self._model._traces(size, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs).get_values()
+        yield Batch(traces)
 
-            while len(self._trace_store_cache) < length:
-                current_files = self._trace_store_current_files()
-                if len(current_files) == 0:
-                    cache_is_empty = True
-                    cache_was_empty = False
-                    while cache_is_empty:
-                        current_files = self._trace_store_current_files()
-                        num_files = len(current_files)
-                        if num_files > 0:
-                            cache_is_empty = False
-                            if cache_was_empty:
-                                print('Resuming, new data appeared in trace cache (currently with {} files) at {}'.format(num_files, self._trace_cache_path))
-                        else:
-                            if not cache_was_empty:
-                                print('Waiting for new data, empty (or fully discarded) trace cache at {}'.format(self._trace_cache_path))
-                                cache_was_empty = True
-                            time.sleep(0.5)
-
-                current_file = random.choice(current_files)
-                if discard_source:
-                    self._trace_store_discarded_file_names.append(current_file)
-                new_traces = self._load_traces(current_file)
-                if len(new_traces) == 0:  # When empty or corrupt file is read
-                    self._trace_store_discarded_file_names.append(current_file)
-                else:
-                    random.shuffle(new_traces)
-                    self._trace_store_cache += new_traces
-
-            traces = self._trace_store_cache[0:length]
-            self._trace_store_cache[0:length] = []
-        return Batch(traces)
-
-    def save_trace_store(self, trace_store_dir, files=16, traces_per_file=16, *args, **kwargs):
+    def save_traces(self, trace_dir, files=16, traces_per_file=16, *args, **kwargs):
         for file in range(files):
             traces = self._model._traces(traces_per_file, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, *args, **kwargs).get_values()
-            file_name = os.path.join(trace_store_dir, 'pyprob_traces_{}_{}'.format(traces_per_file, str(uuid.uuid4())))
+            file_name = os.path.join(trace_dir, 'pyprob_traces_{}_{}'.format(traces_per_file, str(uuid.uuid4())))
             self._save_traces(traces, file_name)
             print('Traces {:,}/{:,}, file {:,}/{:,}: {}'.format((file + 1) * traces_per_file, files * traces_per_file, file + 1, files, file_name))
-
-    def _trace_store_current_files(self):
-        files = [name for name in os.listdir(self._trace_store_dir)]
-        files = list(map(lambda f: os.path.join(self._trace_store_dir, f), files))
-        for discarded_file_name in self._trace_store_discarded_file_names:
-            if discarded_file_name in files:
-                files.remove(discarded_file_name)
-        return files
 
     def _save_traces(self, traces, file_name):
         data = {}
@@ -117,6 +66,36 @@ class BatchGenerator():
         t.start()
         t.join()
 
+
+class BatchGeneratorOffline():
+    def __init__(self, trace_dir):
+        self._trace_dir = trace_dir
+        self._trace_files = self._trace_dir_files()
+        self._trace_files_discarded = []
+        print('Using offline training traces with {} files at {}'.format(len(self._trace_files), self._trace_dir))
+
+    def batches(self, size=64, discard_source=False):
+        random.shuffle(self._trace_files)  # Happens once per epoch due to yield generator
+        trace_cache = []
+        trace_files = copy.deepcopy(self._trace_files)
+        while len(trace_files) > 0:
+            while len(trace_cache) < size:
+                file = trace_files.pop()
+                new_traces = self._load_traces(file)
+                trace_cache += new_traces
+                if discard_source:
+                    self._trace_files.remove(file)
+                if len(trace_files) == 0:
+                    break
+            batch_traces = trace_cache[:size]
+            trace_cache[:size] = []
+            yield Batch(batch_traces)
+
+    def _trace_dir_files(self):
+        files = [name for name in os.listdir(self._trace_dir)]
+        files = list(map(lambda f: os.path.join(self._trace_dir, f), files))
+        return files
+
     def _load_traces(self, file_name):
         try:
             tar = tarfile.open(file_name, 'r:gz')
@@ -133,7 +112,7 @@ class BatchGenerator():
             print(colored('Warning: cannot load traces from file, file potentially corrupt: {}'.format(file_name), 'red', attrs=['bold']))
             return []
 
-        # print('Loading trace cache of length {}'.format(data['length']))
+        # print('Loading trace cache of size {}'.format(data['size']))
         # if data['model_name'] != self._model.name:
             # print(colored('Warning: different model names (loaded traces: {}, current model: {})'.format(data['model_name'], self._model.name), 'red', attrs=['bold']))
         if data['pyprob_version'] != __version__:

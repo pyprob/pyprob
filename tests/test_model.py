@@ -56,7 +56,7 @@ class ModelTestCase(unittest.TestCase):
         self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
 
-    def test_model_prior_to_disk(self):
+    def test_model_prior_on_disk(self):
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
         num_traces = 1000
         prior_mean_correct = 1
@@ -172,7 +172,7 @@ class ModelTestCase(unittest.TestCase):
         self.assertLess(kl_divergence, 0.25)
 
 
-    def test_model_lmh_posterior_with_stop_and_resume_to_disk(self):
+    def test_model_lmh_posterior_with_stop_and_resume_on_disk(self):
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
         posterior_num_runs = 50
         posterior_num_traces_each_run = 50
@@ -205,7 +205,7 @@ class ModelTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_model_rmh_posterior_with_stop_and_resume_to_disk(self):
+    def test_model_rmh_posterior_with_stop_and_resume_on_disk(self):
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
         posterior_num_runs = 50
         posterior_num_traces_each_run = 50
@@ -238,17 +238,17 @@ class ModelTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_model_save_trace_store_load_train(self):
-        store_dir = tempfile.mkdtemp()
+    def test_model_save_traces_load_train(self):
+        trace_dir = tempfile.mkdtemp()
         store_files = 4
         store_traces_per_file = 128
         training_traces = 128
 
-        self._model.save_trace_store(trace_store_dir=store_dir, files=store_files, traces_per_file=store_traces_per_file)
-        self._model.learn_inference_network(num_traces=training_traces, trace_store_dir=store_dir, batch_size=16, valid_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
-        shutil.rmtree(store_dir)
+        self._model.save_traces(trace_dir=trace_dir, files=store_files, traces_per_file=store_traces_per_file)
+        self._model.learn_inference_network(num_traces=training_traces, trace_dir=trace_dir, batch_size=16, valid_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
+        shutil.rmtree(trace_dir)
 
-        util.eval_print('store_dir', 'store_files', 'store_traces_per_file', 'training_traces')
+        util.eval_print('trace_dir', 'store_files', 'store_traces_per_file', 'training_traces')
 
         self.assertTrue(True)
 
