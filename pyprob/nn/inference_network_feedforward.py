@@ -256,14 +256,14 @@ class InferenceNetworkFeedForward(nn.Module):
             batch_loss += sub_batch_loss
         return True, batch_loss / batch.size
 
-    def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, *args, **kwargs):
+    def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, pre_create_layers=True, *args, **kwargs):
         if self._valid_batch is None:
             print('Initializing inference network...')
             self._valid_batch = next(batch_generator.batches(self._valid_size, discard_source=True))
             self._init_layer_observe_embeddings(self._observe_embeddings)
             self._polymorph(self._valid_batch)
 
-        if isinstance(batch_generator, BatchGeneratorOffline):
+        if pre_create_layers and isinstance(batch_generator, BatchGeneratorOffline):
             print('Offline batch generator given, pre-creating all layers before training offline...')
             self._pre_create_layers(batch_generator)
             print('Layer pre-creation complete.')
