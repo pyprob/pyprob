@@ -7,23 +7,27 @@ import random
 from termcolor import colored
 
 from .distributions import Empirical
-from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork
+from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, AddressDictionary
 from .nn import BatchGenerator, InferenceNetworkFeedForward
 from .remote import ModelServer
 
 
 class Model():
-    def __init__(self, name='Unnamed pyprob model'):
+    def __init__(self, name='Unnamed pyprob model', address_dict_file_name=None):
         super().__init__()
         self.name = name
         self._inference_network = None
+        if address_dict_file_name is None:
+            self._address_dictionary = None
+        else:
+            self._address_dictionary = AddressDictionary(address_dict_file_name)
 
     def forward(self):
         raise NotImplementedError()
 
     def _trace_generator(self, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None, *args, **kwargs):
         while True:
-            state.begin_trace(self.forward, trace_mode, prior_inflation, inference_engine, inference_network, observe, metropolis_hastings_trace)
+            state.begin_trace(self.forward, trace_mode, prior_inflation, inference_engine, inference_network, observe, metropolis_hastings_trace, self._address_dictionary)
             result = self.forward(*args, **kwargs)
             trace = state.end_trace(result)
             yield trace
@@ -166,10 +170,10 @@ class Model():
 
 
 class ModelRemote(Model):
-    def __init__(self, server_address='tcp://127.0.0.1:5555'):
+    def __init__(self, server_address='tcp://127.0.0.1:5555', *args, **kwargs):
         self._server_address = server_address
         self._model_server = None
-        super().__init__('ModelRemote')
+        super().__init__(*args, **kwargs)
 
     def __enter__(self):
         return self

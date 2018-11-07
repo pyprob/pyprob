@@ -6,7 +6,6 @@ import uuid
 import tempfile
 import tarfile
 import random
-import sys
 from threading import Thread
 from termcolor import colored
 

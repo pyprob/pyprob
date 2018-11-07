@@ -23,6 +23,7 @@ _current_trace_execution_start = None
 _metropolis_hastings_trace = None
 _metropolis_hastings_site_address = None
 _metropolis_hastings_site_transition_log_prob = 0
+_address_dictionary = None
 
 
 # extract_address and _extract_target_of_assignment code by Tobias Kohn (kohnt@tobiaskohn.ch)
@@ -97,6 +98,8 @@ def tag(value, name=None, address=None):
         address_base = extract_address(_current_trace_root_function_name)
     else:
         address_base = address
+    if _address_dictionary is not None:
+        address_base = _address_dictionary.address_to_id(address_base)
     instance = _current_trace.last_instance(address_base) + 1
     address_suffix = 'None'
     address = '{}__{}__{}'.format(address_base, address_suffix, instance)
@@ -113,6 +116,8 @@ def observe(distribution, value=None, name=None, address=None):
         address_base = extract_address(_current_trace_root_function_name)
     else:
         address_base = address
+    if _address_dictionary is not None:
+        address_base = _address_dictionary.address_to_id(address_base)
     instance = _current_trace.last_instance(address_base) + 1
     address_suffix = 'None' if distribution is None else distribution._address_suffix
     address = '{}__{}__{}'.format(address_base, address_suffix, instance)
@@ -148,6 +153,9 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
         address_base = extract_address(_current_trace_root_function_name)
     else:
         address_base = address
+    if _address_dictionary is not None:
+        address_base = _address_dictionary.address_to_id(address_base)
+
     instance = _current_trace.last_instance(address_base) + 1
     address = '{}__{}__{}'.format(address_base, distribution._address_suffix, 'replaced' if replace else str(instance))
 
@@ -263,7 +271,7 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
     return variable.value
 
 
-def begin_trace(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None):
+def begin_trace(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None, address_dictionary=None):
     global _trace_mode
     global _inference_engine
     global _prior_inflation
@@ -276,6 +284,8 @@ def begin_trace(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation
     global _current_trace_replaced_variable_proposal_distributions
     global _current_trace_observed_variables
     global _current_trace_execution_start
+    global _address_dictionary
+    _address_dictionary = address_dictionary
     _current_trace_execution_start = time.time()
     _current_trace = Trace()
     _current_trace_root_function_name = func.__code__.co_name
@@ -309,6 +319,7 @@ def end_trace(result):
     global _current_trace
     global _current_trace_root_function_name
     global _current_trace_inference_network
+    global _address_dictionary
     _inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
     _prior_inflation = PriorInflation.DISABLED
     execution_time_sec = time.time() - _current_trace_execution_start
@@ -317,4 +328,5 @@ def end_trace(result):
     _current_trace = None
     _current_trace_root_function_name = None
     _current_trace_inference_network = None
+    _address_dictionary = None
     return ret
