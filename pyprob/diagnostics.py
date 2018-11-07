@@ -524,7 +524,6 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
             util.progress_bar_update(i)
         print()
 
-        n_most_frequent = 50
         if n_most_frequent is not None:
             address_counts = {}
             num_traces = trace_dist.length
@@ -573,10 +572,8 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
         x = np.where(~np.isnan(value)) # Find all nans i.e. missing random variable samples
         r, c = x
         first_non_nans = [np.min(c[r == i]) for i in range(value.shape[0]) if i in r] # For each chain, find the first non-nan value
-        print(first_non_nans)
         starting_col = max(first_non_nans) if first_non_nans else value.shape[1]+1 # Set the starting timestep for all chains
                                                                                    # i.e. the first time it is sampled in all chains
-        print(starting_col)
         if starting_col != 0:
             # Remove the initial nans
             value = value[:, starting_col:]
