@@ -71,7 +71,7 @@ https://hub.docker.com/r/probprog/pyprob/
 ## Usage, documentation, and examples
 
 The simplest way to get started with pyprob, is to import the `pyprob` package
-and `Model` class. 
+and `Model` class.
 
 ```python
 import pyprob
@@ -104,7 +104,7 @@ from pyprob import Model
 from pyprob.distributions import Normal
 
 class GaussianUnknownMean(Model):
-    def _init__(self):
+    def __init__(self):
         super().__init__(name="Gaussian with unknown mean") # give the model a name
         self.prior_mean = 1
         self.prior_stdd = math.sqrt(5)
@@ -138,9 +138,9 @@ In order to perform inference about the `model` (i.e. infer the posterior of
 ```python
 # sample from posterior (100 samples)
 posterior = model.posterior_distribution(
-                                         num_traces=100 # the number of samples estimating the posterior
-                                         inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING # specify which inference engine to use
-                                         observe={'obs0': 8, 'obs1': 9} # assign values to the observed values 
+                                         num_traces=100, # the number of samples estimating the posterior
+                                         inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING, # specify which inference engine to use
+                                         observe={'obs0': 8, 'obs1': 9} # assign values to the observed values
                                          )
 
 # sample mean
@@ -164,11 +164,15 @@ import pyprob
 ...
 
 class SomeGenerativeModel(Model):
-    
+
     ...
-    
-    return (var_1, var_2, var_3, ...) # return the desired number of latent variables to be inferred
-    
+
+    def forward(...):
+
+        ...
+
+        return (var_1, var_2, var_3, ...) # return the desired number of latent variables to be inferred
+
 model = SomeGenerativeModel()
 posterior = model.posterior_distribution(...)
 
