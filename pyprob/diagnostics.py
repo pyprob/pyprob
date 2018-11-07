@@ -358,7 +358,6 @@ def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, fi
         for name in names:
             address = trace_dist[-1].named_variables[name].address
             variable_values[(address, name)] = np.zeros(trace_dist.length)
-    named_variables_count = len(variable_values)
 
     if n_most_frequent is not None:
         address_counts = {}
@@ -414,7 +413,7 @@ def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, fi
             if name is None:
                 label = None
                 if not other_legend_added:
-                    label = '{} most frequent addresses'.format(all_variables_count - named_variables_count + 1)
+                    label = '{} most frequent addresses'.format(len(variable_values))
                     other_legend_added = True
                 plt.plot(lags, variable_autocorrelations[address], *args, **kwargs, linewidth=1, color='gray', label=label)
             else:
@@ -437,7 +436,7 @@ def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, fi
     return lags, variable_autocorrelations
 
 
-def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5), xlabel="Iteration", ylabel='R-hat', xticks=None, yticks=None, log_xscale=False, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
+def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5), xlabel="Iteration", ylabel='R-hat', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
     def merge_dicts(d1, d2):
         for k, v in d2.items():
             if k in d1:
@@ -544,13 +543,20 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
             address_counts = OrderedDict(sorted(address_counts.items(), key=lambda x: x[1], reverse=True))
             all_variables_count = 0
             for address, count in address_counts.items():
-                variable_values[(address, None)] = np.zeros(trace_dist.length)
+                variable_values[(address, None)] = np.ones(trace_dist.length) * np.nan
                 all_variables_count += 1
                 if all_variables_count == n_most_frequent:
                     break
             print()
             # TODO: populate values variable_values[(address, name)][i] = float(trace.named_variables[name].value)
-
+            util.progress_bar_init('Collecting most frequent addresses...', num_traces)
+            for i in range(num_traces):
+                util.progress_bar_update(i)
+                trace = trace_dist._get_value(i)
+                for (address, name), value in variable_values.items():
+                    variable_values[(address, name)][i] = float(trace.variables_dict_address[address].value)
+            print()
+        variable_values = OrderedDict(sorted(variable_values.items(), reverse=True))
         return variable_values
 
     variable_values = {}
@@ -560,13 +566,17 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
 
     iters = np.unique(np.logspace(0, np.log10(trace_dists[-1].length)).astype(int))
 
+    variable_values = {k: v for k, v in variable_values.items() if v.size == trace_dists[0].length * (len(trace_dists))}
     # Fill in the spots where a random variable sample is missing
     # and remove all the values before its first appearance in all chains.
     for (address, name), value in variable_values.items():
-        r, c = np.where(~np.isnan(value)) # Find all nans i.e. missing random variable samples
+        x = np.where(~np.isnan(value)) # Find all nans i.e. missing random variable samples
+        r, c = x
         first_non_nans = [np.min(c[r == i]) for i in range(value.shape[0]) if i in r] # For each chain, find the first non-nan value
+        print(first_non_nans)
         starting_col = max(first_non_nans) if first_non_nans else value.shape[1]+1 # Set the starting timestep for all chains
                                                                                    # i.e. the first time it is sampled in all chains
+        print(starting_col)
         if starting_col != 0:
             # Remove the initial nans
             value = value[:, starting_col:]
@@ -587,10 +597,7 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
     for (address, name), values in variable_values.items():
         i += 1
         print('Computing R-hat for named variable {} ({} of {})...'.format(name, i, len(variable_values)))
-        print(address)
         variable_rhats[address] = rhat(values, iters)
-        print(variable_rhats[address])
-        print()
 
     if plot:
         if not plot_show:
@@ -603,13 +610,15 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
             if name is None:
                 label = None
                 if not other_legend_added:
-                    label = 'Other'
+                    label = '{} most frequent addresses'.format(len(variable_values))
                     other_legend_added = True
                 plt.plot(iters, variable_rhats[address], *args, **kwargs, linewidth=1, color='gray', label=label)
             else:
                 plt.plot(iters, variable_rhats[address], *args, **kwargs, label=name)
         if log_xscale:
             plt.xscale('log')
+        if log_yscale:
+            plt.yscale('log', nonposy='clip')
         if xticks is not None:
             plt.xticks(xticks)
         if yticks is not None:
