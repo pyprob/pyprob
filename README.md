@@ -10,6 +10,22 @@ documentation and examples on the way. Watch this space!
 
 ## Why pyprob?
 
+The main advantage of `pyprob` compared against other probabilistic programming
+languages like Pyro, is a fully automatic amortized inference procedure based on
+importance sampling. `pyprob` only requires a generative model to be specified.
+Particularly, `pyprob` allows for efficient inference using inference
+compilation which is trains a recurrent neural network as a proposal network.
+
+In Pyro such an inference network requires the user to explicitly defines the
+control flow of the network, which is due to Pyro running the inference network
+and generative model sequentially. However, in `pyprob` the generative model and
+inference network runs concurrently. Thus, the control flow of the model is
+directly used to train the inference network. This allows for potentially better
+proposal networks and alleviates the need for manually defining its control flow.
+
+Additionally, Pyro does not currently support distributed training of the
+inference compilation network, whereas `pyprob` does.
+
 ### Support for multiple languages
 
 We support front ends in multiple languages through the
