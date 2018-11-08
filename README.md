@@ -20,8 +20,8 @@ In Pyro such an inference network requires the user to explicitly define the
 control flow of the network, which is due to Pyro running the inference network
 and generative model sequentially. However, in `pyprob` the generative model and
 inference network runs concurrently. Thus, the control flow of the model is
-directly used to train the inference network. This allows for potentially better
-proposal networks and alleviates the need for manually defining its control flow.
+directly used to train the inference network. This alleviates the need for
+manually defining its control flow.
 
 Additionally, Pyro does not currently support distributed training of the
 inference compilation network, whereas `pyprob` does.
