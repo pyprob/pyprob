@@ -13,7 +13,7 @@ from .. import util
 
 
 class Empirical(Distribution):
-    def __init__(self, values=None, log_weights=None, weights=None, file_name=None, file_sync_timeout=1000, name='Empirical'):
+    def __init__(self, values=None, log_weights=None, weights=None, file_name=None, file_sync_timeout=1000, file_writeback=False, name='Empirical'):
         self._finalized = False
         self._closed = False
         self._categorical = None
@@ -25,7 +25,7 @@ class Empirical(Distribution):
         else:
             self._on_disk = True
             self._file_name = file_name
-            self._shelf = shelve.open(self._file_name, writeback=True)
+            self._shelf = shelve.open(self._file_name, writeback=file_writeback)
             if 'log_weights' in self._shelf:
                 if 'name' in self._shelf:
                     name = self._shelf['name']
