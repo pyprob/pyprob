@@ -218,6 +218,40 @@ pyprob.InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS # Random-walk MH
 
 ### Using Inference Compilation
 
+In case of using `IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK`, you should first set the specification of the inference network you want to use and let it train for a while. Training the inference network is Inference Compilation which results in better proposal distributions for imoprtance sampling engine. The syntax for defining the network is the following:
+
+```python
+pyprob.Model.learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, trace_store_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600)
+```
+
+
+
+As an example, this the following code trains an inference network for the example in this document.
+
+```python
+model.learn_inference_network(num_trace=10000,
+                              observe_embeddings={'obs0' : {'dim' : 10},
+                                                  'obs1': {'dim' : 10}})
+```
+
+`learn_inference_network` should be provided with the following arguments:
+- `num_traces`: Specifies the number of traces (samples from the generative model) to be used for training the inference network.
+- `observe_embeddings`: Specifies network structure for observe embedding networks. It should be a dictionary from every observed variable name (defined by `name` argument to `observe` or `sample` statements) to its embedding network specification. The embedding network specification is itself a dictionary with a subset of the following keys:
+  - `dim`: Specifies dimension of the embedding. Default value is 256.
+  - `embedding`: Specifies the network type. By default, it is a fully connected network. It currently supports `util.ObserveEmbedding.FEEDFORWARD`, `util.ObserveEmbedding.CNN2D5C` and `util.ObserveEmbedding.CNN3D4C`. Please refer to [pyprob/nn/emdebbing_*.py](https://github.com/probprog/pyprob/tree/master/pyprob/nn/) for a list of supported network types and their definition.
+  - `depth`: Specifies depth of the network. Default value is 2.
+  - `reshape`: Specifies shape of the network input. By default, embedding network input has the same shape as the value sampled from corresponding `observe` statement's distribution.
+
+Once the network is trained, you can set `IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK` as `inference_engine` in `model.posterior_distribution` for performing inference.
+
+```python
+# sample from posterior using importance sampling and inference network (100 samples)
+posterior = model.posterior_distribution(
+                                         num_traces=100, # the number of samples estimating the posterior
+                                         inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, # specify which inference engine to use
+                                         observe={'obs0': 8, 'obs1': 9} # assign values to the observed values
+                                         )
+```
 
 ### More examples
 
