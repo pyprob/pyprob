@@ -10,13 +10,13 @@ documentation and examples on the way. Watch this space!
 
 ## Why pyprob?
 
-The main advantage of `pyprob` compared against other probabilistic programming
+The main advantage of `pyprob`, compared against other probabilistic programming
 languages like Pyro, is a fully automatic amortized inference procedure based on
 importance sampling. `pyprob` only requires a generative model to be specified.
 Particularly, `pyprob` allows for efficient inference using inference
-compilation which is trains a recurrent neural network as a proposal network.
+compilation which trains a recurrent neural network as a proposal network.
 
-In Pyro such an inference network requires the user to explicitly defines the
+In Pyro such an inference network requires the user to explicitly define the
 control flow of the network, which is due to Pyro running the inference network
 and generative model sequentially. However, in `pyprob` the generative model and
 inference network runs concurrently. Thus, the control flow of the model is
@@ -167,12 +167,12 @@ posterior_stdd = posterior.stddev
 
 #### Inferring more than one latent variable
 
-In the *Gassian with unknown mean* example, only a single latent variable
-`mu` was returned. In case several latent variables are being returned the
-`.map` method controls which latent variables that are returned. The return
-value is also an empirical distribution object with the `.mean` and `.steddev`
-methods. The `.map` methods takes **anonymous** functions as arguments, which
-are applied to each sample:
+In the *Gassian with unknown mean* example, only a single latent variable `mu`
+was returned. In case several latent variables are being returned the `.map`
+method controls those returned latent variables. The return value is also an
+empirical distribution object with the `.mean` and `.steddev` methods. The
+`.map` methods takes **anonymous** functions as arguments, which are applied to
+each sample:
 
 ```python
 import pyprob
@@ -187,17 +187,17 @@ class SomeGenerativeModel(Model):
 
         ...
 
-        return (var_1, var_2, var_3, ...) # return the desired number of latent variables to be inferred
+        return (var_0, var_1, var_2, ...) # return the desired number of latent variables to be inferred
 
 model = SomeGenerativeModel()
 posterior = model.posterior_distribution(...)
 
-posterior_first = posterior.map(lambda v: v[0]) # extract var_1
-var_1_mean = posterior_first.mean
+posterior_first = posterior.map(lambda v: v[0]) # extract var_0
+var_0_mean = posterior_first.mean
 
 # map can also be used to apply general functions and evaluate the statistical result under the posterior
-posterior_first_sqrt = posterior.map(lambda v: v[0]**2) # extract var_1**2
-var_1_sqrt_mean = posterior_first_sqrt.mean
+posterior_first_sqrt = posterior.map(lambda v: v[0]**2) # extract var_0**2
+var_0_sqrt_mean = posterior_first_sqrt.mean
 ```
 
 ### Visualization of and sampling from the posterior
@@ -234,15 +234,31 @@ pyprob.InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS # Random-walk MH
 
 ### Using Inference Compilation
 
-In case of using `IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK`, you should first set the specification of the inference network you want to use and let it train for a while. Training the inference network is Inference Compilation which results in better proposal distributions for imoprtance sampling engine. The syntax for defining the network is the following:
+In case of using `IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK`, you should first
+set the specification of the inference network you want to use and let it train
+for a while. Training the inference network is inference compilation which
+results in better proposal distributions for importance sampling engine. The
+syntax for defining the network is the following:
 
 ```python
-pyprob.Model.learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, trace_store_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600)
+pyprob.Model.learn_inference_network(self,
+                                     num_traces=None,
+                                     inference_network=InferenceNetwork.FEEDFORWARD,
+                                     prior_inflation=PriorInflation.DISABLED,
+                                     trace_store_dir=None,
+                                     observe_embeddings={},
+                                     batch_size=64,
+                                     valid_size=64, valid_interval=5000,
+                                     learning_rate=0.0001,
+                                     weight_decay=1e-5,
+                                     auto_save_file_name_prefix=None,
+                                     auto_save_interval_sec=600)
 ```
 
 
 
-As an example, this the following code trains an inference network for the example in this document.
+As an example, this the following code trains an inference network for the
+example in this document.
 
 ```python
 model.learn_inference_network(num_trace=10000,
@@ -251,12 +267,24 @@ model.learn_inference_network(num_trace=10000,
 ```
 
 `learn_inference_network` should be provided with the following arguments:
-- `num_traces`: Specifies the number of traces (samples from the generative model) to be used for training the inference network.
-- `observe_embeddings`: Specifies network structure for observe embedding networks. It should be a dictionary from every observed variable name (defined by `name` argument to `observe` or `sample` statements) to its embedding network specification. The embedding network specification is itself a dictionary with a subset of the following keys:
+- `num_traces`: Specifies the number of traces (samples from the generative
+  model) to be used for training the inference network.
+- `observe_embeddings`: Specifies network structure for observe embedding
+  networks. It should be a dictionary for every observed variable name (defined
+  by `name` argument to `observe` or `sample` statements) to its embedding
+  network specification. The embedding network specification is itself a
+  dictionary with a subset of the following keys:
   - `dim`: Specifies dimension of the embedding. Default value is 256.
-  - `embedding`: Specifies the network type. By default, it is a fully connected network. It currently supports `util.ObserveEmbedding.FEEDFORWARD`, `util.ObserveEmbedding.CNN2D5C` and `util.ObserveEmbedding.CNN3D4C`. Please refer to [pyprob/nn/emdebbing_*.py](https://github.com/probprog/pyprob/tree/master/pyprob/nn/) for a list of supported network types and their definition.
+  - `embedding`: Specifies the network type. By default, it is a fully connected
+    network. It currently supports `util.ObserveEmbedding.FEEDFORWARD`,
+    `util.ObserveEmbedding.CNN2D5C` and `util.ObserveEmbedding.CNN3D4C`. Please
+    refer to
+    [pyprob/nn/emdebbing_*.py](https://github.com/probprog/pyprob/tree/master/pyprob/nn/)
+    for a list of supported network types and their definition.
   - `depth`: Specifies depth of the network. Default value is 2.
-  - `reshape`: Specifies shape of the network input. By default, embedding network input has the same shape as the value sampled from corresponding `observe` statement's distribution.
+  - `reshape`: Specifies shape of the network input. By default, embedding
+    network input has the same shape as the value sampled from corresponding
+    `observe` statement's distribution.
 
 Once the network is trained, you can set `IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK` as `inference_engine` in `model.posterior_distribution` for performing inference.
 
@@ -272,8 +300,8 @@ posterior = model.posterior_distribution(
 ### More examples
 
 The [examples](https://github.com/probprog/pyprob/tree/master/examples) folder
-in this repository provides some working models and inference workflows as
-Jupyter notebooks.
+(to come) in this repository provides some working models and inference
+workflows as Jupyter notebooks.
 
 A set of continuous integration
 [tests](https://github.com/probprog/pyprob/tree/master/tests) are available in
