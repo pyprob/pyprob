@@ -145,6 +145,7 @@ def progress_bar_init(message, num_iters, iter_name='Traces'):
     progress_bar_prev_duration = 0
     progress_bar_len_str_num_iters = len(str(progress_bar_num_iters))
     print('Loading selected variables to memory...')
+    sys.stdout.flush()
     print('Time spent  | Time remain.| Progress             | {} | {}/sec'.format(iter_name.ljust(progress_bar_len_str_num_iters * 2 + 1), iter_name))
     print(message)
 

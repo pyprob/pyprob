@@ -91,6 +91,13 @@ class BatchGeneratorOffline():
             trace_cache[:size] = []
             yield Batch(batch_traces)
 
+    def num_batches(self, size):
+        # BEWARE: Assumes all trace files to have the same number of traces
+        num_files = len(self._trace_files)
+        num_traces_per_file = len(self._load_traces(self._trace_files[0]))
+        num_traces = num_files * num_traces_per_file
+        return int(num_traces / size)
+
     def _trace_dir_files(self):
         files = [name for name in os.listdir(self._trace_dir)]
         files = list(map(lambda f: os.path.join(self._trace_dir, f), files))

@@ -10,6 +10,7 @@ class ProposalCategoricalCategorical(nn.Module):
     def __init__(self, input_shape, num_categories, num_layers=3):
         super().__init__()
         self._ff = EmbeddingFeedForward(input_shape=input_shape, output_shape=torch.Size([num_categories]), num_layers=num_layers, activation=torch.relu, activation_last=None)
+        self._total_train_iterations = 0
 
     def forward(self, x, prior_variables):
         batch_size = x.size(0)

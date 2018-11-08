@@ -16,6 +16,7 @@ _prior_inflation = PriorInflation.DISABLED
 _current_trace = None
 _current_trace_root_function_name = None
 _current_trace_inference_network = None
+_current_trace_inference_network_proposal_min_train_iterations = None
 _current_trace_previous_variable = None
 _current_trace_replaced_variable_proposal_distributions = {}
 _current_trace_observed_variables = None
@@ -186,11 +187,11 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                     variable = Variable(distribution=distribution, value=None, address_base=address_base, address=address, instance=instance, log_prob=0., control=control, replace=replace, name=name, observed=observed, reused=reused)
                     if replace:
                         if address not in _current_trace_replaced_variable_proposal_distributions:
-                            _current_trace_replaced_variable_proposal_distributions[address] = _current_trace_inference_network.infer_trace_step(variable, previous_variable=_current_trace_previous_variable)
+                            _current_trace_replaced_variable_proposal_distributions[address] = _current_trace_inference_network.infer_trace_step(variable, previous_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
                             update_previous_variable = True
                         proposal_distribution = _current_trace_replaced_variable_proposal_distributions[address]
                     else:
-                        proposal_distribution = _current_trace_inference_network.infer_trace_step(variable, previous_variable=_current_trace_previous_variable)
+                        proposal_distribution = _current_trace_inference_network.infer_trace_step(variable, previous_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
                         update_previous_variable = True
 
                     value = proposal_distribution.sample()
@@ -281,6 +282,7 @@ def begin_trace(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation
     global _current_trace
     global _current_trace_root_function_name
     global _current_trace_inference_network
+    global _current_trace_inference_network_proposal_min_train_iterations
     global _current_trace_replaced_variable_proposal_distributions
     global _current_trace_observed_variables
     global _current_trace_execution_start
@@ -300,6 +302,7 @@ def begin_trace(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation
             raise ValueError('Cannot run trace with IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK without an inference network.')
     else:
         _current_trace_inference_network.infer_trace_init(_current_trace_observed_variables)
+        _current_trace_inference_network_proposal_min_train_iterations = int(_current_trace_inference_network._total_train_iterations / 5)
 
     if _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
         global _metropolis_hastings_trace
@@ -319,6 +322,7 @@ def end_trace(result):
     global _current_trace
     global _current_trace_root_function_name
     global _current_trace_inference_network
+    global _current_trace_inference_network_proposal_min_train_iterations
     global _address_dictionary
     _inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
     _prior_inflation = PriorInflation.DISABLED
@@ -328,5 +332,6 @@ def end_trace(result):
     _current_trace = None
     _current_trace_root_function_name = None
     _current_trace_inference_network = None
+    _current_trace_inference_network_proposal_min_train_iterations = None
     _address_dictionary = None
     return ret

@@ -177,26 +177,32 @@ class InferenceNetworkFeedForward(nn.Module):
         embedding = torch.cat(embedding, dim=1)
         self._infer_observe_embedding = self._layer_observe_embedding_final(embedding)
 
-    def infer_trace_step(self, variable, previous_variable=None):
-        success = True
+    def infer_trace_step(self, variable, previous_variable=None, proposal_min_train_iterations=None):
         address = variable.address
         distribution = variable.distribution
-        if address not in self._layer_proposal:
-            print('Warning: no proposal layer for: {}'.format(address))
-            success = False
-
-        if success:
-            proposal_distribution = self._layer_proposal[address].forward(self._infer_observe_embedding, [variable])
+        if address in self._layer_proposal:
+            proposal_layer = self._layer_proposal[address]
+            if proposal_min_train_iterations is not None:
+                if proposal_layer._total_train_iterations < proposal_min_train_iterations:
+                    print(colored('Warning: using prior, proposal not sufficiently trained ({}/{}) for address: {}'.format(proposal_layer._total_train_iterations, proposal_min_train_iterations, address), 'yellow', attrs=['bold']))
+                    return distribution
+            proposal_distribution = proposal_layer.forward(self._infer_observe_embedding, [variable])
             return proposal_distribution
         else:
-            print('Warning: no proposal can be made, prior will be used.')
+            print(colored('Warning: using prior, no proposal layer for address: {}'.format(address), 'yellow', attrs=['bold']))
             return distribution
 
-    def _pre_create_layers(self, batch_generator_offline):
+    def _pre_generate_layers(self, batch_generator_offline):
         if not isinstance(batch_generator_offline, BatchGeneratorOffline):
             raise ValueError('Expecting a BatchGeneratorOffline.')
+        num_batches = batch_generator_offline.num_batches(size=128)
+        util.progress_bar_init('Pre-generating layers...', num_batches, 'Batches')
+        i = 0
         for batch in batch_generator_offline.batches(size=128):
+            i += 1
+            util.progress_bar_update(i)
             self._polymorph(batch)
+        print('Layer pre-generation complete.')
 
     def _polymorph(self, batch):
         layers_changed = False
@@ -239,7 +245,9 @@ class InferenceNetworkFeedForward(nn.Module):
                 address = example_trace.variables_controlled[time_step].address
                 variables = [trace.variables_controlled[time_step] for trace in sub_batch]
                 values = torch.stack([v.value for v in variables])
-                proposal_distribution = self._layer_proposal[address].forward(observe_embedding, variables)
+                proposal_layer = self._layer_proposal[address]
+                proposal_layer._total_train_iterations += 1
+                proposal_distribution = proposal_layer.forward(observe_embedding, variables)
                 log_prob = proposal_distribution.log_prob(values)
                 if util.has_nan_or_inf(log_prob):
                     print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))
@@ -261,12 +269,11 @@ class InferenceNetworkFeedForward(nn.Module):
             print('Initializing inference network...')
             self._valid_batch = next(batch_generator.batches(self._valid_size, discard_source=True))
             self._init_layer_observe_embeddings(self._observe_embeddings)
-            self._polymorph(self._valid_batch)
-
-        if pre_create_layers and isinstance(batch_generator, BatchGeneratorOffline):
-            print('Offline batch generator given, pre-creating all layers before training offline...')
-            self._pre_create_layers(batch_generator)
-            print('Layer pre-creation complete.')
+            if pre_create_layers and isinstance(batch_generator, BatchGeneratorOffline):
+                print('Offline batch generator given, training offline')
+                self._pre_generate_layers(batch_generator)
+            else:
+                self._polymorph(self._valid_batch)
 
         self.train()
         prev_total_train_seconds = self._total_train_seconds
