@@ -240,7 +240,12 @@ class Empirical(Distribution):
         # TODO: improve this with a better resampling algorithm
         if map_func is None:
             map_func = lambda x: x
-        return Empirical(values=[map_func(self.sample(min_index=None, max_index=None)) for i in range(num_samples)], *args, **kwargs)
+        values = []
+        util.progress_bar_init('Resampling...', num_samples, 'Samples')
+        for i in range(num_samples):
+            util.progress_bar_update(i)
+            values.append(map_func(self.sample(min_index=None, max_index=None)))
+        return Empirical(values=values, *args, **kwargs)
 
     @property
     def mean(self):
