@@ -274,7 +274,9 @@ class Empirical(Distribution):
         self._check_finalized()
         max_val = map_func(self._get_value(0))
         max_i = 0
+        util.progress_bar_init('Computing arg_max...', self._length, 'Values')
         for i in range(self._length):
+            util.progress_bar_update(i)
             val = map_func(self._get_value(i))
             if val >= max_val:
                 max_val = val
