@@ -6,6 +6,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import time
 import sys
+import math
 
 from . import __version__, util, PriorInflation, InferenceEngine
 from .distributions import Empirical
@@ -275,6 +276,12 @@ def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=No
             else:
                 print('Cannot render histogram for {} because it is not scalar valued. Example value: {}'.format(address_id, variable.value))
 
+        file_name_all = os.path.join(report_distribution_root, 'all.pdf')
+        print('Combining histograms to: {}'.format(file_name_all))
+        status = os.system('pdfjam {}/*.pdf --nup {}x{} --landscape --outfile {}'.format(report_distribution_root, math.ceil(math.sqrt(i)), math.ceil(math.sqrt(i)), file_name_all))
+        if status != 0:
+            print('Cannot not render to file {}. Check that pdfjam is installed.'.format(file_name_all))
+
     return master_graph, stats
 
 
@@ -436,7 +443,7 @@ def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, fi
     return lags, variable_autocorrelations
 
 
-def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5), xlabel="Iteration", ylabel='R-hat', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
+def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5), xlabel="Iteration", ylabel='R-hat', xticks=None, yticks=None, log_xscale=False, log_yscale=True, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
     def merge_dicts(d1, d2):
         for k, v in d2.items():
             if k in d1:
