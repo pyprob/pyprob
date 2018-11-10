@@ -159,6 +159,9 @@ def progress_bar_update(iter):
         sys.stdout.flush()
 
 
+def progress_bar_end():
+    print()
+
 def days_hours_mins_secs_str(total_seconds):
     d, r = divmod(total_seconds, 86400)
     h, r = divmod(r, 3600)
