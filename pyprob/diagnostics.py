@@ -649,7 +649,7 @@ class Diagnostics():
             raise RuntimeError('The model does not have a trained inference network. Use learn_inference_network first.')
         return network_statistics(self._model._inference_network, report_dir)
 
-    def prior_graph(self, num_traces=1000, prior_inflation=PriorInflation.DISABLED, use_address_base=True, bins=100, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, *args, **kwargs):
+    def prior_graph(self, num_traces=1000, prior_inflation=PriorInflation.DISABLED, use_address_base=True, bins=30, log_xscale=False, log_yscale=False, n_most_frequent=None, base_graph=None, report_dir=None, *args, **kwargs):
         trace_dist = self._model.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, *args, **kwargs)
         if report_dir is not None:
             report_dir = os.path.join(report_dir, 'prior')

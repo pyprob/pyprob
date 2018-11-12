@@ -245,6 +245,7 @@ class Empirical(Distribution):
         for i in range(num_samples):
             util.progress_bar_update(i)
             values.append(map_func(self.sample(min_index=None, max_index=None)))
+        util.progress_bar_end()
         return Empirical(values=values, *args, **kwargs)
 
     @property
@@ -281,7 +282,22 @@ class Empirical(Distribution):
             if val >= max_val:
                 max_val = val
                 max_i = i
+        util.progress_bar_end()
         return self._get_value(max_i)
+
+    def arg_min(self, map_func):
+        self._check_finalized()
+        min_val = map_func(self._get_value(0))
+        min_i = 0
+        util.progress_bar_init('Computing arg_min...', self._length, 'Values')
+        for i in range(self._length):
+            util.progress_bar_update(i)
+            val = map_func(self._get_value(i))
+            if val <= min_val:
+                min_val = val
+                min_i = i
+        util.progress_bar_end()
+        return self._get_value(min_i)
 
     @property
     def effective_sample_size(self):
