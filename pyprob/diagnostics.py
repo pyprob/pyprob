@@ -124,7 +124,7 @@ def network_statistics(inference_network, report_dir=None):
     return stats
 
 
-def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=None, report_dir=None, bins=100, log_xscale=False, log_yscale=False):
+def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=None, report_dir=None, bins=30, log_xscale=False, log_yscale=False):
     stats = OrderedDict()
     stats['pyprob_version'] = __version__
     stats['torch_version'] = torch.__version__
