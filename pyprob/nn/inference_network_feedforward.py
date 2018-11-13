@@ -15,7 +15,7 @@ from threading import Thread
 from termcolor import colored
 
 from . import BatchGeneratorOffline, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D4C, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
-from .. import __version__, util, ObserveEmbedding
+from .. import __version__, util, Optimizer, ObserveEmbedding
 from ..distributions import Normal, Uniform, Categorical, Poisson
 
 
@@ -301,7 +301,7 @@ class InferenceNetworkFeedForward(nn.Module):
             batch_loss += sub_batch_loss
         return True, batch_loss / batch.size
 
-    def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, distributed_backend=None, distributed_params_sync_interval=10000, *args, **kwargs):
+    def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, distributed_backend=None, distributed_params_sync_interval=10000, *args, **kwargs):
         self._generate_valid_batch(batch_generator)
         if distributed_backend is None:
             distributed_world_size = 1
@@ -312,10 +312,11 @@ class InferenceNetworkFeedForward(nn.Module):
             distributed_rank = dist.get_rank()
             util.init_distributed_print(distributed_rank, distributed_world_size, False)
             print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
-            print(colored('Distributed backend      : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
-            print(colored('Distributed world size   : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
-            print(colored('Distributed batch size   : {} (global), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
-            print(colored('Distributed learning rate: {} (global), {} (base)'.format(learning_rate * distributed_world_size, learning_rate), 'yellow', attrs=['bold']))
+            print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
+            print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
+            print(colored('Distributed minibatch size: {} (global), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
+            print(colored('Distributed learning rate : {} (global), {} (base)'.format(learning_rate * distributed_world_size, learning_rate), 'yellow', attrs=['bold']))
+            print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
         self.train()
         prev_total_train_seconds = self._total_train_seconds
         time_start = time.time()
@@ -342,8 +343,10 @@ class InferenceNetworkFeedForward(nn.Module):
                 layers_changed = self._polymorph(batch)
 
                 if (self._optimizer is None) or layers_changed:
-                    self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * distributed_world_size, weight_decay=weight_decay)
-
+                    if optimizer_type == Optimizer.ADAM:
+                        self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * distributed_world_size, weight_decay=weight_decay)
+                    else:  # optimizer_type == Optimizer.SGD
+                        self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * distributed_world_size, momentum=momentum, nesterov=True, weight_decay=weight_decay)
                 # self._optimizer.zero_grad()
                 if distributed_world_size > 1:
                     self._distributed_zero_grad()

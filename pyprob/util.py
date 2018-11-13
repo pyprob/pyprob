@@ -51,6 +51,11 @@ class ObserveEmbedding(enum.Enum):
     CNN3D4C = 2
 
 
+class Optimizer(enum.Enum):
+    ADAM = 0
+    SGD = 1
+
+
 def set_random_seed(seed=123):
     if seed is None:
         seed = int((time.time()*1e6) % 1e8)

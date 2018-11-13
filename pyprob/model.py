@@ -7,7 +7,7 @@ import random
 from termcolor import colored
 
 from .distributions import Empirical
-from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, AddressDictionary
+from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, Optimizer, AddressDictionary
 from .nn import BatchGeneratorOnline, BatchGeneratorOffline, InferenceNetworkFeedForward
 from .remote import ModelServer
 
@@ -149,7 +149,7 @@ class Model():
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, *args, **kwargs):
         return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, file_name=file_name, *args, **kwargs)
 
-    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, trace_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, pre_generate_layers=True, distributed_backend=None):
+    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, trace_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, pre_generate_layers=True, distributed_backend=None):
         if trace_dir is None:
             batch_generator = BatchGeneratorOnline(self, prior_inflation)
         else:
@@ -168,7 +168,7 @@ class Model():
             print('Total number of parameters: {:,}'.format(self._inference_network._history_num_params[-1]))
 
         self._inference_network.to(device=util._device)
-        self._inference_network.optimize(num_traces, batch_generator, batch_size=batch_size, valid_interval=valid_interval, learning_rate=learning_rate, weight_decay=weight_decay, auto_save_file_name_prefix=auto_save_file_name_prefix, auto_save_interval_sec=auto_save_interval_sec, distributed_backend=distributed_backend)
+        self._inference_network.optimize(num_traces=num_traces, batch_generator=batch_generator, batch_size=batch_size, valid_interval=valid_interval, optimizer_type=optimizer_type, learning_rate=learning_rate, momentum=momentum, weight_decay=weight_decay, auto_save_file_name_prefix=auto_save_file_name_prefix, auto_save_interval_sec=auto_save_interval_sec, distributed_backend=distributed_backend)
 
     def save_inference_network(self, file_name):
         if self._inference_network is None:

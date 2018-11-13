@@ -102,7 +102,11 @@ def network_statistics(inference_network, report_dir=None):
         file_name_params = os.path.join(report_dir_params, 'params.csv')
         with open(file_name_params, 'w') as file:
             file.write('file_name, param_name\n')
+            num_params = len(list(inference_network.named_parameters()))
+            util.progress_bar_init('Plotting inference network parameters', num_params, 'Parameters')
             for index, param in enumerate(inference_network.named_parameters()):
+                util.progress_bar_update(index+1)
+                print()
                 file_name_param = os.path.join(report_dir_params, 'param_{}.png'.format(index))
                 param_name = param[0]
                 file.write('{}, {}\n'.format(os.path.basename(file_name_param), param_name))
@@ -121,6 +125,8 @@ def network_statistics(inference_network, report_dir=None):
                     plt.colorbar(heatmap)
                     # fig.tight_layout()
                     plt.savefig(file_name_param)
+                    plt.close()
+            util.progress_bar_end()
     return stats
 
 
