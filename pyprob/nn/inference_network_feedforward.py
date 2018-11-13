@@ -49,6 +49,12 @@ class InferenceNetworkFeedForward(nn.Module):
         self._updates = 0
         self._on_cuda = False
         self._device = torch.device('cpu')
+        self._optimizer_type = None
+        self._learning_rate = None
+        self._momentum = None
+        self._batch_size = None
+        self._distributed_backend = None
+        self._distributed_world_size = None
 
         self._valid_size = valid_size
         self._observe_embeddings = observe_embeddings
@@ -317,6 +323,12 @@ class InferenceNetworkFeedForward(nn.Module):
             print(colored('Distributed minibatch size: {} (global), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
             print(colored('Distributed learning rate : {} (global), {} (base)'.format(learning_rate * distributed_world_size, learning_rate), 'yellow', attrs=['bold']))
             print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
+            self._distributed_backend = distributed_backend
+            self._distributed_world_size = distributed_world_size
+        self._optimizer_type = optimizer_type
+        self._batch_size = batch_size
+        self._learning_rate = learning_rate * distributed_world_size
+        self._momentum = momentum
         self.train()
         prev_total_train_seconds = self._total_train_seconds
         time_start = time.time()
