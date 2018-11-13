@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.distributed as dist
 import sys
 import gc
 import time
@@ -195,6 +196,9 @@ class InferenceNetworkFeedForward(nn.Module):
     def _pre_generate_layers(self, batch_generator_offline):
         if not isinstance(batch_generator_offline, BatchGeneratorOffline):
             raise ValueError('Expecting a BatchGeneratorOffline.')
+
+        self._generate_valid_batch(batch_generator_offline)
+
         num_batches = batch_generator_offline.num_batches(size=128)
         util.progress_bar_init('Pre-generating layers...', num_batches, 'Batches')
         i = 0
@@ -203,6 +207,15 @@ class InferenceNetworkFeedForward(nn.Module):
             util.progress_bar_update(i)
             self._polymorph(batch)
         print('Layer pre-generation complete.')
+
+    def _generate_valid_batch(self, batch_generator):
+        if self._valid_batch is None:
+            print('Generating validation batch...')
+            self._valid_batch = next(batch_generator.batches(self._valid_size, discard_source=True))
+            self._init_layer_observe_embeddings(self._observe_embeddings)
+            self._polymorph(self._valid_batch)
+        else:
+            print('Using existing validation batch...')
 
     def _polymorph(self, batch):
         layers_changed = False
@@ -234,6 +247,30 @@ class InferenceNetworkFeedForward(nn.Module):
             self._history_num_params_trace.append(self._total_train_traces)
         return layers_changed
 
+    def _distributed_sync_parameters(self):
+        """ broadcast rank 0 parameter to all ranks """
+        # print('Distributed training synchronizing parameters across nodes...')
+        for param in self.parameters():
+            dist.broadcast(param.data, 0)
+
+    def _distributed_zero_grad(self):
+        # Create zero tensors for gradients not initialized at this distributed training rank
+        # print('Distributed zeroing gradients...')
+        for param in self.parameters():
+            # if (param.grad is None):
+            param.grad = torch.Tensor(torch.zeros_like(param.data))
+
+    def _distributed_sync_grad(self, world_size):
+        """ all_reduce grads from all ranks """
+        # print('Distributed training synchronizing gradients across nodes...')
+        for param in self.parameters():
+            try:
+                dist.all_reduce(param.grad.data)
+                param.grad.data /= float(world_size)  # average gradients
+            except AttributeError:
+                # pass
+                print('None for grad, with param.size=', param.size())
+
     def _loss(self, batch):
         gc.collect()
         batch_loss = 0
@@ -264,17 +301,16 @@ class InferenceNetworkFeedForward(nn.Module):
             batch_loss += sub_batch_loss
         return True, batch_loss / batch.size
 
-    def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, pre_create_layers=True, *args, **kwargs):
-        if self._valid_batch is None:
-            print('Initializing inference network...')
-            self._valid_batch = next(batch_generator.batches(self._valid_size, discard_source=True))
-            self._init_layer_observe_embeddings(self._observe_embeddings)
-            if pre_create_layers and isinstance(batch_generator, BatchGeneratorOffline):
-                print('Offline batch generator given, training offline')
-                self._pre_generate_layers(batch_generator)
-            else:
-                self._polymorph(self._valid_batch)
-
+    def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, learning_rate=0.0001, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, distributed_backend=None, distributed_params_sync_interval=10000, *args, **kwargs):
+        self._generate_valid_batch(batch_generator)
+        if distributed_backend is None:
+            distributed_world_size = 1
+            distributed_rank = 0
+        else:
+            dist.init_process_group(backend=distributed_backend)
+            distributed_world_size = dist.get_world_size()
+            distributed_rank = dist.get_rank()
+            util.init_distributed_print(distributed_rank, distributed_world_size, False)
         self.train()
         prev_total_train_seconds = self._total_train_seconds
         time_start = time.time()
@@ -294,17 +330,27 @@ class InferenceNetworkFeedForward(nn.Module):
             epoch += 1
             for batch in batch_generator.batches(batch_size):
                 iteration += 1
+
+                if (distributed_world_size > 1) and (iteration % distributed_params_sync_interval == 0):
+                    self._distributed_sync_parameters()
+
                 layers_changed = self._polymorph(batch)
 
                 if (self._optimizer is None) or layers_changed:
                     self._optimizer = optim.Adam(self.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
-                self._optimizer.zero_grad()
+                # self._optimizer.zero_grad()
+                if distributed_world_size > 1:
+                    self._distributed_zero_grad()
+                else:
+                    self._optimizer.zero_grad()
                 success, loss = self._loss(batch)
                 if not success:
                     print(colored('Cannot compute loss, skipping batch. Loss: {}'.format(loss), 'red', attrs=['bold']))
                 else:
                     loss.backward()
+                    if distributed_world_size > 1:
+                        self._distributed_sync_grad(distributed_world_size)
                     self._optimizer.step()
                     loss = float(loss)
 
@@ -358,15 +404,17 @@ class InferenceNetworkFeedForward(nn.Module):
                         self._history_valid_loss_trace.append(self._total_train_traces)
                         last_validation_trace = trace - 1
 
-                    if auto_save_file_name_prefix is not None:
+                    if (distributed_rank == 0) and (auto_save_file_name_prefix is not None):
                         if time.time() - last_auto_save_time > auto_save_interval_sec:
                             last_auto_save_time = time.time()
                             file_name = '{}_{}.network'.format(auto_save_file_name_prefix, util.get_time_stamp())
-                            print('\rSaving to disk...', end='\r')
+                            print('\rSaving to disk...  ', end='\r')
                             self._save(file_name)
 
                     print_line = '{} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
                     max_print_line_len = max(len(print_line), max_print_line_len)
                     print(print_line.ljust(max_print_line_len), end='\r')
                     sys.stdout.flush()
+                    if stop:
+                        break
         print()

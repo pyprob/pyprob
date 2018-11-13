@@ -3,6 +3,7 @@ import numpy as np
 import random
 from termcolor import colored
 import inspect
+import os
 import sys
 import enum
 import time
@@ -243,3 +244,27 @@ def check_gnu_dbm():
 
 if not check_gnu_dbm():
     print(colored(r'Warning: Empirical distributions on disk may perform slow because GNU DBM is not available. Please install and configure gdbm library for Python for better speed.', 'red', attrs=['bold']))
+
+
+def init_distributed_print(rank, world_size, debug_print=True):
+    if not debug_print:
+        if rank > 0:
+            sys.stdout = open(os.devnull, 'w')
+            sys.stderr = open(os.devnull, 'w')
+    else:
+        # labelled print with info of [rank/world_size]
+        old_out = sys.stdout
+
+        class LabeledStdout:
+            def __init__(self, rank, world_size):
+                self._rank = rank
+                self._world_size = world_size
+                self.flush = sys.stdout.flush
+
+            def write(self, x):
+                if x == '\n':
+                    old_out.write(x)
+                else:
+                    old_out.write('[r%d/ws%d] %s' % (self._rank, self._world_size, x))
+
+        sys.stdout = LabeledStdout(rank, world_size)
