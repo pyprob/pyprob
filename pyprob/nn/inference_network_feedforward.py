@@ -311,6 +311,11 @@ class InferenceNetworkFeedForward(nn.Module):
             distributed_world_size = dist.get_world_size()
             distributed_rank = dist.get_rank()
             util.init_distributed_print(distributed_rank, distributed_world_size, False)
+            print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
+            print(colored('Distributed backend      : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
+            print(colored('Distributed world size   : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
+            print(colored('Distributed batch size   : {} (global), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
+            print(colored('Distributed learning rate: {} (global), {} (base)'.format(learning_rate * distributed_world_size, learning_rate), 'yellow', attrs=['bold']))
         self.train()
         prev_total_train_seconds = self._total_train_seconds
         time_start = time.time()
@@ -337,7 +342,7 @@ class InferenceNetworkFeedForward(nn.Module):
                 layers_changed = self._polymorph(batch)
 
                 if (self._optimizer is None) or layers_changed:
-                    self._optimizer = optim.Adam(self.parameters(), lr=learning_rate, weight_decay=weight_decay)
+                    self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * distributed_world_size, weight_decay=weight_decay)
 
                 # self._optimizer.zero_grad()
                 if distributed_world_size > 1:
@@ -383,11 +388,11 @@ class InferenceNetworkFeedForward(nn.Module):
                     self._loss_previous = loss
                     self._total_train_iterations += 1
                     trace += batch.size
-                    self._total_train_traces += batch.size
+                    self._total_train_traces += batch.size * distributed_world_size
                     total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
                     self._total_train_seconds = prev_total_train_seconds + (time.time() - time_start)
                     total_training_seconds_str = util.days_hours_mins_secs_str(self._total_train_seconds)
-                    traces_per_second_str = '{:,.1f}'.format(int(batch.size / (time.time() - time_last_batch)))
+                    traces_per_second_str = '{:,.1f}'.format(int(batch.size * distributed_world_size / (time.time() - time_last_batch)))
                     time_last_batch = time.time()
                     if num_traces is not None:
                         if trace >= num_traces:
