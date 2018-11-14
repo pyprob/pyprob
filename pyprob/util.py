@@ -228,7 +228,7 @@ def get_time_stamp():
 def one_hot(dim, i):
     t = torch.zeros(dim)
     t.narrow(0, i, 1).fill_(1)
-    return t
+    return to_tensor(t)
 
 
 def is_hashable(v):

@@ -123,10 +123,10 @@ class InferenceNetwork(nn.Module):
     def _init_layers(self):
         raise NotImplementedError()
 
-    def _infer_step(self, variable, previous_variable=None, proposal_min_train_iterations=None):
+    def _polymorph(self, batch):
         raise NotImplementedError()
 
-    def _polymorph(self, batch):
+    def _infer_step(self, variable, previous_variable=None, proposal_min_train_iterations=None):
         raise NotImplementedError()
 
     def _loss(self, batch):

@@ -141,6 +141,8 @@ def observe(distribution, value=None, name=None, address=None):
 
 def sample(distribution, control=True, replace=False, name=None, address=None):
     global _current_trace
+    global _current_trace_previous_variable
+    global _current_trace_replaced_variable_proposal_distributions
 
     # Only replace if controlled
     if not control:
@@ -181,17 +183,15 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                 # _current_trace.log_importance_weight += 0  # Not computed because log_importance_weight is zero when running importance sampling with prior as proposal
             elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
                 if control:
-                    global _current_trace_previous_variable
-                    global _current_trace_replaced_variable_proposal_distributions
                     _current_trace_inference_network.eval()
                     variable = Variable(distribution=distribution, value=None, address_base=address_base, address=address, instance=instance, log_prob=0., control=control, replace=replace, name=name, observed=observed, reused=reused)
                     if replace:
                         if address not in _current_trace_replaced_variable_proposal_distributions:
-                            _current_trace_replaced_variable_proposal_distributions[address] = _current_trace_inference_network._infer_step(variable, previous_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
+                            _current_trace_replaced_variable_proposal_distributions[address] = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
                             update_previous_variable = True
                         proposal_distribution = _current_trace_replaced_variable_proposal_distributions[address]
                     else:
-                        proposal_distribution = _current_trace_inference_network._infer_step(variable, previous_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
+                        proposal_distribution = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
                         update_previous_variable = True
 
                     value = proposal_distribution.sample()
@@ -283,6 +283,7 @@ def begin_trace(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation
     global _current_trace_root_function_name
     global _current_trace_inference_network
     global _current_trace_inference_network_proposal_min_train_iterations
+    global _current_trace_previous_variable
     global _current_trace_replaced_variable_proposal_distributions
     global _current_trace_observed_variables
     global _current_trace_execution_start
@@ -291,6 +292,7 @@ def begin_trace(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation
     _current_trace_execution_start = time.time()
     _current_trace = Trace()
     _current_trace_root_function_name = func.__code__.co_name
+    _current_trace_previous_variable = None
     _current_trace_replaced_variable_proposal_distributions = {}
     if observe is None:
         _current_trace_observed_variables = {}
@@ -302,7 +304,7 @@ def begin_trace(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation
             raise ValueError('Cannot run trace with IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK without an inference network.')
     else:
         _current_trace_inference_network._infer_init(_current_trace_observed_variables)
-        _current_trace_inference_network_proposal_min_train_iterations = int(_current_trace_inference_network._total_train_iterations / 5)
+        _current_trace_inference_network_proposal_min_train_iterations = int(_current_trace_inference_network._total_train_iterations / 10)
 
     if _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
         global _metropolis_hastings_trace
