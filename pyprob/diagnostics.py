@@ -123,18 +123,19 @@ def network_statistics(inference_network, report_dir=None):
                 param_val = param[1].detach().numpy()
                 if param_val.ndim == 1:
                     param_val = np.expand_dims(param_val, 1)
-                if param_val.ndim > 2:
-                    print('Cannot render parameter {} because it is {}-dimensional.'.format(param_name, param_val.ndim))
-                else:
-                    fig = plt.figure(figsize=(10, 7))
-                    ax = plt.subplot(111)
-                    heatmap = ax.pcolor(param_val, cmap=plt.cm.jet)
-                    ax.invert_yaxis()
-                    plt.xlabel('{} {}'.format(param_name, param_val.shape))
-                    plt.colorbar(heatmap)
-                    # fig.tight_layout()
-                    plt.savefig(file_name_param)
-                    plt.close()
+                elif param_val.ndim > 2:
+                    print('Warning: reshaping parameter {} to 2D for plotting.'.format(param_name, param_val.ndim))
+                    c = param_val.shape[0]
+                    param_val = np.reshape(param_val, (c, -1))
+                fig = plt.figure(figsize=(10, 7))
+                ax = plt.subplot(111)
+                heatmap = ax.pcolor(param_val, cmap=plt.cm.jet)
+                ax.invert_yaxis()
+                plt.xlabel('{} {}'.format(param_name, param_val.shape))
+                plt.colorbar(heatmap)
+                # fig.tight_layout()
+                plt.savefig(file_name_param)
+                plt.close()
             util.progress_bar_end()
     return stats
 

@@ -9,7 +9,7 @@ from ..distributions import Normal, Uniform, Categorical, Poisson
 
 class InferenceNetworkLSTM(InferenceNetwork):
     # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'reshape': [10, 10], 'dim': 32, 'depth': 2}}
-    def __init__(self, lstm_dim=512, lstm_depth=2, sample_embedding_dim=16, address_embedding_dim=256, distribution_type_embedding_dim=16, *args, **kwargs):
+    def __init__(self, lstm_dim=512, lstm_depth=2, sample_embedding_dim=4, address_embedding_dim=128, distribution_type_embedding_dim=16, *args, **kwargs):
         super().__init__(network_type='InferenceNetworkLSTM', *args, **kwargs)
         self._layers_proposal = nn.ModuleDict()
         self._layers_sample_embedding = nn.ModuleDict()
@@ -48,16 +48,16 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 if address not in self._layers_proposal:
                     if isinstance(distribution, Normal):
                         proposal_layer = ProposalNormalNormalMixture(self._lstm_dim, variable_shape)
-                        sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=2)
+                        sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     elif isinstance(distribution, Uniform):
                         proposal_layer = ProposalUniformTruncatedNormalMixture(self._lstm_dim, variable_shape)
-                        sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=2)
+                        sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     elif isinstance(distribution, Poisson):
                         proposal_layer = ProposalPoissonTruncatedNormalMixture(self._lstm_dim, variable_shape)
-                        sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=2)
+                        sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     elif isinstance(distribution, Categorical):
                         proposal_layer = ProposalCategoricalCategorical(self._lstm_dim, distribution.num_categories)
-                        sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, input_is_one_hot_index=True, input_one_hot_dim=distribution.num_categories, num_layers=2)
+                        sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, input_is_one_hot_index=True, input_one_hot_dim=distribution.num_categories, num_layers=1)
                     else:
                         raise RuntimeError('Distribution currently unsupported: {}'.format(distribution.name))
                     proposal_layer.to(device=util._device)
