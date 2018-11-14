@@ -13,7 +13,7 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import BatchGeneratorOffline, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D4C
+from . import BatchGeneratorOffline, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 from .. import __version__, util, Optimizer, ObserveEmbedding
 
 
@@ -92,7 +92,7 @@ class InferenceNetwork(nn.Module):
             elif embedding == ObserveEmbedding.CNN2D5C:
                 layer = EmbeddingCNN2D5C(input_shape=input_shape, output_shape=output_shape)
             elif embedding == ObserveEmbedding.CNN3D4C:
-                layer = EmbeddingCNN3D4C(input_shape=input_shape, output_shape=output_shape)
+                layer = EmbeddingCNN3D5C(input_shape=input_shape, output_shape=output_shape)
             else:
                 raise ValueError('Unknown embedding: {}'.format(embedding))
             layer.to(device=util._device)

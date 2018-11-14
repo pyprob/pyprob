@@ -3,7 +3,7 @@ import torch
 
 import pyprob
 from pyprob import util
-from pyprob.nn import EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D4C
+from pyprob.nn import EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 
 
 class NNTestCase(unittest.TestCase):
@@ -39,7 +39,7 @@ class NNTestCase(unittest.TestCase):
 
         self.assertEqual(output_batch_shape, output_batch_shape_correct)
 
-    def test_EmbeddingCNN3D4C(self):
+    def test_EmbeddingCNN3D5C(self):
         batch_size = 32
         input_shape = [2, 25, 25, 25]
         output_shape = [128]
@@ -47,7 +47,7 @@ class NNTestCase(unittest.TestCase):
         output_batch_shape_correct = [batch_size] + output_shape
 
         input_batch = torch.zeros(input_batch_shape)
-        nn = EmbeddingCNN3D4C(input_shape=torch.Size(input_shape), output_shape=torch.Size(output_shape))
+        nn = EmbeddingCNN3D5C(input_shape=torch.Size(input_shape), output_shape=torch.Size(output_shape))
         output_batch = nn(input_batch)
         output_batch_shape = list(output_batch.size())
 

@@ -27,6 +27,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
     def _init_layers(self):
         self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
         self._layers_lstm = nn.LSTM(self._lstm_input_dim, self._lstm_dim, self._lstm_depth)
+        self._layers_lstm.to(device=util._device)
 
     def _polymorph(self, batch):
         layers_changed = False
@@ -61,6 +62,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     else:
                         raise RuntimeError('Distribution currently unsupported: {}'.format(distribution.name))
                     proposal_layer.to(device=util._device)
+                    sample_embedding_layer.to(device=util._device)
                     self._layers_sample_embedding[address] = sample_embedding_layer
                     self._layers_proposal[address] = proposal_layer
                     layers_changed = True

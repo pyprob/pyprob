@@ -120,7 +120,7 @@ def network_statistics(inference_network, report_dir=None):
                 param_name = param[0]
                 file.write('{}, {}\n'.format(os.path.basename(file_name_param), param_name))
                 print('Plotting to file: {}  parameter: {} ...'.format(file_name_param, param_name))
-                param_val = param[1].detach().numpy()
+                param_val = param[1].cpu().detach().numpy()
                 if param_val.ndim == 1:
                     param_val = np.expand_dims(param_val, 1)
                 elif param_val.ndim > 2:

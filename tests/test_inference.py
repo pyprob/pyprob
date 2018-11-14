@@ -764,7 +764,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         test_letters = self._model._alphabet
 
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_lstm_training_traces, observe_embeddings={'query_image': {'dim': 32, 'reshape': [1, 28, 28], 'embedding': ObserveEmbedding.CNN2D5C}}, prior_inflation=importance_sampling_with_inference_network_lstm_prior_inflation, inference_network=InferenceNetwork.LSTM)
-        
+
         # pyprob.diagnostics.network_statistics(self._model._inference_network, './report_lstm')
         start = time.time()
         posteriors = []
@@ -834,10 +834,11 @@ class MiniCaptchaTestCase(unittest.TestCase):
 if __name__ == '__main__':
     pyprob.set_random_seed(123)
     pyprob.set_verbosity(2)
+    pyprob.set_cuda(True)
     tests = []
-    # tests.append('GaussianWithUnknownMeanTestCase')
-    # tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
-    # tests.append('HiddenMarkovModelTestCase')
+    tests.append('GaussianWithUnknownMeanTestCase')
+    tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
+    tests.append('HiddenMarkovModelTestCase')
     # tests.append('BranchingTestCase')
     tests.append('MiniCaptchaTestCase')
 

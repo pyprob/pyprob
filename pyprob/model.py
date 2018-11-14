@@ -150,7 +150,7 @@ class Model():
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, *args, **kwargs):
         return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, file_name=file_name, *args, **kwargs)
 
-    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, trace_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-4, auto_save_file_name_prefix=None, auto_save_interval_sec=600, pre_generate_layers=True, distributed_backend=None):
+    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, trace_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=0., auto_save_file_name_prefix=None, auto_save_interval_sec=600, pre_generate_layers=True, distributed_backend=None):
         if trace_dir is None:
             batch_generator = BatchGeneratorOnline(self, prior_inflation)
         else:
