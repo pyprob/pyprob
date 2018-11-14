@@ -124,14 +124,14 @@ class GaussianUnknownMean(Model):
         super().__init__(name="Gaussian with unknown mean") # give the model a name
         self.prior_mean = 1
         self.prior_stdd = math.sqrt(5)
-        self.likelhood_stdd = math.sqrt(2)
+        self.likelihood_stdd = math.sqrt(2)
 
     def forward(self): # Needed to specifcy how the generative model is run forward
         # sample the (latent) mean variable to be inferred:
         mu = pyprob.sample(Normal(self.prior_mean, self.prior_stdd)) # NOTE: sample -> denotes latent variables
 
         # define the likelihood
-        likelihood = Normal(mu, self.likelhood_stdd)
+        likelihood = Normal(mu, self.likelihood_stdd)
 
         # Lets add two observed variables
         # -> the 'name' argument is used later to assignment values:
@@ -152,9 +152,9 @@ In order to perform inference about the `model` (i.e. infer the posterior of
 `mu`) from the previous example, call the `posterior_distribution` method and assign values to the `observe` variables:
 
 ```python
-# sample from posterior (100 samples)
+# sample from posterior (5000 samples)
 posterior = model.posterior_distribution(
-                                         num_traces=100, # the number of samples estimating the posterior
+                                         num_traces=5000, # the number of samples estimating the posterior
                                          inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING, # specify which inference engine to use
                                          observe={'obs0': 8, 'obs1': 9} # assign values to the observed values
                                          )
@@ -261,9 +261,9 @@ As an example, this the following code trains an inference network for the
 example in this document.
 
 ```python
-model.learn_inference_network(num_trace=10000,
-                              observe_embeddings={'obs0' : {'dim' : 10},
-                                                  'obs1': {'dim' : 10}})
+model.learn_inference_network(num_traces=20000,
+                              observe_embeddings={'obs0' : {'dim' : 32},
+                                                  'obs1': {'dim' : 32}})
 ```
 
 `learn_inference_network` should be provided with the following arguments:
