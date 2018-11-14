@@ -7,10 +7,10 @@ from .. import util
 class EmbeddingCNN3D4C(nn.Module):
     def __init__(self, input_shape, output_shape):
         super().__init__()
-        self._input_shape = input_shape  # expecting 4d: [channels, depth, height, width]
-        input_channels = input_shape[0]
-        self._output_shape = output_shape
-        self._output_dim = util.prod(output_shape)
+        self._input_shape = util.to_size(input_shape)  # expecting 4d: [channels, depth, height, width]
+        self._output_shape = util.to_size(output_shape)
+        input_channels = self._input_shape[0]
+        self._output_dim = util.prod(self._output_shape)
         self._conv1 = nn.Conv3d(input_channels, 64, 3)
         self._conv2 = nn.Conv3d(64, 64, 3)
         self._conv3 = nn.Conv3d(64, 128, 3)

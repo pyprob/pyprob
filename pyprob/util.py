@@ -43,6 +43,7 @@ class InferenceEngine(enum.Enum):
 
 class InferenceNetwork(enum.Enum):
     FEEDFORWARD = 0
+    LSTM = 1
 
 
 class ObserveEmbedding(enum.Enum):
@@ -107,6 +108,17 @@ def to_numpy(value):
             return np.array(value)
         except:
             raise TypeError('Cannot convert to Numpy array.')
+
+
+def to_size(value):
+    if isinstance(value, torch.Size):
+        return value
+    elif isinstance(value, int):
+        return torch.Size([value])
+    elif isinstance(value, list):
+        return torch.Size(value)
+    else:
+        raise TypeError('Expecting a torch.Size, int, or list of ints.')
 
 
 def fast_np_random_choice(values, probs_cumsum):

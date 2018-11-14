@@ -32,8 +32,10 @@ def network_statistics(inference_network, report_dir=None):
     valid_loss_change_per_trace = valid_loss_change / inference_network._total_train_traces
 
     stats = OrderedDict()
-    stats['pyprob_version'] = __version__
-    stats['torch_version'] = torch.__version__
+    stats['pyprob version'] = __version__
+    stats['torch version'] = torch.__version__
+    stats['network type'] = inference_network._network_type
+    stats['pre-generated layers'] = inference_network._layers_pre_generated
     stats['modified'] = inference_network._modified
     stats['updates'] = inference_network._updates
     stats['trained on device'] = str(inference_network._device)

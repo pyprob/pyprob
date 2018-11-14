@@ -8,7 +8,8 @@ from termcolor import colored
 
 from .distributions import Empirical
 from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, Optimizer, AddressDictionary
-from .nn import BatchGeneratorOnline, BatchGeneratorOffline, InferenceNetworkFeedForward
+from .nn import InferenceNetwork as InferenceNetworkBase
+from .nn import BatchGeneratorOnline, BatchGeneratorOffline, InferenceNetworkFeedForward, InferenceNetworkLSTM
 from .remote import ModelServer
 
 
@@ -159,6 +160,8 @@ class Model():
             print('Creating new inference network...')
             if inference_network == InferenceNetwork.FEEDFORWARD:
                 self._inference_network = InferenceNetworkFeedForward(model=self, observe_embeddings=observe_embeddings, valid_size=valid_size)
+            elif inference_network == InferenceNetwork.LSTM:
+                self._inference_network = InferenceNetworkLSTM(model=self, observe_embeddings=observe_embeddings, valid_size=valid_size)
             else:
                 raise ValueError('Unknown inference_network: {}'.format(inference_network))
             if pre_generate_layers and (trace_dir is not None):
@@ -176,7 +179,7 @@ class Model():
         self._inference_network._save(file_name)
 
     def load_inference_network(self, file_name):
-        self._inference_network = InferenceNetworkFeedForward._load(file_name)
+        self._inference_network = InferenceNetworkBase._load(file_name)
         # The following is due to a temporary hack related with https://github.com/pytorch/pytorch/issues/9981 and can be deprecated by using dill as pickler with torch > 0.4.1
         self._inference_network._model = self
 

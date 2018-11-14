@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 
 from . import EmbeddingFeedForward
+from .. import util
 from ..distributions import TruncatedNormal, Mixture
 
 
@@ -12,6 +13,7 @@ class ProposalPoissonTruncatedNormalMixture(nn.Module):
         self._low = low
         self._high = high
         self._mixture_components = mixture_components
+        input_shape = util.to_size(input_shape)
         self._ff = EmbeddingFeedForward(input_shape=input_shape, output_shape=torch.Size([3 * self._mixture_components]), num_layers=num_layers, activation=torch.relu, activation_last=None)
         self._total_train_iterations = 0
 

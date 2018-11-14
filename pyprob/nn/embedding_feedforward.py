@@ -7,10 +7,10 @@ from .. import util
 class EmbeddingFeedForward(nn.Module):
     def __init__(self, input_shape, output_shape, num_layers=3, activation=torch.relu, activation_last=torch.relu):
         super().__init__()
-        self._input_shape = input_shape
-        self._input_dim = util.prod(input_shape)
-        self._output_dim = util.prod(output_shape)
-        self._output_shape = output_shape
+        self._input_shape = util.to_size(input_shape)
+        self._output_shape = util.to_size(output_shape)
+        self._input_dim = util.prod(self._input_shape)
+        self._output_dim = util.prod(self._output_shape)
         if num_layers < 1:
             raise ValueError('Expecting num_layers >= 1')
         layers = []

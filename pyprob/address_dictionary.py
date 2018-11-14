@@ -33,7 +33,7 @@ class AddressDictionary():
             new_id = self._shelf['__last_id'] + 1
             self._length = new_id
             self._shelf['__last_id'] = new_id
-            new_id = 'A{}'.format(new_id)
+            new_id = '__A{}'.format(new_id)
             self._shelf[address_key] = new_id
             id_key = '__id_' + new_id
             self._shelf[id_key] = address

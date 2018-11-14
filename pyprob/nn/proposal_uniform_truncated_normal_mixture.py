@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 
 from . import EmbeddingFeedForward
-from ..distributions import TruncatedNormal, Mixture
 from .. import util
+from ..distributions import TruncatedNormal, Mixture
 
 
 class ProposalUniformTruncatedNormalMixture(nn.Module):
@@ -11,6 +11,7 @@ class ProposalUniformTruncatedNormalMixture(nn.Module):
         super().__init__()
         # Currently only supports event_shape=torch.Size([]) for the mixture components
         self._mixture_components = mixture_components
+        input_shape = util.to_size(input_shape)
         self._ff = EmbeddingFeedForward(input_shape=input_shape, output_shape=torch.Size([3 * self._mixture_components]), num_layers=num_layers, activation=torch.relu, activation_last=None)
         self._total_train_iterations = 0
 
