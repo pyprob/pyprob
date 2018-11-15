@@ -6,7 +6,9 @@ class AddressDictionary():
         self._file_name = file_name
         self._closed = False
         self._shelf = shelve.open(self._file_name, writeback=True)
-        if '__last_id' not in self._shelf:
+        if '__last_id' in self._shelf:
+            self._length = self._shelf['__last_id']
+        else:
             self._shelf['__last_id'] = 0
             self._length = 0
 
