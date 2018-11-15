@@ -158,7 +158,7 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
         address_base = _address_dictionary.address_to_id(address_base)
 
     instance = _current_trace.last_instance(address_base) + 1
-    address = address_base + '__' + 'replaced' if replace else str(instance)
+    address = address_base + '__' + ('replaced' if replace else str(instance))
 
     if name in _current_trace_observed_variables:
         # Variable is observed

@@ -28,7 +28,7 @@ class AddressDictionary():
             self._closed = True
 
     def address_to_id(self, address):
-        address_key = '__address_' + address
+        address_key = '__address__' + address
         if address_key in self._shelf:
             return self._shelf[address_key]
         else:
@@ -37,11 +37,11 @@ class AddressDictionary():
             self._shelf['__last_id'] = new_id
             new_id = '__A{}'.format(new_id)
             self._shelf[address_key] = new_id
-            id_key = '__id_' + new_id
+            id_key = '__id__' + new_id
             self._shelf[id_key] = address
             self._shelf.sync()
             return new_id
 
     def id_to_address(self, id):
-        id_key = '__id_' + id
+        id_key = '__id__' + id
         return self._shelf[id_key]
