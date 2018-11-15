@@ -27,7 +27,7 @@ class TruncatedNormal(Distribution):
             self._batch_length = self._mean_non_truncated.size(0)
         else:
             raise RuntimeError('Expecting 1d or 2d (batched) probabilities.')
-        self._standard_normal_dist = Normal(torch.zeros_like(self._mean_non_truncated), torch.ones_like(self._stddev_non_truncated))
+        self._standard_normal_dist = Normal(util.to_tensor(torch.zeros_like(self._mean_non_truncated)), util.to_tensor(torch.ones_like(self._stddev_non_truncated)))
         self._alpha = (self._low - self._mean_non_truncated) / self._stddev_non_truncated
         self._beta = (self._high - self._mean_non_truncated) / self._stddev_non_truncated
         self._standard_normal_cdf_alpha = self._standard_normal_dist.cdf(self._alpha)
@@ -95,13 +95,13 @@ class TruncatedNormal(Distribution):
     def sample(self):
         shape = self._low.size()
         attempt_count = 0
-        ret = torch.zeros(shape).fill_(float('NaN'))
+        ret = util.to_tensor(torch.zeros(shape).fill_(float('NaN')))
         outside_domain = True
         while util.has_nan_or_inf(ret) or outside_domain:
             attempt_count += 1
             if (attempt_count == 10000):
                 print('Warning: trying to sample from the tail of a truncated normal distribution, which can take a long time. A more efficient implementation is pending.')
-            rand = torch.zeros(shape).uniform_()
+            rand = util.to_tensor(torch.zeros(shape).uniform_())
             ret = self._standard_normal_dist.icdf(self._standard_normal_cdf_alpha + rand * (self._standard_normal_cdf_beta - self._standard_normal_cdf_alpha)) * self._stddev_non_truncated + self._mean_non_truncated
             lb = ret.ge(self._low).type_as(self._low)
             ub = ret.lt(self._high).type_as(self._low)
