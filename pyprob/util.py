@@ -49,7 +49,7 @@ class InferenceNetwork(enum.Enum):
 class ObserveEmbedding(enum.Enum):
     FEEDFORWARD = 0
     CNN2D5C = 1
-    CNN3D4C = 2
+    CNN3D5C = 2
 
 
 class Optimizer(enum.Enum):

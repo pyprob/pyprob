@@ -4,4 +4,3 @@ from .util import TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, 
 from .state import sample, observe, tag
 from .address_dictionary import AddressDictionary
 from .model import Model, ModelRemote
-from .diagnostics import Diagnostics
