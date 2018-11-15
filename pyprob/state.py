@@ -96,14 +96,13 @@ def _sample_with_prior_inflation(distribution):
 def tag(value, name=None, address=None):
     global _current_trace
     if address is None:
-        address_base = extract_address(_current_trace_root_function_name)
+        address_base = extract_address(_current_trace_root_function_name) + '__None'
     else:
-        address_base = address
+        address_base = address + '__None'
     if _address_dictionary is not None:
         address_base = _address_dictionary.address_to_id(address_base)
     instance = _current_trace.last_instance(address_base) + 1
-    address_suffix = 'None'
-    address = '{}__{}__{}'.format(address_base, address_suffix, instance)
+    address = address_base + '__' + str(instance)
 
     value = util.to_tensor(value)
 
@@ -114,14 +113,13 @@ def tag(value, name=None, address=None):
 def observe(distribution, value=None, name=None, address=None):
     global _current_trace
     if address is None:
-        address_base = extract_address(_current_trace_root_function_name)
+        address_base = extract_address(_current_trace_root_function_name) + '__' + distribution._address_suffix
     else:
-        address_base = address
+        address_base = address + '__' + distribution._address_suffix
     if _address_dictionary is not None:
         address_base = _address_dictionary.address_to_id(address_base)
     instance = _current_trace.last_instance(address_base) + 1
-    address_suffix = 'None' if distribution is None else distribution._address_suffix
-    address = '{}__{}__{}'.format(address_base, address_suffix, instance)
+    address = address_base + '__' + str(instance)
 
     if name in _current_trace_observed_variables:
         # Override observed value
@@ -153,14 +151,14 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
         replace = False
 
     if address is None:
-        address_base = extract_address(_current_trace_root_function_name)
+        address_base = extract_address(_current_trace_root_function_name) + '__' + distribution._address_suffix
     else:
-        address_base = address
+        address_base = address + '__' + distribution._address_suffix
     if _address_dictionary is not None:
         address_base = _address_dictionary.address_to_id(address_base)
 
     instance = _current_trace.last_instance(address_base) + 1
-    address = '{}__{}__{}'.format(address_base, distribution._address_suffix, 'replaced' if replace else str(instance))
+    address = address_base + '__' + 'replaced' if replace else str(instance)
 
     if name in _current_trace_observed_variables:
         # Variable is observed
