@@ -50,50 +50,83 @@ def _address_stats(trace_dist, use_address_base=True):
     return address_stats
 
 
-# def address_histograms(trace_dist, save_dir, bins=30, use_address_base=True):
-#     address_stats = _address_stats(trace_dist, use_address_base)
-#     print('Rendering distributions...')
-#     if not os.path.exists(save_dir):
-#         print('Directory does not exist, creating: {}'.format(save_dir))
-#         os.makedirs(save_dir)
-#
-#     i = 0
-#     for key, value in address_stats.items():
-#         i += 1
-#         address_id = value['address_id']
-#         variable = value['variable']
-#         can_render = True
-#         try:
-#             if use_address_base:
-#                 address_base = variable.address_base
-#                 dist = trace_dist.filter(lambda trace: address_base in trace.variables_dict_address_base).map(lambda trace: util.to_tensor(trace.variables_dict_address_base[address_base].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
-#             else:
-#                 address = variable.address
-#                 dist = trace_dist.filter(lambda trace: address in trace.variables_dict_address).map(lambda trace: util.to_tensor(trace.variables_dict_address[address].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
-#
-#             dist.rename(address_id + '' if variable.name is None else '{} (name: {})'.format(address_id, variable.name))
-#             if dist.length == 0:
-#                 can_render = False
-#         except:
-#             can_render = False
-#
-#         if can_render:
-#             file_name_dist = os.path.join(save_dir, '{}_distribution.pdf'.format(address_id))
-#             print('Saving distribution {} of {} to {} ...'.format(i, len(address_stats), file_name_dist))
-#             dist.plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
-#             if not dist._uniform_weights:
-#                 file_name_dist = os.path.join(save_dir, '{}_{}_distribution.pdf'.format(address_id, 'proposal'))
-#                 print('Saving distribution {} of {} to {} ...'.format(i, len(address_stats), file_name_dist))
-#                 dist.unweighted().plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
-#
-#         else:
-#             print('Cannot render histogram for {} because it is not scalar valued. Example value: {}'.format(address_id, variable.value))
-#
-#     file_name_all = os.path.join(save_dir, 'all.pdf')
-#     print('Combining histograms to: {}'.format(file_name_all))
-#     status = os.system('pdfjam {}/*.pdf --nup {}x{} --landscape --outfile {}'.format(save_dir, math.ceil(math.sqrt(i)), math.ceil(math.sqrt(i)), file_name_all))
-#     if status != 0:
-#         print('Cannot not render to file {}. Check that pdfjam is installed.'.format(file_name_all))
+def address_histograms(trace_dists, ground_truth_trace=None, figsize=(10, 8), bins=30, use_address_base=True, plot=False, plot_show=True, plot_file_name=None):
+    dists = {}
+    for trace_dist in trace_dists:
+        print('Collecting values for distribution: {}'.format(trace_dist.name))
+        address_stats = _address_stats(trace_dist, use_address_base)
+        i = 0
+        util.progress_bar_init('Collecting values', len(address_stats), 'Addresses')
+        for key, value in address_stats.items():
+            util.progress_bar_update(i)
+            i += 1
+            address_id = value['address_id']
+            variable = value['variable']
+            can_render = True
+            try:
+                if use_address_base:
+                    address_base = variable.address_base
+                    dist = trace_dist.filter(lambda trace: address_base in trace.variables_dict_address_base).map(lambda trace: util.to_tensor(trace.variables_dict_address_base[address_base].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
+                else:
+                    address = variable.address
+                    dist = trace_dist.filter(lambda trace: address in trace.variables_dict_address).map(lambda trace: util.to_tensor(trace.variables_dict_address[address].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
+                dist.rename(address_id + '' if variable.name is None else '{} ({})'.format(address_id, variable.name))
+                if dist.length == 0:
+                    can_render = False
+            except Exception:
+                can_render = False
+            if can_render:
+                if key not in dists:
+                    dists[key] = {}
+                dists[key][trace_dist.name] = dist, variable, key
+        util.progress_bar_end()
+    if plot:
+        if not plot_show:
+            mpl.rcParams['axes.unicode_minus'] = False
+            plt.switch_backend('agg')
+        rows = math.ceil(math.sqrt(float(len(dists))))
+        fig, ax = plt.subplots(rows, rows, figsize=figsize)
+        ax = ax.flatten()
+        i = 0
+        legends_added = {}
+        util.progress_bar_init('Plotting histograms', len(dists), 'Histograms')
+        for key, value in dists.items():
+            util.progress_bar_update(i)
+            for trace_dist_name, v in value.items():
+                dist = v[0]
+                variable = v[1]
+                values = dist.values_numpy()
+                weights = dist.weights_numpy()
+                if trace_dist_name in legends_added:
+                    label = None
+                else:
+                    legends_added[trace_dist_name] = 0
+                    label = trace_dist_name
+                if hasattr(variable.distribution, 'low'):
+                    range = (float(variable.distribution.low), float(variable.distribution.high))
+                else:
+                    range = None
+                ax[i].hist(values, weights=weights, density=1, bins=bins, label=label, alpha=0.8, range=range)
+                ax[i].set_xlabel(dist.name)
+                if ground_truth_trace is not None:
+                    vline_x = None
+                    if use_address_base:
+                        if v[2] in ground_truth_trace.variables_dict_address_base:
+                            vline_x = float(ground_truth_trace.variables_dict_address_base[v[2]].value)
+                    else:
+                        if v[2] in ground_truth_trace.variables_dict_address:
+                            vline_x = float(ground_truth_trace.variables_dict_address[v[2]].value)
+                    if vline_x is not None:
+                        ax[i].axvline(x=vline_x, linestyle='dashed', color='gray')
+            i += 1
+        util.progress_bar_end()
+        fig.legend()
+        plt.tight_layout()
+        if plot_file_name is not None:
+            print('Plotting to file {} ...'.format(plot_file_name))
+            plt.savefig(plot_file_name)
+        if plot_show:
+            plt.show()
 
 
 def network(inference_network, save_dir=None):
