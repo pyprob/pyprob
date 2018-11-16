@@ -229,6 +229,18 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.25))
 
+    def test_dist_empirical_thin(self):
+        values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        dist_thinned_values_correct = [1, 4, 7, 10]
+
+        dist = Empirical(values)
+        dist_thinned = dist.thin(4)
+        dist_thinned_values = list(dist_thinned.values_numpy())
+
+        util.eval_print('dist_thinned_values', 'dist_thinned_values_correct')
+
+        self.assertEqual(dist_thinned_values, dist_thinned_values_correct)
+
     def test_dist_empirical_slice_and_index(self):
         dist_slice_elements_correct = [0, 1, 2]
         dist_first_correct = 0
