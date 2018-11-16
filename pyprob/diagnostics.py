@@ -416,15 +416,17 @@ def network(inference_network, save_dir=None):
 #     return master_graph, stats
 
 
-def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
+def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, plot_file_name=None, min_index=None, *args, **kwargs):
     if type(trace_dists) != list:
         raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s posterior_traces.')
+    if min_index is None:
+        min_index = 0
     iters = []
     log_probs = []
     for j in range(len(trace_dists)):
         if type(trace_dists[j][0]) != Trace:
             raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s posterior_traces.')
-        iters.append(list(range(0, trace_dists[j].length, max(1, int(trace_dists[j].length / resolution)))))
+        iters.append(list(range(min_index, trace_dists[j].length, max(1, int((trace_dists[j].length - min_index) / resolution)))))
         time_start = time.time()
         prev_duration = 0
         num_traces = trace_dists[j].length

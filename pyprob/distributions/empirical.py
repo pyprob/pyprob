@@ -241,12 +241,13 @@ class Empirical(Distribution):
         if map_func is None:
             map_func = lambda x: x
         values = []
-        util.progress_bar_init('Resampling...', num_samples, 'Samples')
+        message = 'Resampling{}{}...'.format('' if min_index is None else ', min_index: ' + str(min_index), '' if max_index is None else ', max_index: ' + str(max_index))
+        util.progress_bar_init(message, num_samples, 'Samples')
         for i in range(num_samples):
             util.progress_bar_update(i)
             values.append(map_func(self.sample(min_index=None, max_index=None)))
         util.progress_bar_end()
-        return Empirical(values=values, *args, **kwargs)
+        return Empirical(values=values, name=self.name, *args, **kwargs)
 
     @property
     def mean(self):
