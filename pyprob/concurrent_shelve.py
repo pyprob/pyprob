@@ -27,7 +27,7 @@ class ConcurrentShelve(Mapping):
                 return shelf
             except Exception as e:
                 if '[Errno 11] Resource temporarily unavailable' in str(e):
-                    print('Shelf locked, waiting...')
+                    # print('Shelf locked, waiting...')
                     time.sleep(random.uniform(0.01, 0.250))
                     next
                 else:
