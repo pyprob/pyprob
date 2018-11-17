@@ -1,4 +1,4 @@
-from .concurrent_shelve import ConcurrentShelve
+from .concurrency import ConcurrentShelf
 
 
 class AddressDictionary():
@@ -6,7 +6,7 @@ class AddressDictionary():
         self._file_name = file_name
         self._closed = False
         self._shelf = None
-        self._shelf = ConcurrentShelve(file_name)
+        self._shelf = ConcurrentShelf(file_name)
         self._shelf.lock()
         if '__last_id' not in self._shelf:
             self._shelf['__last_id'] = 0

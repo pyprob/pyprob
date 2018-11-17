@@ -4,7 +4,7 @@ import random
 import time
 
 
-class ConcurrentShelve(Mapping):
+class ConcurrentShelf(Mapping):
     def __init__(self, file_name, time_out_seconds=60):
         self._file_name = file_name
         self._time_out_seconds = time_out_seconds
@@ -21,7 +21,7 @@ class ConcurrentShelve(Mapping):
         start = time.time()
         while True:
             if time.time() - start > self._time_out_seconds:
-                raise RuntimeError('ConcurrentShelve time out, cannot gain access to shelf on disk')
+                raise RuntimeError('ConcurrentShelf time out, cannot gain access to shelf on disk')
             try:
                 shelf = shelve.open(self._file_name, flag=flag)
                 return shelf
