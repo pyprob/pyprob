@@ -21,7 +21,7 @@ class ConcurrentShelve(Mapping):
         start = time.time()
         while True:
             if time.time() - start > self._time_out_seconds:
-                raise RuntimeError('ConcurrentShelve timeout, cannot access the shelve on disk')
+                raise RuntimeError('ConcurrentShelve time out, cannot gain access to shelf on disk')
             try:
                 shelf = shelve.open(self._file_name, flag=flag)
                 return shelf
