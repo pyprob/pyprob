@@ -50,7 +50,7 @@ def _address_stats(trace_dist, use_address_base=True):
     return address_stats
 
 
-def address_histograms(trace_dists, ground_truth_trace=None, figsize=(10, 8), bins=30, use_address_base=True, plot=False, plot_show=True, plot_file_name=None):
+def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), bins=30, use_address_base=True, plot=False, plot_show=True, plot_file_name=None):
     dists = {}
     for trace_dist in trace_dists:
         print('Collecting values for distribution: {}'.format(trace_dist.name))
@@ -84,8 +84,9 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(10, 8), bi
         if not plot_show:
             mpl.rcParams['axes.unicode_minus'] = False
             plt.switch_backend('agg')
-        rows = math.ceil(math.sqrt(float(len(dists))))
-        fig, ax = plt.subplots(rows, rows, figsize=figsize)
+        mpl.rcParams['font.size'] = 6
+        rows, cols = util.tile_rows_cols(len(dists))
+        fig, ax = plt.subplots(rows, cols, figsize=figsize)
         ax = ax.flatten()
         i = 0
         legends_added = {}
@@ -107,7 +108,8 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(10, 8), bi
                 else:
                     range = None
                 ax[i].hist(values, weights=weights, density=1, bins=bins, label=label, alpha=0.8, range=range)
-                ax[i].set_xlabel(dist.name)
+                ax[i].set_title(dist.name, fontsize=6)
+                # ax[i].set_aspect(aspect='equal', adjustable='box-forced')
                 if ground_truth_trace is not None:
                     vline_x = None
                     if use_address_base:
@@ -121,7 +123,8 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(10, 8), bi
             i += 1
         util.progress_bar_end()
         fig.legend()
-        plt.tight_layout()
+        # plt.tight_layout()
+        plt.subplots_adjust(hspace=0.66, wspace=0.5)
         if plot_file_name is not None:
             print('Plotting to file {} ...'.format(plot_file_name))
             plt.savefig(plot_file_name)

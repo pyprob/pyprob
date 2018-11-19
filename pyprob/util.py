@@ -263,6 +263,15 @@ if not check_gnu_dbm():
     print(colored(r'Warning: Empirical distributions on disk may perform slow because GNU DBM is not available. Please install and configure gdbm library for Python for better speed.', 'red', attrs=['bold']))
 
 
+def tile_rows_cols(num_items):
+    cols = math.ceil(math.sqrt(num_items))
+    rows = 0
+    while num_items > 0:
+        rows += 1
+        num_items -= cols
+    return rows, cols
+
+
 def init_distributed_print(rank, world_size, debug_print=True):
     if not debug_print:
         if rank > 0:
