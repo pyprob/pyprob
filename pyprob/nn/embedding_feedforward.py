@@ -23,7 +23,7 @@ class EmbeddingFeedForward(nn.Module):
         if num_layers == 1:
             layers.append(nn.Linear(self._input_dim, self._output_dim))
         else:
-            hidden_dim = int((self._input_dim + self._output_dim))
+            hidden_dim = int((self._input_dim + self._output_dim)/2)
             layers.append(nn.Linear(self._input_dim, hidden_dim))
             for i in range(num_layers - 2):
                 layers.append(nn.Linear(hidden_dim, hidden_dim))

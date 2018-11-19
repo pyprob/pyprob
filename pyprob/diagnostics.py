@@ -153,6 +153,7 @@ def network(inference_network, save_dir=None):
     stats['pyprob version'] = __version__
     stats['torch version'] = torch.__version__
     stats['network type'] = inference_network._network_type
+    stats['number of parameters'] = inference_network._history_num_params[-1]
     stats['pre-generated layers'] = inference_network._layers_pre_generated
     stats['modified'] = inference_network._modified
     stats['updates'] = inference_network._updates
