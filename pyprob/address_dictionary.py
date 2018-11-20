@@ -16,7 +16,6 @@ class AddressDictionary():
 
     @lru_cache(maxsize=4096)
     def address_to_id(self, address):
-        print('zort')
         address_key = '__address__' + address
         if address_key in self._shelf:
             return self._shelf[address_key]
