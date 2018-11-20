@@ -202,14 +202,17 @@ class InferenceNetwork(nn.Module):
         self._generate_valid_batch(batch_generator_offline)
 
         num_batches = batch_generator_offline.num_batches(size=128)
-        util.progress_bar_init('Pre-generating layers...', num_batches, 'Batches')
-        i = 0
-        for batch in batch_generator_offline.batches(size=128):
-            i += 1
-            util.progress_bar_update(i)
-            self._polymorph(batch)
-        self._layers_pre_generated = True
-        print('Layer pre-generation complete.')
+        if num_batches > 0:
+            util.progress_bar_init('Pre-generating layers...', num_batches, 'Batches')
+            i = 0
+            for batch in batch_generator_offline.batches(size=128):
+                i += 1
+                util.progress_bar_update(i)
+                self._polymorph(batch)
+            self._layers_pre_generated = True
+            print('Layer pre-generation complete.')
+        else:
+            print(colored('Warning: cannot run layer pre-generation, not enough offline training data', 'red', attrs=['bold']))
 
     def _generate_valid_batch(self, batch_generator):
         if self._valid_batch is None:
