@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from .concurrency import ConcurrentShelf
 
 
@@ -12,7 +14,9 @@ class AddressDictionary():
             self._shelf['__last_id'] = 0
         self._shelf.unlock()
 
+    @lru_cache(maxsize=4096)
     def address_to_id(self, address):
+        print('zort')
         address_key = '__address__' + address
         if address_key in self._shelf:
             return self._shelf[address_key]
@@ -27,6 +31,7 @@ class AddressDictionary():
             self._shelf.unlock()
             return new_id
 
+    @lru_cache(maxsize=4096)
     def id_to_address(self, id):
         id_key = '__id__' + id
         return self._shelf[id_key]
