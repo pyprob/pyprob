@@ -360,7 +360,7 @@ class InferenceNetwork(nn.Module):
                     self._history_train_loss.append(loss)
                     self._history_train_loss_trace.append(self._total_train_traces)
                     if trace - last_validation_trace > valid_interval:
-                        print('\rComputing validation loss...', end='\r')
+                        print('\rComputing validation loss...  ', end='\r')
                         with torch.no_grad():
                             _, valid_loss = self._loss(self._valid_batch)
                         valid_loss = float(valid_loss)
