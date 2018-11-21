@@ -158,6 +158,8 @@ def progress_bar_init(message, num_iters, iter_name='Traces'):
     global progress_bar_len_str_num_iters
     global progress_bar_time_start
     global progress_bar_prev_duration
+    if num_iters < 1:
+        raise ValueError('num_iters must be a positive integer')
     progress_bar_num_iters = num_iters
     progress_bar_time_start = time.time()
     progress_bar_prev_duration = 0
