@@ -6,7 +6,7 @@ from . import util
 class Variable():
     def __init__(self, distribution=None, value=None, address_base=None, address=None, instance=None, log_prob=None, control=False, replace=False, name=None, observed=False, reused=False, tagged=False):
         self.distribution = distribution
-        self.value = value
+        self.value = util.to_tensor(value)
         self.address_base = address_base
         self.address = address
         self.instance = instance
