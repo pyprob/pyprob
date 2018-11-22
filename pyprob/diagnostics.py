@@ -420,20 +420,24 @@ def network(inference_network, save_dir=None):
 #     return master_graph, stats
 
 
-def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, plot_file_name=None, min_index=None, *args, **kwargs):
+def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, plot_file_name=None, min_index=None, max_index=None, *args, **kwargs):
     if type(trace_dists) != list:
         raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s posterior_traces.')
     if min_index is None:
-        min_index = 0
+        min_i = 0
     iters = []
     log_probs = []
     for j in range(len(trace_dists)):
         if type(trace_dists[j][0]) != Trace:
             raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s posterior_traces.')
-        iters.append(list(range(min_index, trace_dists[j].length, max(1, int((trace_dists[j].length - min_index) / resolution)))))
+        if max_index is None:
+            max_i = trace_dists[j].length
+        else:
+            max_i = min(trace_dists[j].length, max_index)
+        num_traces = max_i - min_i
+        iters.append(list(range(min_i, max_i, max(1, int(num_traces / resolution)))))
         time_start = time.time()
         prev_duration = 0
-        num_traces = trace_dists[j].length
         len_str_num_traces = len(str(num_traces))
         print('Loading trace log-probabilities to memory...')
         print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
@@ -628,9 +632,9 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
         # logger.info('R: max [%f] min [%f]' % (np.max(r_hat), np.min(r_hat)))
         return r_hat
 
-    def rhat(values, iters):
+    def rhat(values, iters, num_traces):
         ret = np.zeros_like(iters, dtype=float)
-        num_missing_samples = trace_dist_length - values.shape[1]
+        num_missing_samples = num_traces - values.shape[1]
         for i, t in enumerate(iters):
             ret[i] = np.nan if t <= num_missing_samples else gelman_rubin_diagnostic(values[:, :t-num_missing_samples])
         # nan is encountered when there is no variance in the values, the following might be used to assign autocorrelation of 1 to such cases
@@ -638,7 +642,7 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
         # nan is also injected when the values length is less than the trace_dist length
         return ret
 
-    def single_trace_dist_values(trace_dist):
+    def single_trace_dist_values(trace_dist, num_traces):
         if type(trace_dist) != Empirical:
             raise TypeError('Expecting an MCMC posterior trace distribution, from a call to posterior_traces with an MCMC inference engine.')
         if type(trace_dist[0]) != Trace:
@@ -646,9 +650,6 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
 
         variable_values = {}
 
-        num_traces = trace_dist.length
-        if num_traces != trace_dist_length:
-            raise ValueError('Expecting a list of MCMC posterior trace distributions with the same length.')
         util.progress_bar_init('Loading selected variables to memory...', num_traces)
         for i in range(num_traces):
             trace = trace_dist._get_value(i)
@@ -663,14 +664,13 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
                     if (address, name) not in variable_values:
                         # This is the first trace this random variable sample appeared in
                         # Initialize values as a vector of nans. nan means the random variable is not appeared
-                        variable_values[(address, name)] = np.ones(trace_dist.length) * np.nan
+                        variable_values[(address, name)] = np.ones(num_traces) * np.nan
                     variable_values[(address, name)][i] = float(trace.named_variables[name].value)
             util.progress_bar_update(i)
         print()
 
         if n_most_frequent is not None:
             address_counts = {}
-            num_traces = trace_dist.length
             util.progress_bar_init('Collecting most frequent addresses...', num_traces)
             for i in range(num_traces):
                 util.progress_bar_update(i)
@@ -686,7 +686,7 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
             address_counts = OrderedDict(sorted(address_counts.items(), key=lambda x: x[1], reverse=True))
             all_variables_count = 0
             for address, count in address_counts.items():
-                variable_values[(address, None)] = np.ones(trace_dist.length) * np.nan
+                variable_values[(address, None)] = np.ones(num_traces) * np.nan
                 all_variables_count += 1
                 if all_variables_count == n_most_frequent:
                     break
@@ -703,13 +703,17 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
         return variable_values
 
     variable_values = {}
-    trace_dist_length = trace_dists[0].length
+    trace_lengths = [trace.length for trace in trace_dists]
+    num_traces = min(trace_lengths)
+    if max(trace_lengths) != num_traces:
+        print('Distributions have unequal length, setting the length to minimum: {}'.format(num_traces))
+
     for trace in trace_dists:
-        variable_values = merge_dicts(variable_values, single_trace_dist_values(trace))
+        variable_values = merge_dicts(variable_values, single_trace_dist_values(trace, num_traces))
 
-    iters = np.unique(np.logspace(0, np.log10(trace_dists[-1].length)).astype(int))
+    iters = np.unique(np.logspace(0, np.log10(num_traces)).astype(int))
 
-    variable_values = {k: v for k, v in variable_values.items() if v.size == trace_dists[0].length * (len(trace_dists))}
+    variable_values = {k: v for k, v in variable_values.items() if v.size == num_traces * (len(trace_dists))}
     # Fill in the spots where a random variable sample is missing
     # and remove all the values before its first appearance in all chains.
     for (address, name), value in variable_values.items():
@@ -738,7 +742,7 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
     for (address, name), values in variable_values.items():
         i += 1
         print('Computing R-hat for named variable {} ({} of {})...'.format(name, i, len(variable_values)))
-        variable_rhats[address] = rhat(values, iters)
+        variable_rhats[address] = rhat(values, iters, num_traces)
 
     if plot:
         if not plot_show:
