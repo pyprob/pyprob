@@ -659,7 +659,7 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
                     # This random variable is not sampled in the ith trace
                     continue
                 variable = trace.named_variables[name]
-                if variable.control and variable.value.nelement() == 1:
+                if not variable.control and variable.value.nelement() == 1:
                     address = variable.address
                     if (address, name) not in variable_values:
                         # This is the first trace this random variable sample appeared in
