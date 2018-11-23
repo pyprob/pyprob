@@ -483,8 +483,8 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
 
         References
         ----------
+        Gelman et. al. (2012). ‘Bayesian Data Analysis, Third Edition’
         Brooks and Gelman (1998)
-        Gelman and Rubin (1992)
         '''
         m, n = x.shape[0], x.shape[1]
         if m < 2:
@@ -492,7 +492,7 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
                 'Gelman-Rubin diagnostic requires multiple chains '
                 'of the same length.')
         theta = np.mean(x, axis=1)
-        sigma = np.var(x, axis=1)
+        sigma = np.var(x, axis=1, ddof=1)
         # theta_m = np.mean(theta, axis=0)
         theta_m = mu if mu else np.mean(theta, axis=0)
 
@@ -501,7 +501,7 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
         # Calculate within-chain variance
         w = 1. / float(m) * np.sum(sigma, axis=0)
         # Estimate of marginal posterior variance
-        v_hat = float(n-1) / float(n) * w + float(m+1) / float(m * n) * b
+        v_hat = float(n-1) / float(n) * w + b / float(n)
         r_hat = np.sqrt(v_hat / w)
         # logger.info('R: max [%f] min [%f]' % (np.max(r_hat), np.min(r_hat)))
         return r_hat
@@ -536,7 +536,7 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
                     # This random variable is not sampled in the ith trace
                     continue
                 variable = trace.named_variables[name]
-                if not variable.control and variable.value.nelement() == 1:
+                if variable.control and variable.value.nelement() == 1:
                     address = variable.address
                     if (address, name) not in variable_values:
                         # This is the first trace this random variable sample appeared in
