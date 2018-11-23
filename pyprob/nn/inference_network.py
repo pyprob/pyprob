@@ -19,12 +19,13 @@ from .. import __version__, util, Optimizer, ObserveEmbedding
 
 class InferenceNetwork(nn.Module):
     # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'reshape': [10, 10], 'dim': 32, 'depth': 2}}
-    def __init__(self, model, valid_size=64, observe_embeddings={}, network_type=''):
+    def __init__(self, model, valid_size=None, observe_embeddings={}, network_type=''):
         super().__init__()
         self._model = model
         self._layers_observe_embedding = nn.ModuleDict()
         self._layers_observe_embedding_final = None
         self._layers_pre_generated = False
+        self._layers_initialized = False
         self._observe_embedding_dim = None
         self._infer_observe = None
         self._infer_observe_embedding = {}
@@ -59,12 +60,12 @@ class InferenceNetwork(nn.Module):
         self._observe_embeddings = observe_embeddings
         self._valid_batch = None
 
-    def _init_layers_observe_embedding(self, observe_embeddings):
+    def _init_layers_observe_embedding(self, observe_embeddings, example_trace):
         if len(observe_embeddings) == 0:
             raise ValueError('At least one observe embedding is needed to initialize inference network.')
         observe_embedding_total_dim = 0
         for name, value in observe_embeddings.items():
-            distribution = self._valid_batch.traces[0].named_variables[name].distribution
+            distribution = example_trace.named_variables[name].distribution
             if distribution is None:
                 raise ValueError('Observable {}: cannot use this observation as an input to the inference network, because there is no associated likelihood.'.format(name))
             else:
@@ -199,6 +200,11 @@ class InferenceNetwork(nn.Module):
         if not isinstance(batch_generator_offline, BatchGeneratorOffline):
             raise ValueError('Expecting a BatchGeneratorOffline.')
 
+        if not self._layers_initialized:
+            self._init_layers_observe_embedding(self._observe_embeddings, example_trace=next(batch_generator_offline.batches(1))[0])
+            self._init_layers()
+            self._layers_initialized = True
+
         self._generate_valid_batch(batch_generator_offline)
 
         num_batches = batch_generator_offline.num_batches(size=128)
@@ -206,23 +212,24 @@ class InferenceNetwork(nn.Module):
             util.progress_bar_init('Pre-generating layers...', num_batches, 'Batches')
             i = 0
             for batch in batch_generator_offline.batches(size=128):
-                i += 1
-                util.progress_bar_update(i)
                 self._polymorph(batch)
+                util.progress_bar_update(i)
+                i += 1
+            util.progress_bar_end()
             self._layers_pre_generated = True
             print('Layer pre-generation complete.')
         else:
             print(colored('Warning: cannot run layer pre-generation, not enough offline training data', 'red', attrs=['bold']))
 
     def _generate_valid_batch(self, batch_generator):
-        if self._valid_batch is None:
-            print('Generating validation batch...')
+        if self._valid_size is None:
+            print('Inference network has no validation batch')
+        elif self._valid_batch is None:
+            print('Generating validation batch')
             self._valid_batch = next(batch_generator.batches(self._valid_size, discard_source=True))
-            self._init_layers_observe_embedding(self._observe_embeddings)
-            self._init_layers()
             self._polymorph(self._valid_batch)
         else:
-            print('Using existing validation batch...')
+            print('Using existing validation batch')
 
     def _distributed_sync_parameters(self):
         """ broadcast rank 0 parameter to all ranks """
@@ -249,7 +256,12 @@ class InferenceNetwork(nn.Module):
                 print('None for grad, with param.size=', param.size())
 
     def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, distributed_backend=None, distributed_params_sync_interval=10000, *args, **kwargs):
+        if not self._layers_initialized:
+            self._init_layers_observe_embedding(self._observe_embeddings, example_trace=next(batch_generator.batches(1))[0])
+            self._init_layers()
+            self._layers_initialized = True
         self._generate_valid_batch(batch_generator)
+
         if distributed_backend is None:
             distributed_world_size = 1
             distributed_rank = 0

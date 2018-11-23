@@ -153,7 +153,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     prev_variable = example_trace.variables_controlled[time_step - 1]
                     prev_address = prev_variable.address
                     prev_distribution = prev_variable.distribution
-                    smp = torch.stack([trace.variables_controlled[time_step - 1].value.float() for trace in sub_batch])
+                    smp = util.to_tensor(torch.stack([trace.variables_controlled[time_step - 1].value.float() for trace in sub_batch]))
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
                     prev_address_embedding = self._layers_address_embedding[prev_address]
                     prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution.name]

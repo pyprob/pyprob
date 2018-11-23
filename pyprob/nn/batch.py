@@ -26,6 +26,9 @@ class Batch():
             sub_batches[trace_hash].append(trace)
         self.sub_batches = list(sub_batches.values())
 
+    def __getitem__(self, key):
+        return self.traces[key]
+
     def to(self, device):
         for trace in self.traces:
             trace.to(device=device)
