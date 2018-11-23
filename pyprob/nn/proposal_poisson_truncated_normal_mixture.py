@@ -7,7 +7,7 @@ from ..distributions import TruncatedNormal, Mixture
 
 
 class ProposalPoissonTruncatedNormalMixture(nn.Module):
-    def __init__(self, input_shape, output_shape, low=0, high=40, num_layers=3, mixture_components=10):
+    def __init__(self, input_shape, output_shape, low=0, high=40, num_layers=2, mixture_components=10):
         super().__init__()
         # Currently only supports event_shape=torch.Size([]) for the mixture components
         self._low = low

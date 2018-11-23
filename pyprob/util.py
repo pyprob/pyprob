@@ -49,7 +49,7 @@ class InferenceNetwork(enum.Enum):
 class ObserveEmbedding(enum.Enum):
     FEEDFORWARD = 0
     CNN2D5C = 1
-    CNN3D4C = 2
+    CNN3D5C = 2
 
 
 class Optimizer(enum.Enum):
@@ -158,6 +158,8 @@ def progress_bar_init(message, num_iters, iter_name='Traces'):
     global progress_bar_len_str_num_iters
     global progress_bar_time_start
     global progress_bar_prev_duration
+    if num_iters < 1:
+        raise ValueError('num_iters must be a positive integer')
     progress_bar_num_iters = num_iters
     progress_bar_time_start = time.time()
     progress_bar_prev_duration = 0
@@ -228,7 +230,7 @@ def get_time_stamp():
 def one_hot(dim, i):
     t = torch.zeros(dim)
     t.narrow(0, i, 1).fill_(1)
-    return t
+    return to_tensor(t)
 
 
 def is_hashable(v):
@@ -261,6 +263,15 @@ def check_gnu_dbm():
 
 if not check_gnu_dbm():
     print(colored(r'Warning: Empirical distributions on disk may perform slow because GNU DBM is not available. Please install and configure gdbm library for Python for better speed.', 'red', attrs=['bold']))
+
+
+def tile_rows_cols(num_items):
+    cols = math.ceil(math.sqrt(num_items))
+    rows = 0
+    while num_items > 0:
+        rows += 1
+        num_items -= cols
+    return rows, cols
 
 
 def init_distributed_print(rank, world_size, debug_print=True):

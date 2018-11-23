@@ -26,6 +26,9 @@ class Batch():
             sub_batches[trace_hash].append(trace)
         self.sub_batches = list(sub_batches.values())
 
+    def __getitem__(self, key):
+        return self.traces[key]
+
     def to(self, device):
         for trace in self.traces:
             trace.to(device=device)
@@ -40,12 +43,15 @@ class BatchGeneratorOnline():
         traces = self._model._traces(size, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs).get_values()
         yield Batch(traces)
 
-    def save_traces(self, trace_dir, files=16, traces_per_file=16, *args, **kwargs):
-        for file in range(files):
-            traces = self._model._traces(traces_per_file, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, *args, **kwargs).get_values()
-            file_name = os.path.join(trace_dir, 'pyprob_traces_{}_{}'.format(traces_per_file, str(uuid.uuid4())))
+    def save_traces(self, trace_dir, num_files=16, num_traces_per_file=16, *args, **kwargs):
+        util.progress_bar_init('Saving traces to disk...', num_files, 'Files')
+        for file in range(num_files):
+            traces = self._model._traces(num_traces_per_file, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs).get_values()
+            file_name = os.path.join(trace_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
             self._save_traces(traces, file_name)
-            print('Traces {:,}/{:,}, file {:,}/{:,}: {}'.format((file + 1) * traces_per_file, files * traces_per_file, file + 1, files, file_name))
+            print('Traces {:,} / {:,}, file {:,} / {:,}: {}'.format((file + 1) * num_traces_per_file, num_files * num_traces_per_file, file + 1, num_files, file_name))
+            util.progress_bar_update(file)
+        util.progress_bar_end()
 
     def _save_traces(self, traces, file_name):
         data = {}
