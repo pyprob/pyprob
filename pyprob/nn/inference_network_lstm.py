@@ -101,10 +101,10 @@ class InferenceNetworkLSTM(InferenceNetwork):
         current_address = variable.address
         current_distribution = variable.distribution
         if current_address in self._layers_address_embedding:
-            current_address_embedding =  self._layers_address_embedding[current_address]
+            current_address_embedding = self._layers_address_embedding[current_address]
             current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution.name]
         else:
-            print('Warning: address of current variable unknown by inference network: {}'.format(prev_address))
+            print('Warning: address of current variable unknown by inference network: {}'.format(current_address))
             success = False
 
         if success:

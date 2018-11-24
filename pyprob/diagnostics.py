@@ -86,7 +86,6 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
             plt.switch_backend('agg')
         mpl.rcParams['font.size'] = 4
         rows, cols = util.tile_rows_cols(len(dists))
-        # rows, cols = 32, 32
         fig, ax = plt.subplots(rows, cols, figsize=figsize)
         ax = ax.flatten()
         i = 0
