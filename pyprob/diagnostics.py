@@ -84,8 +84,9 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
         if not plot_show:
             mpl.rcParams['axes.unicode_minus'] = False
             plt.switch_backend('agg')
-        mpl.rcParams['font.size'] = 6
+        mpl.rcParams['font.size'] = 4
         rows, cols = util.tile_rows_cols(len(dists))
+        # rows, cols = 32, 32
         fig, ax = plt.subplots(rows, cols, figsize=figsize)
         ax = ax.flatten()
         i = 0
@@ -108,7 +109,8 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
                 else:
                     range = None
                 ax[i].hist(values, weights=weights, density=1, bins=bins, label=label, alpha=0.8, range=range)
-                ax[i].set_title(dist.name, fontsize=6)
+                ax[i].set_title(dist.name, fontsize=4, y=0.95)
+                ax[i].tick_params(pad=0., length=2)
                 # ax[i].set_aspect(aspect='equal', adjustable='box-forced')
                 if ground_truth_trace is not None:
                     vline_x = None
@@ -124,7 +126,7 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
         util.progress_bar_end()
         fig.legend()
         # plt.tight_layout()
-        plt.subplots_adjust(hspace=0.66, wspace=0.5)
+        plt.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95, hspace=1.5, wspace=0.85)
         if plot_file_name is not None:
             print('Plotting to file {} ...'.format(plot_file_name))
             plt.savefig(plot_file_name)
