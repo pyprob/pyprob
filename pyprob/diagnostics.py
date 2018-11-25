@@ -15,7 +15,7 @@ from .trace import Trace
 
 
 def _address_stats(trace_dist, use_address_base=True):
-    address_stats = OrderedDict()
+    address_stats = {}
     address_base_ids = {}
     address_ids = {}
     for i in range(trace_dist.length):
@@ -47,14 +47,25 @@ def _address_stats(trace_dist, use_address_base=True):
                             address_id = address_base_ids[address_base] + '__' + str(variable.instance)
                     address_ids[key] = address_id
                 address_stats[key] = {'count': 1, 'weight': trace_weight, 'address_id': address_id, 'variable': variable}
-    return address_stats
+    address_stats = OrderedDict(sorted(address_stats.items(), key=lambda v: v[1]['address_id']))
+    address_stats_extra = OrderedDict()
+    address_stats_extra['pyprob_version'] = __version__
+    address_stats_extra['torch_version'] = torch.__version__
+    address_stats_extra['num_distribution_elements'] = len(trace_dist)
+    address_stats_extra['addresses'] = len(address_stats)
+    address_stats_extra['addresses_controlled'] = len([1 for value in list(address_stats.values()) if value['variable'].control])
+    address_stats_extra['addresses_replaced'] = len([1 for value in list(address_stats.values()) if value['variable'].replace])
+    address_stats_extra['addresses_observable'] = len([1 for value in list(address_stats.values()) if value['variable'].observable])
+    address_stats_extra['addresses_observed'] = len([1 for value in list(address_stats.values()) if value['variable'].observed])
+    address_stats_extra['addresses_tagged'] = len([1 for value in list(address_stats.values()) if value['variable'].tagged])
+    return address_stats, address_stats_extra
 
 
-def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), bins=30, use_address_base=True, plot=False, plot_show=True, plot_file_name=None):
+def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), bins=30, use_address_base=True, plot=False, plot_show=True, file_name=None):
     dists = {}
     for trace_dist in trace_dists:
         print('Collecting values for distribution: {}'.format(trace_dist.name))
-        address_stats = _address_stats(trace_dist, use_address_base)
+        address_stats, address_stats_extra = _address_stats(trace_dist, use_address_base)
         i = 0
         util.progress_bar_init('Collecting values', len(address_stats), 'Addresses')
         for key, value in address_stats.items():
@@ -120,15 +131,23 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
                         if v[2] in ground_truth_trace.variables_dict_address:
                             vline_x = float(ground_truth_trace.variables_dict_address[v[2]].value)
                     if vline_x is not None:
-                        ax[i].axvline(x=vline_x, linestyle='dashed', color='gray')
+                        ax[i].axvline(x=vline_x, linestyle='dashed', color='gray', linewidth=1)
             i += 1
         util.progress_bar_end()
         fig.legend()
         # plt.tight_layout()
         plt.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95, hspace=1.5, wspace=0.85)
-        if plot_file_name is not None:
-            print('Plotting to file {} ...'.format(plot_file_name))
-            plt.savefig(plot_file_name)
+        if file_name is not None:
+            file_name = file_name + '.pdf'
+            print('Plotting to file {} ...'.format(file_name))
+            plt.savefig(file_name)
+            report_file_name = file_name + '.txt'
+            print('Saving report to file {} ...'.format(report_file_name))
+            with open(report_file_name, 'w') as file:
+                file.write('pyprob diagnostics\n')
+                file.write(('aggregated ' if use_address_base else '') + 'address report\n')
+                for key, value in address_stats_extra.items():
+                    file.write('{}: {}\n'.format(key, value))
         if plot_show:
             plt.show()
 
@@ -421,7 +440,7 @@ def network(inference_network, save_dir=None):
 #     return master_graph, stats
 
 
-def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, plot_file_name=None, min_index=None, max_index=None, *args, **kwargs):
+def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, file_name=None, min_index=None, max_index=None, *args, **kwargs):
     if type(trace_dists) != list:
         raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s posterior_traces.')
     if min_index is None:
@@ -475,16 +494,16 @@ def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="
         plt.ylabel(ylabel)
         plt.legend(loc='best')
         fig.tight_layout()
-        if plot_file_name is not None:
-            print('Plotting to file {} ...'.format(plot_file_name))
-            plt.savefig(plot_file_name)
+        if file_name is not None:
+            print('Plotting to file {} ...'.format(file_name))
+            plt.savefig(file_name)
         if plot_show:
             plt.show()
 
     return np.array(iters), np.array(log_probs)
 
 
-def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, figsize=(10, 5), xlabel="Lag", ylabel='Autocorrelation', xticks=None, yticks=None, log_xscale=True, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
+def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, figsize=(10, 5), xlabel="Lag", ylabel='Autocorrelation', xticks=None, yticks=None, log_xscale=True, plot=False, plot_show=True, file_name=None, *args, **kwargs):
     if type(trace_dist) != Empirical:
         raise TypeError('Expecting a posterior trace distribution, from a call to a Model\'s posterior_traces.')
     if type(trace_dist[0]) != Trace:
@@ -577,15 +596,15 @@ def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, fi
         plt.ylabel(ylabel)
         plt.legend(loc='best')
         fig.tight_layout()
-        if plot_file_name is not None:
-            print('Plotting to file {} ...'.format(plot_file_name))
-            plt.savefig(plot_file_name)
+        if file_name is not None:
+            print('Plotting to file {} ...'.format(file_name))
+            plt.savefig(file_name)
         if plot_show:
             plt.show()
     return lags, variable_autocorrelations
 
 
-def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5), xlabel="Iteration", ylabel='R-hat', xticks=None, yticks=None, log_xscale=False, log_yscale=True, plot=False, plot_show=True, plot_file_name=None, *args, **kwargs):
+def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5), xlabel="Iteration", ylabel='R-hat', xticks=None, yticks=None, log_xscale=False, log_yscale=True, plot=False, plot_show=True, file_name=None, *args, **kwargs):
     def merge_dicts(d1, d2):
         for k, v in d2.items():
             if k in d1:
@@ -773,9 +792,9 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
         plt.ylabel(ylabel)
         plt.legend(loc='best')
         fig.tight_layout()
-        if plot_file_name is not None:
-            print('Plotting to file {} ...'.format(plot_file_name))
-            plt.savefig(plot_file_name)
+        if file_name is not None:
+            print('Plotting to file {} ...'.format(file_name))
+            plt.savefig(file_name)
         if plot_show:
             plt.show()
 
