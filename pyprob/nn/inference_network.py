@@ -224,7 +224,7 @@ class InferenceNetwork(nn.Module):
             print('Inference network has no validation batch')
         elif self._valid_batch is None:
             print('Generating validation batch')
-            self._valid_batch = next(batch_generator.batches(self._valid_size, discard_source=True))
+            self._valid_batch = next(batch_generator.batches(self._valid_size))
             self._polymorph(self._valid_batch)
         else:
             print('Using existing validation batch')
