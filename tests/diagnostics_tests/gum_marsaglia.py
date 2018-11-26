@@ -39,8 +39,8 @@ if __name__ == '__main__':
     current_dir = os.path.dirname(os.path.abspath(__file__))
     print('Current dir: {}'.format(current_dir))
     model = GaussianWithUnknownMeanMarsaglia()
-    num_traces = 5000
-    num_ic_training_traces = 50000
+    num_traces = 2000
+    num_ic_training_traces = 2000
 
     ground_truth_trace = next(model._trace_generator(inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS))
     observes = {'obs0': ground_truth_trace.named_variables['obs0'].value, 'obs1': ground_truth_trace.named_variables['obs1'].value}
@@ -74,16 +74,16 @@ if __name__ == '__main__':
     pyprob.diagnostics.log_prob([posterior_rmh, posterior_rmh_gt], plot=True, plot_show=False, file_name=posterior_rmh_log_prob_file_name)
 
     posterior_is_rmh_addresses_file_name = os.path.join(posteriors_dir, 'posterior_is_rmh_addresses')
-    pyprob.diagnostics.address_histograms([proposal_is, posterior_is, posterior_rmh], plot=True, plot_show=False, ground_truth_trace=ground_truth_trace, use_address_base=False, file_name=posterior_is_rmh_addresses_file_name)
+    pyprob.diagnostics.address_histograms([posterior_rmh, proposal_is, posterior_is], plot=True, plot_show=False, ground_truth_trace=ground_truth_trace, use_address_base=False, file_name=posterior_is_rmh_addresses_file_name)
 
     posterior_is_rmh_addresses_aggregated_file_name = os.path.join(posteriors_dir, 'posterior_is_rmh_addresses_aggregated')
-    pyprob.diagnostics.address_histograms([proposal_is, posterior_is, posterior_rmh], plot=True, plot_show=False, ground_truth_trace=ground_truth_trace, use_address_base=True, file_name=posterior_is_rmh_addresses_aggregated_file_name)
+    pyprob.diagnostics.address_histograms([posterior_rmh, proposal_is, posterior_is], plot=True, plot_show=False, ground_truth_trace=ground_truth_trace, use_address_base=True, file_name=posterior_is_rmh_addresses_aggregated_file_name)
 
     posterior_ic_rmh_addresses_file_name = os.path.join(posteriors_dir, 'posterior_ic_rmh_addresses')
-    pyprob.diagnostics.address_histograms([proposal_ic, posterior_ic, posterior_rmh], plot=True, plot_show=False, ground_truth_trace=ground_truth_trace, use_address_base=False, file_name=posterior_ic_rmh_addresses_file_name)
+    pyprob.diagnostics.address_histograms([posterior_rmh, proposal_ic, posterior_ic], plot=True, plot_show=False, ground_truth_trace=ground_truth_trace, use_address_base=False, file_name=posterior_ic_rmh_addresses_file_name)
 
     posterior_ic_rmh_addresses_aggregated_file_name = os.path.join(posteriors_dir, 'posterior_ic_rmh_addresses_aggregated')
-    pyprob.diagnostics.address_histograms([proposal_ic, posterior_ic, posterior_rmh], plot=True, plot_show=False, ground_truth_trace=ground_truth_trace, use_address_base=True, file_name=posterior_ic_rmh_addresses_aggregated_file_name)
+    pyprob.diagnostics.address_histograms([posterior_rmh, proposal_ic, posterior_ic], plot=True, plot_show=False, ground_truth_trace=ground_truth_trace, use_address_base=True, file_name=posterior_ic_rmh_addresses_aggregated_file_name)
 
     posterior_is.close()
     posterior_ic.close()
