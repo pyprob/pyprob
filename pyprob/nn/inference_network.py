@@ -208,6 +208,7 @@ class InferenceNetwork(nn.Module):
 
         self._generate_valid_batch(batch_generator_offline)
 
+        self._layers_pre_generated = True
         num_batches = len(batch_generator_offline)
         util.progress_bar_init('Pre-generating layers...', num_batches * batch_generator_offline._batch_size, 'Traces')
         i = 0
@@ -220,7 +221,6 @@ class InferenceNetwork(nn.Module):
                 print('\rSaving to disk...  ', end='\r')
                 self._save(file_name)
         util.progress_bar_end()
-        self._layers_pre_generated = True
         print('Layer pre-generation complete.')
 
     def _generate_valid_batch(self, batch_generator):
