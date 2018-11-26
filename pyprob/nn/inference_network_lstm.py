@@ -45,8 +45,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     emb = nn.Parameter(util.to_tensor(torch.zeros(self._distribution_type_embedding_dim).normal_()))
                     self._layers_distribution_type_embedding[distribution.name] = emb
 
-                variable_shape = variable.value.shape
                 if address not in self._layers_proposal:
+                    variable_shape = variable.value.shape
                     if isinstance(distribution, Normal):
                         proposal_layer = ProposalNormalNormalMixture(self._lstm_dim, variable_shape)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
@@ -69,7 +69,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     print('New layers, distribution: {}, address: {}'.format(distribution.name, util.truncate_str(address)))
         if layers_changed:
             num_params = sum(p.numel() for p in self.parameters())
-            print('Total number of parameters: {:,}'.format(num_params))
+            print('Total addresses: {:,}, distribution types: {:,}, parameters: {:,}'.format(len(self._layers_address_embedding), len(self._layers_distribution_type_embedding), num_params))
             self._history_num_params.append(num_params)
             self._history_num_params_trace.append(self._total_train_traces)
         return layers_changed

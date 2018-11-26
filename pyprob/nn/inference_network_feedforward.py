@@ -41,7 +41,7 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                     layers_changed = True
         if layers_changed:
             num_params = sum(p.numel() for p in self.parameters())
-            print('Total number of parameters: {:,}'.format(num_params))
+            print('Total addresses: {:,}, parameters: {:,}'.format(len(self._layer_proposal), num_params))
             self._history_num_params.append(num_params)
             self._history_num_params_trace.append(self._total_train_traces)
         return layers_changed

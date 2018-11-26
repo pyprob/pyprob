@@ -1,11 +1,12 @@
 import torch
-import copy
 import os
+import sys
 import shutil
 import uuid
 import tempfile
 import tarfile
 import random
+from queue import Queue
 from threading import Thread
 from termcolor import colored
 
@@ -35,37 +36,37 @@ class Batch():
 
 
 class BatchGeneratorOnline():
-    def __init__(self, model, prior_inflation):
+    def __init__(self, model, prior_inflation, batch_size):
         self._model = model
         self._prior_inflation = prior_inflation
+        self._batch_size = batch_size
 
-    def batches(self, size=64, discard_source=False, *args, **kwargs):
-        traces = self._model._traces(size, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs).get_values()
+    def batches(self, pre_load_next=False):
+        traces = self._model._traces(self._batch_size, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True).get_values()
         yield Batch(traces)
 
-    def save_traces(self, trace_dir, num_files=16, num_traces_per_file=16, *args, **kwargs):
-        util.progress_bar_init('Saving traces to disk...', num_files, 'Files')
-        for file in range(num_files):
-            traces = self._model._traces(num_traces_per_file, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs).get_values()
-            file_name = os.path.join(trace_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
-            self._save_traces(traces, file_name)
-            print('Traces {:,} / {:,}, file {:,} / {:,}: {}'.format((file + 1) * num_traces_per_file, num_files * num_traces_per_file, file + 1, num_files, file_name))
-            util.progress_bar_update(file)
+    def save_traces(self, trace_dir, num_traces=16, *args, **kwargs):
+        util.progress_bar_init('Saving traces to disk...', num_traces, 'Traces')
+        for i in range(num_traces):
+            trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, *args, **kwargs))
+            file_name = os.path.join(trace_dir, 'pyprob_trace_{}'.format(str(uuid.uuid4())))
+            self._save_trace(trace, file_name)
+            util.progress_bar_update(i)
         util.progress_bar_end()
 
-    def _save_traces(self, traces, file_name):
+    def _save_trace(self, trace, file_name):
         data = {}
-        data['traces'] = traces
+        data['trace'] = trace
         data['model_name'] = self._model.name
         data['pyprob_version'] = __version__
         data['torch_version'] = torch.__version__
 
         def thread_save():
             tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
-            tmp_file_name = os.path.join(tmp_dir, 'pyprob_traces')
+            tmp_file_name = os.path.join(tmp_dir, 'pyprob_trace')
             torch.save(data, tmp_file_name)
             tar = tarfile.open(file_name, 'w:gz', compresslevel=2)
-            tar.add(tmp_file_name, arcname='pyprob_traces')
+            tar.add(tmp_file_name, arcname='pyprob_trace')
             tar.close()
             shutil.rmtree(tmp_dir)
         t = Thread(target=thread_save)
@@ -74,47 +75,57 @@ class BatchGeneratorOnline():
 
 
 class BatchGeneratorOffline():
-    def __init__(self, trace_dir):
+    def __init__(self, trace_dir, batch_size):
         self._trace_dir = trace_dir
-        self._trace_files = self._trace_dir_files()
-        self._trace_files_discarded = []
-        print('Using offline training traces with {} files at {}'.format(len(self._trace_files), self._trace_dir))
+        self._files = self._get_files()
+        self._batch_size = batch_size
+        self._length = int(len(self._files) / self._batch_size)
+        print('Using offline training traces with {} files at {}'.format(len(self._files), self._trace_dir))
 
-    def batches(self, size=64, discard_source=False):
-        random.shuffle(self._trace_files)  # Happens once per epoch due to yield generator
-        trace_cache = []
-        trace_files = copy.deepcopy(self._trace_files)
-        while len(trace_files) > 0:
-            while len(trace_cache) < size:
-                file = trace_files.pop()
-                new_traces = self._load_traces(file)
-                trace_cache += new_traces
-                if discard_source:
-                    self._trace_files.remove(file)
-                if len(trace_files) == 0:
-                    break
-            batch_traces = trace_cache[:size]
-            trace_cache[:size] = []
-            yield Batch(batch_traces)
+    def __len__(self):
+        return self._length
 
-    def num_batches(self, size):
-        # BEWARE: Assumes all trace files to have the same number of traces
-        num_files = len(self._trace_files)
-        num_traces_per_file = len(self._load_traces(self._trace_files[0]))
-        num_traces = num_files * num_traces_per_file
-        return int(num_traces / size)
+    def batches(self, pre_load_next=False):
+        epoch_indices = list(range(len(self._files)))
+        random.shuffle(epoch_indices)  # Happens once per epoch due to yield generator
 
-    def _trace_dir_files(self):
+        def _load_batch(indices):
+            return Batch([self._load_trace(self._files[i]) for i in indices])
+
+        if pre_load_next:
+            queue = Queue()
+            batch_indices = epoch_indices[:self._batch_size]
+            epoch_indices[:self._batch_size] = []
+            pre_loader = Thread(target=lambda q, i: q.put(_load_batch(i)), args=(queue, batch_indices))
+            pre_loader.start()
+
+        while len(epoch_indices) >= self._batch_size:
+            batch_indices = epoch_indices[:self._batch_size]
+            epoch_indices[:self._batch_size] = []
+            if pre_load_next:
+                pre_loader.join()
+                batch = queue.get()
+                pre_loader = Thread(target=lambda q, i: q.put(_load_batch(i)), args=(queue, batch_indices))
+                pre_loader.start()
+            else:
+                batch = _load_batch(batch_indices)
+            yield batch
+        if pre_load_next:
+            pre_loader.join()
+            batch = queue.get()
+            yield batch
+
+    def _get_files(self):
         files = [name for name in os.listdir(self._trace_dir)]
         files = list(map(lambda f: os.path.join(self._trace_dir, f), files))
         return files
 
-    def _load_traces(self, file_name):
+    def _load_trace(self, file_name):
         try:
             tar = tarfile.open(file_name, 'r:gz')
             tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
-            tmp_file = os.path.join(tmp_dir, 'pyprob_traces')
-            tar.extract('pyprob_traces', tmp_dir)
+            tmp_file = os.path.join(tmp_dir, 'pyprob_trace')
+            tar.extract('pyprob_trace', tmp_dir)
             tar.close()
             if util._cuda_enabled:
                 data = torch.load(tmp_file)
@@ -129,11 +140,10 @@ class BatchGeneratorOffline():
         # if data['model_name'] != self._model.name:
             # print(colored('Warning: different model names (loaded traces: {}, current model: {})'.format(data['model_name'], self._model.name), 'red', attrs=['bold']))
         if data['pyprob_version'] != __version__:
-            print(colored('Warning: different pyprob versions (loaded traces: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
+            print(colored('Warning: different pyprob versions (loaded trace: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
         if data['torch_version'] != torch.__version__:
-            print(colored('Warning: different PyTorch versions (loaded traces: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
+            print(colored('Warning: different PyTorch versions (loaded trace: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
 
-        traces = data['traces']
-        for trace in traces:
-            trace.to(device=util._device)
-        return traces
+        trace = data['trace']
+        trace.to(device=util._device)
+        return trace

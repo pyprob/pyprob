@@ -139,9 +139,9 @@ class Model():
 
     def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, trace_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=0., auto_save_file_name_prefix=None, auto_save_interval_sec=600, pre_generate_layers=True, distributed_backend=None):
         if trace_dir is None:
-            batch_generator = BatchGeneratorOnline(self, prior_inflation)
+            batch_generator = BatchGeneratorOnline(self, prior_inflation=prior_inflation, batch_size=batch_size)
         else:
-            batch_generator = BatchGeneratorOffline(trace_dir)
+            batch_generator = BatchGeneratorOffline(trace_dir, batch_size=batch_size)
 
         if self._inference_network is None:
             print('Creating new inference network...')
@@ -170,12 +170,12 @@ class Model():
         # The following is due to a temporary hack related with https://github.com/pytorch/pytorch/issues/9981 and can be deprecated by using dill as pickler with torch > 0.4.1
         self._inference_network._model = self
 
-    def save_traces(self, trace_dir, files=16, traces_per_file=16, prior_inflation=PriorInflation.DISABLED, *args, **kwargs):
+    def save_traces(self, trace_dir, num_traces=16, prior_inflation=PriorInflation.DISABLED, *args, **kwargs):
         if not os.path.exists(trace_dir):
             print('Directory does not exist, creating: {}'.format(trace_dir))
             os.makedirs(trace_dir)
-        batch_generator = BatchGeneratorOnline(self, prior_inflation)
-        batch_generator.save_traces(trace_dir, files, traces_per_file)
+        batch_generator = BatchGeneratorOnline(self, prior_inflation=prior_inflation, batch_size=1)
+        batch_generator.save_traces(trace_dir, num_traces, *args, **kwargs)
 
 
 class ModelRemote(Model):

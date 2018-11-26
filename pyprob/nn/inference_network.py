@@ -207,19 +207,16 @@ class InferenceNetwork(nn.Module):
 
         self._generate_valid_batch(batch_generator_offline)
 
-        num_batches = batch_generator_offline.num_batches(size=128)
-        if num_batches > 0:
-            util.progress_bar_init('Pre-generating layers...', num_batches, 'Batches')
-            i = 0
-            for batch in batch_generator_offline.batches(size=128):
-                self._polymorph(batch)
-                util.progress_bar_update(i)
-                i += 1
-            util.progress_bar_end()
-            self._layers_pre_generated = True
-            print('Layer pre-generation complete.')
-        else:
-            print(colored('Warning: cannot run layer pre-generation, not enough offline training data', 'red', attrs=['bold']))
+        num_batches = len(batch_generator_offline)
+        util.progress_bar_init('Pre-generating layers...', num_batches * batch_generator_offline._batch_size, 'Traces')
+        i = 0
+        for batch in batch_generator_offline.batches():
+            i += 1
+            self._polymorph(batch)
+            util.progress_bar_update(i * batch_generator_offline._batch_size)
+        util.progress_bar_end()
+        self._layers_pre_generated = True
+        print('Layer pre-generation complete.')
 
     def _generate_valid_batch(self, batch_generator):
         if self._valid_size is None:
@@ -299,7 +296,7 @@ class InferenceNetwork(nn.Module):
         last_auto_save_time = time.time() - auto_save_interval_sec
         while not stop:
             epoch += 1
-            for batch in batch_generator.batches(batch_size):
+            for batch in batch_generator.batches(pre_load_next=(distributed_world_size == 1)):
                 iteration += 1
 
                 if (distributed_world_size > 1) and (iteration % distributed_params_sync_interval == 0):
@@ -371,14 +368,15 @@ class InferenceNetwork(nn.Module):
 
                     self._history_train_loss.append(loss)
                     self._history_train_loss_trace.append(self._total_train_traces)
-                    if trace - last_validation_trace > valid_interval:
-                        print('\rComputing validation loss...  ', end='\r')
-                        with torch.no_grad():
-                            _, valid_loss = self._loss(self._valid_batch)
-                        valid_loss = float(valid_loss)
-                        self._history_valid_loss.append(valid_loss)
-                        self._history_valid_loss_trace.append(self._total_train_traces)
-                        last_validation_trace = trace - 1
+                    if self._valid_batch is not None:
+                        if trace - last_validation_trace > valid_interval:
+                            print('\rComputing validation loss...  ', end='\r')
+                            with torch.no_grad():
+                                _, valid_loss = self._loss(self._valid_batch)
+                            valid_loss = float(valid_loss)
+                            self._history_valid_loss.append(valid_loss)
+                            self._history_valid_loss_trace.append(self._total_train_traces)
+                            last_validation_trace = trace - 1
 
                     if (distributed_rank == 0) and (auto_save_file_name_prefix is not None):
                         if time.time() - last_auto_save_time > auto_save_interval_sec:
