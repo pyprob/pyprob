@@ -66,7 +66,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     self._layers_sample_embedding[address] = sample_embedding_layer
                     self._layers_proposal[address] = proposal_layer
                     layers_changed = True
-                    print('New layers, distribution: {}, address: {}'.format(distribution.name, util.truncate_str(address)))
+                    print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address), distribution.name))
         if layers_changed:
             num_params = sum(p.numel() for p in self.parameters())
             print('Total addresses: {:,}, distribution types: {:,}, parameters: {:,}'.format(len(self._layers_address_embedding), len(self._layers_distribution_type_embedding), num_params))

@@ -45,7 +45,7 @@ if __name__ == '__main__':
     ground_truth_trace = next(model._trace_generator(inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS))
     observes = {'obs0': ground_truth_trace.named_variables['obs0'].value, 'obs1': ground_truth_trace.named_variables['obs1'].value}
 
-    posteriors_dir = os.path.join(current_dir, 'posteriors')
+    posteriors_dir = os.path.join(current_dir, 'gum_marsaglia')
     shutil.rmtree(posteriors_dir)
     pyprob.util.create_path(posteriors_dir, directory=True)
 

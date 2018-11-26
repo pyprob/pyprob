@@ -25,7 +25,7 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                 distribution = variable.distribution
                 variable_shape = variable.value.shape
                 if address not in self._layer_proposal:
-                    print('New layers, distribution: {}, address: {}'.format(distribution.name, util.truncate_str(address)))
+                    print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address), distribution.name))
                     if isinstance(distribution, Normal):
                         layer = ProposalNormalNormalMixture(self._observe_embedding_dim, variable_shape)
                     elif isinstance(distribution, Uniform):

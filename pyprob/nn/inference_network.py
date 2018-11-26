@@ -197,7 +197,7 @@ class InferenceNetwork(nn.Module):
         self._on_cuda = 'cuda' in str(device)
         super().to(device=device, *args, *kwargs)
 
-    def _pre_generate_layers(self, batch_generator_offline):
+    def _pre_generate_layers(self, batch_generator_offline, auto_save_file_name_prefix=None):
         if not isinstance(batch_generator_offline, BatchGeneratorOffline):
             raise ValueError('Expecting a BatchGeneratorOffline.')
 
@@ -213,8 +213,12 @@ class InferenceNetwork(nn.Module):
         i = 0
         for batch in batch_generator_offline.batches():
             i += 1
-            self._polymorph(batch)
+            layers_changed = self._polymorph(batch)
             util.progress_bar_update(i * batch_generator_offline._batch_size)
+            if layers_changed and (auto_save_file_name_prefix is not None):
+                file_name = '{}_00000000_pre_generated.network'.format(auto_save_file_name_prefix)
+                print('\rSaving to disk...  ', end='\r')
+                self._save(file_name)
         util.progress_bar_end()
         self._layers_pre_generated = True
         print('Layer pre-generation complete.')

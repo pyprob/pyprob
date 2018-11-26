@@ -152,7 +152,7 @@ class Model():
             else:
                 raise ValueError('Unknown inference_network: {}'.format(inference_network))
             if pre_generate_layers and (trace_dir is not None):
-                self._inference_network._pre_generate_layers(batch_generator)
+                self._inference_network._pre_generate_layers(batch_generator, auto_save_file_name_prefix=auto_save_file_name_prefix)
         else:
             print('Continuing to train existing inference network...')
             print('Total number of parameters: {:,}'.format(self._inference_network._history_num_params[-1]))
