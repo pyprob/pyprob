@@ -141,6 +141,9 @@ class InferenceNetworkLSTM(InferenceNetwork):
             for time_step in range(example_trace.length_controlled):
                 current_variable = example_trace.variables_controlled[time_step]
                 current_address = current_variable.address
+                if current_address not in self._layers_address_embedding:
+                    print(colored('Unknown current address in pre-generated inference network: {}'.format(current_address), 'red', attrs=['bold']))
+                    return False, 0
                 current_distribution = current_variable.distribution
                 current_address_embedding = self._layers_address_embedding[current_address]
                 current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution.name]
@@ -152,6 +155,9 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 else:
                     prev_variable = example_trace.variables_controlled[time_step - 1]
                     prev_address = prev_variable.address
+                    if prev_address not in self._layers_address_embedding:
+                        print(colored('Unknown previous address in pre-generated inference network: {}'.format(prev_address), 'red', attrs=['bold']))
+                        return False, 0
                     prev_distribution = prev_variable.distribution
                     smp = util.to_tensor(torch.stack([trace.variables_controlled[time_step - 1].value.float() for trace in sub_batch]))
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
