@@ -240,15 +240,14 @@ class ModelTestCase(unittest.TestCase):
 
     def test_model_save_traces_load_train(self):
         trace_dir = tempfile.mkdtemp()
-        store_files = 4
-        store_traces_per_file = 128
+        num_traces = 512
         training_traces = 128
 
-        self._model.save_traces(trace_dir=trace_dir, files=store_files, traces_per_file=store_traces_per_file)
+        self._model.save_traces(trace_dir=trace_dir, num_traces=num_traces)
         self._model.learn_inference_network(num_traces=training_traces, trace_dir=trace_dir, batch_size=16, valid_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
         shutil.rmtree(trace_dir)
 
-        util.eval_print('trace_dir', 'store_files', 'store_traces_per_file', 'training_traces')
+        util.eval_print('trace_dir', 'num_traces', 'training_traces')
 
         self.assertTrue(True)
 
