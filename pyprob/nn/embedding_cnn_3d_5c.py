@@ -18,7 +18,7 @@ class EmbeddingCNN3D5C(nn.Module):
         self._conv5 = nn.Conv3d(128, 128, 3)
         cnn_output_dim = self._forward_cnn(torch.zeros(self._input_shape).unsqueeze(0)).nelement()
         self._lin1 = nn.Linear(cnn_output_dim, self._output_dim)
-        self._lin2 = nn.Linear(self._output_dim, self._output_dim)
+        # self._lin2 = nn.Linear(self._output_dim, self._output_dim)
 
     def _forward_cnn(self, x):
         x = torch.relu(self._conv1(x))
@@ -36,5 +36,5 @@ class EmbeddingCNN3D5C(nn.Module):
         x = self._forward_cnn(x)
         x = x.view(batch_size, -1)
         x = torch.relu(self._lin1(x))
-        x = torch.relu(self._lin2(x))
+        # x = torch.relu(self._lin2(x))
         return x.view(torch.Size([-1]) + self._output_shape)

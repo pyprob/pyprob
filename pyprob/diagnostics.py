@@ -62,6 +62,8 @@ def _address_stats(trace_dist, use_address_base=True):
 
 
 def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), bins=30, use_address_base=True, plot=False, plot_show=True, file_name=None):
+    if not isinstance(trace_dists, list):
+        trace_dists = [trace_dists]
     dists = {}
     for trace_dist in trace_dists:
         print('Collecting values for distribution: {}'.format(trace_dist.name))
@@ -138,9 +140,9 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
         # plt.tight_layout()
         plt.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95, hspace=1.5, wspace=0.85)
         if file_name is not None:
-            file_name = file_name + '.pdf'
-            print('Plotting to file {} ...'.format(file_name))
-            plt.savefig(file_name)
+            plot_file_name = file_name + '.pdf'
+            print('Plotting to file {} ...'.format(plot_file_name))
+            plt.savefig(plot_file_name)
             report_file_name = file_name + '.txt'
             print('Saving report to file {} ...'.format(report_file_name))
             with open(report_file_name, 'w') as file:

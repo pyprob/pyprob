@@ -9,7 +9,7 @@ from ..distributions import Normal, Uniform, Categorical, Poisson
 
 class InferenceNetworkLSTM(InferenceNetwork):
     # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'reshape': [10, 10], 'dim': 32, 'depth': 2}}
-    def __init__(self, lstm_dim=512, lstm_depth=2, sample_embedding_dim=4, address_embedding_dim=128, distribution_type_embedding_dim=16, *args, **kwargs):
+    def __init__(self, lstm_dim=512, lstm_depth=1, sample_embedding_dim=4, address_embedding_dim=64, distribution_type_embedding_dim=8, *args, **kwargs):
         super().__init__(network_type='InferenceNetworkLSTM', *args, **kwargs)
         self._layers_proposal = nn.ModuleDict()
         self._layers_sample_embedding = nn.ModuleDict()

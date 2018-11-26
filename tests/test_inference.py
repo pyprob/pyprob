@@ -834,7 +834,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
 if __name__ == '__main__':
     pyprob.set_random_seed(123)
     pyprob.set_verbosity(2)
-    pyprob.set_cuda(True)
+    # pyprob.set_cuda(True)
     tests = []
     tests.append('GaussianWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanMarsagliaTestCase')

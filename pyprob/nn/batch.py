@@ -121,28 +121,28 @@ class BatchGeneratorOffline():
         return files
 
     def _load_trace(self, file_name):
-        try:
-            tar = tarfile.open(file_name, 'r:gz')
-            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
-            tmp_file = os.path.join(tmp_dir, 'pyprob_trace')
-            tar.extract('pyprob_trace', tmp_dir)
-            tar.close()
-            if util._cuda_enabled:
-                data = torch.load(tmp_file)
-            else:
-                data = torch.load(tmp_file, map_location=lambda storage, loc: storage)
-            shutil.rmtree(tmp_dir)
-        except:
-            print(colored('Warning: cannot load traces from file, file potentially corrupt: {}'.format(file_name), 'red', attrs=['bold']))
-            return []
+        # try:
+        tar = tarfile.open(file_name, 'r:gz')
+        tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+        tmp_file = os.path.join(tmp_dir, 'pyprob_trace')
+        tar.extract('pyprob_trace', tmp_dir)
+        tar.close()
+        if util._cuda_enabled:
+            data = torch.load(tmp_file)
+        else:
+            data = torch.load(tmp_file, map_location=lambda storage, loc: storage)
+        shutil.rmtree(tmp_dir)
+        # except:
+        #     print(colored('Warning: cannot load traces from file, file potentially corrupt: {}'.format(file_name), 'red', attrs=['bold']))
+        #     return []
 
         # print('Loading trace cache of size {}'.format(data['size']))
         # if data['model_name'] != self._model.name:
             # print(colored('Warning: different model names (loaded traces: {}, current model: {})'.format(data['model_name'], self._model.name), 'red', attrs=['bold']))
-        if data['pyprob_version'] != __version__:
-            print(colored('Warning: different pyprob versions (loaded trace: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
-        if data['torch_version'] != torch.__version__:
-            print(colored('Warning: different PyTorch versions (loaded trace: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
+        # if data['pyprob_version'] != __version__:
+        #     print(colored('Warning: different pyprob versions (loaded trace: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
+        # if data['torch_version'] != torch.__version__:
+        #     print(colored('Warning: different PyTorch versions (loaded trace: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
 
         trace = data['trace']
         trace.to(device=util._device)

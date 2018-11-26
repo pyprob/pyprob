@@ -332,10 +332,7 @@ class Empirical(Distribution):
 
     def unweighted(self, *args, **kwargs):
         self._check_finalized()
-        if self._on_disk:
-            raise NotImplementedError()
-        else:
-            return Empirical(values=self._values, name=self.name, *args, **kwargs)
+        return Empirical(values=self.get_values(), name=self.name, *args, **kwargs)
 
     def _find_min_max(self):
         try:
