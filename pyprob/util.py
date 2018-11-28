@@ -284,6 +284,15 @@ def create_path(path, directory=False):
         os.makedirs(dir)
 
 
+def address_id_to_int(address_id):
+    if '__' not in address_id:
+        return 0.
+    else:
+        divider_i = address_id.find('__')
+        value_id = address_id[1:divider_i]
+        return int(value_id)
+
+
 def init_distributed_print(rank, world_size, debug_print=True):
     if not debug_print:
         if rank > 0:

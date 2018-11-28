@@ -47,7 +47,7 @@ def _address_stats(trace_dist, use_address_base=True):
                             address_id = address_base_ids[address_base] + '__' + str(variable.instance)
                     address_ids[key] = address_id
                 address_stats[key] = {'count': 1, 'weight': trace_weight, 'address_id': address_id, 'variable': variable}
-    address_stats = OrderedDict(sorted(address_stats.items(), key=lambda v: v[1]['address_id']))
+    address_stats = OrderedDict(sorted(address_stats.items(), key=lambda v: util.address_id_to_int(v[1]['address_id'])))
     address_stats_extra = OrderedDict()
     address_stats_extra['pyprob_version'] = __version__
     address_stats_extra['torch_version'] = torch.__version__
@@ -91,7 +91,7 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
             if can_render:
                 if key not in dists:
                     dists[key] = {}
-                dists[key][trace_dist.name] = dist, variable, key
+                dists[key][trace_dist.name] = dist, variable
         util.progress_bar_end()
     if plot:
         if not plot_show:
@@ -111,11 +111,11 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
                 variable = v[1]
                 values = dist.values_numpy()
                 weights = dist.weights_numpy()
-                if trace_dist_name in legends_added:
-                    label = None
-                else:
-                    legends_added[trace_dist_name] = 0
-                    label = trace_dist_name
+                # if trace_dist_name in legends_added:
+                #     label = None
+                # else:
+                #     legends_added[trace_dist_name] = 0
+                label = trace_dist_name
                 if hasattr(variable.distribution, 'low'):
                     range = (float(variable.distribution.low), float(variable.distribution.high))
                 else:
@@ -127,13 +127,15 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
                 if ground_truth_trace is not None:
                     vline_x = None
                     if use_address_base:
-                        if v[2] in ground_truth_trace.variables_dict_address_base:
-                            vline_x = float(ground_truth_trace.variables_dict_address_base[v[2]].value)
+                        address_base = variable.address_base
+                        if address_base in ground_truth_trace.variables_dict_address_base:
+                            vline_x = float(ground_truth_trace.variables_dict_address_base[address_base].value)
                     else:
-                        if v[2] in ground_truth_trace.variables_dict_address:
-                            vline_x = float(ground_truth_trace.variables_dict_address[v[2]].value)
+                        address = variable.address
+                        if address in ground_truth_trace.variables_dict_address:
+                            vline_x = float(ground_truth_trace.variables_dict_address[address].value)
                     if vline_x is not None:
-                        ax[i].axvline(x=vline_x, linestyle='dashed', color='gray', linewidth=1)
+                        ax[i].axvline(x=vline_x, linestyle='dashed', color='gray', linewidth=0.75)
             i += 1
         util.progress_bar_end()
         fig.legend()
