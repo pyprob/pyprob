@@ -258,7 +258,7 @@ class Empirical(Distribution):
             min_index = 0
         if max_index is None:
             max_index = self.length
-        step = math.ceil((max_index - min_index) / num_samples)
+        step = math.floor((max_index - min_index) / num_samples)
         indices = range(min_index, max_index, step)
         values = []
         log_weights = []

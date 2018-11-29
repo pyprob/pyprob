@@ -182,6 +182,7 @@ def progress_bar_update(iter):
 def progress_bar_end():
     print()
 
+
 def days_hours_mins_secs_str(total_seconds):
     d, r = divmod(total_seconds, 86400)
     h, r = divmod(r, 3600)
@@ -200,9 +201,29 @@ def has_nan_or_inf(value):
         return (value == float('inf')) or (value == float('-inf')) or (value == float('NaN'))
 
 
-def replace_negative_inf(value):
-    value = value.clone()
-    value[value == -np.inf] = _log_epsilon
+def safe_log(value):
+    value = torch.log(value)
+    if torch.any(value == -np.inf):
+        return replace_negative_inf(value)
+    else:
+        return value
+
+
+def replace_inf(value, replace_message=None):
+    if torch.any(value == np.inf):
+        value = value.clone()
+        value[value == np.inf] = 0.
+        if replace_message is not None:
+            print(replace_message)
+    return value
+
+
+def replace_negative_inf(value, replace_message=None):
+    if torch.any(value == -np.inf):
+        value = value.clone()
+        value[value == -np.inf] = _log_epsilon
+        if replace_message is not None:
+            print(replace_message)
     return value
 
 

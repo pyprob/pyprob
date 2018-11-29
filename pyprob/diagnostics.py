@@ -39,12 +39,12 @@ def _address_stats(trace_dist, use_address_base=True):
                             address_id = 'A' + str(len(address_ids) + 1)
                     else:
                         if address_base.startswith('__A'):
-                            address_id = address_base[2:] + '__' + str(variable.instance)
+                            address_id = address_base[2:] + '__' + ('replaced' if variable.replace else str(variable.instance))
                         else:
                             if address_base not in address_base_ids:
                                 address_base_id = 'A' + str(len(address_base_ids) + 1)
                                 address_base_ids[address_base] = address_base_id
-                            address_id = address_base_ids[address_base] + '__' + str(variable.instance)
+                            address_id = address_base_ids[address_base] + '__' + ('replaced' if variable.replace else str(variable.instance))
                     address_ids[key] = address_id
                 address_stats[key] = {'count': 1, 'weight': trace_weight, 'address_id': address_id, 'variable': variable}
     address_stats = OrderedDict(sorted(address_stats.items(), key=lambda v: util.address_id_to_int(v[1]['address_id'])))
@@ -102,7 +102,8 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
         fig, ax = plt.subplots(rows, cols, figsize=figsize)
         ax = ax.flatten()
         i = 0
-        legends_added = {}
+        hist_color_cycle = list(reversed(['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf', 'b', 'k']))
+        hist_colors = {}
         util.progress_bar_init('Plotting histograms', len(dists), 'Histograms')
         for key, value in dists.items():
             util.progress_bar_update(i)
@@ -111,16 +112,18 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
                 variable = v[1]
                 values = dist.values_numpy()
                 weights = dist.weights_numpy()
-                # if trace_dist_name in legends_added:
-                #     label = None
-                # else:
-                #     legends_added[trace_dist_name] = 0
-                label = trace_dist_name
+                if trace_dist_name in hist_colors:
+                    label = None
+                    color = hist_colors[trace_dist_name]
+                else:
+                    label = trace_dist_name
+                    color = hist_color_cycle.pop()
+                    hist_colors[trace_dist_name] = color
                 if hasattr(variable.distribution, 'low'):
                     range = (float(variable.distribution.low), float(variable.distribution.high))
                 else:
                     range = None
-                ax[i].hist(values, weights=weights, density=1, bins=bins, label=label, alpha=0.8, range=range)
+                ax[i].hist(values, weights=weights, density=1, bins=bins, color=color, label=label, alpha=0.8, range=range)
                 ax[i].set_title(dist.name, fontsize=4, y=0.95)
                 ax[i].tick_params(pad=0., length=2)
                 # ax[i].set_aspect(aspect='equal', adjustable='box-forced')
