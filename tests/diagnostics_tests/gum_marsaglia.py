@@ -35,6 +35,7 @@ class GaussianWithUnknownMeanMarsaglia(Model):
 
 if __name__ == '__main__':
     pyprob.set_random_seed(123)
+    pyprob.set_cuda(True)
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     print('Current dir: {}'.format(current_dir))
@@ -46,8 +47,8 @@ if __name__ == '__main__':
 
     address_dict_file_name = os.path.join(results_dir, 'address_dict')
     model = GaussianWithUnknownMeanMarsaglia(address_dict_file_name=address_dict_file_name)
-    num_traces = 20000
-    num_ic_training_traces = 20000
+    num_traces = 1000
+    num_ic_training_traces = 2500
 
     ground_truth_trace = next(model._trace_generator(inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS))
     observes = {'obs0': ground_truth_trace.named_variables['obs0'].value, 'obs1': ground_truth_trace.named_variables['obs1'].value}

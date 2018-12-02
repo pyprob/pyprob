@@ -27,10 +27,11 @@ class Model():
         raise NotImplementedError()
 
     def _trace_generator(self, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None, *args, **kwargs):
+        state._init_traces(self.forward, trace_mode, prior_inflation, inference_engine, inference_network, observe, metropolis_hastings_trace, self._address_dictionary)
         while True:
-            state.begin_trace(self.forward, trace_mode, prior_inflation, inference_engine, inference_network, observe, metropolis_hastings_trace, self._address_dictionary)
+            state._begin_trace()
             result = self.forward(*args, **kwargs)
-            trace = state.end_trace(result)
+            trace = state._end_trace(result)
             yield trace
 
     def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=None, silent=False, observe=None, file_name=None, *args, **kwargs):

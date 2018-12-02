@@ -101,7 +101,7 @@ class InferenceNetwork(nn.Module):
             observe_embedding_total_dim += util.prod(output_shape)
         self._observe_embedding_dim = observe_embedding_total_dim
         print('Observe embedding dimenson: {}'.format(self._observe_embedding_dim))
-        self._layers_observe_embedding_final = EmbeddingFeedForward(input_shape=self._observe_embedding_dim, output_shape=self._observe_embedding_dim, num_layers=1)
+        self._layers_observe_embedding_final = EmbeddingFeedForward(input_shape=self._observe_embedding_dim, output_shape=self._observe_embedding_dim, num_layers=2)
         self._layers_observe_embedding_final.to(device=util._device)
 
     def _embed_observe(self, traces=None):

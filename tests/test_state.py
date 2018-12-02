@@ -11,7 +11,7 @@ class StateTestCase(unittest.TestCase):
         super().__init__(*args, **kwargs)
 
     def _sample_address(self):
-        address = state.extract_address(self._root_function_name)
+        address = state._extract_address(self._root_function_name)
         return address
 
     def test_address(self):
