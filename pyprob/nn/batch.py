@@ -1,6 +1,7 @@
 import torch
 import os
 import sys
+import math
 import shutil
 import uuid
 import tempfile
@@ -45,28 +46,31 @@ class BatchGeneratorOnline():
         traces = self._model._traces(self._batch_size, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True).get_values()
         yield Batch(traces)
 
-    def save_traces(self, trace_dir, num_traces=16, *args, **kwargs):
-        util.progress_bar_init('Saving traces to disk...', num_traces, 'Traces')
-        for i in range(num_traces):
-            trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, *args, **kwargs))
-            file_name = os.path.join(trace_dir, 'pyprob_trace_{}'.format(str(uuid.uuid4())))
-            self._save_trace(trace, file_name)
+    def save_traces(self, trace_dir, num_traces=16, num_files=1, *args, **kwargs):
+        num_traces_per_file = math.ceil(num_traces / num_files)
+        util.progress_bar_init('Saving traces to disk, num_traces:{}, num_files:{}, num_traces_per_file:{}'.format(num_traces, num_files, num_traces_per_file), num_traces, 'Traces')
+        i = 0
+        while i < num_traces:
+            i += num_traces_per_file
+            traces = self._model._traces(num_traces=num_traces_per_file, trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, silent=True, *args, **kwargs)
+            file_name = os.path.join(trace_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
+            self._save_traces(traces, file_name)
             util.progress_bar_update(i)
         util.progress_bar_end()
 
-    def _save_trace(self, trace, file_name):
+    def _save_traces(self, traces, file_name):
         data = {}
-        data['trace'] = trace
+        data['traces'] = traces
         data['model_name'] = self._model.name
         data['pyprob_version'] = __version__
         data['torch_version'] = torch.__version__
 
         def thread_save():
             tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
-            tmp_file_name = os.path.join(tmp_dir, 'pyprob_trace')
+            tmp_file_name = os.path.join(tmp_dir, 'pyprob_traces')
             torch.save(data, tmp_file_name)
             tar = tarfile.open(file_name, 'w:gz', compresslevel=2)
-            tar.add(tmp_file_name, arcname='pyprob_trace')
+            tar.add(tmp_file_name, arcname='pyprob_traces')
             tar.close()
             shutil.rmtree(tmp_dir)
         t = Thread(target=thread_save)
