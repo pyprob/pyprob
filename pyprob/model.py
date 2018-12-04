@@ -138,7 +138,7 @@ class Model():
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, *args, **kwargs):
         return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, file_name=file_name, *args, **kwargs)
 
-    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=0., auto_save_file_name_prefix=None, auto_save_interval_sec=600, pre_generate_layers=True, distributed_backend=None):
+    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=0., auto_save_file_name_prefix=None, auto_save_interval_sec=600, pre_generate_layers=True, distributed_backend=None, dataloader_offline_num_workers=0):
         if dataset_dir is None:
             dataset = DatasetOnline(model=self, length=1000, prior_inflation=prior_inflation)
         else:
@@ -159,7 +159,7 @@ class Model():
             print('Total number of parameters: {:,}'.format(self._inference_network._history_num_params[-1]))
 
         self._inference_network.to(device=util._device)
-        self._inference_network.optimize(num_traces=num_traces, dataset=dataset, batch_size=batch_size, valid_interval=valid_interval, optimizer_type=optimizer_type, learning_rate=learning_rate, momentum=momentum, weight_decay=weight_decay, auto_save_file_name_prefix=auto_save_file_name_prefix, auto_save_interval_sec=auto_save_interval_sec, distributed_backend=distributed_backend)
+        self._inference_network.optimize(num_traces=num_traces, dataset=dataset, batch_size=batch_size, valid_interval=valid_interval, optimizer_type=optimizer_type, learning_rate=learning_rate, momentum=momentum, weight_decay=weight_decay, auto_save_file_name_prefix=auto_save_file_name_prefix, auto_save_interval_sec=auto_save_interval_sec, distributed_backend=distributed_backend, dataloader_offline_num_workers=dataloader_offline_num_workers)
 
     def save_inference_network(self, file_name):
         if self._inference_network is None:
@@ -171,12 +171,12 @@ class Model():
         # The following is due to a temporary hack related with https://github.com/pytorch/pytorch/issues/9981 and can be deprecated by using dill as pickler with torch > 0.4.1
         self._inference_network._model = self
 
-    def save_dataset(self, dataset_dir, num_traces, num_files, prior_inflation=PriorInflation.DISABLED, *args, **kwargs):
+    def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, prior_inflation=PriorInflation.DISABLED, *args, **kwargs):
         if not os.path.exists(dataset_dir):
             print('Directory does not exist, creating: {}'.format(dataset_dir))
             os.makedirs(dataset_dir)
         dataset = DatasetOnline(self, None, prior_inflation=prior_inflation)
-        dataset.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces, num_files=num_files, *args, **kwargs)
+        dataset.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces, num_traces_per_file=num_traces_per_file, *args, **kwargs)
 
 
 class ModelRemote(Model):

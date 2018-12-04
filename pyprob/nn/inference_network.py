@@ -301,7 +301,7 @@ class InferenceNetwork(nn.Module):
         time_since_loss_min_str = ''
         last_auto_save_time = time.time() - auto_save_interval_sec
         num_workers = 0
-        if isinstance(dataset, DatasetOffline) and (distributed_world_size == 1):
+        if isinstance(dataset, DatasetOffline):  # and (distributed_world_size == 1):
             num_workers = dataloader_offline_num_workers
         print('num_workers', num_workers)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, collate_fn=lambda x: Batch(x))
