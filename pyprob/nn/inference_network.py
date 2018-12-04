@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.distributed as dist
+from torch.utils.data import DataLoader
 import sys
 import time
 import os
@@ -13,7 +14,7 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import BatchGeneratorOffline, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
+from . import Batch, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 from .. import __version__, util, Optimizer, ObserveEmbedding
 
 
@@ -197,31 +198,31 @@ class InferenceNetwork(nn.Module):
         self._on_cuda = 'cuda' in str(device)
         super().to(device=device, *args, *kwargs)
 
-    def _pre_generate_layers(self, batch_generator_offline, auto_save_file_name_prefix=None):
-        if not isinstance(batch_generator_offline, BatchGeneratorOffline):
-            raise ValueError('Expecting a BatchGeneratorOffline.')
-
+    def _pre_generate_layers(self, dataset, auto_save_file_name_prefix=None):
+        print('Layer pre-generation')
         if not self._layers_initialized:
-            self._init_layers_observe_embedding(self._observe_embeddings, example_trace=next(batch_generator_offline.batches(1))[0])
+            self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
             self._init_layers()
             self._layers_initialized = True
 
-        self._generate_valid_batch(batch_generator_offline)
+        # self._generate_valid_batch(batch_generator_offline)
 
         self._layers_pre_generated = True
-        num_batches = len(batch_generator_offline)
-        util.progress_bar_init('Pre-generating layers...', num_batches * batch_generator_offline._batch_size, 'Traces')
+        batch_size = 10
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, collate_fn=lambda x: Batch(x))
+        # num_batches = len(batch_generator_offline)
+        # util.progress_bar_init('Pre-generating layers...', num_batches * batch_generator_offline._batch_size, 'Traces')
         i = 0
-        for batch in batch_generator_offline.batches():
+        for i_batch, batch in enumerate(dataloader):
             i += 1
             layers_changed = self._polymorph(batch)
-            util.progress_bar_update(i * batch_generator_offline._batch_size)
+            # util.progress_bar_update(i * batch_generator_offline._batch_size)
             if layers_changed and (auto_save_file_name_prefix is not None):
                 file_name = '{}_00000000_pre_generated.network'.format(auto_save_file_name_prefix)
                 print('\rSaving to disk...  ', end='\r')
                 self._save(file_name)
-        util.progress_bar_end()
-        print('Layer pre-generation complete.')
+        # util.progress_bar_end()
+        print('Layer pre-generation complete')
 
     def _generate_valid_batch(self, batch_generator):
         if self._valid_size is None:
@@ -257,12 +258,12 @@ class InferenceNetwork(nn.Module):
                 # pass
                 print('None for grad, with param.size=', param.size())
 
-    def optimize(self, num_traces, batch_generator, batch_size=64, valid_interval=1000, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, distributed_backend=None, distributed_params_sync_interval=10000, *args, **kwargs):
+    def optimize(self, num_traces, dataset, batch_size=64, valid_interval=1000, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, distributed_backend=None, distributed_params_sync_interval=10000, *args, **kwargs):
         if not self._layers_initialized:
-            self._init_layers_observe_embedding(self._observe_embeddings, example_trace=next(batch_generator.batches(1))[0])
+            self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
             self._init_layers()
             self._layers_initialized = True
-        self._generate_valid_batch(batch_generator)
+        # self._generate_valid_batch(batch_generator)
 
         if distributed_backend is None:
             distributed_world_size = 1
@@ -299,9 +300,11 @@ class InferenceNetwork(nn.Module):
         loss_min_str = ''
         time_since_loss_min_str = ''
         last_auto_save_time = time.time() - auto_save_interval_sec
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, collate_fn=lambda x: Batch(x))
         while not stop:
             epoch += 1
-            for batch in batch_generator.batches(pre_load_next=(distributed_world_size == 1)):
+            for i_batch, batch in enumerate(dataloader):
+             # batch_generator.batches(pre_load_next=(distributed_world_size == 1)):
                 iteration += 1
 
                 if (distributed_world_size > 1) and (iteration % distributed_params_sync_interval == 0):

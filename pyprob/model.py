@@ -9,7 +9,7 @@ from termcolor import colored
 from .distributions import Empirical
 from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, Optimizer, AddressDictionary
 from .nn import InferenceNetwork as InferenceNetworkBase
-from .nn import BatchGeneratorOnline, BatchGeneratorOffline, InferenceNetworkFeedForward, InferenceNetworkLSTM
+from .nn import DatasetOnline, DatasetOffline, InferenceNetworkFeedForward, InferenceNetworkLSTM
 from .remote import ModelServer
 
 
@@ -140,9 +140,9 @@ class Model():
 
     def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, trace_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=0., auto_save_file_name_prefix=None, auto_save_interval_sec=600, pre_generate_layers=True, distributed_backend=None):
         if trace_dir is None:
-            batch_generator = BatchGeneratorOnline(self, prior_inflation=prior_inflation, batch_size=batch_size)
+            dataset = DatasetOnline(model=self, length=1000, prior_inflation=prior_inflation)
         else:
-            batch_generator = BatchGeneratorOffline(trace_dir, batch_size=batch_size)
+            dataset = DatasetOffline(trace_dir=trace_dir)
 
         if self._inference_network is None:
             print('Creating new inference network...')
@@ -153,13 +153,13 @@ class Model():
             else:
                 raise ValueError('Unknown inference_network: {}'.format(inference_network))
             if pre_generate_layers and (trace_dir is not None):
-                self._inference_network._pre_generate_layers(batch_generator, auto_save_file_name_prefix=auto_save_file_name_prefix)
+                self._inference_network._pre_generate_layers(dataset, auto_save_file_name_prefix=auto_save_file_name_prefix)
         else:
             print('Continuing to train existing inference network...')
             print('Total number of parameters: {:,}'.format(self._inference_network._history_num_params[-1]))
 
         self._inference_network.to(device=util._device)
-        self._inference_network.optimize(num_traces=num_traces, batch_generator=batch_generator, batch_size=batch_size, valid_interval=valid_interval, optimizer_type=optimizer_type, learning_rate=learning_rate, momentum=momentum, weight_decay=weight_decay, auto_save_file_name_prefix=auto_save_file_name_prefix, auto_save_interval_sec=auto_save_interval_sec, distributed_backend=distributed_backend)
+        self._inference_network.optimize(num_traces=num_traces, dataset=dataset, batch_size=batch_size, valid_interval=valid_interval, optimizer_type=optimizer_type, learning_rate=learning_rate, momentum=momentum, weight_decay=weight_decay, auto_save_file_name_prefix=auto_save_file_name_prefix, auto_save_interval_sec=auto_save_interval_sec, distributed_backend=distributed_backend)
 
     def save_inference_network(self, file_name):
         if self._inference_network is None:
@@ -171,12 +171,12 @@ class Model():
         # The following is due to a temporary hack related with https://github.com/pytorch/pytorch/issues/9981 and can be deprecated by using dill as pickler with torch > 0.4.1
         self._inference_network._model = self
 
-    def save_traces(self, trace_dir, num_traces=16, prior_inflation=PriorInflation.DISABLED, *args, **kwargs):
+    def save_traces(self, trace_dir, num_traces, num_files, prior_inflation=PriorInflation.DISABLED, *args, **kwargs):
         if not os.path.exists(trace_dir):
             print('Directory does not exist, creating: {}'.format(trace_dir))
             os.makedirs(trace_dir)
-        batch_generator = BatchGeneratorOnline(self, prior_inflation=prior_inflation, batch_size=1)
-        batch_generator.save_traces(trace_dir, num_traces, *args, **kwargs)
+        dataset = DatasetOnline(self, None, prior_inflation=prior_inflation)
+        dataset.save_traces(trace_dir=trace_dir, num_traces=num_traces, num_files=num_files, *args, **kwargs)
 
 
 class ModelRemote(Model):
