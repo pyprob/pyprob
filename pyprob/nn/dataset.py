@@ -96,13 +96,13 @@ class DatasetOnline(Dataset):
             del(variable.reused)
             del(variable.tagged)
 
-    def save_traces(self, trace_dir, num_traces, num_files, *args, **kwargs):
+    def save_dataset(self, dataset_dir, num_traces, num_files, *args, **kwargs):
         num_traces_per_file = math.ceil(num_traces / num_files)
         util.progress_bar_init('Saving traces to disk, num_traces:{}, num_files:{}, num_traces_per_file:{}'.format(num_traces, num_files, num_traces_per_file), num_traces, 'Traces')
         i = 0
         while i < num_traces:
             i += num_traces_per_file
-            file_name = os.path.join(trace_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
+            file_name = os.path.join(dataset_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
             shelf = ConcurrentShelf(file_name)
             shelf.lock(write=True)
             for j in range(num_traces_per_file):
@@ -129,9 +129,9 @@ class DatasetOfflinePerFile(Dataset):
 
 
 class DatasetOffline(ConcatDataset):
-    def __init__(self, trace_dir):
-        self._trace_dir = trace_dir
-        files = [name for name in os.listdir(self._trace_dir)]
-        files = list(map(lambda f: os.path.join(self._trace_dir, f), files))
+    def __init__(self, dataset_dir):
+        self._dataset_dir = dataset_dir
+        files = [name for name in os.listdir(self._dataset_dir)]
+        files = list(map(lambda f: os.path.join(self._dataset_dir, f), files))
         datasets = [DatasetOfflinePerFile(file) for file in files]
         super().__init__(datasets)

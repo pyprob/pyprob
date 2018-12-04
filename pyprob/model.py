@@ -138,11 +138,11 @@ class Model():
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, *args, **kwargs):
         return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, file_name=file_name, *args, **kwargs)
 
-    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, trace_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=0., auto_save_file_name_prefix=None, auto_save_interval_sec=600, pre_generate_layers=True, distributed_backend=None):
-        if trace_dir is None:
+    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=0., auto_save_file_name_prefix=None, auto_save_interval_sec=600, pre_generate_layers=True, distributed_backend=None):
+        if dataset_dir is None:
             dataset = DatasetOnline(model=self, length=1000, prior_inflation=prior_inflation)
         else:
-            dataset = DatasetOffline(trace_dir=trace_dir)
+            dataset = DatasetOffline(dataset_dir=dataset_dir)
 
         if self._inference_network is None:
             print('Creating new inference network...')
@@ -152,7 +152,7 @@ class Model():
                 self._inference_network = InferenceNetworkLSTM(model=self, observe_embeddings=observe_embeddings, valid_size=valid_size)
             else:
                 raise ValueError('Unknown inference_network: {}'.format(inference_network))
-            if pre_generate_layers and (trace_dir is not None):
+            if pre_generate_layers and (dataset_dir is not None):
                 self._inference_network._pre_generate_layers(dataset, auto_save_file_name_prefix=auto_save_file_name_prefix)
         else:
             print('Continuing to train existing inference network...')
@@ -171,12 +171,12 @@ class Model():
         # The following is due to a temporary hack related with https://github.com/pytorch/pytorch/issues/9981 and can be deprecated by using dill as pickler with torch > 0.4.1
         self._inference_network._model = self
 
-    def save_traces(self, trace_dir, num_traces, num_files, prior_inflation=PriorInflation.DISABLED, *args, **kwargs):
-        if not os.path.exists(trace_dir):
-            print('Directory does not exist, creating: {}'.format(trace_dir))
-            os.makedirs(trace_dir)
+    def save_dataset(self, dataset_dir, num_traces, num_files, prior_inflation=PriorInflation.DISABLED, *args, **kwargs):
+        if not os.path.exists(dataset_dir):
+            print('Directory does not exist, creating: {}'.format(dataset_dir))
+            os.makedirs(dataset_dir)
         dataset = DatasetOnline(self, None, prior_inflation=prior_inflation)
-        dataset.save_traces(trace_dir=trace_dir, num_traces=num_traces, num_files=num_files, *args, **kwargs)
+        dataset.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces, num_files=num_files, *args, **kwargs)
 
 
 class ModelRemote(Model):
