@@ -109,7 +109,7 @@ class DatasetOnline(Dataset):
                 trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, *args, **kwargs))
                 self._prune_trace(trace)
                 shelf[str(j)] = trace
-            shelf['__length'] = num_traces_per_file
+                shelf['__length'] = j + 1
             shelf.unlock()
             util.progress_bar_update(i)
         util.progress_bar_end()
