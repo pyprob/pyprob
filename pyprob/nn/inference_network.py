@@ -14,7 +14,7 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import Batch, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
+from . import Batch, DatasetOffline, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 from .. import __version__, util, Optimizer, ObserveEmbedding
 
 
@@ -258,7 +258,7 @@ class InferenceNetwork(nn.Module):
                 # pass
                 print('None for grad, with param.size=', param.size())
 
-    def optimize(self, num_traces, dataset, batch_size=64, valid_interval=1000, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, distributed_backend=None, distributed_params_sync_interval=10000, *args, **kwargs):
+    def optimize(self, num_traces, dataset, batch_size=64, valid_interval=1000, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, distributed_backend=None, distributed_params_sync_interval=10000, dataloader_offline_num_workers=4, *args, **kwargs):
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
             self._init_layers()
@@ -300,11 +300,14 @@ class InferenceNetwork(nn.Module):
         loss_min_str = ''
         time_since_loss_min_str = ''
         last_auto_save_time = time.time() - auto_save_interval_sec
-        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, collate_fn=lambda x: Batch(x))
+        num_workers = 0
+        if isinstance(dataset, DatasetOffline) and (distributed_world_size == 1):
+            num_workers = dataloader_offline_num_workers
+        print('num_workers', num_workers)
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, collate_fn=lambda x: Batch(x))
         while not stop:
             epoch += 1
             for i_batch, batch in enumerate(dataloader):
-             # batch_generator.batches(pre_load_next=(distributed_world_size == 1)):
                 iteration += 1
 
                 if (distributed_world_size > 1) and (iteration % distributed_params_sync_interval == 0):
