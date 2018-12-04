@@ -239,15 +239,16 @@ class ModelTestCase(unittest.TestCase):
         self.assertLess(kl_divergence, 0.25)
 
     def test_model_save_traces_load_train(self):
-        trace_dir = tempfile.mkdtemp()
+        dataset_dir = tempfile.mkdtemp()
         num_traces = 512
+        num_files = 32
         training_traces = 128
 
-        self._model.save_traces(trace_dir=trace_dir, num_traces=num_traces)
-        self._model.learn_inference_network(num_traces=training_traces, trace_dir=trace_dir, batch_size=16, valid_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
-        shutil.rmtree(trace_dir)
+        self._model.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces, num_files=num_files)
+        self._model.learn_inference_network(num_traces=training_traces, dataset_dir=dataset_dir, batch_size=16, valid_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
+        shutil.rmtree(dataset_dir)
 
-        util.eval_print('trace_dir', 'num_traces', 'training_traces')
+        util.eval_print('dataset_dir', 'num_traces', 'num_files', 'training_traces')
 
         self.assertTrue(True)
 
