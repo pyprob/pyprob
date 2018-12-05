@@ -16,15 +16,7 @@ class TruncatedNormal(Distribution):
             self._mean_non_truncated = torch.max(torch.min(self._mean_non_truncated, self._high), self._low)
         if self._mean_non_truncated.dim() == 0:
             self._batch_length = 0
-        # elif self._mean_non_truncated.dim() == 1:
-        #     self.length_variates = self._mean_non_truncated.size(0)
-        #     self._batch_length = 1
-            # self._mean_non_truncated = self._mean_non_truncated.unsqueeze(0)
-            # self._stddev_non_truncated = self._stddev_non_truncated.unsqueeze(0)
-            # self._low = self._low.unsqueeze(0)
-            # self._high = self._high.unsqueeze(0)
         elif self._mean_non_truncated.dim() == 1 or self._mean_non_truncated.dim() == 2:
-            # self.length_variates = self._mean_non_truncated.size(1)
             self._batch_length = self._mean_non_truncated.size(0)
         else:
             raise RuntimeError('Expecting 1d or 2d (batched) probabilities.')
@@ -46,8 +38,7 @@ class TruncatedNormal(Distribution):
 
     def log_prob(self, value, sum=False):
         value = util.to_tensor(value)
-        # value = value.view(self._batch_length, self.length_variates)
-        #  TODO: With the following handling of low and high bounds, the derivative is not correct for a value outside the truncation domain
+        # TODO: With the following handling of low and high bounds, the derivative is not correct for a value outside the truncation domain
         lb = value.ge(self._low).type_as(self._low)
         ub = value.le(self._high).type_as(self._low)
         lp = torch.log(lb.mul(ub)) + self._standard_normal_dist.log_prob((value - self._mean_non_truncated) / self._stddev_non_truncated) - self._log_stddev_Z
