@@ -19,7 +19,7 @@ before_install:
 - export PATH="$HOME/miniconda/bin:$PATH"
 - hash -r
 - pip install --progress-bar off docker
-- conda install -y pytorch-nightly=1.0.0.dev20181205 -c pytorch
+- conda install -y pytorch-nightly-cpu=1.0.0.dev20181205 -c pytorch
 install:
 - pip install .
 script:
