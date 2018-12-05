@@ -98,7 +98,7 @@ class DatasetOnline(Dataset):
 
     def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, *args, **kwargs):
         num_files = math.ceil(num_traces / num_traces_per_file)
-        util.progress_bar_init('Saving traces to disk, num_traces:{}, num_traces_per_file:{}, num_files:{}'.format(num_traces, num_traces_per_file, num_files), num_traces, 'Traces')
+        util.progress_bar_init('Saving offline dataset, traces:{}, traces per file:{}, files:{}'.format(num_traces, num_traces_per_file, num_files), num_traces, 'Traces')
         i = 0
         while i < num_traces:
             i += num_traces_per_file
