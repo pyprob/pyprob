@@ -1,4 +1,4 @@
-FROM nvidia/cuda:9.2-cudnn7-devel-ubuntu18.04
+FROM ubuntu:18.04
 
 ENV PYTHON_VERSION=3.7
 ENV CC=gcc-5
