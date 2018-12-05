@@ -139,7 +139,8 @@ class DatasetOffline(ConcatDataset):
             try:
                 dataset = DatasetOfflinePerFile(file)
                 datasets.append(dataset)
-            except:
+            except Exception as e:
+                print(e)
                 print(colored('Warning: dataset file potentially corrupt, omitting: {}'.format(file), 'red', attrs=['bold']))
 
         super().__init__(datasets)

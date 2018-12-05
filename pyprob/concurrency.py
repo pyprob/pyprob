@@ -8,9 +8,9 @@ class ConcurrentShelf(Mapping):
     def __init__(self, file_name, time_out_seconds=60):
         self._file_name = file_name
         self._time_out_seconds = time_out_seconds
+        self._locked_shelf = None
         shelf = self._open(write=True)
         shelf.close()
-        self._locked_shelf = None
 
     def __del__(self):
         if self._locked_shelf is not None:
