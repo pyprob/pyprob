@@ -18,8 +18,8 @@ before_install:
 - bash miniconda.sh -b -p $HOME/miniconda
 - export PATH="$HOME/miniconda/bin:$PATH"
 - hash -r
-- pip install --upgrade pip
-- pip install --progress-bar off 'torch==0.4.1.post2' 'torchvision==0.2.1' docker
+- pip install --progress-bar off docker
+- conda install pytorch-nightly=1.0.0.dev20181205 -c pytorch
 install:
 - pip install .
 script:
