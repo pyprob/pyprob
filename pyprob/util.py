@@ -11,9 +11,11 @@ import math
 from functools import reduce
 import operator
 import datetime
+import torch.multiprocessing
 
 from .distributions import Categorical
 
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 _device = torch.device('cpu')
 _dtype = torch.float

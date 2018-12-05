@@ -2,6 +2,7 @@ from torch.utils.data import Dataset, ConcatDataset
 import math
 import os
 import uuid
+from termcolor import colored
 
 from .. import util
 from ..util import TraceMode, PriorInflation
@@ -133,5 +134,12 @@ class DatasetOffline(ConcatDataset):
         self._dataset_dir = dataset_dir
         files = [name for name in os.listdir(self._dataset_dir)]
         files = list(map(lambda f: os.path.join(self._dataset_dir, f), files))
-        datasets = [DatasetOfflinePerFile(file) for file in files]
+        datasets = []
+        for file in files:
+            try:
+                dataset = DatasetOfflinePerFile(file)
+                datasets.append(dataset)
+            except:
+                print(colored('Warning: dataset file potentially corrupt, omitting: {}'.format(file), 'red', attrs=['bold']))
+
         super().__init__(datasets)
