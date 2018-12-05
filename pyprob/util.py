@@ -92,14 +92,15 @@ def set_verbosity(v=2):
     _verbosity = v
 
 
-def to_tensor(value, dtype=None):
-    if dtype is None:
-        dtype = _dtype
-    if type(value) == np.int64:
-        value = float(value)
-    elif type(value) == np.float32:
-        value = float(value)
-    return torch.tensor(value).to(device=_device, dtype=dtype)
+def to_tensor(value, dtype=_dtype):
+    if not torch.is_tensor(value):
+        if type(value) == np.int64:
+            value = torch.tensor(float(value))
+        elif type(value) == np.float32:
+            value = torch.tensor(float(value))
+        else:
+            value = torch.tensor(value)
+    return value.to(device=_device, dtype=dtype)
 
 
 def to_numpy(value):
