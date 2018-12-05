@@ -61,7 +61,7 @@ class DatasetOnline(Dataset):
         del(trace.log_importance_weight)
         # trace.length = 0
         # trace.length_controlled = 0
-        # trace.execution_time_sec = None
+        del(trace.execution_time_sec)
         for variable in trace.variables_controlled:
             # variable.distribution = distribution
             # if value is None:
@@ -80,7 +80,7 @@ class DatasetOnline(Dataset):
             del(variable.reused)
             del(variable.tagged)
         for _, variable in trace.named_variables.items():
-            # del(variable.distribution)
+            del(variable.distribution)
             # if value is None:
             #     variable.value = None
             # else:

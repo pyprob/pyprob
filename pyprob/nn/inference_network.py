@@ -66,14 +66,16 @@ class InferenceNetwork(nn.Module):
             raise ValueError('At least one observe embedding is needed to initialize inference network.')
         observe_embedding_total_dim = 0
         for name, value in observe_embeddings.items():
-            distribution = example_trace.named_variables[name].distribution
-            if distribution is None:
-                raise ValueError('Observable {}: cannot use this observation as an input to the inference network, because there is no associated likelihood.'.format(name))
+            variable = example_trace.named_variables[name]
+            # distribution = variable.distribution
+            # if distribution is None:
+            #     raise ValueError('Observable {}: cannot use this observation as an input to the inference network, because there is no associated likelihood.'.format(name))
+            # else:
+            if 'reshape' in value:
+                input_shape = torch.Size(value['reshape'])
             else:
-                if 'reshape' in value:
-                    input_shape = torch.Size(value['reshape'])
-                else:
-                    input_shape = distribution.sample().size()
+                input_shape = variable.value.size()
+            print('input_shape', input_shape)
             if 'dim' in value:
                 output_shape = torch.Size([value['dim']])
             else:
