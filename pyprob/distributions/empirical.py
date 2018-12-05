@@ -262,7 +262,7 @@ class Empirical(Distribution):
         indices = range(min_index, max_index, max(1, step))
         values = []
         log_weights = []
-        message = 'Thinning, step={}{}{}...'.format(step, '' if min_index is None else ', min_index: ' + str(min_index), '' if max_index is None else ', max_index: ' + str(max_index))
+        message = 'Thinning, step: {}{}{}...'.format(step, '' if min_index is None else ', min_index: ' + str(min_index), '' if max_index is None else ', max_index: ' + str(max_index))
         util.progress_bar_init(message, len(indices), 'Samples')
         for i in range(len(indices)):
             util.progress_bar_update(i)
