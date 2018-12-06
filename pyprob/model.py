@@ -138,28 +138,36 @@ class Model():
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, *args, **kwargs):
         return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, file_name=file_name, *args, **kwargs)
 
-    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_interval=5000, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=0., auto_save_file_name_prefix=None, auto_save_interval_sec=600, pre_generate_layers=True, distributed_backend=None, dataloader_offline_num_workers=0):
+    def learn_inference_network(self, num_traces=None, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, dataset_valid_dir=None, observe_embeddings={}, batch_size=64, valid_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=0., save_file_name_prefix=None, save_every_sec=600, pre_generate_layers=True, distributed_backend=None, dataloader_offline_num_workers=0):
         if dataset_dir is None:
             dataset = DatasetOnline(model=self, length=1000, prior_inflation=prior_inflation)
         else:
             dataset = DatasetOffline(dataset_dir=dataset_dir)
 
+        if dataset_valid_dir is None:
+            dataset_valid = DatasetOnline(model=self, length=valid_size, prior_inflation=prior_inflation)
+        else:
+            dataset_valid = DatasetOffline(dataset_dir=dataset_valid_dir)
+
         if self._inference_network is None:
             print('Creating new inference network...')
             if inference_network == InferenceNetwork.FEEDFORWARD:
-                self._inference_network = InferenceNetworkFeedForward(model=self, observe_embeddings=observe_embeddings, valid_size=valid_size)
+                self._inference_network = InferenceNetworkFeedForward(model=self, observe_embeddings=observe_embeddings)
             elif inference_network == InferenceNetwork.LSTM:
-                self._inference_network = InferenceNetworkLSTM(model=self, observe_embeddings=observe_embeddings, valid_size=valid_size)
+                self._inference_network = InferenceNetworkLSTM(model=self, observe_embeddings=observe_embeddings)
             else:
                 raise ValueError('Unknown inference_network: {}'.format(inference_network))
-            if pre_generate_layers and (dataset_dir is not None):
-                self._inference_network._pre_generate_layers(dataset, auto_save_file_name_prefix=auto_save_file_name_prefix)
+            if pre_generate_layers:
+                if dataset_dir is not None:
+                    self._inference_network._pre_generate_layers(dataset, save_file_name_prefix=save_file_name_prefix)
+                if dataset_valid_dir is not None:
+                    self._inference_network._pre_generate_layers(dataset_valid, save_file_name_prefix=save_file_name_prefix)
         else:
             print('Continuing to train existing inference network...')
             print('Total number of parameters: {:,}'.format(self._inference_network._history_num_params[-1]))
 
         self._inference_network.to(device=util._device)
-        self._inference_network.optimize(num_traces=num_traces, dataset=dataset, batch_size=batch_size, valid_interval=valid_interval, optimizer_type=optimizer_type, learning_rate=learning_rate, momentum=momentum, weight_decay=weight_decay, auto_save_file_name_prefix=auto_save_file_name_prefix, auto_save_interval_sec=auto_save_interval_sec, distributed_backend=distributed_backend, dataloader_offline_num_workers=dataloader_offline_num_workers)
+        self._inference_network.optimize(num_traces=num_traces, dataset=dataset, dataset_valid=dataset_valid, batch_size=batch_size, valid_every=valid_every, optimizer_type=optimizer_type, learning_rate=learning_rate, momentum=momentum, weight_decay=weight_decay, save_file_name_prefix=save_file_name_prefix, save_every_sec=save_every_sec, distributed_backend=distributed_backend, dataloader_offline_num_workers=dataloader_offline_num_workers)
 
     def save_inference_network(self, file_name):
         if self._inference_network is None:

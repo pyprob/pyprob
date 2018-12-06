@@ -20,13 +20,14 @@ from .. import __version__, util, Optimizer, ObserveEmbedding
 
 class InferenceNetwork(nn.Module):
     # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'reshape': [10, 10], 'dim': 32, 'depth': 2}}
-    def __init__(self, model, valid_size=None, observe_embeddings={}, network_type=''):
+    def __init__(self, model, observe_embeddings={}, network_type=''):
         super().__init__()
         self._model = model
         self._layers_observe_embedding = nn.ModuleDict()
         self._layers_observe_embedding_final = None
         self._layers_pre_generated = False
         self._layers_initialized = False
+        self._observe_embeddings = observe_embeddings
         self._observe_embedding_dim = None
         self._infer_observe = None
         self._infer_observe_embedding = {}
@@ -57,9 +58,6 @@ class InferenceNetwork(nn.Module):
         self._distributed_backend = None
         self._distributed_world_size = None
 
-        self._valid_size = valid_size
-        self._observe_embeddings = observe_embeddings
-        self._valid_batch = None
 
     def _init_layers_observe_embedding(self, observe_embeddings, example_trace):
         if len(observe_embeddings) == 0:
@@ -75,7 +73,6 @@ class InferenceNetwork(nn.Module):
                 input_shape = torch.Size(value['reshape'])
             else:
                 input_shape = variable.value.size()
-            print('input_shape', input_shape)
             if 'dim' in value:
                 output_shape = torch.Size([value['dim']])
             else:
@@ -103,7 +100,7 @@ class InferenceNetwork(nn.Module):
             self._layers_observe_embedding[name] = layer
             observe_embedding_total_dim += util.prod(output_shape)
         self._observe_embedding_dim = observe_embedding_total_dim
-        print('Observe embedding dimenson: {}'.format(self._observe_embedding_dim))
+        print('Observe embedding dimension: {}'.format(self._observe_embedding_dim))
         self._layers_observe_embedding_final = EmbeddingFeedForward(input_shape=self._observe_embedding_dim, output_shape=self._observe_embedding_dim, num_layers=2)
         self._layers_observe_embedding_final.to(device=util._device)
 
@@ -200,41 +197,25 @@ class InferenceNetwork(nn.Module):
         self._on_cuda = 'cuda' in str(device)
         super().to(device=device, *args, *kwargs)
 
-    def _pre_generate_layers(self, dataset, auto_save_file_name_prefix=None):
-        print('Layer pre-generation')
+    def _pre_generate_layers(self, dataset, batch_size=64, save_file_name_prefix=None):
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
             self._init_layers()
             self._layers_initialized = True
 
-        # self._generate_valid_batch(batch_generator_offline)
-
         self._layers_pre_generated = True
-        batch_size = 10
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, collate_fn=lambda x: Batch(x))
-        # num_batches = len(batch_generator_offline)
-        # util.progress_bar_init('Pre-generating layers...', num_batches * batch_generator_offline._batch_size, 'Traces')
+        util.progress_bar_init('Layer pre-generation...', len(dataset), 'Traces')
         i = 0
         for i_batch, batch in enumerate(dataloader):
-            i += 1
+            i += len(batch)
             layers_changed = self._polymorph(batch)
-            # util.progress_bar_update(i * batch_generator_offline._batch_size)
-            if layers_changed and (auto_save_file_name_prefix is not None):
-                file_name = '{}_00000000_pre_generated.network'.format(auto_save_file_name_prefix)
+            util.progress_bar_update(i)
+            if layers_changed and (save_file_name_prefix is not None):
+                file_name = '{}_00000000_pre_generated.network'.format(save_file_name_prefix)
                 print('\rSaving to disk...  ', end='\r')
                 self._save(file_name)
-        # util.progress_bar_end()
-        print('Layer pre-generation complete')
-
-    def _generate_valid_batch(self, batch_generator):
-        if self._valid_size is None:
-            print('Inference network has no validation batch')
-        elif self._valid_batch is None:
-            print('Generating validation batch')
-            self._valid_batch = next(batch_generator.batches(self._valid_size))
-            self._polymorph(self._valid_batch)
-        else:
-            print('Using existing validation batch')
+        util.progress_bar_end('Layer pre-generation complete')
 
     def _distributed_sync_parameters(self):
         """ broadcast rank 0 parameter to all ranks """
@@ -260,12 +241,11 @@ class InferenceNetwork(nn.Module):
                 # pass
                 print('None for grad, with param.size=', param.size())
 
-    def optimize(self, num_traces, dataset, batch_size=64, valid_interval=1000, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, auto_save_file_name_prefix=None, auto_save_interval_sec=600, distributed_backend=None, distributed_params_sync_interval=10000, dataloader_offline_num_workers=0, *args, **kwargs):
+    def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_interval=10000, dataloader_offline_num_workers=0, *args, **kwargs):
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
             self._init_layers()
             self._layers_initialized = True
-        # self._generate_valid_batch(batch_generator)
 
         if distributed_backend is None:
             distributed_world_size = 1
@@ -292,21 +272,25 @@ class InferenceNetwork(nn.Module):
         time_start = time.time()
         time_loss_min = time.time()
         time_last_batch = time.time()
-        last_validation_trace = -valid_interval + 1
+        if valid_every is None:
+            valid_every = max(100, num_traces / 1000)
+        last_validation_trace = -valid_every + 1
         epoch = 0
         iteration = 0
         trace = 0
         stop = False
-        print('Train. time | Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
+        print('Train. time | Epoch| Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
         max_print_line_len = 0
         loss_min_str = ''
         time_since_loss_min_str = ''
-        last_auto_save_time = time.time() - auto_save_interval_sec
+        last_auto_save_time = time.time() - save_every_sec
         num_workers = 0
         if isinstance(dataset, DatasetOffline):  # and (distributed_world_size == 1):
             num_workers = dataloader_offline_num_workers
-        print('num_workers', num_workers)
+        # print('num_workers', num_workers)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, collate_fn=lambda x: Batch(x))
+        if dataset_valid is not None:
+            dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, num_workers=num_workers, collate_fn=lambda x: Batch(x))
         while not stop:
             epoch += 1
             for i_batch, batch in enumerate(dataloader):
@@ -370,7 +354,8 @@ class InferenceNetwork(nn.Module):
                     self._total_train_iterations += 1
                     trace += batch.size
                     self._total_train_traces += batch.size * distributed_world_size
-                    total_training_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
+                    total_train_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
+                    epoch_str = '{:4}'.format('{:,}'.format(epoch))
                     self._total_train_seconds = prev_total_train_seconds + (time.time() - time_start)
                     total_training_seconds_str = util.days_hours_mins_secs_str(self._total_train_seconds)
                     traces_per_second_str = '{:,.1f}'.format(int(batch.size * distributed_world_size / (time.time() - time_last_batch)))
@@ -381,31 +366,34 @@ class InferenceNetwork(nn.Module):
 
                     self._history_train_loss.append(loss)
                     self._history_train_loss_trace.append(self._total_train_traces)
-                    if self._valid_batch is not None:
-                        if trace - last_validation_trace > valid_interval:
+                    if dataset_valid is not None:
+                        if trace - last_validation_trace > valid_every:
                             print('\rComputing validation loss...  ', end='\r')
+                            valid_loss = 0
                             with torch.no_grad():
-                                _, valid_loss = self._loss(self._valid_batch)
-                            valid_loss = float(valid_loss)
+                                for i_batch, batch in enumerate(dataloader_valid):
+                                    _, v = self._loss(batch)
+                                    valid_loss += v
+                            valid_loss = float(valid_loss / len(dataset_valid))
                             self._history_valid_loss.append(valid_loss)
                             self._history_valid_loss_trace.append(self._total_train_traces)
                             last_validation_trace = trace - 1
 
-                    if (distributed_rank == 0) and (auto_save_file_name_prefix is not None):
-                        if time.time() - last_auto_save_time > auto_save_interval_sec:
+                    if (distributed_rank == 0) and (save_file_name_prefix is not None):
+                        if time.time() - last_auto_save_time > save_every_sec:
                             last_auto_save_time = time.time()
-                            file_name = '{}_{}.network'.format(auto_save_file_name_prefix, util.get_time_stamp())
+                            file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
                             print('\rSaving to disk...  ', end='\r')
                             self._save(file_name)
 
-                    print_line = '{} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, total_training_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
+                    print_line = '{} | {} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
                     max_print_line_len = max(len(print_line), max_print_line_len)
                     print(print_line.ljust(max_print_line_len), end='\r')
                     sys.stdout.flush()
                     if stop:
                         break
         print()
-        if (distributed_rank == 0) and (auto_save_file_name_prefix is not None):
-            file_name = '{}_{}.network'.format(auto_save_file_name_prefix, util.get_time_stamp())
+        if (distributed_rank == 0) and (save_file_name_prefix is not None):
+            file_name = '{}_{}.network'.format(save_file_name_prefix, util.get_time_stamp())
             print('\rSaving to disk...  ', end='\r')
             self._save(file_name)

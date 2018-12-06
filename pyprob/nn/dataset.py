@@ -23,6 +23,9 @@ class Batch():
             sub_batches[trace_hash].append(trace)
         self.sub_batches = list(sub_batches.values())
 
+    def __len__(self):
+        return len(self.traces)
+
     def __getitem__(self, key):
         return self.traces[key]
 

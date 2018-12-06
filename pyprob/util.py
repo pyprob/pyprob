@@ -184,8 +184,10 @@ def progress_bar_update(iter):
         sys.stdout.flush()
 
 
-def progress_bar_end():
+def progress_bar_end(message=None):
     print()
+    if message is not None:
+        print(message)
 
 
 def days_hours_mins_secs_str(total_seconds):

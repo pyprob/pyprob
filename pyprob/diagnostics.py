@@ -192,7 +192,6 @@ def network(inference_network, save_dir=None):
     stats['learning rate'] = inference_network._learning_rate
     stats['momentum'] = inference_network._momentum
     stats['batch size'] = inference_network._batch_size
-    stats['valid. batch size'] = inference_network._valid_size
     stats['total train. seconds'] = inference_network._total_train_seconds
     stats['total train. traces'] = inference_network._total_train_traces
     stats['total train. iterations'] = inference_network._total_train_iterations
