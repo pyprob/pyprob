@@ -169,12 +169,13 @@ def network(inference_network, save_dir=None):
     train_loss_change_per_sec = train_loss_change / inference_network._total_train_seconds
     train_loss_change_per_iter = train_loss_change / inference_network._total_train_iterations
     train_loss_change_per_trace = train_loss_change / inference_network._total_train_traces
-    valid_loss_initial = inference_network._history_valid_loss[0]
-    valid_loss_final = inference_network._history_valid_loss[-1]
-    valid_loss_change = valid_loss_final - valid_loss_initial
-    valid_loss_change_per_sec = valid_loss_change / inference_network._total_train_seconds
-    valid_loss_change_per_iter = valid_loss_change / inference_network._total_train_iterations
-    valid_loss_change_per_trace = valid_loss_change / inference_network._total_train_traces
+    if len(inference_network._history_valid_loss) > 0:
+        valid_loss_initial = inference_network._history_valid_loss[0]
+        valid_loss_final = inference_network._history_valid_loss[-1]
+        valid_loss_change = valid_loss_final - valid_loss_initial
+        valid_loss_change_per_sec = valid_loss_change / inference_network._total_train_seconds
+        valid_loss_change_per_iter = valid_loss_change / inference_network._total_train_iterations
+        valid_loss_change_per_trace = valid_loss_change / inference_network._total_train_traces
 
     stats = OrderedDict()
     stats['pyprob version'] = __version__
@@ -203,11 +204,12 @@ def network(inference_network, save_dir=None):
     stats['train. loss change per second'] = train_loss_change_per_sec
     stats['train. loss change per iter.'] = train_loss_change_per_iter
     stats['train. loss change per trace'] = train_loss_change_per_trace
-    stats['valid. loss initial'] = valid_loss_initial
-    stats['valid. loss final'] = valid_loss_final
-    stats['valid. loss change per second'] = valid_loss_change_per_sec
-    stats['valid. loss change per iter.'] = valid_loss_change_per_iter
-    stats['valid. loss change per trace'] = valid_loss_change_per_trace
+    if len(inference_network._history_valid_loss) > 0:
+        stats['valid. loss initial'] = valid_loss_initial
+        stats['valid. loss final'] = valid_loss_final
+        stats['valid. loss change per second'] = valid_loss_change_per_sec
+        stats['valid. loss change per iter.'] = valid_loss_change_per_iter
+        stats['valid. loss change per trace'] = valid_loss_change_per_trace
 
     if save_dir is not None:
         if not os.path.exists(save_dir):
