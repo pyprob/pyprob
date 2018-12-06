@@ -1,6 +1,7 @@
 from torch.utils.data import Dataset, ConcatDataset
 import math
 import os
+import sys
 import uuid
 from termcolor import colored
 
@@ -35,9 +36,10 @@ class Batch():
 
 
 class DatasetOnline(Dataset):
-    def __init__(self, model, length, prior_inflation=PriorInflation.DISABLED):
+    def __init__(self, model, length=None, prior_inflation=PriorInflation.DISABLED):
         self._model = model
-        self._length = length
+        if length is None:
+            self._length = int(1e6)
         self._prior_inflation = prior_inflation
 
     def __len__(self):

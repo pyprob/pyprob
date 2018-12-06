@@ -44,7 +44,12 @@ class TruncatedNormal(Distribution):
         lp = torch.log(lb.mul(ub)) + self._standard_normal_dist.log_prob((value - self._mean_non_truncated) / self._stddev_non_truncated) - self._log_stddev_Z
         if self._batch_length == 1:
             lp = lp.squeeze(0)
-        lp = util.replace_inf(lp, colored('Warning: TruncatedNormal log_prob has inf, replacing with 0.', 'red', attrs=['bold']))
+        if util.has_nan_or_inf(lp):
+            print(colored('Warning: NaN, -Inf, or Inf encountered in TruncatedNormal log_prob.', 'red', attrs=['bold']))
+            print('distribution', self)
+            print('value', value)
+            print('log_prob', lp)
+            # lp = util.replace_inf(lp, colored('Warning: TruncatedNormal log_prob has inf, replacing with 0.', 'red', attrs=['bold']))
         return torch.sum(lp) if sum else lp
 
     @property
