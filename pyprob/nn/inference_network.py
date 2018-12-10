@@ -433,6 +433,6 @@ class InferenceNetwork(nn.Module):
 
         print()
         if (distributed_rank == 0) and (save_file_name_prefix is not None):
-            file_name = '{}_{}.network'.format(save_file_name_prefix, util.get_time_stamp())
+            file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
             print('\rSaving to disk...  ', end='\r')
             self._save(file_name)
