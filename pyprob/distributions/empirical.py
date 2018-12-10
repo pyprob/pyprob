@@ -221,7 +221,7 @@ class Empirical(Distribution):
         values = []
         for i in range(self._length):
             values.append(func(self._get_value(i)))
-        return Empirical(values=values, log_weights=self._log_weights, *args, **kwargs)
+        return Empirical(values=values, log_weights=self._log_weights, name=self.name, *args, **kwargs)
 
     def filter(self, func, *args, **kwargs):
         self._check_finalized()
@@ -234,7 +234,7 @@ class Empirical(Distribution):
             if func(value):
                 filtered_values.append(value)
                 filtered_log_weights.append(self._get_log_weight(i))
-        return Empirical(filtered_values, log_weights=filtered_log_weights, *args, **kwargs)
+        return Empirical(filtered_values, log_weights=filtered_log_weights, name=self.name, *args, **kwargs)
 
     def resample(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):
         self._check_finalized()
