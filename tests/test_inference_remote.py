@@ -8,7 +8,7 @@ import functools
 from termcolor import colored
 
 import pyprob
-from pyprob import util, ModelRemote, InferenceEngine
+from pyprob import util, RemoteModel, InferenceEngine
 from pyprob.distributions import Normal, Categorical, Poisson, Empirical
 
 
@@ -79,16 +79,16 @@ print('Docker image pulled.')
 
 docker_containers = []
 docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum ipc://@GaussianWithUnknownMeanCPP', network='host', detach=True))
-GaussianWithUnknownMeanCPP = ModelRemote('ipc://@GaussianWithUnknownMeanCPP')
+GaussianWithUnknownMeanCPP = RemoteModel('ipc://@GaussianWithUnknownMeanCPP')
 
 docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia_replacement ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP', network='host', detach=True))
-GaussianWithUnknownMeanMarsagliaWithReplacementCPP = ModelRemote('ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP')
+GaussianWithUnknownMeanMarsagliaWithReplacementCPP = RemoteModel('ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP')
 
 docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_hmm ipc://@HiddenMarkovModelCPP', network='host', detach=True))
-HiddenMarkovModelCPP = ModelRemote('ipc://@HiddenMarkovModelCPP')
+HiddenMarkovModelCPP = RemoteModel('ipc://@HiddenMarkovModelCPP')
 
 docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_branching ipc://@BranchingCPP', network='host', detach=True))
-BranchingCPP = ModelRemote('ipc://@BranchingCPP')
+BranchingCPP = RemoteModel('ipc://@BranchingCPP')
 
 
 class GaussianWithUnknownMeanTestCase(unittest.TestCase):

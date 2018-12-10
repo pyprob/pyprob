@@ -9,7 +9,7 @@ from termcolor import colored
 from .distributions import Empirical
 from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, Optimizer, AddressDictionary
 from .nn import InferenceNetwork as InferenceNetworkBase
-from .nn import DatasetOnline, DatasetOffline, InferenceNetworkFeedForward, InferenceNetworkLSTM
+from .nn import OnlineDataset, OfflineDataset, InferenceNetworkFeedForward, InferenceNetworkLSTM
 from .remote import ModelServer
 
 
@@ -140,16 +140,16 @@ class Model():
 
     def learn_inference_network(self, num_traces, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, dataset_valid_dir=None, observe_embeddings={}, batch_size=64, valid_size=None, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=0., save_file_name_prefix=None, save_every_sec=600, pre_generate_layers=True, distributed_backend=None, dataloader_offline_num_workers=0):
         if dataset_dir is None:
-            dataset = DatasetOnline(model=self, prior_inflation=prior_inflation)
+            dataset = OnlineDataset(model=self, prior_inflation=prior_inflation)
         else:
-            dataset = DatasetOffline(dataset_dir=dataset_dir)
+            dataset = OfflineDataset(dataset_dir=dataset_dir)
 
         dataset_valid = None
         if dataset_valid_dir is None:
             if valid_size is not None:
-                dataset_valid = DatasetOnline(model=self, length=valid_size, prior_inflation=prior_inflation)
+                dataset_valid = OnlineDataset(model=self, length=valid_size, prior_inflation=prior_inflation)
         else:
-            dataset_valid = DatasetOffline(dataset_dir=dataset_valid_dir)
+            dataset_valid = OfflineDataset(dataset_dir=dataset_valid_dir)
 
         if self._inference_network is None:
             print('Creating new inference network...')
@@ -185,11 +185,11 @@ class Model():
         if not os.path.exists(dataset_dir):
             print('Directory does not exist, creating: {}'.format(dataset_dir))
             os.makedirs(dataset_dir)
-        dataset = DatasetOnline(self, None, prior_inflation=prior_inflation)
+        dataset = OnlineDataset(self, None, prior_inflation=prior_inflation)
         dataset.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces, num_traces_per_file=num_traces_per_file, *args, **kwargs)
 
 
-class ModelRemote(Model):
+class RemoteModel(Model):
     def __init__(self, server_address='tcp://127.0.0.1:5555', *args, **kwargs):
         self._server_address = server_address
         self._model_server = None

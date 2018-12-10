@@ -14,7 +14,7 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import Batch, DatasetOffline, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
+from . import Batch, OfflineDataset, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 from .. import __version__, util, Optimizer, ObserveEmbedding
 
 
@@ -285,7 +285,7 @@ class InferenceNetwork(nn.Module):
         time_since_loss_min_str = ''
         last_auto_save_time = time.time() - save_every_sec
         num_workers = 0
-        if isinstance(dataset, DatasetOffline):  # and (distributed_world_size == 1):
+        if isinstance(dataset, OfflineDataset):  # and (distributed_world_size == 1):
             num_workers = dataloader_offline_num_workers
         # print('num_workers', num_workers)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, collate_fn=lambda x: Batch(x))

@@ -7,7 +7,7 @@ import docker
 from termcolor import colored
 
 import pyprob
-from pyprob import util, ModelRemote, InferenceEngine
+from pyprob import util, RemoteModel, InferenceEngine
 from pyprob.distributions import Normal, Categorical
 
 
@@ -16,11 +16,11 @@ print('Pulling latest Docker image: probprog/pyprob_cpp')
 docker_client.images.pull('probprog/pyprob_cpp')
 print('Docker image pulled.')
 
-docker_container = docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_set_defaults_and_addresses ipc://@ModelRemoteSetDefaultsAndAddresses', network='host', detach=True)
-SetDefaultsAndAddressesCPP = ModelRemote('ipc://@ModelRemoteSetDefaultsAndAddresses')
+docker_container = docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_set_defaults_and_addresses ipc://@RemoteModelSetDefaultsAndAddresses', network='host', detach=True)
+SetDefaultsAndAddressesCPP = RemoteModel('ipc://@RemoteModelSetDefaultsAndAddresses')
 
 
-class ModelRemoteSetDefaultsAndAddressesTestCase(unittest.TestCase):
+class RemoteModelSetDefaultsAndAddressesTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self._model = SetDefaultsAndAddressesCPP
         super().__init__(*args, **kwargs)
