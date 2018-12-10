@@ -397,7 +397,7 @@ class InferenceNetwork(nn.Module):
                     self._history_train_loss.append(loss)
                     self._history_train_loss_trace.append(self._total_train_traces)
                     if dataset_valid is not None:
-                        if True: #trace - last_validation_trace > valid_every:
+                        if trace - last_validation_trace > valid_every:
                             print('\rComputing validation loss...  ', end='\r')
                             valid_loss = 0
                             with torch.no_grad():
@@ -413,7 +413,7 @@ class InferenceNetwork(nn.Module):
                                 self._distributed_update_train_loss(loss, distributed_world_size)
                                 self._distributed_update_valid_loss(valid_loss, distributed_world_size)
 
-                    if (distributed_world_size > 1):# and (iteration % distributed_loss_update_every == 0):
+                    if (distributed_world_size > 1) and (iteration % distributed_loss_update_every == 0):
                         self._distributed_update_train_loss(loss, distributed_world_size)
 
                     if (distributed_rank == 0) and (save_file_name_prefix is not None):
