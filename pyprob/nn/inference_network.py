@@ -300,7 +300,7 @@ class InferenceNetwork(nn.Module):
 
                 iteration += 1
 
-                if self._layers_pre_generated:
+                if self._layers_pre_generated and (distributed_world_size > 1):
                     layers_changed = False
                 else:
                     layers_changed = self._polymorph(batch)
