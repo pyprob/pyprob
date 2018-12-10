@@ -254,7 +254,7 @@ class InferenceNetwork(nn.Module):
             dist.init_process_group(backend=distributed_backend)
             distributed_world_size = dist.get_world_size()
             distributed_rank = dist.get_rank()
-            util.init_distributed_print(distributed_rank, distributed_world_size, True)
+            util.init_distributed_print(distributed_rank, distributed_world_size, False)
             print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
             print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
             print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))

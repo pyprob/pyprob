@@ -160,10 +160,10 @@ class Model():
             else:
                 raise ValueError('Unknown inference_network: {}'.format(inference_network))
             if pre_generate_layers:
-                if dataset_dir is not None:
-                    self._inference_network._pre_generate_layers(dataset, save_file_name_prefix=save_file_name_prefix)
                 if dataset_valid_dir is not None:
                     self._inference_network._pre_generate_layers(dataset_valid, save_file_name_prefix=save_file_name_prefix)
+                if dataset_dir is not None:
+                    self._inference_network._pre_generate_layers(dataset, save_file_name_prefix=save_file_name_prefix)
         else:
             print('Continuing to train existing inference network...')
             print('Total number of parameters: {:,}'.format(self._inference_network._history_num_params[-1]))
