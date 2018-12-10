@@ -294,10 +294,11 @@ class InferenceNetwork(nn.Module):
         while not stop:
             epoch += 1
             for i_batch, batch in enumerate(dataloader):
-                iteration += 1
-
+                # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
                 if (distributed_world_size > 1) and (iteration % distributed_params_sync_interval == 0):
                     self._distributed_sync_parameters()
+
+                iteration += 1
 
                 if self._layers_pre_generated:
                     layers_changed = False
