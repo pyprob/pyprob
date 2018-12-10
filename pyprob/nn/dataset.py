@@ -39,7 +39,8 @@ class OnlineDataset(Dataset):
     def __init__(self, model, length=None, prior_inflation=PriorInflation.DISABLED):
         self._model = model
         if length is None:
-            self._length = int(1e6)
+            length = int(1e6)
+        self._length = length
         self._prior_inflation = prior_inflation
 
     def __len__(self):
