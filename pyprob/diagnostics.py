@@ -14,7 +14,8 @@ from .trace import Trace
 
 
 def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_stats=None):
-    address_stats = {}
+    addresses = {}
+    address_id_to_variable = {}
     if reuse_ids_from_address_stats is not None:
         address_ids = reuse_ids_from_address_stats['address_ids']
         address_base_ids = reuse_ids_from_address_stats['address_base_ids']
@@ -28,9 +29,9 @@ def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_sta
             address_base = variable.address_base
             address = variable.address
             key = address_base if use_address_base else address
-            if key in address_stats:
-                address_stats[key]['count'] += 1
-                address_stats[key]['weight'] += trace_weight
+            if key in addresses:
+                addresses[key]['count'] += 1
+                addresses[key]['weight'] += trace_weight
             else:
                 if key in address_ids:
                     address_id = address_ids[key]
@@ -49,75 +50,80 @@ def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_sta
                                 address_base_ids[address_base] = address_base_id
                             address_id = address_base_ids[address_base] + '__' + ('replaced' if variable.replace else str(variable.instance))
                     address_ids[key] = address_id
-                address_stats[key] = {'count': 1, 'weight': trace_weight, 'address_id': address_id, 'variable': variable}
-    address_stats = OrderedDict(sorted(address_stats.items(), key=lambda v: util.address_id_to_int(v[1]['address_id'])))
-    address_stats_extra = OrderedDict()
-    address_stats_extra['pyprob_version'] = __version__
-    address_stats_extra['torch_version'] = torch.__version__
-    address_stats_extra['num_distribution_elements'] = len(trace_dist)
-    address_stats_extra['addresses'] = len(address_stats)
-    address_stats_extra['addresses_controlled'] = len([1 for value in list(address_stats.values()) if value['variable'].control])
-    address_stats_extra['addresses_replaced'] = len([1 for value in list(address_stats.values()) if value['variable'].replace])
-    address_stats_extra['addresses_observable'] = len([1 for value in list(address_stats.values()) if value['variable'].observable])
-    address_stats_extra['addresses_observed'] = len([1 for value in list(address_stats.values()) if value['variable'].observed])
-    address_stats_extra['addresses_tagged'] = len([1 for value in list(address_stats.values()) if value['variable'].tagged])
-    return {'address_stats': address_stats, 'address_stats_extra': address_stats_extra, 'address_base_ids': address_base_ids, 'address_ids': address_ids}
+                addresses[key] = {'count': 1, 'weight': trace_weight, 'address_id': address_id, 'variable': variable}
+                address_id_to_variable[address_id] = variable
+    addresses = OrderedDict(sorted(addresses.items(), key=lambda v: util.address_id_to_int(v[1]['address_id'])))
+    addresses_extra = OrderedDict()
+    addresses_extra['pyprob_version'] = __version__
+    addresses_extra['torch_version'] = torch.__version__
+    addresses_extra['num_distribution_elements'] = len(trace_dist)
+    addresses_extra['addresses'] = len(addresses)
+    addresses_extra['addresses_controlled'] = len([1 for value in list(addresses.values()) if value['variable'].control])
+    addresses_extra['addresses_replaced'] = len([1 for value in list(addresses.values()) if value['variable'].replace])
+    addresses_extra['addresses_observable'] = len([1 for value in list(addresses.values()) if value['variable'].observable])
+    addresses_extra['addresses_observed'] = len([1 for value in list(addresses.values()) if value['variable'].observed])
+    addresses_extra['addresses_tagged'] = len([1 for value in list(addresses.values()) if value['variable'].tagged])
+    return {'addresses': addresses, 'addresses_extra': addresses_extra, 'address_base_ids': address_base_ids, 'address_ids': address_ids, 'address_id_to_variable': address_id_to_variable}
 
 
-def _trace_stats(trace_dist, use_address_base=True):
-    address_stats = _address_stats(trace_dist, use_address_base)['address_stats']
-    trace_stats = {}
-    trace_ids = {}
+def _trace_stats(trace_dist, use_address_base=True, reuse_ids_from_address_stats=None, reuse_ids_from_trace_stats=None):
+    address_stats = _address_stats(trace_dist, use_address_base=use_address_base, reuse_ids_from_address_stats=reuse_ids_from_address_stats)
+    addresses = address_stats['addresses']
+    traces = {}
+    if reuse_ids_from_trace_stats is not None:
+        trace_ids = reuse_ids_from_trace_stats['trace_ids']
+    else:
+        trace_ids = {}
     for i in range(trace_dist.length):
         trace = trace_dist._get_value(i)
         trace_weight = float(trace_dist._get_weight(i))
         trace_str = ''.join([variable.address_base if use_address_base else variable.address for variable in trace.variables])
-        if trace_str not in trace_stats:
+        if trace_str not in traces:
             if trace_str in trace_ids:
                 trace_id = trace_ids[trace_str]
             else:
                 trace_id = 'T' + str(len(trace_ids) + 1)
                 trace_ids[trace_str] = trace_id
-            address_id_sequence = ['START'] + [address_stats[variable.address_base if use_address_base else variable.address]['address_id'] for variable in trace.variables] + ['END']
-            trace_stats[trace_str] = {'count': 1, 'weight': trace_weight, 'trace_id': trace_id, 'trace': trace, 'address_id_sequence': address_id_sequence}
+            address_id_sequence = ['START'] + [addresses[variable.address_base if use_address_base else variable.address]['address_id'] for variable in trace.variables] + ['END']
+            traces[trace_str] = {'count': 1, 'weight': trace_weight, 'trace_id': trace_id, 'trace': trace, 'address_id_sequence': address_id_sequence}
         else:
-            trace_stats[trace_str]['count'] += 1
-            trace_stats[trace_str]['weight'] += trace_weight
-    trace_stats = OrderedDict(sorted(trace_stats.items(), key=lambda v: v[1]['count'], reverse=True))
-    address_ids = [i for i in range(len(address_stats))]
+            traces[trace_str]['count'] += 1
+            traces[trace_str]['weight'] += trace_weight
+    traces = OrderedDict(sorted(traces.items(), key=lambda v: v[1]['count'], reverse=True))
+    address_ids = [i for i in range(len(addresses))]
     address_weights = []
-    for key, value in address_stats.items():
+    for key, value in addresses.items():
         address_weights.append(value['count'])
     address_id_dist = Empirical(address_ids, weights=address_weights, name='Address ID')
-    trace_ids = [i for i in range(len(trace_stats))]
+    trace_ids = [i for i in range(len(traces))]
     trace_weights = []
-    for _, value in trace_stats.items():
+    for _, value in traces.items():
         trace_weights.append(value['count'])
     trace_id_dist = Empirical(trace_ids, weights=trace_ids, name='Unique trace ID')
     trace_length_dist = trace_dist.map(lambda trace: trace.length).unweighted().rename('Trace length (all)')
     trace_length_controlled_dist = trace_dist.map(lambda trace: trace.length_controlled).unweighted().rename('Trace length (controlled)')
     trace_execution_time_dist = trace_dist.map(lambda trace: trace.execution_time_sec).unweighted().rename('Trace execution time (s)')
-    trace_stats_extra = OrderedDict()
-    trace_stats_extra['trace_types'] = len(trace_stats)
-    trace_stats_extra['trace_length_min'] = float(trace_length_dist.min)
-    trace_stats_extra['trace_length_max'] = float(trace_length_dist.max)
-    trace_stats_extra['trace_length_mean'] = float(trace_length_dist.mean)
-    trace_stats_extra['trace_length_stddev'] = float(trace_length_dist.stddev)
-    trace_stats_extra['trace_length_controlled_min'] = float(trace_length_controlled_dist.min)
-    trace_stats_extra['trace_length_controlled_max'] = float(trace_length_controlled_dist.max)
-    trace_stats_extra['trace_length_controlled_mean'] = float(trace_length_controlled_dist.mean)
-    trace_stats_extra['trace_length_controlled_stddev'] = float(trace_length_controlled_dist.stddev)
-    trace_stats_extra['trace_execution_time_min'] = float(trace_execution_time_dist.min)
-    trace_stats_extra['trace_execution_time_max'] = float(trace_execution_time_dist.max)
-    trace_stats_extra['trace_execution_time_mean'] = float(trace_execution_time_dist.mean)
-    trace_stats_extra['trace_execution_time_stddev'] = float(trace_execution_time_dist.stddev)
-    return {'trace_stats': trace_stats, 'trace_stats_extra': trace_stats_extra, 'trace_id_dist': trace_id_dist, 'trace_length_dist': trace_length_dist, 'trace_length_controlled_dist': trace_length_controlled_dist, 'trace_execution_time_dist': trace_execution_time_dist, 'address_id_dist': address_id_dist}
+    traces_extra = OrderedDict()
+    traces_extra['trace_types'] = len(traces)
+    traces_extra['trace_length_min'] = float(trace_length_dist.min)
+    traces_extra['trace_length_max'] = float(trace_length_dist.max)
+    traces_extra['trace_length_mean'] = float(trace_length_dist.mean)
+    traces_extra['trace_length_stddev'] = float(trace_length_dist.stddev)
+    traces_extra['trace_length_controlled_min'] = float(trace_length_controlled_dist.min)
+    traces_extra['trace_length_controlled_max'] = float(trace_length_controlled_dist.max)
+    traces_extra['trace_length_controlled_mean'] = float(trace_length_controlled_dist.mean)
+    traces_extra['trace_length_controlled_stddev'] = float(trace_length_controlled_dist.stddev)
+    traces_extra['trace_execution_time_min'] = float(trace_execution_time_dist.min)
+    traces_extra['trace_execution_time_max'] = float(trace_execution_time_dist.max)
+    traces_extra['trace_execution_time_mean'] = float(trace_execution_time_dist.mean)
+    traces_extra['trace_execution_time_stddev'] = float(trace_execution_time_dist.stddev)
+    return {'traces': traces, 'traces_extra': traces_extra, 'address_stats': address_stats, 'trace_id_dist': trace_id_dist, 'trace_length_dist': trace_length_dist, 'trace_length_controlled_dist': trace_length_controlled_dist, 'trace_execution_time_dist': trace_execution_time_dist, 'address_id_dist': address_id_dist}
 
 
 def trace_histograms(trace_dist, use_address_base=True, figsize=(10, 5), bins=30, plot=False, plot_show=True, file_name=None):
-    stats = _trace_stats(trace_dist, use_address_base=use_address_base)
-    trace_stats = stats['trace_stats']
-    trace_stats_extra = stats['trace_stats_extra']
+    trace_stats = _trace_stats(trace_dist, use_address_base=use_address_base)
+    traces = trace_stats['traces']
+    traces_extra = trace_stats['traces_extra']
     if plot:
         if not plot_show:
             mpl.rcParams['axes.unicode_minus'] = False
@@ -125,33 +131,33 @@ def trace_histograms(trace_dist, use_address_base=True, figsize=(10, 5), bins=30
         # mpl.rcParams['font.size'] = 4
         fig, ax = plt.subplots(2, 2, figsize=figsize)
 
-        values = stats['trace_length_dist'].values_numpy()
-        weights = stats['trace_length_dist'].weights_numpy()
-        name = stats['trace_length_dist'].name
+        values = trace_stats['trace_length_dist'].values_numpy()
+        weights = trace_stats['trace_length_dist'].weights_numpy()
+        name = trace_stats['trace_length_dist'].name
         ax[0, 0].hist(values, weights=weights, density=1, bins=bins)
         ax[0, 0].set_xlabel(name)
         ax[0, 0].set_ylabel('Frequency')
         ax[0, 0].set_yscale('log', nonposy='clip')
 
-        values = stats['trace_length_controlled_dist'].values_numpy()
-        weights = stats['trace_length_controlled_dist'].weights_numpy()
-        name = stats['trace_length_controlled_dist'].name
+        values = trace_stats['trace_length_controlled_dist'].values_numpy()
+        weights = trace_stats['trace_length_controlled_dist'].weights_numpy()
+        name = trace_stats['trace_length_controlled_dist'].name
         ax[0, 1].hist(values, weights=weights, density=1, bins=bins)
         ax[0, 1].set_xlabel(name)
         # ax[0, 1].set_ylabel('Frequency')
         ax[0, 1].set_yscale('log', nonposy='clip')
 
-        values = stats['address_id_dist'].values_numpy()
-        weights = stats['address_id_dist'].weights_numpy()
-        name = stats['address_id_dist'].name
+        values = trace_stats['address_id_dist'].values_numpy()
+        weights = trace_stats['address_id_dist'].weights_numpy()
+        name = trace_stats['address_id_dist'].name
         ax[1, 0].hist(values, weights=weights, density=1, bins=len(values))
         ax[1, 0].set_xlabel(name)
         ax[1, 0].set_ylabel('Frequency')
         ax[1, 0].set_yscale('log', nonposy='clip')
 
-        values = stats['trace_execution_time_dist'].values_numpy()
-        weights = stats['trace_execution_time_dist'].weights_numpy()
-        name = stats['trace_execution_time_dist'].name
+        values = trace_stats['trace_execution_time_dist'].values_numpy()
+        weights = trace_stats['trace_execution_time_dist'].weights_numpy()
+        name = trace_stats['trace_execution_time_dist'].name
         ax[1, 1].hist(values, weights=weights, density=1, bins=bins)
         ax[1, 1].set_xlabel(name)
         # ax[1, 1].set_ylabel('Frequency')
@@ -168,7 +174,7 @@ def trace_histograms(trace_dist, use_address_base=True, figsize=(10, 5), bins=30
             print('Saving trace report to file: {}'.format(report_file_name))
             with open(report_file_name, 'w') as file:
                 file.write('pyprob diagnostics\n')
-                for key, value in trace_stats_extra.items():
+                for key, value in traces_extra.items():
                     file.write('{}: {}\n'.format(key, value))
             traces_file_name = file_name + '.csv'
             print('Saving traces to file: {}'.format(traces_file_name))
@@ -184,21 +190,21 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
     if not isinstance(trace_dists, list):
         trace_dists = [trace_dists]
     dists = {}
-    stats = None
+    address_stats = None
     address_stats_combined = {}
     for trace_dist in trace_dists:
         print('Collecting values for distribution: {}'.format(trace_dist.name))
-        stats = _address_stats(trace_dist, use_address_base=use_address_base, reuse_ids_from_address_stats=stats)
-        address_stats = stats['address_stats']
-        for key, val in address_stats.items():
+        address_stats = _address_stats(trace_dist, use_address_base=use_address_base, reuse_ids_from_address_stats=address_stats)
+        addresses = address_stats['addresses']
+        for key, val in addresses.items():
             if key in address_stats_combined:
                 address_stats_combined[key]['count'] += val['count']
             else:
                 address_stats_combined[key] = val
-        address_stats_extra = stats['address_stats_extra']
+        address_stats_extra = addresses['address_stats_extra']
         i = 0
-        util.progress_bar_init('Collecting values', len(address_stats), 'Addresses')
-        for key, value in address_stats.items():
+        util.progress_bar_init('Collecting values', len(addresses), 'Addresses')
+        for key, value in addresses.items():
             util.progress_bar_update(i)
             i += 1
             address_id = value['address_id']

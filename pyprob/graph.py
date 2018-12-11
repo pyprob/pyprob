@@ -5,7 +5,7 @@ import numpy as np
 from collections import OrderedDict
 from itertools import islice
 
-from . import util
+from . import util, diagnostics
 from .distributions import Empirical
 
 
@@ -27,6 +27,8 @@ class Node():
                 self.color = '#1effff'
                 if variable.observed:
                     self.color = '#1e90ff'
+            elif variable.tagged:
+                self.color = '#cccccc'
             else:
                 self.color = '#ffd700'
 
@@ -54,58 +56,28 @@ class Graph():
         self.nodes = []
         self.edges = []
         if base_graph is None:
-            self.address_ids = {}
-            self.trace_ids = {}
+            self.address_stats = None
+            self.trace_stats = None
             self.use_address_base = use_address_base
         else:
-            self.address_ids = base_graph.address_ids
-            self.trace_ids = base_graph.trace_ids
+            self.address_stats = base_graph.address_stats
+            self.trace_stats = base_graph.trace_stats
             self.use_address_base = base_graph.use_address_base
 
-        self.address_stats = OrderedDict()
-        address_id_to_variable = {}
-        for i in range(trace_dist.length):
-            trace = trace_dist._get_value(i)
-            trace_weight = float(trace_dist._get_weight(i))
-            for variable in trace.variables:
-                address = variable.address_base if use_address_base else variable.address
-                if address not in self.address_stats:
-                    if address in self.address_ids:
-                        address_id = self.address_ids[address]
-                    else:
-                        address_id = 'A' + str(len(self.address_ids) + 1)
-                        self.address_ids[address] = address_id
-                    self.address_stats[address] = {'count': 1, 'weight': trace_weight, 'address_id': address_id, 'variable': variable}
-                    address_id_to_variable[address_id] = variable
-                else:
-                    self.address_stats[address]['count'] += 1
-                    self.address_stats[address]['weight'] += trace_weight
+        # self.address_stats = diagnostics._address_stats(trace_dist, use_address_base=self.use_address_base)
 
-        self.trace_stats = OrderedDict()
-        for i in range(trace_dist.length):
-            trace = trace_dist._get_value(i)
-            trace_weight = float(trace_dist._get_weight(i))
-            trace_str = ''.join([variable.address_base if use_address_base else variable.address for variable in trace.variables])
-            if trace_str not in self.trace_stats:
-                if trace_str in self.trace_ids:
-                    trace_id = self.trace_ids[trace_str]
-                else:
-                    trace_id = 'T' + str(len(self.trace_ids) + 1)
-                    self.trace_ids[trace_str] = trace_id
-                address_id_sequence = ['START'] + [self.address_stats[variable.address_base if use_address_base else variable.address]['address_id'] for variable in trace.variables] + ['END']
-                self.trace_stats[trace_str] = {'count': 1, 'weight': trace_weight, 'trace_id': trace_id, 'trace': trace, 'address_id_sequence': address_id_sequence}
-            else:
-                self.trace_stats[trace_str]['count'] += 1
-                self.trace_stats[trace_str]['weight'] += trace_weight
-
-        self.trace_stats = OrderedDict(sorted(dict(self.trace_stats).items(), key=lambda x: x[1]['count'], reverse=True))
+        self.trace_stats = diagnostics._trace_stats(trace_dist, use_address_base=self.use_address_base, reuse_ids_from_address_stats=self.address_stats, reuse_ids_from_trace_stats=self.trace_stats)
+        self.address_stats = self.trace_stats['address_stats']
+        address_id_to_variable = self.address_stats['address_id_to_variable']
+        traces = self.trace_stats['traces']
+        traces = OrderedDict(sorted(dict(traces).items(), key=lambda x: x[1]['count'], reverse=True))
         if n_most_frequent is not None:
             # n_most_frequent = len(self.trace_stats)
-            self.trace_stats = dict(islice(self.trace_stats.items(), n_most_frequent))
+            traces = dict(islice(traces.items(), n_most_frequent))
 
         nodes = {}
         edges = {}
-        for key, value in self.trace_stats.items():
+        for key, value in traces.items():
             weight = value['weight']
             address_id_sequence = value['address_id_sequence']
             for address_id in address_id_sequence:
@@ -168,7 +140,7 @@ class Graph():
             node.weight /= node_weight_total
 
     def get_sub_graph(self, trace_type_index):
-        return Graph(Empirical([list(self.trace_stats.values())[trace_type_index]['trace']]), base_graph=self, use_address_base=self.use_address_base)
+        return Graph(Empirical([list(self.trace_stats['traces'].values())[trace_type_index]['trace']]), base_graph=self, use_address_base=self.use_address_base)
 
     def render_to_graphviz(self, background_graph=None):
         if background_graph is None:
