@@ -35,8 +35,8 @@ class GaussianWithUnknownMeanMarsaglia(Model):
 
 
 def produce_results(replace, results_dir):
-    num_traces = 10000
-    num_ic_training_traces = 150000
+    num_traces = 50000
+    num_ic_training_traces = 1000000
 
     if os.path.exists(results_dir):
         shutil.rmtree(results_dir)
@@ -91,7 +91,7 @@ def produce_results(replace, results_dir):
 
 
 if __name__ == '__main__':
-    pyprob.set_random_seed(123)
+    pyprob.set_random_seed(1)
     pyprob.set_cuda(False)
 
     current_dir = os.path.dirname(os.path.abspath(__file__))

@@ -1,0 +1,11 @@
+pyprob diagnostics
+address report
+pyprob_version: 0.13.dev1
+torch_version: 1.0.0
+num_distribution_elements: 50000
+addresses: 13
+addresses_controlled: 10
+addresses_replaced: 0
+addresses_observable: 2
+addresses_observed: 2
+addresses_tagged: 1

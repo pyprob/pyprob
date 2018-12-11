@@ -1,0 +1,11 @@
+pyprob diagnostics
+aggregated address report
+pyprob_version: 0.13.dev1
+torch_version: 0.4.1.post2
+num_distribution_elements: 5000
+addresses: 5
+addresses_controlled: 2
+addresses_replaced: 2
+addresses_observable: 2
+addresses_observed: 2
+addresses_tagged: 1
