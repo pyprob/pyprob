@@ -139,6 +139,10 @@ class Graph():
         for node in self.nodes:
             node.weight /= node_weight_total
 
+    @property
+    def trace_types(self):
+        return len(self.trace_stats['traces'])
+
     def get_sub_graph(self, trace_type_index):
         return Graph(Empirical([list(self.trace_stats['traces'].values())[trace_type_index]['trace']]), base_graph=self, use_address_base=self.use_address_base)
 

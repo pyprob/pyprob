@@ -428,103 +428,15 @@ def network(inference_network, save_dir=None):
     return stats
 
 
-def graph(trace_dist, file_name, use_address_base=True, n_most_frequent=None):
-    graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent)
-    graph.render_to_file(file_name)
+def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=None, file_name=None):
+    graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent, base_graph=base_graph)
+    if file_name is not None:
+        graph.render_to_file(file_name, background_graph=base_graph)
+        for i in range(graph.trace_types):
+            g = graph.get_sub_graph(i)
+            g.render_to_file(file_name + str(i), background_graph=graph)
+    return graph
 
-# def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=None, save_dir=None, bins=30, log_xscale=False, log_yscale=False):
-#     stats = OrderedDict()
-#     stats['pyprob_version'] = __version__
-#     stats['torch_version'] = torch.__version__
-#     stats['num_distribution_elements'] = len(trace_dist)
-#
-#     print('Building graph...')
-#     if base_graph is not None:
-#         use_address_base = base_graph.use_address_base
-#     master_graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent, base_graph=base_graph)
-#     address_stats = master_graph.address_stats
-#     stats['addresses'] = len(address_stats)
-#     stats['addresses_controlled'] = len([1 for value in list(address_stats.values()) if value['variable'].control])
-#     stats['addresses_replaced'] = len([1 for value in list(address_stats.values()) if value['variable'].replace])
-#     stats['addresses_observable'] = len([1 for value in list(address_stats.values()) if value['variable'].observable])
-#     stats['addresses_observed'] = len([1 for value in list(address_stats.values()) if value['variable'].observed])
-#
-#     address_ids = [i for i in range(len(address_stats))]
-#     address_weights = []
-#     for key, value in address_stats.items():
-#         address_weights.append(value['count'])
-#     address_id_dist = Empirical(address_ids, weights=address_weights, name='Address ID')
-#
-#     trace_stats = master_graph.trace_stats
-#     trace_ids = [i for i in range(len(trace_stats))]
-#     trace_weights = []
-#     for key, value in trace_stats.items():
-#         trace_weights.append(value['count'])
-#     trace_id_dist = Empirical(trace_ids, weights=trace_ids, name='Unique trace ID')
-#     trace_length_dist = trace_dist.map(lambda trace: trace.length).unweighted().rename('Trace length (all)')
-#     trace_length_controlled_dist = trace_dist.map(lambda trace: trace.length_controlled).unweighted().rename('Trace length (controlled)')
-#     trace_execution_time_dist = trace_dist.map(lambda trace: trace.execution_time_sec).unweighted().rename('Trace execution time (s)')
-#
-#     stats['trace_types'] = len(trace_stats)
-#     stats['trace_length_min'] = float(trace_length_dist.min)
-#     stats['trace_length_max'] = float(trace_length_dist.max)
-#     stats['trace_length_mean'] = float(trace_length_dist.mean)
-#     stats['trace_length_stddev'] = float(trace_length_dist.stddev)
-#     stats['trace_length_controlled_min'] = float(trace_length_controlled_dist.min)
-#     stats['trace_length_controlled_max'] = float(trace_length_controlled_dist.max)
-#     stats['trace_length_controlled_mean'] = float(trace_length_controlled_dist.mean)
-#     stats['trace_length_controlled_stddev'] = float(trace_length_controlled_dist.stddev)
-#     stats['trace_execution_time_min'] = float(trace_execution_time_dist.min)
-#     stats['trace_execution_time_max'] = float(trace_execution_time_dist.max)
-#     stats['trace_execution_time_mean'] = float(trace_execution_time_dist.mean)
-#     stats['trace_execution_time_stddev'] = float(trace_execution_time_dist.stddev)
-#
-#     if save_dir is not None:
-#         if not os.path.exists(save_dir):
-#             print('Directory does not exist, creating: {}'.format(save_dir))
-#             os.makedirs(save_dir)
-#         file_name_stats = os.path.join(save_dir, 'stats.txt')
-#         print('Saving diagnostics information to {} ...'.format(file_name_stats))
-#         with open(file_name_stats, 'w') as file:
-#             file.write('pyprob diagnostics report\n')
-#             for key, value in stats.items():
-#                 file.write('{}: {}\n'.format(key, value))
-#
-#         file_name_addresses = os.path.join(save_dir, 'addresses.csv')
-#         print('Saving addresses to {} ...'.format(file_name_addresses))
-#         with open(file_name_addresses, 'w') as file:
-#             file.write('address_id, weight, name, controlled, replaced, observable, observed, {}\n'.format('address_base' if use_address_base else 'address'))
-#             for key, value in address_stats.items():
-#                 name = '' if value['variable'].name is None else value['variable'].name
-#                 file.write('{}, {}, {}, {}, {}, {}, {}, {}\n'.format(value['address_id'], value['weight'], name, value['variable'].control, value['variable'].replace, value['variable'].observable, value['variable'].observed, key))
-#
-#         file_name_traces = os.path.join(save_dir, 'traces.csv')
-#         print('Saving addresses to {} ...'.format(file_name_traces))
-#         with open(file_name_traces, 'w') as file:
-#             file.write('trace_id, weight, length, length_controlled, address_id_sequence\n')
-#             for key, value in trace_stats.items():
-#                 file.write('{}, {}, {}, {}, {}\n'.format(value['trace_id'], value['weight'], len(value['trace'].variables), len(value['trace'].variables_controlled), ' '.join(value['address_id_sequence'])))
-#
-#         file_name_address_id_dist = os.path.join(save_dir, 'address_ids.pdf')
-#         print('Saving trace type distribution to {} ...'.format(file_name_address_id_dist))
-#         address_id_dist.plot_histogram(bins=range(len(address_stats)), xticks=range(len(address_stats)), log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_address_id_dist)
-#
-#         file_name_trace_id_dist = os.path.join(save_dir, 'trace_ids.pdf')
-#         print('Saving trace type distribution to {} ...'.format(file_name_trace_id_dist))
-#         trace_id_dist.plot_histogram(bins=range(len(trace_stats)), xticks=range(len(trace_stats)), log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_id_dist)
-#
-#         file_name_trace_length_dist = os.path.join(save_dir, 'trace_length_all.pdf')
-#         print('Saving trace length (all) distribution to {} ...'.format(file_name_trace_length_dist))
-#         trace_length_dist.plot_histogram(bins=bins, log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_length_dist)
-#
-#         file_name_trace_length_controlled_dist = os.path.join(save_dir, 'trace_length_controlled.pdf')
-#         print('Saving trace length (controlled) distribution to {} ...'.format(file_name_trace_length_controlled_dist))
-#         trace_length_controlled_dist.plot_histogram(bins=bins, log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_length_controlled_dist)
-#
-#         file_name_trace_execution_time_dist = os.path.join(save_dir, 'trace_execution_time.pdf')
-#         print('Saving trace execution time distribution to {} ...'.format(file_name_trace_execution_time_dist))
-#         trace_execution_time_dist.plot_histogram(bins=bins, log_xscale=log_xscale, log_yscale=log_yscale, color='black', show=False, file_name=file_name_trace_execution_time_dist)
-#
 #         report_latent_root = os.path.join(save_dir, 'latent_structure')
 #         if not os.path.exists(report_latent_root):
 #             print('Directory does not exist, creating: {}'.format(report_latent_root))
@@ -546,51 +458,6 @@ def graph(trace_dist, file_name, use_address_base=True, n_most_frequent=None):
 #             else:
 #                 graph.render_to_file(file_name_latent_structure, background_graph=base_graph)
 #
-#         print('Rendering distributions...')
-#         report_distribution_root = os.path.join(save_dir, 'distributions')
-#         if not os.path.exists(report_distribution_root):
-#             print('Directory does not exist, creating: {}'.format(report_distribution_root))
-#             os.makedirs(report_distribution_root)
-#
-#         i = 0
-#         for key, value in address_stats.items():
-#             i += 1
-#             address_id = value['address_id']
-#             variable = value['variable']
-#             can_render = True
-#             try:
-#                 if use_address_base:
-#                     address_base = variable.address_base
-#                     dist = trace_dist.filter(lambda trace: address_base in trace.variables_dict_address_base).map(lambda trace: util.to_tensor(trace.variables_dict_address_base[address_base].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
-#                 else:
-#                     address = variable.address
-#                     dist = trace_dist.filter(lambda trace: address in trace.variables_dict_address).map(lambda trace: util.to_tensor(trace.variables_dict_address[address].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
-#
-#                 dist.rename(address_id + '' if variable.name is None else '{} (name: {})'.format(address_id, variable.name))
-#                 if dist.length == 0:
-#                     can_render = False
-#             except:
-#                 can_render = False
-#
-#             if can_render:
-#                 file_name_dist = os.path.join(report_distribution_root, '{}_distribution.pdf'.format(address_id))
-#                 print('Saving distribution {} of {} to {} ...'.format(i, len(address_stats), file_name_dist))
-#                 dist.plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
-#                 if not dist._uniform_weights:
-#                     file_name_dist = os.path.join(report_distribution_root, '{}_{}_distribution.pdf'.format(address_id, 'proposal'))
-#                     print('Saving distribution {} of {} to {} ...'.format(i, len(address_stats), file_name_dist))
-#                     dist.unweighted().plot_histogram(bins=bins, color='black', show=False, file_name=file_name_dist)
-#
-#             else:
-#                 print('Cannot render histogram for {} because it is not scalar valued. Example value: {}'.format(address_id, variable.value))
-#
-#         file_name_all = os.path.join(report_distribution_root, 'all.pdf')
-#         print('Combining histograms to: {}'.format(file_name_all))
-#         status = os.system('pdfjam {}/*.pdf --nup {}x{} --landscape --outfile {}'.format(report_distribution_root, math.ceil(math.sqrt(i)), math.ceil(math.sqrt(i)), file_name_all))
-#         if status != 0:
-#             print('Cannot not render to file {}. Check that pdfjam is installed.'.format(file_name_all))
-#
-#     return master_graph, stats
 
 
 def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, file_name=None, min_index=None, max_index=None, *args, **kwargs):
