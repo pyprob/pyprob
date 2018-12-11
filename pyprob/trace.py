@@ -41,6 +41,12 @@ class Variable():
         # if self.distribution is not None:
         #     self.distribution.to(device=device)
 
+    def __hash__(self):
+        return hash(self.address + str(self.value) + str(self.control) + str(self.replace) + str(self.observed) + str(self.tagged))
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
 
 class Trace():
     def __init__(self):
@@ -113,3 +119,10 @@ class Trace():
     def to(self, device):
         for variable in self.variables:
             variable.to(device)
+
+    def __hash__(self):
+        h = [hash(variable) for variable in self.variables]
+        return hash(sum(h))
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)

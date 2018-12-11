@@ -287,6 +287,10 @@ def network(inference_network, save_dir=None):
     return stats
 
 
+def graph(trace_dist, file_name, use_address_base=True, n_most_frequent=None):
+    graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent)
+    graph.render_to_file(file_name)
+
 # def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=None, save_dir=None, bins=30, log_xscale=False, log_yscale=False):
 #     stats = OrderedDict()
 #     stats['pyprob_version'] = __version__
