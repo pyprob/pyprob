@@ -6,18 +6,21 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import time
 import sys
-import math
 
-from . import __version__, util, PriorInflation, InferenceEngine
+from . import __version__, util
 from .distributions import Empirical
 from .graph import Graph
 from .trace import Trace
 
 
-def _address_stats(trace_dist, use_address_base=True):
+def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_stats=None):
     address_stats = {}
-    address_base_ids = {}
-    address_ids = {}
+    if reuse_ids_from_address_stats is not None:
+        address_ids = reuse_ids_from_address_stats['address_ids']
+        address_base_ids = reuse_ids_from_address_stats['address_base_ids']
+    else:
+        address_ids = {}
+        address_base_ids = {}
     for i in range(trace_dist.length):
         trace = trace_dist._get_value(i)
         trace_weight = float(trace_dist._get_weight(i))
@@ -58,16 +61,141 @@ def _address_stats(trace_dist, use_address_base=True):
     address_stats_extra['addresses_observable'] = len([1 for value in list(address_stats.values()) if value['variable'].observable])
     address_stats_extra['addresses_observed'] = len([1 for value in list(address_stats.values()) if value['variable'].observed])
     address_stats_extra['addresses_tagged'] = len([1 for value in list(address_stats.values()) if value['variable'].tagged])
-    return address_stats, address_stats_extra
+    return {'address_stats': address_stats, 'address_stats_extra': address_stats_extra, 'address_base_ids': address_base_ids, 'address_ids': address_ids}
+
+
+def _trace_stats(trace_dist, use_address_base=True):
+    address_stats = _address_stats(trace_dist, use_address_base)['address_stats']
+    trace_stats = {}
+    trace_ids = {}
+    for i in range(trace_dist.length):
+        trace = trace_dist._get_value(i)
+        trace_weight = float(trace_dist._get_weight(i))
+        trace_str = ''.join([variable.address_base if use_address_base else variable.address for variable in trace.variables])
+        if trace_str not in trace_stats:
+            if trace_str in trace_ids:
+                trace_id = trace_ids[trace_str]
+            else:
+                trace_id = 'T' + str(len(trace_ids) + 1)
+                trace_ids[trace_str] = trace_id
+            address_id_sequence = ['START'] + [address_stats[variable.address_base if use_address_base else variable.address]['address_id'] for variable in trace.variables] + ['END']
+            trace_stats[trace_str] = {'count': 1, 'weight': trace_weight, 'trace_id': trace_id, 'trace': trace, 'address_id_sequence': address_id_sequence}
+        else:
+            trace_stats[trace_str]['count'] += 1
+            trace_stats[trace_str]['weight'] += trace_weight
+    trace_stats = OrderedDict(sorted(trace_stats.items(), key=lambda v: v[1]['count'], reverse=True))
+    address_ids = [i for i in range(len(address_stats))]
+    address_weights = []
+    for key, value in address_stats.items():
+        address_weights.append(value['count'])
+    address_id_dist = Empirical(address_ids, weights=address_weights, name='Address ID')
+    trace_ids = [i for i in range(len(trace_stats))]
+    trace_weights = []
+    for _, value in trace_stats.items():
+        trace_weights.append(value['count'])
+    trace_id_dist = Empirical(trace_ids, weights=trace_ids, name='Unique trace ID')
+    trace_length_dist = trace_dist.map(lambda trace: trace.length).unweighted().rename('Trace length (all)')
+    trace_length_controlled_dist = trace_dist.map(lambda trace: trace.length_controlled).unweighted().rename('Trace length (controlled)')
+    trace_execution_time_dist = trace_dist.map(lambda trace: trace.execution_time_sec).unweighted().rename('Trace execution time (s)')
+    trace_stats_extra = OrderedDict()
+    trace_stats_extra['trace_types'] = len(trace_stats)
+    trace_stats_extra['trace_length_min'] = float(trace_length_dist.min)
+    trace_stats_extra['trace_length_max'] = float(trace_length_dist.max)
+    trace_stats_extra['trace_length_mean'] = float(trace_length_dist.mean)
+    trace_stats_extra['trace_length_stddev'] = float(trace_length_dist.stddev)
+    trace_stats_extra['trace_length_controlled_min'] = float(trace_length_controlled_dist.min)
+    trace_stats_extra['trace_length_controlled_max'] = float(trace_length_controlled_dist.max)
+    trace_stats_extra['trace_length_controlled_mean'] = float(trace_length_controlled_dist.mean)
+    trace_stats_extra['trace_length_controlled_stddev'] = float(trace_length_controlled_dist.stddev)
+    trace_stats_extra['trace_execution_time_min'] = float(trace_execution_time_dist.min)
+    trace_stats_extra['trace_execution_time_max'] = float(trace_execution_time_dist.max)
+    trace_stats_extra['trace_execution_time_mean'] = float(trace_execution_time_dist.mean)
+    trace_stats_extra['trace_execution_time_stddev'] = float(trace_execution_time_dist.stddev)
+    return {'trace_stats': trace_stats, 'trace_stats_extra': trace_stats_extra, 'trace_id_dist': trace_id_dist, 'trace_length_dist': trace_length_dist, 'trace_length_controlled_dist': trace_length_controlled_dist, 'trace_execution_time_dist': trace_execution_time_dist, 'address_id_dist': address_id_dist}
+
+
+def trace_histograms(trace_dist, use_address_base=True, figsize=(10, 5), bins=30, plot=False, plot_show=True, file_name=None):
+    stats = _trace_stats(trace_dist, use_address_base=use_address_base)
+    trace_stats = stats['trace_stats']
+    trace_stats_extra = stats['trace_stats_extra']
+    if plot:
+        if not plot_show:
+            mpl.rcParams['axes.unicode_minus'] = False
+            plt.switch_backend('agg')
+        # mpl.rcParams['font.size'] = 4
+        fig, ax = plt.subplots(2, 2, figsize=figsize)
+
+        values = stats['trace_length_dist'].values_numpy()
+        weights = stats['trace_length_dist'].weights_numpy()
+        name = stats['trace_length_dist'].name
+        ax[0, 0].hist(values, weights=weights, density=1, bins=bins)
+        ax[0, 0].set_xlabel(name)
+        ax[0, 0].set_ylabel('Frequency')
+        ax[0, 0].set_yscale('log', nonposy='clip')
+
+        values = stats['trace_length_controlled_dist'].values_numpy()
+        weights = stats['trace_length_controlled_dist'].weights_numpy()
+        name = stats['trace_length_controlled_dist'].name
+        ax[0, 1].hist(values, weights=weights, density=1, bins=bins)
+        ax[0, 1].set_xlabel(name)
+        # ax[0, 1].set_ylabel('Frequency')
+        ax[0, 1].set_yscale('log', nonposy='clip')
+
+        values = stats['address_id_dist'].values_numpy()
+        weights = stats['address_id_dist'].weights_numpy()
+        name = stats['address_id_dist'].name
+        ax[1, 0].hist(values, weights=weights, density=1, bins=len(values))
+        ax[1, 0].set_xlabel(name)
+        ax[1, 0].set_ylabel('Frequency')
+        ax[1, 0].set_yscale('log', nonposy='clip')
+
+        values = stats['trace_execution_time_dist'].values_numpy()
+        weights = stats['trace_execution_time_dist'].weights_numpy()
+        name = stats['trace_execution_time_dist'].name
+        ax[1, 1].hist(values, weights=weights, density=1, bins=bins)
+        ax[1, 1].set_xlabel(name)
+        # ax[1, 1].set_ylabel('Frequency')
+        ax[1, 1].set_yscale('log', nonposy='clip')
+
+        plt.suptitle(trace_dist.name, x=0.0, y=.99, horizontalalignment='left', verticalalignment='top', fontsize=10)
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+        if file_name is not None:
+            plot_file_name = file_name + '.pdf'
+            print('Plotting to file: {}'.format(plot_file_name))
+            plt.savefig(plot_file_name)
+            report_file_name = file_name + '.txt'
+            print('Saving trace report to file: {}'.format(report_file_name))
+            with open(report_file_name, 'w') as file:
+                file.write('pyprob diagnostics\n')
+                for key, value in trace_stats_extra.items():
+                    file.write('{}: {}\n'.format(key, value))
+            traces_file_name = file_name + '.csv'
+            print('Saving traces to file: {}'.format(traces_file_name))
+            with open(traces_file_name, 'w') as file:
+                file.write('trace_id, count, length, length_controlled, address_id_sequence\n')
+                for key, value in trace_stats.items():
+                    file.write('{}, {}, {}, {}, {}\n'.format(value['trace_id'], value['count'], len(value['trace'].variables), len(value['trace'].variables_controlled), ' '.join(value['address_id_sequence'])))
+        if plot_show:
+            plt.show()
 
 
 def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), bins=30, use_address_base=True, plot=False, plot_show=True, file_name=None):
     if not isinstance(trace_dists, list):
         trace_dists = [trace_dists]
     dists = {}
+    stats = None
+    address_stats_combined = {}
     for trace_dist in trace_dists:
         print('Collecting values for distribution: {}'.format(trace_dist.name))
-        address_stats, address_stats_extra = _address_stats(trace_dist, use_address_base)
+        stats = _address_stats(trace_dist, use_address_base=use_address_base, reuse_ids_from_address_stats=stats)
+        address_stats = stats['address_stats']
+        for key, val in address_stats.items():
+            if key in address_stats_combined:
+                address_stats_combined[key]['count'] += val['count']
+            else:
+                address_stats_combined[key] = val
+        address_stats_extra = stats['address_stats_extra']
         i = 0
         util.progress_bar_init('Collecting values', len(address_stats), 'Addresses')
         for key, value in address_stats.items():
@@ -146,15 +274,22 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
         plt.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95, hspace=1.5, wspace=0.85)
         if file_name is not None:
             plot_file_name = file_name + '.pdf'
-            print('Plotting to file {} ...'.format(plot_file_name))
+            print('Plotting to file: {}'.format(plot_file_name))
             plt.savefig(plot_file_name)
             report_file_name = file_name + '.txt'
-            print('Saving report to file {} ...'.format(report_file_name))
+            print('Saving address report to file: {}'.format(report_file_name))
             with open(report_file_name, 'w') as file:
                 file.write('pyprob diagnostics\n')
                 file.write(('aggregated ' if use_address_base else '') + 'address report\n')
                 for key, value in address_stats_extra.items():
                     file.write('{}: {}\n'.format(key, value))
+            addresses_file_name = file_name + '.csv'
+            print('Saving addresses to file: {}'.format(addresses_file_name))
+            with open(addresses_file_name, 'w') as file:
+                file.write('address_id, count, name, controlled, replaced, observable, observed, {}\n'.format('address_base' if use_address_base else 'address'))
+                for key, value in address_stats_combined.items():
+                    name = '' if value['variable'].name is None else value['variable'].name
+                    file.write('{}, {}, {}, {}, {}, {}, {}, {}\n'.format(value['address_id'], value['count'], name, value['variable'].control, value['variable'].replace, value['variable'].observable, value['variable'].observed, key))
         if plot_show:
             plt.show()
 

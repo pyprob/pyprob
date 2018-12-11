@@ -340,6 +340,8 @@ class Empirical(Distribution):
         if self._effective_sample_size is None:
             weights = self._categorical.probs
             self._effective_sample_size = 1. / weights.pow(2).sum()
+            # log_weights = self._categorical.logits
+            # self._effective_sample_size = torch.exp(2. * torch.logsumexp(log_weights, dim=0) - torch.logsumexp(2. * log_weights, dim=0))
         return self._effective_sample_size
 
     def unweighted(self, *args, **kwargs):
