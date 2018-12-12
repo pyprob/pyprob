@@ -7,6 +7,7 @@ from glob import glob
 import numpy as np
 import uuid
 from termcolor import colored
+from collections import Counter, OrderedDict
 
 from .. import util
 from ..util import TraceMode, PriorInflation
@@ -152,11 +153,15 @@ class OfflineDataset(ConcatDataset):
                 print(e)
                 print(colored('Warning: dataset file potentially corrupt, omitting: {}'.format(file), 'red', attrs=['bold']))
         super().__init__(datasets)
+        print('OfflineDataset at: {}'.format(self._dataset_dir))
         file_name = os.path.join(self._dataset_dir, 'pyprob_hashes')
         hashes_file = ConcurrentShelf(file_name)
         if 'hashes' in hashes_file:
             print('Using pre-computed hashes in: {}'.format(file_name))
             self._sorted_indices = hashes_file['sorted_indices']
+            self._hashes = hashes_file['hashes']
+            if torch.is_tensor(self._hashes):
+                self._hashes = self._hashes.cpu().numpy()
             if len(self._sorted_indices) != len(self):
                 raise RuntimeError('Length of pre-computed hashes ({}) and length of offline dataset ({}) do not match. Dataset files have been altered. Delete and re-generate pre-computed hash file: {}'.format(len(self._sorted_indices), len(self), file_name))
         else:
@@ -165,6 +170,14 @@ class OfflineDataset(ConcatDataset):
             hashes_file['hashes'] = hashes
             hashes_file['sorted_indices'] = sorted_indices
             self._sorted_indices = sorted_indices
+            self._hashes = hashes
+        print('Num. traces     : {:,}'.format(len(self)))
+        print('Num. trace types: {:,}'.format(len(set(self._hashes))))
+        hashes_and_counts = OrderedDict(sorted(Counter(self._hashes).items()))
+        print('Trace hash\tCount')
+        for hash, count in hashes_and_counts.items():
+            print('{:.8f}\t{}'.format(hash, count))
+        print()
 
     def _compute_hashes(self):
         def trace_hash(trace):
@@ -179,7 +192,7 @@ class OfflineDataset(ConcatDataset):
         print('Sorting offline dataset')
         _, sorted_indices = torch.sort(hashes)
         print('Sorting done')
-        return hashes, sorted_indices.cpu().numpy()
+        return hashes.cpu().numpy(), sorted_indices.cpu().numpy()
 
 
 class SortedTraceSampler(Sampler):
@@ -194,14 +207,13 @@ class SortedTraceSampler(Sampler):
 
 
 class SortedTraceBatchSampler(Sampler):
-    def __init__(self, sampler, batch_size):
-        sorted_indices = sampler._sorted_indices
-        new_len = batch_size * (len(sorted_indices) // batch_size)
-        sorted_indices = sorted_indices[:new_len]
-        self._batches = list(util.chunks(sorted_indices, batch_size))
+    def __init__(self, offline_dataset, batch_size, shuffle=False):
+        self._batches = list(util.chunks(offline_dataset._sorted_indices, batch_size))
+        self._shuffle = shuffle
 
     def __iter__(self):
-        np.random.shuffle(self._batches)
+        if self._shuffle:
+            np.random.shuffle(self._batches)
         return iter(self._batches)
 
     def __len__(self):
