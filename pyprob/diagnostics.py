@@ -95,11 +95,11 @@ def _trace_stats(trace_dist, use_address_base=True, reuse_ids_from_address_stats
     for key, value in addresses.items():
         address_weights.append(value['count'])
     address_id_dist = Empirical(address_ids, weights=address_weights, name='Address ID')
-    trace_ids = [i for i in range(len(traces))]
+    unique_trace_ids = [i for i in range(len(traces))]
     trace_weights = []
     for _, value in traces.items():
         trace_weights.append(value['count'])
-    trace_id_dist = Empirical(trace_ids, weights=trace_ids, name='Unique trace ID')
+    trace_id_dist = Empirical(unique_trace_ids, weights=unique_trace_ids, name='Unique trace ID')
     trace_length_dist = trace_dist.map(lambda trace: trace.length).unweighted().rename('Trace length (all)')
     trace_length_controlled_dist = trace_dist.map(lambda trace: trace.length_controlled).unweighted().rename('Trace length (controlled)')
     trace_execution_time_dist = trace_dist.map(lambda trace: trace.execution_time_sec).unweighted().rename('Trace execution time (s)')
@@ -117,7 +117,7 @@ def _trace_stats(trace_dist, use_address_base=True, reuse_ids_from_address_stats
     traces_extra['trace_execution_time_max'] = float(trace_execution_time_dist.max)
     traces_extra['trace_execution_time_mean'] = float(trace_execution_time_dist.mean)
     traces_extra['trace_execution_time_stddev'] = float(trace_execution_time_dist.stddev)
-    return {'traces': traces, 'traces_extra': traces_extra, 'address_stats': address_stats, 'trace_id_dist': trace_id_dist, 'trace_length_dist': trace_length_dist, 'trace_length_controlled_dist': trace_length_controlled_dist, 'trace_execution_time_dist': trace_execution_time_dist, 'address_id_dist': address_id_dist}
+    return {'traces': traces, 'traces_extra': traces_extra, 'trace_ids': trace_ids, 'address_stats': address_stats, 'trace_id_dist': trace_id_dist, 'trace_length_dist': trace_length_dist, 'trace_length_controlled_dist': trace_length_controlled_dist, 'trace_execution_time_dist': trace_execution_time_dist, 'address_id_dist': address_id_dist}
 
 
 def trace_histograms(trace_dist, use_address_base=True, figsize=(10, 5), bins=30, plot=False, plot_show=True, file_name=None):
@@ -180,7 +180,7 @@ def trace_histograms(trace_dist, use_address_base=True, figsize=(10, 5), bins=30
             print('Saving traces to file: {}'.format(traces_file_name))
             with open(traces_file_name, 'w') as file:
                 file.write('trace_id, count, length, length_controlled, address_id_sequence\n')
-                for key, value in trace_stats.items():
+                for key, value in traces.items():
                     file.write('{}, {}, {}, {}, {}\n'.format(value['trace_id'], value['count'], len(value['trace'].variables), len(value['trace'].variables_controlled), ' '.join(value['address_id_sequence'])))
         if plot_show:
             plt.show()
@@ -432,32 +432,9 @@ def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=No
     graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent, base_graph=base_graph)
     if file_name is not None:
         graph.render_to_file(file_name, background_graph=base_graph)
-        for i in range(graph.trace_types):
-            g = graph.get_sub_graph(i)
-            g.render_to_file(file_name + str(i), background_graph=graph)
+        for trace_id, trace_graph in graph.trace_graphs():
+            trace_graph.render_to_file('{}_{}'.format(file_name, trace_id), background_graph=(graph if base_graph is None else base_graph))
     return graph
-
-#         report_latent_root = os.path.join(save_dir, 'latent_structure')
-#         if not os.path.exists(report_latent_root):
-#             print('Directory does not exist, creating: {}'.format(report_latent_root))
-#             os.makedirs(report_latent_root)
-#         file_name_latent_structure_all_pdf = os.path.join(report_latent_root, 'latent_structure_all')
-#         print('Rendering latent structure graph (all) to {} ...'.format(file_name_latent_structure_all_pdf))
-#         if base_graph is None:
-#             master_graph.render_to_file(file_name_latent_structure_all_pdf)
-#         else:
-#             master_graph.render_to_file(file_name_latent_structure_all_pdf, background_graph=base_graph)
-#
-#         for i in range(len(trace_stats)):
-#             trace_id = list(trace_stats.values())[i]['trace_id']
-#             file_name_latent_structure = os.path.join(report_latent_root, 'latent_structure_most_freq_{}_{}'.format(i+1, trace_id))
-#             print('Saving latent structure graph {} of {} to {} ...'.format(i+1, len(trace_stats), file_name_latent_structure))
-#             graph = master_graph.get_sub_graph(i)
-#             if base_graph is None:
-#                 graph.render_to_file(file_name_latent_structure, background_graph=master_graph)
-#             else:
-#                 graph.render_to_file(file_name_latent_structure, background_graph=base_graph)
-#
 
 
 def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, file_name=None, min_index=None, max_index=None, *args, **kwargs):

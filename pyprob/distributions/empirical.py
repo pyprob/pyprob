@@ -258,8 +258,8 @@ class Empirical(Distribution):
             min_index = 0
         if max_index is None:
             max_index = self.length
-        step = math.floor((max_index - min_index) / num_samples)
-        indices = range(min_index, max_index, max(1, step))
+        step = max(1, math.floor((max_index - min_index) / num_samples))
+        indices = range(min_index, max_index, step)
         values = []
         log_weights = []
         message = 'Thinning, step: {}{}{}...'.format(step, '' if min_index is None else ', min_index: ' + str(min_index), '' if max_index is None else ', max_index: ' + str(max_index))
