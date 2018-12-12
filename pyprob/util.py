@@ -321,6 +321,12 @@ def address_id_to_int(address_id):
         return int(value_id)
 
 
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
+
 def init_distributed_print(rank, world_size, debug_print=True):
     if not debug_print:
         if rank > 0:

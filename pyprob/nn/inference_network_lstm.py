@@ -135,7 +135,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
             observe_embedding = self._embed_observe(sub_batch)
             sub_batch_length = len(sub_batch)
             sub_batch_loss = 0.
-            # print('sub_batch_length', sub_batch_length, 'example_trace_length_controlled', example_trace.length_controlled)
+            # print('sub_batch_length', sub_batch_length, 'example_trace_length_controlled', example_trace.length_controlled, '  ')
 
             # Construct LSTM input sequence for the whole trace length of sub_batch
             lstm_input = []

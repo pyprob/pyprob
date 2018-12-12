@@ -191,3 +191,18 @@ class SortedTraceSampler(Sampler):
 
     def __len__(self):
         return len(self._offline_dataset)
+
+
+class SortedTraceBatchSampler(Sampler):
+    def __init__(self, sampler, batch_size):
+        sorted_indices = sampler._sorted_indices
+        new_len = batch_size * (len(sorted_indices) // batch_size)
+        sorted_indices = sorted_indices[:new_len]
+        self._batches = list(util.chunks(sorted_indices, batch_size))
+
+    def __iter__(self):
+        np.random.shuffle(self._batches)
+        return iter(self._batches)
+
+    def __len__(self):
+        return len(self._batches)
