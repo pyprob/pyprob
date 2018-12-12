@@ -157,6 +157,8 @@ class OfflineDataset(ConcatDataset):
         if 'hashes' in hashes_file:
             print('Using pre-computed hashes in: {}'.format(file_name))
             self._sorted_indices = hashes_file['sorted_indices']
+            if len(self._sorted_indices) != len(self):
+                raise RuntimeError('Length of pre-computed hashes ({}) and length of offline dataset ({}) do not match. Dataset files have been altered. Delete and re-generate pre-computed hash file: {}'.format(len(self._sorted_indices), len(self), file_name))
         else:
             print('No pre-computed hashes found, generating: {}'.format(file_name))
             hashes, sorted_indices = self._compute_hashes()
