@@ -1,7 +1,8 @@
-from torch.utils.data import Dataset, ConcatDataset
+from torch.utils.data import Dataset, ConcatDataset, Sampler
 import math
 import os
 import sys
+import numpy as np
 import uuid
 from termcolor import colored
 
@@ -150,3 +151,30 @@ class OfflineDataset(ConcatDataset):
                 print(colored('Warning: dataset file potentially corrupt, omitting: {}'.format(file), 'red', attrs=['bold']))
 
         super().__init__(datasets)
+
+
+class SortedTracesSampler(Sampler):
+    def __init__(self, offline_dataset):
+        def trace_hash(trace):
+            h = hash(''.join([variable.address for variable in trace.variables_controlled])) + sys.maxsize + 1
+            return float('{}.{}'.format(trace.length_controlled, h))
+        self._offline_dataset = offline_dataset
+        # lengths = np.array([trace.length_controlled for trace in self._offline_dataset])
+        lengths = []
+        util.progress_bar_init('Hashing offline dataset for sorting', len(self._offline_dataset), 'Traces')
+        i = 0
+        for trace in self._offline_dataset:
+            i += 1
+            lengths.append(trace_hash(trace))
+            util.progress_bar_update(i)
+        util.progress_bar_end()
+        print('Sorting offline dataset')
+        self._sorted_indices = np.argsort(lengths)
+        print('Sorting done')
+
+    def __iter__(self):
+        return iter(self._sorted_indices)
+        # return iter(range(len(self._offline_dataset)))
+
+    def __len__(self):
+        return len(self._offline_dataset)
