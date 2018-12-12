@@ -14,7 +14,7 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import Batch, OfflineDataset, SortedTracesSampler, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
+from . import Batch, OfflineDataset, SortedTraceSampler, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 from .. import __version__, util, Optimizer, ObserveEmbedding
 
 
@@ -318,7 +318,7 @@ class InferenceNetwork(nn.Module):
         num_workers = 0
         if isinstance(dataset, OfflineDataset):  # and (distributed_world_size == 1):
             num_workers = dataloader_offline_num_workers
-            sampler = SortedTracesSampler(dataset)
+            sampler = SortedTraceSampler(dataset)
         else:
             sampler = None
         # print('num_workers', num_workers)
