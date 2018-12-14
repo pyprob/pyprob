@@ -180,7 +180,7 @@ def progress_bar_update(iter):
     if (duration - progress_bar_prev_duration > _print_refresh_rate) or (iter == progress_bar_num_iters - 1):
         progress_bar_prev_duration = duration
         traces_per_second = (iter + 1) / duration
-        print('{} | {} | {} | {}/{} | {:,.2f}       '.format(days_hours_mins_secs_str(duration), days_hours_mins_secs_str((progress_bar_num_iters - iter) / traces_per_second), progress_bar(iter, progress_bar_num_iters), str(iter).rjust(progress_bar_len_str_num_iters), progress_bar_num_iters, traces_per_second), end='\r')
+        print('{} | {} | {} | {}/{} | {:,.2f}       '.format(days_hours_mins_secs_str(duration), days_hours_mins_secs_str((progress_bar_num_iters - iter) / traces_per_second), progress_bar(iter, progress_bar_num_iters), str(iter + 1).rjust(progress_bar_len_str_num_iters), progress_bar_num_iters, traces_per_second), end='\r')
         sys.stdout.flush()
 
 
