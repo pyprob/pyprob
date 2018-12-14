@@ -201,7 +201,7 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
                 address_stats_combined[key]['count'] += val['count']
             else:
                 address_stats_combined[key] = val
-        address_stats_extra = addresses['address_stats_extra']
+        address_stats_extra = address_stats['address_stats_extra']
         i = 0
         util.progress_bar_init('Collecting values', len(addresses), 'Addresses')
         for key, value in addresses.items():
