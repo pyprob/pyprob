@@ -201,7 +201,7 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
                 address_stats_combined[key]['count'] += val['count']
             else:
                 address_stats_combined[key] = val
-        address_stats_extra = address_stats['address_stats_extra']
+        addresses_extra = address_stats['addresses_extra']
         i = 0
         util.progress_bar_init('Collecting values', len(addresses), 'Addresses')
         for key, value in addresses.items():
@@ -287,7 +287,7 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
             with open(report_file_name, 'w') as file:
                 file.write('pyprob diagnostics\n')
                 file.write(('aggregated ' if use_address_base else '') + 'address report\n')
-                for key, value in address_stats_extra.items():
+                for key, value in addresses_extra.items():
                     file.write('{}: {}\n'.format(key, value))
             addresses_file_name = file_name + '.csv'
             print('Saving addresses to file: {}'.format(addresses_file_name))
