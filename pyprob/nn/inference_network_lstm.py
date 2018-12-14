@@ -192,7 +192,13 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 proposal_layer = self._layers_proposal[address]
                 proposal_layer._total_train_iterations += 1
                 proposal_distribution = proposal_layer.forward(proposal_input, variables)
+                # log_importance_weights = torch.stack([trace.log_importance_weight for trace in sub_batch])
+                # importance_weights = torch.exp(log_importance_weights)
                 log_prob = proposal_distribution.log_prob(values)
+                # print('loss                  ', log_prob)
+                # print('log_importance_weights', log_importance_weights)
+                # print('importance_weights    ', importance_weights)
+                # print()
                 if util.has_nan_or_inf(log_prob):
                     print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))
                     print('proposal_distribution', proposal_distribution)

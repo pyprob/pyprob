@@ -68,7 +68,7 @@ class OnlineDataset(Dataset):
         del(trace.result)
         del(trace.log_prob)
         del(trace.log_prob_observed)
-        del(trace.log_importance_weight)
+        # del(trace.log_importance_weight)
         # trace.length = 0
         # trace.length_controlled = 0
         del(trace.execution_time_sec)

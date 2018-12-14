@@ -84,13 +84,13 @@ def _extract_target_of_assignment():
         return None
 
 
-def _sample_with_prior_inflation(distribution):
+def _inflate(distribution):
     if _prior_inflation == PriorInflation.ENABLED:
         if isinstance(distribution, Categorical):
-            distribution = Categorical(util.to_tensor(torch.zeros(distribution.num_categories).fill_(1./distribution.num_categories)))
+            return Categorical(util.to_tensor(torch.zeros(distribution.num_categories).fill_(1./distribution.num_categories)))
         elif isinstance(distribution, Normal):
-            distribution = Normal(distribution.mean, distribution.stddev * 3)
-    return distribution.sample()
+            return Normal(distribution.mean, distribution.stddev * 3)
+    return None
 
 
 def tag(value, name=None, address=None):
@@ -172,8 +172,14 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
         update_previous_variable = False
 
         if _trace_mode == TraceMode.PRIOR:
-            value = _sample_with_prior_inflation(distribution)
-            log_prob = distribution.log_prob(value, sum=True)
+            inflated_distribution = _inflate(distribution)
+            if inflated_distribution is None:
+                value = distribution.sample()
+                log_prob = distribution.log_prob(value, sum=True)
+            else:
+                value = inflated_distribution.sample()
+                log_prob = distribution.log_prob(value, sum=True)
+                _current_trace.log_importance_weight += log_prob - inflated_distribution.log_prob(value, sum=True)
         else:  # _trace_mode == TraceMode.POSTERIOR
             if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
                 value = distribution.sample()
