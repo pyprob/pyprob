@@ -131,7 +131,7 @@ def observe(distribution, value=None, name=None, address=None):
 
     log_prob = distribution.log_prob(value, sum=True)
     if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-        _current_trace.log_importance_weight += log_prob
+        _current_trace.log_importance_weight += float(log_prob)
 
     variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True, name=name)
     _current_trace.add(variable)
@@ -164,7 +164,7 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
         # Variable is observed
         value = _current_trace_observed_variables[name]
         log_prob = distribution.log_prob(value, sum=True)
-        _current_trace.log_importance_weight += log_prob.item()
+        _current_trace.log_importance_weight += float(log_prob)
         variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True, name=name)
     else:
         reused = False
@@ -179,7 +179,7 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
             else:
                 value = inflated_distribution.sample()
                 log_prob = distribution.log_prob(value, sum=True)
-                _current_trace.log_importance_weight += log_prob - inflated_distribution.log_prob(value, sum=True)
+                _current_trace.log_importance_weight += float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))
         else:  # _trace_mode == TraceMode.POSTERIOR
             if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
                 value = distribution.sample()
@@ -213,7 +213,7 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                         print('distribution', proposal_distribution)
                         print('value', value)
                         print('log_prob', proposal_log_prob)
-                    _current_trace.log_importance_weight += log_prob - proposal_log_prob
+                    _current_trace.log_importance_weight += float(log_prob) - float(proposal_log_prob)
                 else:
                     value = distribution.sample()
                     log_prob = distribution.log_prob(value, sum=True)

@@ -848,8 +848,8 @@ if __name__ == '__main__':
     pyprob.set_verbosity(2)
     # pyprob.set_cuda(True)
     tests = []
-    # tests.append('GaussianWithUnknownMeanTestCase')
-    # tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
+    tests.append('GaussianWithUnknownMeanTestCase')
+    tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
     # tests.append('HiddenMarkovModelTestCase')
     # tests.append('BranchingTestCase')
     tests.append('MiniCaptchaTestCase')

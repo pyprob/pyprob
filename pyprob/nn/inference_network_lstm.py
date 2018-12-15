@@ -192,7 +192,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 proposal_layer = self._layers_proposal[address]
                 proposal_layer._total_train_iterations += 1
                 proposal_distribution = proposal_layer.forward(proposal_input, variables)
-                # log_importance_weights = torch.stack([trace.log_importance_weight for trace in sub_batch])
+                # log_importance_weights = util.to_tensor([trace.log_importance_weight for trace in sub_batch], dtype=torch.float64)
                 # importance_weights = torch.exp(log_importance_weights)
                 log_prob = proposal_distribution.log_prob(values)
                 # print('loss                  ', log_prob)

@@ -97,7 +97,7 @@ class Empirical(Distribution):
                 return Empirical(values=self._values, log_weights=self._log_weights, file_name=file_name)
 
     def finalize(self):
-        self._categorical = Categorical(logits=self._log_weights)
+        self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
         self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
         self._length = len(self._log_weights)
         if self._on_disk:
@@ -207,13 +207,13 @@ class Empirical(Distribution):
         ret = 0.
         if self._on_disk:
             for i in range(self._length):
-                ret += util.to_tensor(func(self._shelf[str(i)]), dtype=torch.float64) * self._categorical.probs[i].double()
+                ret += util.to_tensor(func(self._shelf[str(i)]), dtype=torch.float64) * self._categorical.probs[i]
         else:
             if self._uniform_weights:
                 ret = sum(map(func, self._values)) / self._length
             else:
                 for i in range(self._length):
-                    ret += util.to_tensor(func(self._values[i]), dtype=torch.float64) * self._categorical.probs[i].double()
+                    ret += util.to_tensor(func(self._values[i]), dtype=torch.float64) * self._categorical.probs[i]
         return util.to_tensor(ret)
 
     def map(self, func, *args, **kwargs):
