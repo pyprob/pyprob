@@ -80,10 +80,10 @@ class Empirical(Distribution):
         if self._on_disk:
             if file_name is None:
                 print('Copying Empirical(file_name: {}) to Empirical(on memory)...'.format(self._file_name))
-                return Empirical(values=self.get_values(), log_weights=self._log_weights)
+                return Empirical(values=self.get_values(), log_weights=self._log_weights, name=self.name)
             else:
                 print('Copying Empirical(file_name: {}) to Empirical(file_name: {})...'.format(self._file_name, file_name))
-                ret = Empirical(file_name=file_name)
+                ret = Empirical(file_name=file_name, name=self.name)
                 for i in range(self._length):
                     ret.add(value=self._shelf[str(i)], log_weight=self._log_weights[i])
                 ret.finalize()
@@ -94,7 +94,7 @@ class Empirical(Distribution):
                 return copy.copy(self)
             else:
                 print('Copying Empirical(on memory) to Empirical(file_name: {})...'.format(file_name))
-                return Empirical(values=self._values, log_weights=self._log_weights, file_name=file_name)
+                return Empirical(values=self._values, log_weights=self._log_weights, file_name=file_name, name=self.name)
 
     def finalize(self):
         self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
@@ -198,7 +198,7 @@ class Empirical(Distribution):
         if isinstance(index, slice):
             if self._on_disk:
                 raise NotImplementedError()
-            return Empirical(values=self._values[index], log_weights=self._log_weights[index])
+            return Empirical(values=self._values[index], log_weights=self._log_weights[index], name=self.name)
         else:
             return self._get_value(index)
 
@@ -388,7 +388,7 @@ class Empirical(Distribution):
                         distribution[self._values[i]] = self._log_weights[i]
                 values = list(distribution.keys())
                 log_weights = list(distribution.values())
-                return Empirical(values=values, log_weights=log_weights, *args, **kwargs)
+                return Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
             else:
                 raise RuntimeError('The values in this Empirical as not hashable. Combining of duplicates not currently supported.')
 
