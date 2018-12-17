@@ -3,9 +3,11 @@ from pyprob.nn import ProposalUniformTruncatedNormalMixture
 from pyprob.trace import Variable
 import torch
 from torch.utils.data import Dataset, DataLoader
+import numpy as np
 import os
 import shutil
 import matplotlib.pyplot as plt
+from termcolor import colored
 
 
 # Inspired by Thomas Viehmann
@@ -26,7 +28,7 @@ class TestDataset(Dataset):
 
 def produce_results(results_dir):
     training_data = 1024
-    training_epochs = 2000
+    training_epochs = 500
     batch_size = 32
     test_iters = 512
 
@@ -48,6 +50,13 @@ def produce_results(results_dir):
             optimizer.zero_grad()
             dist = net.forward(x, [Variable(pyprob.distributions.Uniform(low=-10, high=10))]*batch_size)
             loss = -dist.log_prob(y, sum=True)
+            if pyprob.util.has_nan_or_inf(loss):
+                print(colored('Warning: NaN, -Inf, or Inf encountered.', 'red', attrs=['bold']))
+                print('dist', dist)
+                print('x', x)
+                print('y', y)
+                print('loss', loss)
+                quit()
             loss_epoch += float(loss)
             loss.backward()
             optimizer.step()
@@ -57,17 +66,23 @@ def produce_results(results_dir):
 
     print('Testing')
     test_dataset = TestDataset(test_iters)
-    test_x = test_dataset._x
-    test_y = torch.zeros(test_iters)
+    test_x = []
+    test_y = []
     for i in range(test_iters):
-        dist = net.forward(test_x[i].unsqueeze(0), [Variable(pyprob.distributions.Uniform(low=-10, high=10))])
-        test_y[i] = dist.sample()
+        x = test_dataset._x[i]
+        dist = net.forward(x.unsqueeze(0), [Variable(pyprob.distributions.Uniform(low=-10, high=10))])
+        for i in range(10):
+            y = dist.sample()
+            test_x.append(float(x))
+            test_y.append(float(y))
+    test_x = np.array(test_x)
+    test_y = np.array(test_y)
 
     plot_file_name = os.path.join(results_dir, 'result.pdf')
     print('Saving result plot to: {}'.format(plot_file_name))
     fig = plt.figure(figsize=(8, 8))
     plt.scatter(dataset._x.numpy(), dataset._y.numpy(), s=2, label='train')
-    plt.scatter(test_x.numpy(), test_y.numpy(), s=2, label='test')
+    plt.scatter(test_x, test_y, s=2, label='test')
     plt.legend(loc='best')
     plt.xlabel('x')
     plt.ylabel('y')
