@@ -1,0 +1,13 @@
+address_id, count, name, controlled, replaced, observable, observed, address_base
+A1, 380120, , True, False, False, False, __A1
+A2, 380120, , True, False, False, False, __A2
+A3, 300000, x_accepted, False, False, False, False, __A3
+A4, 300000, y_accepted, False, False, False, False, __A4
+A5, 300000, s_accepted, False, False, False, False, __A5
+A6, 300000, iterations, False, False, False, False, __A6
+A7, 300000, mu, False, False, False, False, __A7
+A8, 300000, obs0, False, False, True, True, __A8
+A9, 300000, obs1, False, False, True, True, __A9
+A10, 80120, x_rejected, False, False, False, False, __A10
+A11, 80120, y_rejected, False, False, False, False, __A11
+A12, 80120, s_rejected, False, False, False, False, __A12
