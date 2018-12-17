@@ -13,7 +13,10 @@ class Variable():
         self.address_base = address_base
         self.address = address
         self.instance = instance
-        self.log_prob = util.to_tensor(log_prob)
+        if log_prob is None:
+            self.log_prob = None
+        else:
+            self.log_prob = util.to_tensor(log_prob)
         self.control = control
         self.replace = replace
         self.name = name
