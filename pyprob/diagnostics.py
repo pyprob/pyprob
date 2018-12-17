@@ -1,6 +1,6 @@
 import torch
 import os
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -257,7 +257,7 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
                     range = (float(variable.distribution.low), float(variable.distribution.high))
                 else:
                     range = None
-                ax[i].hist(values, weights=weights, density=1, bins=bins, color=color, label=label, alpha=0.8, range=range)
+                ax[i].hist(values, weights=weights, density=1, bins=bins, color=color, label=label, alpha=0.75, range=range)
                 ax[i].set_title(dist.name, fontsize=4, y=0.95)
                 ax[i].tick_params(pad=0., length=2)
                 # ax[i].set_aspect(aspect='equal', adjustable='box-forced')
@@ -357,7 +357,7 @@ def network(inference_network, save_dir=None):
             print('Directory does not exist, creating: {}'.format(save_dir))
             os.makedirs(save_dir)
         file_name_stats = os.path.join(save_dir, 'inference_network_stats.txt')
-        print('Saving diagnostics information to {} ...'.format(file_name_stats))
+        print('Saving diagnostics information to {} '.format(file_name_stats))
         with open(file_name_stats, 'w') as file:
             file.write('pyprob diagnostics report\n')
             for key, value in stats.items():
@@ -369,7 +369,7 @@ def network(inference_network, save_dir=None):
         plt.switch_backend('agg')
 
         file_name_loss = os.path.join(save_dir, 'loss.pdf')
-        print('Plotting loss to file: {} ...'.format(file_name_loss))
+        print('Plotting loss to file: {}'.format(file_name_loss))
         fig = plt.figure(figsize=(10, 7))
         ax = plt.subplot(111)
         ax.plot(inference_network._history_train_loss_trace, inference_network._history_train_loss, label='Training')
@@ -382,7 +382,7 @@ def network(inference_network, save_dir=None):
         plt.savefig(file_name_loss)
 
         file_name_num_params = os.path.join(save_dir, 'num_params.pdf')
-        print('Plotting number of parameters to file: {} ...'.format(file_name_num_params))
+        print('Plotting number of parameters to file: {} '.format(file_name_num_params))
         fig = plt.figure(figsize=(10, 7))
         ax = plt.subplot(111)
         ax.plot(inference_network._history_num_params_trace, inference_network._history_num_params, label='Training')
@@ -407,7 +407,7 @@ def network(inference_network, save_dir=None):
                 file_name_param = os.path.join(save_dir_params, 'param_{}.png'.format(index))
                 param_name = param[0]
                 file.write('{}, {}\n'.format(os.path.basename(file_name_param), param_name))
-                print('Plotting to file: {}  parameter: {} ...'.format(file_name_param, param_name))
+                print('Plotting to file: {}  parameter: {}'.format(file_name_param, param_name))
                 param_val = param[1].cpu().detach().numpy()
                 if param_val.ndim == 1:
                     param_val = np.expand_dims(param_val, 1)
@@ -456,7 +456,7 @@ def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="
         time_start = time.time()
         prev_duration = 0
         len_str_num_traces = len(str(num_traces))
-        print('Loading trace log-probabilities to memory...')
+        print('Loading trace log-probabilities to memory')
         print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
         vals = []
         for i in iters[j]:
@@ -492,7 +492,7 @@ def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="
         plt.legend(loc='best')
         fig.tight_layout()
         if file_name is not None:
-            print('Plotting to file {} ...'.format(file_name))
+            print('Plotting to file: {}'.format(file_name))
             plt.savefig(file_name)
         if plot_show:
             plt.show()
@@ -500,73 +500,89 @@ def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="
     return np.array(iters), np.array(log_probs)
 
 
-def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, figsize=(10, 5), xlabel="Lag", ylabel='Autocorrelation', xticks=None, yticks=None, log_xscale=True, plot=False, plot_show=True, file_name=None, *args, **kwargs):
-    if type(trace_dist) != Empirical:
-        raise TypeError('Expecting a posterior trace distribution, from a call to a Model\'s posterior_traces.')
-    if type(trace_dist[0]) != Trace:
-        raise TypeError('Expecting a posterior trace distribution, from a call to a Model\'s posterior_traces.')
+def _n_most_frequent_addresses(trace_dist, n_most_frequent, num_traces=None):
+    address_counts = defaultdict(int)
+    if num_traces is None:
+        num_traces = trace_dist.length
+    util.progress_bar_init('Collecting most frequent addresses', num_traces, 'Traces')
+    for i in range(num_traces):
+        trace = trace_dist._get_value(i)
+        util.progress_bar_update(i)
+        for variable in trace.variables:
+            if variable.value.nelement() == 1:
+                address_counts[variable.address] += 1
+    util.progress_bar_end()
+    address_counts = {k: v for k, v in address_counts.items() if v >= num_traces}
+    address_counts = OrderedDict(sorted(address_counts.items(), key=lambda x: x[1], reverse=True))
+    ret = []
+    for i, address in enumerate(address_counts):
+        ret.append(address)
+        if i + 1 == n_most_frequent:
+            break
+    return ret
 
-    def autocorrelation(values, lags):
+
+def _variable_values(trace_dist, names=None, n_most_frequent=None, num_traces=None):
+    if num_traces is None:
+        num_traces = trace_dist.length
+    if names is None:
+        name_counts = defaultdict(int)
+        for i in range(num_traces):
+            trace = trace_dist._get_value(i)
+            for name in trace.named_variables.keys():
+                name_counts[name] += 1
+        names = [name for name in name_counts if name_counts[name] == num_traces]  # Names of named variables that are found in all traces
+
+    variable_values = defaultdict(lambda: {'variable': None, 'values': np.ones(num_traces) * np.nan})
+    # Select named variables to process
+    for name in names:
+        variable = trace_dist[0].named_variables[name]
+        if variable.value.nelement() == 1:
+            variable_values[variable.address]['variable'] = variable
+
+    # Select most frequent variables to process (either named or not named)
+    if n_most_frequent is not None:
+        addresses = _n_most_frequent_addresses(trace_dist, n_most_frequent, num_traces)
+        for address in addresses:
+            variable = trace_dist[0].variables_dict_address[address]
+            if variable.value.nelement() == 1:
+                variable_values[variable.address]['variable'] = variable
+
+    if len(variable_values) == 0:
+        raise RuntimeError('No variables with scalar value.')
+
+    util.progress_bar_init('Loading selected variables to memory', num_traces, 'Traces')
+    for i in range(num_traces):
+        trace = trace_dist._get_value(i)
+        util.progress_bar_update(i)
+        for address, v in variable_values.items():
+            v['values'][i] = float(trace.variables_dict_address[address].value)
+    util.progress_bar_end()
+    return variable_values
+
+
+def autocorrelation(trace_dist, names=None, lags=None, n_most_frequent=None, figsize=(10, 5), xticks=None, yticks=None, log_xscale=True, plot=False, plot_show=True, file_name=None, *args, **kwargs):
+    if type(trace_dist) != Empirical:
+        raise TypeError('Expecting a trace distribution.')
+    if type(trace_dist[0]) != Trace:
+        raise TypeError('Expecting a trace distribution.')
+
+    def _autocorrelation(values, lags):
         ret = np.array([1. if lag == 0 else np.corrcoef(values[lag:], values[:-lag])[0][1] for lag in lags])
         # nan is encountered when there is no variance in the values, the foloowing might be used to assign autocorrelation of 1 to such cases
         # ret[np.isnan(ret)] = 1.
         return ret
 
-    if lags is None:
-        lags = np.unique(np.logspace(0, np.log10(trace_dist.length/2)).astype(int))
-    variable_values = OrderedDict()
-    if names is None:
-        for name, variable in trace_dist[-1].named_variables.items():
-            if not variable.observed and variable.value.nelement() == 1:
-                variable_values[(variable.address, name)] = np.zeros(trace_dist.length)
-    else:
-        for name in names:
-            address = trace_dist[-1].named_variables[name].address
-            variable_values[(address, name)] = np.zeros(trace_dist.length)
-
-    if n_most_frequent is not None:
-        address_counts = {}
-        num_traces = trace_dist.length
-        util.progress_bar_init('Collecting most frequent addresses...', num_traces)
-        for i in range(num_traces):
-            util.progress_bar_update(i)
-            trace = trace_dist._get_value(i)
-            for variable in trace.variables_controlled:
-                if variable.value.nelement() == 1:
-                    address = variable.address
-                    if address not in address_counts:
-                        address_counts[address] = 1
-                    else:
-                        address_counts[address] += 1
-        address_counts = {k: v for k, v in address_counts.items() if v >= num_traces}
-        address_counts = OrderedDict(sorted(address_counts.items(), key=lambda x: x[1], reverse=True))
-        all_variables_count = 0
-        for address, count in address_counts.items():
-            variable_values[(address, None)] = np.zeros(trace_dist.length)
-            all_variables_count += 1
-            if all_variables_count == n_most_frequent:
-                break
-        print()
-
-    if len(variable_values) == 0:
-        raise RuntimeError('No variables with scalar value have been selected.')
-
-    variable_values = OrderedDict(sorted(variable_values.items(), reverse=True))
-
     num_traces = trace_dist.length
-    util.progress_bar_init('Loading selected variables to memory...', num_traces)
-    for i in range(num_traces):
-        trace = trace_dist._get_value(i)
-        for (address, name), values in variable_values.items():
-            values[i] = float(trace.variables_dict_address[address].value)
-        util.progress_bar_update(i)
-    print()
-    variable_autocorrelations = {}
-    i = 0
-    for (address, name), values in variable_values.items():
-        i += 1
-        print('Computing autocorrelation for variable name: {} ({} of {})...'.format(name, i, len(variable_values)))
-        variable_autocorrelations[address] = autocorrelation(values, lags)
+
+    if lags is None:
+        lags = np.unique(np.logspace(0, np.log10(num_traces/2)).astype(int))
+
+    variable_values = _variable_values(trace_dist, names, n_most_frequent)
+    for i, (address, v) in enumerate(variable_values.items()):
+        print('Computing autocorrelation for variable address: {}, name: {} ({} of {})'.format(v['variable'].address, v['variable'].name, i + 1, len(variable_values)))
+        v['autocorrelation'] = _autocorrelation(v['values'], lags)
+
     if plot:
         if not plot_show:
             mpl.rcParams['axes.unicode_minus'] = False
@@ -574,192 +590,72 @@ def autocorrelations(trace_dist, names=None, lags=None, n_most_frequent=None, fi
         fig = plt.figure(figsize=figsize)
         plt.axhline(y=0, linewidth=1, color='black')
         other_legend_added = False
-        for (address, name), values in variable_values.items():
+        for address, v in variable_values.items():
+            name = v['variable'].name
+            autocorrelation = v['autocorrelation']
             if name is None:
                 label = None
                 if not other_legend_added:
                     label = '{} most frequent addresses'.format(len(variable_values))
                     other_legend_added = True
-                plt.plot(lags, variable_autocorrelations[address], *args, **kwargs, linewidth=1, color='gray', label=label)
+                plt.plot(lags, autocorrelation, *args, **kwargs, linewidth=1, color='gray', label=label)
             else:
-                plt.plot(lags, variable_autocorrelations[address], *args, **kwargs, label=name)
+                plt.plot(lags, autocorrelation, *args, **kwargs, label=v['variable'].name)
         if log_xscale:
             plt.xscale('log')
         if xticks is not None:
             plt.xticks(xticks)
         if yticks is not None:
             plt.xticks(yticks)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
+        plt.xlabel('Lag')
+        plt.ylabel('Autocorrelation')
         plt.legend(loc='best')
         fig.tight_layout()
         if file_name is not None:
-            print('Plotting to file {} ...'.format(file_name))
+            print('Plotting to file: {}'.format(file_name))
             plt.savefig(file_name)
         if plot_show:
             plt.show()
-    return lags, variable_autocorrelations
+    return lags, variable_values
 
 
-def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5), xlabel="Iteration", ylabel='R-hat', xticks=None, yticks=None, log_xscale=False, log_yscale=True, plot=False, plot_show=True, file_name=None, *args, **kwargs):
-    def merge_dicts(d1, d2):
-        for k, v in d2.items():
-            if k in d1:
-                d1[k] = np.vstack((d1[k], v))
-            else:
-                d1[k] = v
-        return d1
-
-    def gelman_rubin_diagnostic(x, mu=None):
-        '''
-        Notes
-        -----
-        The diagnostic is computed by:  math:: \hat{R} = \frac{\hat{V}}{W}
-
-        where :math:`W` is the within-chain variance and :math:`\hat{V}` is
-        the posterior variance estimate for the pooled traces.
-
-        :param x: samples
-        :param mu, var: true posterior mean and variance; if None, Monte Carlo estimates
-        :param logger: None
-        :return: r_hat
-
-        References
-        ----------
-        Gelman et. al. (2012). ‘Bayesian Data Analysis, Third Edition’
-        Brooks and Gelman (1998)
-        '''
-        m, n = x.shape[0], x.shape[1]
+def gelman_rubin(trace_dists, names=None, iters=None, n_most_frequent=50, figsize=(10, 5), xticks=None, yticks=None, log_xscale=False, log_yscale=True, plot=False, plot_show=True, file_name=None, *args, **kwargs):
+    def _r_hat(values):
+        m, n = values.shape[0], values.shape[1]  # m: number of chains, n: length of chains
         if m < 2:
-            raise ValueError(
-                'Gelman-Rubin diagnostic requires multiple chains '
-                'of the same length.')
-        theta = np.mean(x, axis=1)
-        sigma = np.var(x, axis=1, ddof=1)
-        # theta_m = np.mean(theta, axis=0)
-        theta_m = mu if mu else np.mean(theta, axis=0)
-
-        # Calculate between-chain variance
-        b = float(n) / float(m-1) * np.sum((theta - theta_m) ** 2)
-        # Calculate within-chain variance
-        w = 1. / float(m) * np.sum(sigma, axis=0)
-        # Estimate of marginal posterior variance
-        v_hat = float(n-1) / float(n) * w + b / float(n)
+            raise ValueError('Gelman-Rubin diagnostic requires at least two chains')
+        b = n * np.var(np.mean(values, axis=1), axis=0, ddof=1)  # Between-chain variance
+        w = np.mean(np.var(values, axis=1, ddof=1), axis=0)  # Within-chain variance
+        v_hat = ((n-1) / n) * w + b / n  # Estimate of marginal posterior variance
         r_hat = np.sqrt(v_hat / w)
-        # logger.info('R: max [%f] min [%f]' % (np.max(r_hat), np.min(r_hat)))
         return r_hat
 
-    def rhat(values, iters, num_traces):
+    def _r_hats(values, iters):
         ret = np.zeros_like(iters, dtype=float)
-        num_missing_samples = num_traces - values.shape[1]
-        for i, t in enumerate(iters):
-            ret[i] = np.nan if t <= num_missing_samples else gelman_rubin_diagnostic(values[:, :t-num_missing_samples])
-        # nan is encountered when there is no variance in the values, the following might be used to assign autocorrelation of 1 to such cases
-        # ret[np.isnan(ret)] = 1.
-        # nan is also injected when the values length is less than the trace_dist length
+        for i, iter in enumerate(iters):
+            ret[i] = _r_hat(values[:, :iter])
         return ret
 
-    def single_trace_dist_values(trace_dist, num_traces):
-        if type(trace_dist) != Empirical:
-            raise TypeError('Expecting an MCMC posterior trace distribution, from a call to posterior_traces with an MCMC inference engine.')
-        if type(trace_dist[0]) != Trace:
-            raise TypeError('Expecting an MCMC posterior trace distribution, from a call to posterior_traces with an MCMC inference engine.')
-
-        variable_values = {}
-
-        util.progress_bar_init('Loading selected variables to memory...', num_traces)
-        for i in range(num_traces):
-            trace = trace_dist._get_value(i)
-            name_list = trace.named_variables.keys() if names is None else names
-            for name in name_list:
-                if name not in trace.named_variables:
-                    # This random variable is not sampled in the ith trace
-                    continue
-                variable = trace.named_variables[name]
-                if not variable.control and variable.value.nelement() == 1:
-                    address = variable.address
-                    if (address, name) not in variable_values:
-                        # This is the first trace this random variable sample appeared in
-                        # Initialize values as a vector of nans. nan means the random variable is not appeared
-                        variable_values[(address, name)] = np.ones(num_traces) * np.nan
-                    variable_values[(address, name)][i] = float(trace.named_variables[name].value)
-            util.progress_bar_update(i)
-        print()
-
-        if n_most_frequent is not None:
-            address_counts = {}
-            util.progress_bar_init('Collecting most frequent addresses...', num_traces)
-            for i in range(num_traces):
-                util.progress_bar_update(i)
-                trace = trace_dist._get_value(i)
-                for variable in trace.variables_controlled:
-                    if variable.value.nelement() == 1:
-                        address = variable.address
-                        if address not in address_counts:
-                            address_counts[address] = 1
-                        else:
-                            address_counts[address] += 1
-            address_counts = {k: v for k, v in address_counts.items() if v >= num_traces}
-            address_counts = OrderedDict(sorted(address_counts.items(), key=lambda x: x[1], reverse=True))
-            all_variables_count = 0
-            for address, count in address_counts.items():
-                variable_values[(address, None)] = np.ones(num_traces) * np.nan
-                all_variables_count += 1
-                if all_variables_count == n_most_frequent:
-                    break
-            print()
-            # TODO: populate values variable_values[(address, name)][i] = float(trace.named_variables[name].value)
-            util.progress_bar_init('Collecting most frequent addresses...', num_traces)
-            for i in range(num_traces):
-                util.progress_bar_update(i)
-                trace = trace_dist._get_value(i)
-                for (address, name), value in variable_values.items():
-                    variable_values[(address, name)][i] = float(trace.variables_dict_address[address].value)
-            print()
-        variable_values = OrderedDict(sorted(variable_values.items(), reverse=True))
-        return variable_values
-
-    variable_values = {}
     trace_lengths = [trace.length for trace in trace_dists]
     num_traces = min(trace_lengths)
     if max(trace_lengths) != num_traces:
         print('Distributions have unequal length, setting the length to minimum: {}'.format(num_traces))
 
-    for trace in trace_dists:
-        variable_values = merge_dicts(variable_values, single_trace_dist_values(trace, num_traces))
+    if iters is None:
+        iters = np.unique(np.logspace(0, np.log10(num_traces)).astype(int))
 
-    iters = np.unique(np.logspace(0, np.log10(num_traces)).astype(int))
+    variable_values = {}
+    for trace_dist in trace_dists:
+        vv = _variable_values(trace_dist, names, n_most_frequent, num_traces)
+        for address, v in vv.items():
+            if address in variable_values:
+                variable_values[address]['values'] = np.vstack((variable_values[address]['values'], v['values']))
+            else:
+                variable_values[address] = v
 
-    variable_values = {k: v for k, v in variable_values.items() if v.size == num_traces * (len(trace_dists))}
-    # Fill in the spots where a random variable sample is missing
-    # and remove all the values before its first appearance in all chains.
-    for (address, name), value in variable_values.items():
-        x = np.where(~np.isnan(value)) # Find all nans i.e. missing random variable samples
-        r, c = x
-        first_non_nans = [np.min(c[r == i]) for i in range(value.shape[0]) if i in r] # For each chain, find the first non-nan value
-        starting_col = max(first_non_nans) if first_non_nans else value.shape[1]+1 # Set the starting timestep for all chains
-                                                                                   # i.e. the first time it is sampled in all chains
-        if starting_col != 0:
-            # Remove the initial nans
-            value = value[:, starting_col:]
-            variable_values[(address, name)] = value
-
-        #assert trace_dists[0].length == value.shape[1] + starting_col
-        # Fill in the remaining nans with the last value appeared before them
-        for chain_idx in range(len(trace_dists)):
-            last_value = value[chain_idx, 0]
-            #assert not np.isnan(last_value)
-            for i in range(value.shape[1]):
-                if np.isnan(value[chain_idx, i]):
-                    value[chain_idx, i] = last_value
-                last_value = value[chain_idx, i]
-
-    variable_rhats = {}
-    i = 0
-    for (address, name), values in variable_values.items():
-        i += 1
-        print('Computing R-hat for named variable {} ({} of {})...'.format(name, i, len(variable_values)))
-        variable_rhats[address] = rhat(values, iters, num_traces)
+    for i, (address, v) in enumerate(variable_values.items()):
+        print('Computing R-hat for variable address: {}, name: {} ({} of {})'.format(v['variable'].address, v['variable'].name, i + 1, len(variable_values)))
+        v['rhat'] = _r_hats(v['values'], iters)
 
     if plot:
         if not plot_show:
@@ -768,15 +664,17 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
         fig = plt.figure(figsize=figsize)
         plt.axhline(y=1, linewidth=1, color='black')
         other_legend_added = False
-        for (address, name), values in variable_values.items():
+        for address, v in variable_values.items():
+            name = v['variable'].name
+            rhat = v['rhat']
             if name is None:
                 label = None
                 if not other_legend_added:
                     label = '{} most frequent addresses'.format(len(variable_values))
                     other_legend_added = True
-                plt.plot(iters, variable_rhats[address], *args, **kwargs, linewidth=1, color='gray', label=label)
+                plt.plot(iters, rhat, *args, **kwargs, linewidth=1, color='gray', label=label)
             else:
-                plt.plot(iters, variable_rhats[address], *args, **kwargs, label=name)
+                plt.plot(iters, rhat, *args, **kwargs, label=v['variable'].name)
         if log_xscale:
             plt.xscale('log')
         if log_yscale:
@@ -785,14 +683,14 @@ def gelman_rubin(trace_dists, names=None, n_most_frequent=None, figsize=(10, 5),
             plt.xticks(xticks)
         if yticks is not None:
             plt.xticks(yticks)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
+        plt.xlabel('Iteration')
+        plt.ylabel('R-hat')
         plt.legend(loc='best')
         fig.tight_layout()
         if file_name is not None:
-            print('Plotting to file {} ...'.format(file_name))
+            print('Plotting to file: {}'.format(file_name))
             plt.savefig(file_name)
         if plot_show:
             plt.show()
 
-    return iters, variable_rhats
+    return iters, variable_values

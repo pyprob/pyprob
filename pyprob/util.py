@@ -158,7 +158,7 @@ progress_bar_time_start = None
 progress_bar_prev_duration = None
 
 
-def progress_bar_init(message, num_iters, iter_name='Traces'):
+def progress_bar_init(message, num_iters, iter_name='Items'):
     global progress_bar_num_iters
     global progress_bar_len_str_num_iters
     global progress_bar_time_start
