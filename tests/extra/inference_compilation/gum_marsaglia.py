@@ -72,8 +72,8 @@ def produce_results(results_dir):
     model_replace_false_is_ess = float(model_replace_false_is.effective_sample_size) / infer_traces
     model_replace_true_ic_ess = []
     model_replace_false_ic_ess = []
-    model_replace_true.learn_inference_network(0, batch_size=1, observe_embeddings={'obs0': {}, 'obs1': {}})
-    model_replace_false.learn_inference_network(0, batch_size=1, observe_embeddings={'obs0': {}, 'obs1': {}})
+    model_replace_true.learn_inference_network(0, batch_size=1, observe_embeddings={'obs0': {}, 'obs1': {}}, inference_network=pyprob.InferenceNetwork.LSTM)
+    model_replace_false.learn_inference_network(0, batch_size=1, observe_embeddings={'obs0': {}, 'obs1': {}}, inference_network=pyprob.InferenceNetwork.LSTM)
 
     for train_traces in range(0, train_traces_max+1, train_traces_step):
         print('\ntrain_traces: {}/{}'.format(train_traces, train_traces_max))
