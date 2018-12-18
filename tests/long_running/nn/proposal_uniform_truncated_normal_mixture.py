@@ -28,7 +28,7 @@ class TestDataset(Dataset):
 
 def produce_results(results_dir):
     training_data = 1024
-    training_epochs = 500
+    training_epochs = 2000
     batch_size = 32
     test_iters = 512
 
@@ -50,13 +50,6 @@ def produce_results(results_dir):
             optimizer.zero_grad()
             dist = net.forward(x, [Variable(pyprob.distributions.Uniform(low=-10, high=10))]*batch_size)
             loss = -dist.log_prob(y, sum=True)
-            if pyprob.util.has_nan_or_inf(loss):
-                print(colored('Warning: NaN, -Inf, or Inf encountered.', 'red', attrs=['bold']))
-                print('dist', dist)
-                print('x', x)
-                print('y', y)
-                print('loss', loss)
-                quit()
             loss_epoch += float(loss)
             loss.backward()
             optimizer.step()

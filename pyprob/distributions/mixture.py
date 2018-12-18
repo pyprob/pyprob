@@ -13,7 +13,7 @@ class Mixture(Distribution):
         else:
             self._probs = util.to_tensor(probs)
             self._probs = self._probs / self._probs.sum(-1, keepdim=True)
-        self._log_probs = torch.log(self._probs)
+        self._log_probs = torch.log(util.clamp_probs(self._probs))
 
         event_shape = torch.Size()
         if self._probs.dim() == 1:

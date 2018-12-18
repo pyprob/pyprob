@@ -327,6 +327,12 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
+# From https://github.com/pytorch/pytorch/blob/master/torch/distributions/utils.py
+def clamp_probs(probs):
+    eps = torch.finfo(probs.dtype).eps
+    return probs.clamp(min=eps, max=1 - eps)
+
+
 def init_distributed_print(rank, world_size, debug_print=True):
     if not debug_print:
         if rank > 0:
