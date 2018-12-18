@@ -1,12 +1,13 @@
-import pyprob
-from pyprob.nn import ProposalUniformTruncatedNormalMixture
-from pyprob.trace import Variable
 import torch
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import os
 import shutil
 import matplotlib.pyplot as plt
+
+import pyprob
+from pyprob.nn import ProposalUniformTruncatedNormalMixture
+from pyprob.trace import Variable
 
 
 # Inspired by Thomas Viehmann

@@ -1,9 +1,10 @@
-import pyprob
-import pyprob.diagnostics
 import torch
 import math
 import os
 import shutil
+
+import pyprob
+import pyprob.diagnostics
 from pyprob import Model, InferenceEngine
 from pyprob.distributions import Uniform, Normal
 
