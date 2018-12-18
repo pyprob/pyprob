@@ -49,9 +49,9 @@ class GaussianWithUnknownMeanMarsaglia(Model):
 
 
 def produce_results(results_dir):
-    train_traces_max = 20000
+    train_traces_max = 500000
     train_traces_resolution = 10
-    infer_traces = 1000
+    infer_traces = 10000
     train_traces_step = int(train_traces_max/train_traces_resolution)
     observe = {'obs0': 8, 'obs1': 9}
 
