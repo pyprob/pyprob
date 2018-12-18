@@ -4,6 +4,7 @@ import math
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 
 import pyprob
 from pyprob import Model, InferenceEngine
@@ -49,8 +50,8 @@ class GaussianWithUnknownMeanMarsaglia(Model):
 
 
 def produce_results(results_dir):
-    train_traces_max = 500000
-    train_traces_resolution = 10
+    train_traces_max = 1000000
+    train_traces_resolution = 12
     infer_traces = 10000
     train_traces_step = int(train_traces_max/train_traces_resolution)
     observe = {'obs0': 8, 'obs1': 9}
