@@ -7,7 +7,6 @@ import numpy as np
 import os
 import shutil
 import matplotlib.pyplot as plt
-from termcolor import colored
 
 
 # Inspired by Thomas Viehmann
