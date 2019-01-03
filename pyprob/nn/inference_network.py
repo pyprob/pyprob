@@ -14,7 +14,7 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import Batch, OfflineDataset, SortedTraceSampler, SortedTraceBatchSampler, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
+from . import Batch, OfflineDataset, SortedTraceSampler, SortedTraceBatchSampler,SortedTraceBatchSamplerDistributed, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 from .. import __version__, util, Optimizer, ObserveEmbedding
 
 
@@ -282,7 +282,7 @@ class InferenceNetwork(nn.Module):
             dist.init_process_group(backend=distributed_backend)
             distributed_world_size = dist.get_world_size()
             distributed_rank = dist.get_rank()
-            util.init_distributed_print(distributed_rank, distributed_world_size, False)
+            util.init_distributed_print(distributed_rank, distributed_world_size, True)
             print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
             print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
             print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
@@ -316,10 +316,12 @@ class InferenceNetwork(nn.Module):
         time_since_loss_min_str = ''
         last_auto_save_time = time.time() - save_every_sec
         if isinstance(dataset, OfflineDataset) and (distributed_world_size == 1):
-            dataloader_epoch_one = DataLoader(dataset, batch_sampler=SortedTraceBatchSampler(dataset, batch_size=batch_size, shuffle=False), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+            #dataloader_epoch_one = DataLoader(dataset, batch_sampler=SortedTraceBatchSampler(dataset, batch_size=batch_size, shuffle=False), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+            dataloader_epoch_one = DataLoader(dataset, batch_sampler=SortedTraceBatchSamplerDistributed(dataset, batch_size=batch_size,num_replicas=distributed_world_size,rank=distributed_rank, shuffle=False), num_workers=dataloader_offline_num_workers, collate_fn =lambda x: Batch(x))
             dataloader_epoch_all = DataLoader(dataset, batch_sampler=SortedTraceBatchSampler(dataset, batch_size=batch_size, shuffle=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
         else:
-            dataloader_epoch_one = DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
+            #dataloader_epoch_one = DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
+            dataloader_epoch_one = DataLoader(dataset, batch_sampler=SortedTraceBatchSamplerDistributed(dataset, batch_size=batch_size,num_replicas=distributed_world_size,rank=distributed_rank, shuffle=False), num_workers=dataloader_offline_num_workers, collate_fn =lambda x: Batch(x))
             dataloader_epoch_all = dataloader_epoch_one
         if dataset_valid is not None:
             dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
@@ -327,6 +329,7 @@ class InferenceNetwork(nn.Module):
             epoch += 1
             dataloader = dataloader_epoch_one if epoch == 1 else dataloader_epoch_all
             for i_batch, batch in enumerate(dataloader):
+                x=copy.deepcopy(batch)
                 # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
                 if (distributed_world_size > 1) and (iteration % distributed_params_sync_every == 0):
                     self._distributed_sync_parameters()
@@ -393,7 +396,8 @@ class InferenceNetwork(nn.Module):
                     traces_per_second_str = '{:,.1f}'.format(int(batch.size * distributed_world_size / (time.time() - time_last_batch)))
                     time_last_batch = time.time()
                     if num_traces is not None:
-                        if trace >= num_traces:
+#                        if trace >= num_traces:
+                         if self._total_train_traces >= num_traces:
                             stop = True
 
                     self._history_train_loss.append(loss)
@@ -411,19 +415,19 @@ class InferenceNetwork(nn.Module):
                             self._history_valid_loss_trace.append(self._total_train_traces)
                             last_validation_trace = trace - 1
 
-                            if distributed_world_size > 1:
-                                self._distributed_update_train_loss(loss, distributed_world_size)
-                                self._distributed_update_valid_loss(valid_loss, distributed_world_size)
+#                            if distributed_world_size > 1:
+#                                self._distributed_update_train_loss(loss, distributed_world_size)
+#                                self._distributed_update_valid_loss(valid_loss, distributed_world_size)
 
-                    if (distributed_world_size > 1) and (iteration % distributed_loss_update_every == 0):
-                        self._distributed_update_train_loss(loss, distributed_world_size)
+#                    if (distributed_world_size > 1) and (iteration % distributed_loss_update_every == 0):
+#                        self._distributed_update_train_loss(loss, distributed_world_size)
 
-                    if (distributed_rank == 0) and (save_file_name_prefix is not None):
-                        if time.time() - last_auto_save_time > save_every_sec:
-                            last_auto_save_time = time.time()
-                            file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
-                            print('\rSaving to disk...  ', end='\r')
-                            self._save(file_name)
+         #           if (distributed_rank == 0) and (save_file_name_prefix is not None):
+         #               if time.time() - last_auto_save_time > save_every_sec:
+         #                   last_auto_save_time = time.time()
+         #                   file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
+         #                   print('\rSaving to disk...  ', end='\r')
+         #                   self._save(file_name)
 
                     print_line = '{} | {} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
                     max_print_line_len = max(len(print_line), max_print_line_len)
@@ -433,8 +437,7 @@ class InferenceNetwork(nn.Module):
                         break
                 iteration += 1
 
-        print()
-        if (distributed_rank == 0) and (save_file_name_prefix is not None):
-            file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
-            print('\rSaving to disk...  ', end='\r')
-            self._save(file_name)
+        #if (distributed_rank == 0) and (save_file_name_prefix is not None):
+        #    file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
+        #    print('\rSaving to disk...  ', end='\r')
+        #    self._save(file_name)

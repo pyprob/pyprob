@@ -175,8 +175,8 @@ class OfflineDataset(ConcatDataset):
         print('Num. trace types: {:,}'.format(len(set(self._hashes))))
         hashes_and_counts = OrderedDict(sorted(Counter(self._hashes).items()))
         print('Trace hash\tCount')
-        for hash, count in hashes_and_counts.items():
-            print('{:.8f}\t{}'.format(hash, count))
+        #for hash, count in hashes_and_counts.items():
+        #    print('{:.8f}\t{}'.format(hash, count))
         print()
 
     def _compute_hashes(self):
@@ -214,7 +214,35 @@ class SortedTraceBatchSampler(Sampler):
     def __iter__(self):
         if self._shuffle:
             np.random.shuffle(self._batches)
+        #for i in range(16):
+        #    print ("batches:%s\n"%self._batches[i])
         return iter(self._batches)
 
     def __len__(self):
         return len(self._batches)
+
+class SortedTraceBatchSamplerDistributed(Sampler):
+    def __init__(self, offline_dataset, batch_size,num_replicas=None, rank=None, shuffle=False):
+        self._batches = list(util.chunks(offline_dataset._sorted_indices, batch_size))
+        self._shuffle = shuffle
+        if num_replicas is None:
+           if not dist.is_available():
+              raise RuntimeError("Requires distributed package to be available")
+           num_replicas = dist.get_world_size()
+        if rank is None:
+           rank = dist.get_rank()
+        self.dataset = offline_dataset
+        self.num_replicas = num_replicas
+        self.rank = rank
+        self.num_local_batches = int (math.ceil(len(self._batches) * 1.0 / self.num_replicas))
+        self.total_size = self.num_local_batches * self.num_replicas
+    def __iter__(self):
+        local_batches = self._batches[self.rank:self.total_size:self.num_replicas][0:self.num_local_batches]
+        #for i in range(8):
+        #    print ("Rank:%d,local batches:%s"%(self.rank,local_batches[i]))
+        if self._shuffle:
+            np.random.shuffle(local_batches)
+        return iter(local_batches)
+
+    def __len__(self):
+        return self.num_local_batches
