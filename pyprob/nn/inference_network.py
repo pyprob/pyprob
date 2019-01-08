@@ -226,10 +226,13 @@ class InferenceNetwork(nn.Module):
         util.progress_bar_end('Layer pre-generation complete')
 
     def _distributed_sync_parameters(self):
+        x=0
         """ broadcast rank 0 parameter to all ranks """
         # print('Distributed training synchronizing parameters across nodes...')
         for param in self.parameters():
+            x+=sys.getsizeof(param.data)
             dist.broadcast(param.data, 0)
+        print ("total size of param.data:%f bytes"%(x))
 
     def _distributed_zero_grad(self):
         # Create zero tensors for gradients not initialized at this distributed training rank
@@ -329,9 +332,12 @@ class InferenceNetwork(nn.Module):
             epoch += 1
             dataloader = dataloader_epoch_one if epoch == 1 else dataloader_epoch_all
             for i_batch, batch in enumerate(dataloader):
-                x=copy.deepcopy(batch)
+                #x=copy.deepcopy(batch)
                 # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
                 if (distributed_world_size > 1) and (iteration % distributed_params_sync_every == 0):
+                    if (distributed_rank ==0): 
+                       print ("Number of Parameters need to be broadcasted:%d"%len(list(self.parameters())))
+                       #print ("Size of total parameters:%f bytes"%(sizeof(self.parameters())))
                     self._distributed_sync_parameters()
 
                 if self._layers_pre_generated:  # and (distributed_world_size > 1):
