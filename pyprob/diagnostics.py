@@ -11,6 +11,7 @@ from . import __version__, util
 from .distributions import Empirical
 from .graph import Graph
 from .trace import Trace
+from . import learn_kernel
 
 
 def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_stats=None):
@@ -545,6 +546,7 @@ def _variable_values(trace_dist, names=None, n_most_frequent=None, num_traces=No
         addresses = _n_most_frequent_addresses(trace_dist, n_most_frequent, num_traces)
         for address in addresses:
             variable = trace_dist[0].variables_dict_address[address]
+            print(variable.name)
             if variable.value.nelement() == 1:
                 variable_values[variable.address]['variable'] = variable
 
@@ -656,6 +658,171 @@ def gelman_rubin(trace_dists, names=None, iters=None, n_most_frequent=50, figsiz
     for i, (address, v) in enumerate(variable_values.items()):
         print('Computing R-hat for variable address: {}, name: {} ({} of {})'.format(v['variable'].address, v['variable'].name, i + 1, len(variable_values)))
         v['rhat'] = _r_hats(v['values'], iters)
+
+    if plot:
+        if not plot_show:
+            mpl.rcParams['axes.unicode_minus'] = False
+            plt.switch_backend('agg')
+        fig = plt.figure(figsize=figsize)
+        plt.axhline(y=1, linewidth=1, color='black')
+        other_legend_added = False
+        for address, v in variable_values.items():
+            name = v['variable'].name
+            rhat = v['rhat']
+            if name is None:
+                label = None
+                if not other_legend_added:
+                    label = '{} most frequent addresses'.format(len(variable_values))
+                    other_legend_added = True
+                plt.plot(iters, rhat, *args, **kwargs, linewidth=1, color='gray', label=label)
+            else:
+                plt.plot(iters, rhat, *args, **kwargs, label=v['variable'].name)
+        if log_xscale:
+            plt.xscale('log')
+        if log_yscale:
+            plt.yscale('log', nonposy='clip')
+        if xticks is not None:
+            plt.xticks(xticks)
+        if yticks is not None:
+            plt.xticks(yticks)
+        plt.xlabel('Iteration')
+        plt.ylabel('R-hat')
+        plt.legend(loc='best')
+        fig.tight_layout()
+        if file_name is not None:
+            print('Plotting to file: {}'.format(file_name))
+            plt.savefig(file_name)
+        if plot_show:
+            plt.show()
+
+    return iters, variable_values
+
+
+def mmd(trace_dist_p, trace_dist_q, names=None, iters=None, n_most_frequent=50, figsize=(10, 5), xticks=None, yticks=None, log_xscale=False, log_yscale=True, plot=False, plot_show=True, file_name=None,
+        test_set_portion=0.2, mmd_criterion='ratio', mmd_biased_est=False, mmd_streaming_est=False, mmd_linear_kernel=False, mmd_opt_log=True, mmd_sigma=1, mmd_init_sigma_median=False, mmd_opt_sigma=False,
+        mmd_net_version='nothing', mmd_num_epochs=200, mmd_batchsize=200, mmd_val_batchsize=1000, mmd_log_params=False, mmd_null_samples=1000, verbose=False, *args, **kwargs):
+    # This diagnostic uses the moethod proposed in:
+    # Sutherland et al. "Generative Models and Model Criticism via Optimized Maximum Mean Discrepancy", ICLR 2017.
+    # The implementation of the paper is here: https://github.com/dougalsutherland/opt-mmd
+
+    '''
+    Arguments
+    ---------
+    mmd_criterion {'ratio', 'mmd' , 'hotelling'}
+                            'ratio': Maximize the t-statistic estimator.
+                            'mmd': Maximize the MMD estimator.
+                            'hotelling': Maximize the Hotelling test statistics; only works with a linear kernel.
+    mmd_biased_est          Use the biased quadratic MMD estimator.
+    mmd_streaming_est       Use the streaming estimator for the MMD; faster but
+                            much less powerful.
+    mmd_linear_kernel       Use a linear kernel; if false, uses RBF kernel (default).
+    mmd_opt_log             Optimize the log of the criterion; true by default.
+    mmd_sigma               The initial bandwidth. default 1.
+    mmd_init_sigma_median   Initialize the bandwidth as the median of pairwise
+                            distances between representations of the training
+                            data.
+    mmd_opt_sigma           Optimize the bandwidth of an RBF kernel; default
+                            don't.
+    mmd_net_version {'basic', 'nothing', 'rbf', 'scaling', 'scaling-exp', 'scf'}
+                            How to represent the values before putting them in the
+                            kernel. Options defined in this file; default
+                            'nothing'.
+    mmd_num_epochs          Number of epochs for trainig learning kernel.
+                            default 200.
+    mmd_batchsize           Training batch size. default 200
+    mmd_val_batchsize       Balidation batch size. default 1000
+    mmd_log_params          Log the network parameters at every iteratio.
+                            default don't.
+    mmd_null_samples        How many times to sample from the null distribution
+                            to perform MMD test. default 1000.
+    verbose                 Will be forwarded to mmd training function. If
+                            true, some info (number of parameters to optimize,
+                            number of epochs passed, etc.) will be printed.
+    '''
+
+    # TODO: support for multi-dimensinal samples.
+    # TODO: cleanup verbose for learn_kernel and mmd evaluation.
+    trace_lengths = [trace.length for trace in [trace_dist_p, trace_dist_q]]
+    num_traces = min(trace_lengths)
+    if max(trace_lengths) != num_traces:
+        print('Distributions have unequal length, setting the length to minimum: {}'.format(num_traces))
+
+    variable_values_p = _variable_values(trace_dist_p, names, n_most_frequent, num_traces)
+    variable_values_q = _variable_values(trace_dist_q, names, n_most_frequent, num_traces)
+    # Remove 'nan's from sampled values
+    for variable_values in [variable_values_p, variable_values_q]:
+        for address, v in variable_values.items():
+            new_values_np = v['values']
+            new_values_np = new_values_np[~np.isnan(new_values_np)]
+            v['values'] = new_values_np
+            variable_values[address] = v
+
+    variable_values = {}    # Will contain aggregated values and mmd.
+    for i, (address, v),  in enumerate(variable_values_p.items()):
+        if v['variable'].observed:
+            # Do not perform MMD test on observed variables
+            continue
+        variable_info_log = 'address: {}, name: {} ({} of {})'.format(v['variable'].address, v['variable'].name, i + 1, len(variable_values_p))
+        if address not in variable_values_q:
+            print('Variable not found in q distribution. It will be ignored. ({})'.format(variable_info_log))
+            continue
+        v_q = variable_values_q[address]['values'] # Get the samples for the same address from the other distribution
+        v_p = v['values']
+        if v_p.ndim == 1:
+            v_p = v_p.reshape(-1,1)
+        if v_q.ndim == 1:
+            v_q = v_q.reshape(-1, 1)
+        num_samples = min(len(v_p), len(v_q))
+        # Remove extra samples from the larger sample set.
+        if len(v_p) > len(v_q):
+            v_p = np.random.choice(v_p, num_samples, replace=False)
+        elif len(v_q) > len(v_p):
+            v_q = np.random.choice(v_q, num_samples, replace=False)
+
+        n_test = int(num_samples * test_set_portion)
+        n_train = num_samples - n_test
+        if n_test == 0:
+            print('Too few samples ({}) exists. It will be ignored. ({})'.format(variable_info_log))
+            continue
+
+        X, Y = v_p, v_q
+        is_train = np.zeros(n_train + n_test, dtype=bool)
+        is_train[np.random.choice(n_train + n_test, n_train, replace=False)] = True
+        X_train = X[is_train]
+        Y_train = Y[is_train]
+        X_test = X[~is_train]
+        Y_test = Y[~is_train]
+        print('Optimizing MMD kernel for variable {}'.format(variable_info_log))
+        params, param_names, get_rep, value_log, sigma = learn_kernel.train(
+            X_train, Y_train, X_test, Y_test,
+            criterion=mmd_criterion,
+            biased=mmd_biased_est,
+            hotelling_reg=0,
+            streaming_est=mmd_streaming_est,
+            linear_kernel=mmd_linear_kernel,
+            opt_log=mmd_opt_log,
+            init_log_sigma=np.log(mmd_sigma),
+            init_sigma_median=mmd_init_sigma_median,
+            opt_sigma=mmd_opt_sigma,
+            net_version=mmd_net_version,
+            num_epochs=mmd_num_epochs,
+            batchsize=mmd_batchsize,
+            val_batchsize=mmd_val_batchsize,
+            opt_strat='adam',
+            log_params=mmd_log_params,
+            verbose=verbose,
+            **kwargs)
+        print('Computing MMD for variable address: {}, name: {} ({} of {})'.format(v['variable'].address, v['variable'].name, i + 1, len(variable_values)))
+        p_val, stat, null_samps = learn_kernel.eval_rep(
+            get_rep, X_test, Y_test,
+            linear_kernel=mmd_linear_kernel, sigma=sigma,
+            hotelling=mmd_criterion == 'hotelling',
+            null_samples=mmd_null_samples)
+        v['values_p'] = X
+        v['values_q'] = Y
+        v.pop('values')
+        v['mmd'] = p_val
+        variable_values[address] = v
 
     if plot:
         if not plot_show:
