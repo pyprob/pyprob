@@ -11,7 +11,7 @@ from . import __version__, util
 from .distributions import Empirical
 from .graph import Graph
 from .trace import Trace
-from . import learn_kernel
+from .mmd import learn_kernel
 
 
 def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_stats=None):
