@@ -4,7 +4,7 @@ import torch.nn as nn
 from .. import util
 
 
-class EmbeddingCNN3D4C(nn.Module):
+class EmbeddingCNN3D5C(nn.Module):
     def __init__(self, input_shape, output_shape):
         super().__init__()
         self._input_shape = util.to_size(input_shape)  # expecting 4d: [channels, depth, height, width]
@@ -15,6 +15,7 @@ class EmbeddingCNN3D4C(nn.Module):
         self._conv2 = nn.Conv3d(64, 64, 3)
         self._conv3 = nn.Conv3d(64, 128, 3)
         self._conv4 = nn.Conv3d(128, 128, 3)
+        self._conv5 = nn.Conv3d(128, 128, 3)
         cnn_output_dim = self._forward_cnn(torch.zeros(self._input_shape).unsqueeze(0)).nelement()
         self._lin1 = nn.Linear(cnn_output_dim, self._output_dim)
         self._lin2 = nn.Linear(self._output_dim, self._output_dim)
@@ -25,6 +26,7 @@ class EmbeddingCNN3D4C(nn.Module):
         x = nn.MaxPool3d(2)(x)
         x = torch.relu(self._conv3(x))
         x = torch.relu(self._conv4(x))
+        x = torch.relu(self._conv5(x))
         x = nn.MaxPool3d(2)(x)
         return x
 

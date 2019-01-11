@@ -16,21 +16,6 @@ class InferenceNetworkFeedForward(InferenceNetwork):
     def _init_layers(self):
         pass
 
-    def _infer_step(self, variable, previous_variable=None, proposal_min_train_iterations=None):
-        address = variable.address
-        distribution = variable.distribution
-        if address in self._layer_proposal:
-            proposal_layer = self._layer_proposal[address]
-            if proposal_min_train_iterations is not None:
-                if proposal_layer._total_train_iterations < proposal_min_train_iterations:
-                    print(colored('Warning: using prior, proposal not sufficiently trained ({}/{}) for address: {}'.format(proposal_layer._total_train_iterations, proposal_min_train_iterations, address), 'yellow', attrs=['bold']))
-                    return distribution
-            proposal_distribution = proposal_layer.forward(self._infer_observe_embedding, [variable])
-            return proposal_distribution
-        else:
-            print(colored('Warning: using prior, no proposal layer for address: {}'.format(address), 'yellow', attrs=['bold']))
-            return distribution
-
     def _polymorph(self, batch):
         layers_changed = False
         for sub_batch in batch.sub_batches:
@@ -40,7 +25,7 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                 distribution = variable.distribution
                 variable_shape = variable.value.shape
                 if address not in self._layer_proposal:
-                    print('New proposal layer for address: {}'.format(util.truncate_str(address)))
+                    print('New layers, distribution: {}, address: {}'.format(distribution.name, util.truncate_str(address)))
                     if isinstance(distribution, Normal):
                         layer = ProposalNormalNormalMixture(self._observe_embedding_dim, variable_shape)
                     elif isinstance(distribution, Uniform):
@@ -60,6 +45,21 @@ class InferenceNetworkFeedForward(InferenceNetwork):
             self._history_num_params.append(num_params)
             self._history_num_params_trace.append(self._total_train_traces)
         return layers_changed
+
+    def _infer_step(self, variable, prev_variable=None, proposal_min_train_iterations=None):
+        address = variable.address
+        distribution = variable.distribution
+        if address in self._layer_proposal:
+            proposal_layer = self._layer_proposal[address]
+            if proposal_min_train_iterations is not None:
+                if proposal_layer._total_train_iterations < proposal_min_train_iterations:
+                    print(colored('Warning: using prior, proposal not sufficiently trained ({}/{}) for address: {}'.format(proposal_layer._total_train_iterations, proposal_min_train_iterations, address), 'yellow', attrs=['bold']))
+                    return distribution
+            proposal_distribution = proposal_layer.forward(self._infer_observe_embedding, [variable])
+            return proposal_distribution
+        else:
+            print(colored('Warning: using prior, no proposal layer for address: {}'.format(address), 'yellow', attrs=['bold']))
+            return distribution
 
     def _loss(self, batch):
         batch_loss = 0

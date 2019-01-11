@@ -277,7 +277,7 @@ model.learn_inference_network(num_traces=20000,
   - `dim`: Specifies dimension of the embedding. Default value is 256.
   - `embedding`: Specifies the network type. By default, it is a fully connected
     network. It currently supports `util.ObserveEmbedding.FEEDFORWARD`,
-    `util.ObserveEmbedding.CNN2D5C` and `util.ObserveEmbedding.CNN3D4C`. Please
+    `util.ObserveEmbedding.CNN2D5C` and `util.ObserveEmbedding.CNN3D5C`. Please
     refer to
     [pyprob/nn/emdebbing_*.py](https://github.com/probprog/pyprob/tree/master/pyprob/nn/)
     for a list of supported network types and their definition.
