@@ -300,8 +300,8 @@ posterior = model.posterior_distribution(
 ### More examples
 
 The [examples](https://github.com/probprog/pyprob/tree/master/examples) folder
-(to come) in this repository provides some working models and inference
-workflows as Jupyter notebooks.
+in this repository provides some working models and inference workflows
+as Jupyter notebooks.
 
 A set of continuous integration
 [tests](https://github.com/probprog/pyprob/tree/master/tests) are available in
