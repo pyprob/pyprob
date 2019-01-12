@@ -698,7 +698,7 @@ def gelman_rubin(trace_dists, names=None, iters=None, n_most_frequent=50, figsiz
     return iters, variable_values
 
 
-def mmd(trace_dist_p, trace_dist_q, names=None, iters=None, n_most_frequent=50, figsize=(10, 5), xticks=None, yticks=None, log_xscale=False, log_yscale=True, plot=False, plot_show=True, file_name=None,
+def mmd(trace_dist_p, trace_dist_q, names=None, n_most_frequent=50,
         test_set_portion=0.2, mmd_criterion='ratio', mmd_biased_est=False, mmd_streaming_est=False, mmd_linear_kernel=False, mmd_opt_log=True, mmd_sigma=1, mmd_init_sigma_median=False, mmd_opt_sigma=False,
         mmd_net_version='nothing', mmd_num_epochs=200, mmd_batchsize=200, mmd_val_batchsize=1000, mmd_log_params=False, mmd_null_samples=1000, verbose=False, *args, **kwargs):
     # This diagnostic uses the moethod proposed in:
@@ -738,6 +738,20 @@ def mmd(trace_dist_p, trace_dist_q, names=None, iters=None, n_most_frequent=50, 
     verbose                 Will be forwarded to mmd training function. If
                             true, some info (number of parameters to optimize,
                             number of epochs passed, etc.) will be printed.
+
+    Returns
+    -------
+    variable_values         A dictionary of sample addresses to their analysis.
+                            The analysis itself is a dictronary with the
+                            following specifications: (key -> value)
+                            'variable' -> an object of type Variable containing
+                                          the random variable specifications.
+                            'values_p' -> numpy array of sampled values in P distribution
+                                          (shape: nxd, where n is the number of samples and d is the size of each sampled value)
+                            'values_q' -> numpy array of sampled values in Q distribution
+                                          (shape: nxd, as above)
+                            'mmd' -> The MMD test statistic.
+                            'p_val' -> The obtained p value of the MMD test.
     '''
 
     # TODO: support for multi-dimensinal samples.
@@ -818,46 +832,12 @@ def mmd(trace_dist_p, trace_dist_q, names=None, iters=None, n_most_frequent=50, 
             linear_kernel=mmd_linear_kernel, sigma=sigma,
             hotelling=mmd_criterion == 'hotelling',
             null_samples=mmd_null_samples)
+        #print('p-value = {}\nstat = {}\nnull-samps = {}'.format(p_val, stat, null_samps))
         v['values_p'] = X
         v['values_q'] = Y
         v.pop('values')
-        v['mmd'] = p_val
+        v['mmd'] = stat
+        v['p_val'] = p_val
         variable_values[address] = v
 
-    if plot:
-        if not plot_show:
-            mpl.rcParams['axes.unicode_minus'] = False
-            plt.switch_backend('agg')
-        fig = plt.figure(figsize=figsize)
-        plt.axhline(y=1, linewidth=1, color='black')
-        other_legend_added = False
-        for address, v in variable_values.items():
-            name = v['variable'].name
-            rhat = v['rhat']
-            if name is None:
-                label = None
-                if not other_legend_added:
-                    label = '{} most frequent addresses'.format(len(variable_values))
-                    other_legend_added = True
-                plt.plot(iters, rhat, *args, **kwargs, linewidth=1, color='gray', label=label)
-            else:
-                plt.plot(iters, rhat, *args, **kwargs, label=v['variable'].name)
-        if log_xscale:
-            plt.xscale('log')
-        if log_yscale:
-            plt.yscale('log', nonposy='clip')
-        if xticks is not None:
-            plt.xticks(xticks)
-        if yticks is not None:
-            plt.xticks(yticks)
-        plt.xlabel('Iteration')
-        plt.ylabel('R-hat')
-        plt.legend(loc='best')
-        fig.tight_layout()
-        if file_name is not None:
-            print('Plotting to file: {}'.format(file_name))
-            plt.savefig(file_name)
-        if plot_show:
-            plt.show()
-
-    return iters, variable_values
+    return variable_values
