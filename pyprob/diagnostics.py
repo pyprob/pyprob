@@ -546,7 +546,6 @@ def _variable_values(trace_dist, names=None, n_most_frequent=None, num_traces=No
         addresses = _n_most_frequent_addresses(trace_dist, n_most_frequent, num_traces)
         for address in addresses:
             variable = trace_dist[0].variables_dict_address[address]
-            print(variable.name)
             if variable.value.nelement() == 1:
                 variable_values[variable.address]['variable'] = variable
 
@@ -832,7 +831,6 @@ def mmd(trace_dist_p, trace_dist_q, names=None, n_most_frequent=50,
             linear_kernel=mmd_linear_kernel, sigma=sigma,
             hotelling=mmd_criterion == 'hotelling',
             null_samples=mmd_null_samples)
-        #print('p-value = {}\nstat = {}\nnull-samps = {}'.format(p_val, stat, null_samps))
         v['values_p'] = X
         v['values_q'] = Y
         v.pop('values')
