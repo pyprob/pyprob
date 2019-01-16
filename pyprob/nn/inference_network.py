@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.distributed as dist
+#import torch.distributed as dist
+import horovod.torch as hvd #Lei
 from torch.utils.data import DataLoader
 import sys
 import time
@@ -228,46 +229,47 @@ class InferenceNetwork(nn.Module):
     def _distributed_sync_parameters(self):
         """ broadcast rank 0 parameter to all ranks """
         # print('Distributed training synchronizing parameters across nodes...')
-        for param in self.parameters():
-            dist.broadcast(param.data, 0)
+        #for param in self.parameters():
+        #    dist.broadcast(param.data, 0)
+        hvd.broadcast_parameters(self.state_dict(), root_rank=0)
 
-    def _distributed_zero_grad(self):
-        # Create zero tensors for gradients not initialized at this distributed training rank
-        # print('Distributed zeroing gradients...')
-        for param in self.parameters():
-            # if (param.grad is None):
-            param.grad = util.to_tensor(torch.zeros_like(param.data))
+    #def _distributed_zero_grad(self):
+    #    # Create zero tensors for gradients not initialized at this distributed training rank
+    #    # print('Distributed zeroing gradients...')
+    #    for param in self.parameters():
+    #        # if (param.grad is None):
+    #        param.grad = util.to_tensor(torch.zeros_like(param.data))
 
-    def _distributed_sync_grad(self, world_size):
-        """ all_reduce grads from all ranks """
-        # print('Distributed training synchronizing gradients across nodes...')
-        for param in self.parameters():
-            try:
-                dist.all_reduce(param.grad.data)
-                param.grad.data /= float(world_size)  # average gradients
-            except AttributeError:
-                # pass
-                print('None for grad, with param.size=', param.size())
+    #def _distributed_sync_grad(self, world_size):
+    #    """ all_reduce grads from all ranks """
+    #    # print('Distributed training synchronizing gradients across nodes...')
+    #    for param in self.parameters():
+    #        try:
+    #            dist.all_reduce(param.grad.data)
+    #            param.grad.data /= float(world_size)  # average gradients
+    #        except AttributeError:
+    #            # pass
+    #            print('None for grad, with param.size=', param.size())
 
-    def _distributed_update_train_loss(self, loss, world_size):
-        self._distributed_train_loss = util.to_tensor(float(loss))
-        dist.all_reduce(self._distributed_train_loss)
-        self._distributed_train_loss /= float(world_size)
-        self._distributed_history_train_loss.append(float(self._distributed_train_loss))
-        self._distributed_history_train_loss_trace.append(self._total_train_traces)
-        if float(self._distributed_train_loss) < self._distributed_train_loss_min:
-            self._distributed_train_loss_min = float(self._distributed_train_loss)
-        print(colored('Distributed mean train. loss across ranks : {:+.2e}, min. train. loss: {:+.2e}'.format(self._distributed_train_loss, self._distributed_train_loss_min), 'yellow', attrs=['bold']))
+    #def _distributed_update_train_loss(self, loss, world_size):
+    #    self._distributed_train_loss = util.to_tensor(float(loss))
+    #    dist.all_reduce(self._distributed_train_loss)
+    #    self._distributed_train_loss /= float(world_size)
+    #    self._distributed_history_train_loss.append(float(self._distributed_train_loss))
+    #    self._distributed_history_train_loss_trace.append(self._total_train_traces)
+    #    if float(self._distributed_train_loss) < self._distributed_train_loss_min:
+    #        self._distributed_train_loss_min = float(self._distributed_train_loss)
+    #    print(colored('Distributed mean train. loss across ranks : {:+.2e}, min. train. loss: {:+.2e}'.format(self._distributed_train_loss, self._distributed_train_loss_min), 'yellow', attrs=['bold']))
 
-    def _distributed_update_valid_loss(self, loss, world_size):
-        self._distributed_valid_loss = util.to_tensor(float(loss))
-        dist.all_reduce(self._distributed_valid_loss)
-        self._distributed_valid_loss /= float(world_size)
-        self._distributed_history_valid_loss.append(float(self._distributed_valid_loss))
-        self._distributed_history_valid_loss_trace.append(self._total_train_traces)
-        if float(self._distributed_valid_loss) < self._distributed_valid_loss_min:
-            self._distributed_valid_loss_min = float(self._distributed_valid_loss)
-        print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
+    #def _distributed_update_valid_loss(self, loss, world_size):
+    #    self._distributed_valid_loss = util.to_tensor(float(loss))
+    #    dist.all_reduce(self._distributed_valid_loss)
+    #    self._distributed_valid_loss /= float(world_size)
+    #    self._distributed_history_valid_loss.append(float(self._distributed_valid_loss))
+    #    self._distributed_history_valid_loss_trace.append(self._total_train_traces)
+    #    if float(self._distributed_valid_loss) < self._distributed_valid_loss_min:
+    #        self._distributed_valid_loss_min = float(self._distributed_valid_loss)
+    #    print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
 
     def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_loss_update_every=None, dataloader_offline_num_workers=0, stop_with_bad_loss=False, *args, **kwargs):
         if not self._layers_initialized:
@@ -275,14 +277,21 @@ class InferenceNetwork(nn.Module):
             self._init_layers()
             self._layers_initialized = True
 
+        hvd.init()
+        distributed_world_size = hvd.size()
+        distributed_rank = hvd.rank()
+
         if distributed_backend is None:
             distributed_world_size = 1
             distributed_rank = 0
         else:
-            dist.init_process_group(backend=distributed_backend)
-            distributed_world_size = dist.get_world_size()
-            distributed_rank = dist.get_rank()
-            util.init_distributed_print(distributed_rank, distributed_world_size, False)
+            #dist.init_process_group(backend=distributed_backend)
+            #distributed_world_size = dist.get_world_size()
+            #distributed_rank = dist.get_rank()
+            #hvd.init()
+            #distributed_world_size = hvd.size()
+            #distributed_rank = hvd.rank()
+            util.init_distributed_print(distributed_rank, distributed_world_size,True)
             print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
             print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
             print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
@@ -323,29 +332,61 @@ class InferenceNetwork(nn.Module):
             dataloader_epoch_all = dataloader_epoch_one
         if dataset_valid is not None:
             dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
+
+#        num_params=0
+#        for p in self.parameters():
+#            num_params += p.nelement()
+#        num_named_param = 0
+#        for k, p in self.named_parameters():
+#            num_named_param +=p.nelement()
+#        totsize=sum(p.numel() for p in self.parameters() if p.requires_grad)
+#        print("num_param={}".format(num_params))
+#        print("num_named_param={}".format(num_named_param))
+#        print("total size of params need grad={}".format(totsize))
+
+
+       # for horovod test:
+        self._distributed_sync_parameters()
+        if self._layers_pre_generated:  # and (distributed_world_size > 1):
+            layers_changed = False
+        else:
+            layers_changed = self._polymorph(batch)
+
+        if (self._optimizer is None) or layers_changed:
+            if optimizer_type == Optimizer.ADAM:
+                self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * distributed_world_size, weight_decay=weight_decay)
+            else:  # optimizer_type == Optimizer.SGD
+                self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * distributed_world_size, momentum=momentum, nesterov=True, weight_decay=weight_decay)
+        self._optimizer=hvd.DistributedOptimizer(self._optimizer, named_parameters=self.named_parameters(), compression = hvd.Compression.none)
+
         while not stop:
             epoch += 1
             dataloader = dataloader_epoch_one if epoch == 1 else dataloader_epoch_all
             for i_batch, batch in enumerate(dataloader):
                 # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
-                if (distributed_world_size > 1) and (iteration % distributed_params_sync_every == 0):
-                    self._distributed_sync_parameters()
+                #if (distributed_world_size > 1) and (iteration % distributed_params_sync_every == 0):
+                #    self._distributed_sync_parameters()
 
-                if self._layers_pre_generated:  # and (distributed_world_size > 1):
-                    layers_changed = False
-                else:
-                    layers_changed = self._polymorph(batch)
+                #if self._layers_pre_generated:  # and (distributed_world_size > 1):
+                #    layers_changed = False
+                #else:
+                #    layers_changed = self._polymorph(batch)
 
-                if (self._optimizer is None) or layers_changed:
-                    if optimizer_type == Optimizer.ADAM:
-                        self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * distributed_world_size, weight_decay=weight_decay)
-                    else:  # optimizer_type == Optimizer.SGD
-                        self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * distributed_world_size, momentum=momentum, nesterov=True, weight_decay=weight_decay)
+                #if (self._optimizer is None) or layers_changed:
+                #    if optimizer_type == Optimizer.ADAM:
+                #        self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * distributed_world_size, weight_decay=weight_decay)
+                #    else:  # optimizer_type == Optimizer.SGD
+                #        self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * distributed_world_size, momentum=momentum, nesterov=True, weight_decay=weight_decay)
+                #self._optimizer=hvd.DistributedOptimizer(self._optimizer,named_parameters=self.named_parameters())
+#                self._optimizer=hvd.DistributedOptimizer(self._optimizer, named_parameters=self.named_parameters(), compression = hvd.Compression.none, backward_passes_per_step=1)
+#                self._optimizer=hvd.DistributedOptimizer(self._optimizer, named_parameters=self.named_parameters(), compression = hvd.Compression.none)
+                #self._optimizer=hvd.DistributedOptimizer(self._optimizer, named_parameters=self.named_parameters(), compression = hvd.Compression.none) #Lei modified horovod interface
                 # self._optimizer.zero_grad()
-                if distributed_world_size > 1:
-                    self._distributed_zero_grad()
-                else:
-                    self._optimizer.zero_grad()
+                #if distributed_world_size > 1:
+                #    self._distributed_zero_grad()
+                #else:
+                #    self._optimizer.zero_grad()
+                self._optimizer.zero_grad() #for hvd only
                 success, loss = self._loss(batch)
                 if not success:
                     print(colored('Cannot compute loss, skipping batch. Loss: {}'.format(loss), 'red', attrs=['bold']))
@@ -353,8 +394,8 @@ class InferenceNetwork(nn.Module):
                         return
                 else:
                     loss.backward()
-                    if distributed_world_size > 1:
-                        self._distributed_sync_grad(distributed_world_size)
+                    #if distributed_world_size > 1: #block for hvd
+                    #    self._distributed_sync_grad(distributed_world_size)
                     self._optimizer.step()
                     loss = float(loss)
 
@@ -413,12 +454,12 @@ class InferenceNetwork(nn.Module):
                             self._history_valid_loss_trace.append(self._total_train_traces)
                             last_validation_trace = trace - 1
 
-                            if distributed_world_size > 1:
-                                self._distributed_update_train_loss(loss, distributed_world_size)
-                                self._distributed_update_valid_loss(valid_loss, distributed_world_size)
+                            #if distributed_world_size > 1: #Lei blocked for debugging
+                            #    self._distributed_update_train_loss(loss, distributed_world_size)
+                            #    self._distributed_update_valid_loss(valid_loss, distributed_world_size)
 
-                    if (distributed_world_size > 1) and (iteration % distributed_loss_update_every == 0):
-                        self._distributed_update_train_loss(loss, distributed_world_size)
+                    #if (distributed_world_size > 1) and (iteration % distributed_loss_update_every == 0):
+                    #    self._distributed_update_train_loss(loss, distributed_world_size)
 
                     if (distributed_rank == 0) and (save_file_name_prefix is not None):
                         if time.time() - last_auto_save_time > save_every_sec:
