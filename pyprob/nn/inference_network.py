@@ -264,31 +264,8 @@ class InferenceNetwork(nn.Module):
              offset += count * element_size 
              
     def _distributed_sync_parameters_mpi(self):
-        total_elements =  0
-        element_size = 0 
-        dtype = None
-        for param in self.parameters():
-             dtype = param.data.dtype
-             ndims = param.data.dims()
-             dims = list(param.data.size())
-             tsize = 1
-             for i in range(ndims):
-               tsize * = dims[i] 
-             total_elements += tsize
-        self.param_data = numpy.empty(total_elements, dtype=dtype)
-        for param in self.parameters(): 
-             ofs=0
-             dims = list(param.data.size())
-             tsize = 1
-             for i in range(ndims):
-               tsize * = dims[i]
-             element_size = param.data.element_size()
-             tbytes = tsize * element_size
-             view = numpy.frombuffer(self.param_data,dtype=dtype, count=tsize, offset=ofs).reshape(param.data.shape)
-             ofs += tbytes
-             view[...] =  param.data[...]
-        
-        dist.broadcast(torch.tensor(param_data),0)
+        print ('Not implemented')
+        #dist.broadcast(torch.tensor(param_data),0)
     def _distributed_zero_grad(self):
         # Create zero tensors for gradients not initialized at this distributed training rank
         # print('Distributed zeroing gradients...')
@@ -393,8 +370,8 @@ class InferenceNetwork(nn.Module):
                     if (distributed_rank ==0): 
                        print ("Number of Parameters need to be broadcasted:%d"%len(list(self.parameters())))
                        #print ("Size of total parameters:%f bytes"%(sizeof(self.parameters())))
-                    #self._distributed_sync_parameters()
-                    self._distributed_sync_parameters_mpi()
+                    self._distributed_sync_parameters()
+                    #self._distributed_sync_parameters_mpi()
                 if self._layers_pre_generated:  # and (distributed_world_size > 1):
                     layers_changed = False
                 else:
