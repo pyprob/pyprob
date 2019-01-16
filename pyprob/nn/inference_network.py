@@ -1,3 +1,4 @@
+import numpy 
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -226,14 +227,68 @@ class InferenceNetwork(nn.Module):
         util.progress_bar_end('Layer pre-generation complete')
 
     def _distributed_sync_parameters(self):
-        x=0
         """ broadcast rank 0 parameter to all ranks """
         # print('Distributed training synchronizing parameters across nodes...')
         for param in self.parameters():
-            x+=sys.getsizeof(param.data)
             dist.broadcast(param.data, 0)
-        print ("total size of param.data:%f bytes"%(x))
-
+    def _count_items(self): 
+        total_items =0
+        all_parameters = list(self.parameters())
+        element_type = all_parameters[0].data.dtype
+        element_size = np.dtype(element_type).itemsize
+        for para in all_parameters:
+            total_items += para.data.numel()
+        return (total_items,element_type,element_size)
+    def _pack_data(self, element_type, element_size):
+        """ pack all items of data into a global array, this is typically for rank 0"""
+        offset = 0
+        count = 0 
+        for para in self.parameters():
+            idata =  para.data
+            data_shape = idata.shape
+            count = idata.numel() 
+            view = np.frombuffer(self.gpara, dtype = element_type, count=count, offset=offset).reshape(data_shape)
+            view[...] = idata[...]
+            offset += count * element_size 
+    def _unpack_data(self, data, element_type, element_size):
+         """ unpack global array into items of data, this is typically for rank 1+"""
+         # data needs to be a generator or a list, in this case, it's self.parameters() 
+         offset = 0 
+         count = 0 
+         for para in data: 
+             idata = para.data 
+             data_shape = idata.shape
+             count = idata.numel()
+             view = np.frombuffer(self.gpara, dtype = element_type, count = count, offset = offset).reshape(data_shape)
+             para.data = torch.as_tensor(view.copy())
+             offset += count * element_size 
+             
+    def _distributed_sync_parameters_mpi(self):
+        total_elements =  0
+        element_size = 0 
+        dtype = None
+        for param in self.parameters():
+             dtype = param.data.dtype
+             ndims = param.data.dims()
+             dims = list(param.data.size())
+             tsize = 1
+             for i in range(ndims):
+               tsize * = dims[i] 
+             total_elements += tsize
+        self.param_data = numpy.empty(total_elements, dtype=dtype)
+        for param in self.parameters(): 
+             ofs=0
+             dims = list(param.data.size())
+             tsize = 1
+             for i in range(ndims):
+               tsize * = dims[i]
+             element_size = param.data.element_size()
+             tbytes = tsize * element_size
+             view = numpy.frombuffer(self.param_data,dtype=dtype, count=tsize, offset=ofs).reshape(param.data.shape)
+             ofs += tbytes
+             view[...] =  param.data[...]
+        
+        dist.broadcast(torch.tensor(param_data),0)
     def _distributed_zero_grad(self):
         # Create zero tensors for gradients not initialized at this distributed training rank
         # print('Distributed zeroing gradients...')
@@ -338,8 +393,8 @@ class InferenceNetwork(nn.Module):
                     if (distributed_rank ==0): 
                        print ("Number of Parameters need to be broadcasted:%d"%len(list(self.parameters())))
                        #print ("Size of total parameters:%f bytes"%(sizeof(self.parameters())))
-                    self._distributed_sync_parameters()
-
+                    #self._distributed_sync_parameters()
+                    self._distributed_sync_parameters_mpi()
                 if self._layers_pre_generated:  # and (distributed_world_size > 1):
                     layers_changed = False
                 else:
