@@ -11,7 +11,7 @@ from . import util, state, TraceMode, PriorInflation, InferenceEngine, Inference
 from .nn import InferenceNetwork as InferenceNetworkBase
 from .nn import OnlineDataset, OfflineDataset, InferenceNetworkFeedForward, InferenceNetworkLSTM
 from .remote import ModelServer
-import horovod.torch as hvd
+
 
 class Model():
     def __init__(self, name='Unnamed pyprob model', address_dict_file_name=None):
@@ -138,7 +138,7 @@ class Model():
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, *args, **kwargs):
         return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, file_name=file_name, *args, **kwargs)
 
-    def learn_inference_network(self, num_traces, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, dataset_valid_dir=None, observe_embeddings={}, batch_size=64, valid_size=None, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=0., save_file_name_prefix=None, save_every_sec=600, pre_generate_layers=True, distributed_backend=None, dataloader_offline_num_workers=0, stop_with_bad_loss=True):
+    def learn_inference_network(self, num_traces, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, dataset_valid_dir=None, observe_embeddings={}, batch_size=64, valid_size=None, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=0., save_file_name_prefix=None, save_every_sec=600, pre_generate_layers=True, distributed_backend=None, dataloader_offline_num_workers=0):
         if dataset_dir is None:
             dataset = OnlineDataset(model=self, prior_inflation=prior_inflation)
         else:
@@ -169,31 +169,7 @@ class Model():
             print('Total number of parameters: {:,}'.format(self._inference_network._history_num_params[-1]))
 
         self._inference_network.to(device=util._device)
-        
-        Enable_autograd_profile=True
-        Enable_Cprofile=True
-        profile_dir='/global/cscratch1/sd/leishao/etalumis_data_dec7_2018_small/'
-        if Enable_autograd_profile:
-            if Enable_Cprofile:
-                import cProfile
-                po=cProfile.Profile()
-                with torch.autograd.profiler.profile() as prof:
-                    po.runcall(self._inference_network.optimize,num_traces,dataset,dataset_valid, batch_size, valid_every, optimizer_type,learning_rate,momentum,weight_decay,save_file_name_prefix,save_every_sec,distributed_backend,dataloader_offline_num_workers, stop_with_bad_loss)
-                prof.export_chrome_trace(profile_dir + 'HSW_hvd_0115_'+str(hvd.rank())+'outof'+str(hvd.size()) + '.json')
-                po.dump_stats(profile_dir + 'optimize0115_256tracesperrank.dat.hvd'+str(hvd.rank())+'outof'+str(hvd.size()))                                   
-            else:
-                with torch.autograd.profiler.profile() as prof:
-                    self._inference_network.optimize(num_traces=num_traces, dataset=dataset, dataset_valid=dataset_valid, batch_size=batch_size, valid_every=valid_every, optimizer_type=optimizer_type, learning_rate=learning_rate, momentum=momentum, weight_decay=weight_decay, save_file_name_prefix=save_file_name_prefix, save_every_sec=save_every_sec, distributed_backend=distributed_backend, dataloader_offline_num_workers=dataloader_offline_num_workers,stop_with_bad_loss=stop_with_bad_loss)
-                #prof.export_chrome_trace('/global/cscratch1/sd/leishao/etalumis_data_dec7_2018_small/newcode_1211_HSW_256traces_bz16pt_omp32_1nodepertask_1node.json')
-                prof.export_chrome_trace(profile_dir + 'HSW_hvd_0115_'+str(hvd.rank())+'outof'+str(hvd.size()) + '.json')
-        else:
-            if Enable_Cprofile:
-                import cProfile
-                po=cProfile.Profile()
-                po.runcall(self._inference_network.optimize,num_traces,dataset,dataset_valid, batch_size, valid_every, optimizer_type,learning_rate,momentum,weight_decay,save_file_name_prefix,save_every_sec,distributed_backend,dataloader_offline_num_workers, stop_with_bad_loss)
-                po.dump_stats(profile_dir + 'optimize0115_256tracesperrank.dat.hvd'+str(hvd.rank())+'outof'+str(hvd.size()))
-            else:
-                self._inference_network.optimize(num_traces=num_traces, dataset=dataset, dataset_valid=dataset_valid, batch_size=batch_size, valid_every=valid_every, optimizer_type=optimizer_type, learning_rate=learning_rate, momentum=momentum, weight_decay=weight_decay, save_file_name_prefix=save_file_name_prefix, save_every_sec=save_every_sec, distributed_backend=distributed_backend, dataloader_offline_num_workers=dataloader_offline_num_workers, stop_with_bad_loss=stop_with_bad_loss)
+        self._inference_network.optimize(num_traces=num_traces, dataset=dataset, dataset_valid=dataset_valid, batch_size=batch_size, valid_every=valid_every, optimizer_type=optimizer_type, learning_rate=learning_rate, momentum=momentum, weight_decay=weight_decay, save_file_name_prefix=save_file_name_prefix, save_every_sec=save_every_sec, distributed_backend=distributed_backend, dataloader_offline_num_workers=dataloader_offline_num_workers)
 
     def save_inference_network(self, file_name):
         if self._inference_network is None:
