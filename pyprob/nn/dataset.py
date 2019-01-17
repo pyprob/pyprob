@@ -8,7 +8,7 @@ import numpy as np
 import uuid
 from termcolor import colored
 from collections import Counter, OrderedDict
-
+import horovod.torch as hvd
 from .. import util
 from ..util import TraceMode, PriorInflation
 from ..concurrency import ConcurrentShelf
@@ -218,3 +218,30 @@ class SortedTraceBatchSampler(Sampler):
 
     def __len__(self):
         return len(self._batches)
+
+
+class SortedTraceBatchSamplerDistributed(Sampler):
+    def __init__(self, offline_dataset, batch_size,num_replicas=None, rank=None, shuffle=False):
+        self._batches = list(util.chunks(offline_dataset._sorted_indices, batch_size))
+        self._shuffle = shuffle
+        if num_replicas is None:
+           #if not hvd.is_available():
+           #   raise RuntimeError("Requires distributed package to be available")
+           num_replicas = hvd.size()
+        if rank is None:
+           rank = hvd.rank()
+        self.dataset = offline_dataset
+        self.num_replicas = num_replicas
+        self.rank = rank
+        self.num_local_batches = int (math.ceil(len(self._batches) * 1.0 / self.num_replicas))
+        self.total_size = self.num_local_batches * self.num_replicas
+    def __iter__(self):
+        local_batches = self._batches[self.rank:self.total_size:self.num_replicas][0:self.num_local_batches]
+        #for i in range(8):
+        #    print ("Rank:%d,local batches:%s"%(self.rank,local_batches[i]))
+        if self._shuffle:
+            np.random.shuffle(local_batches)
+        return iter(local_batches)
+
+    def __len__(self):
+        return self.num_local_batches
