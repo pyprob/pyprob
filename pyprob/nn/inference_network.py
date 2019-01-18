@@ -326,7 +326,14 @@ class InferenceNetwork(nn.Module):
             print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
             self._distributed_backend = distributed_backend
             self._distributed_world_size = distributed_world_size
-
+        self._distributed_history_train_loss = []
+        self._distributed_history_train_loss_trace = []
+        self._distributed_history_valid_loss = []
+        self._distributed_history_valid_loss_trace = []
+        self._distributed_train_loss = util.to_tensor(0.)
+        self._distributed_valid_loss = util.to_tensor(0.)
+        self._distributed_train_loss_min = float('inf')
+        self._distributed_valid_loss_min = float('inf')
         self._optimizer_type = optimizer_type
         self._batch_size = batch_size
         self._learning_rate = learning_rate * distributed_world_size
@@ -442,7 +449,8 @@ class InferenceNetwork(nn.Module):
                     self._history_train_loss.append(loss)
                     self._history_train_loss_trace.append(self._total_train_traces)
                     if dataset_valid is not None:
-                        if trace - last_validation_trace > valid_every:
+                      print('dataset_valid is not None')  
+                      if trace - last_validation_trace > valid_every:
                             print('\rComputing validation loss...  ', end='\r')
                             valid_loss = 0
                             with torch.no_grad():
@@ -454,14 +462,14 @@ class InferenceNetwork(nn.Module):
                             self._history_valid_loss_trace.append(self._total_train_traces)
                             last_validation_trace = trace - 1
 
-#                            if distributed_world_size > 1:
-#                                self._distributed_update_train_loss(loss, distributed_world_size)
-#                                self._distributed_update_valid_loss(valid_loss, distributed_world_size)
+                            if distributed_world_size > 1:
+                                self._distributed_update_train_loss(loss, distributed_world_size)
+                                self._distributed_update_valid_loss(valid_loss, distributed_world_size)
 
-#                    if (distributed_world_size > 1) and (iteration % distributed_loss_update_every == 0):
-#                        self._distributed_update_train_loss(loss, distributed_world_size)
+                    if (distributed_world_size > 1) and (iteration % distributed_loss_update_every == 0):
+                        self._distributed_update_train_loss(loss, distributed_world_size)
 
-         #           if (distributed_rank == 0) and (save_file_name_prefix is not None):
+         #          if (distributed_rank == 0) and (save_file_name_prefix is not None):
          #               if time.time() - last_auto_save_time > save_every_sec:
          #                   last_auto_save_time = time.time()
          #                   file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
