@@ -55,6 +55,10 @@ class InferenceNetwork(nn.Module):
         self._distributed_history_train_loss_trace = []
         self._distributed_history_valid_loss = []
         self._distributed_history_valid_loss_trace = []
+        self._distributed_filtered_train_loss=util.to_tensor(0.)
+        self._distributed_filtered_valid_loss = util.to_tensor(0.)
+        self._distributed_history_filtered_train_loss = []
+        self._distributed_history_filtered_valid_loss = []
         self._modified = util.get_time_str()
         self._updates = 0
         self._on_cuda = False
@@ -284,27 +288,33 @@ class InferenceNetwork(nn.Module):
                 # pass
                 print('None for grad, with param.size=', param.size())
 
-    def _distributed_update_train_loss(self, loss, world_size):
+    def _distributed_update_train_loss(self, loss, world_size,loss_moving_average_window_size):
         self._distributed_train_loss = util.to_tensor(float(loss))
         dist.all_reduce(self._distributed_train_loss)
         self._distributed_train_loss /= float(world_size)
         self._distributed_history_train_loss.append(float(self._distributed_train_loss))
         self._distributed_history_train_loss_trace.append(self._total_train_traces)
-        if float(self._distributed_train_loss) < self._distributed_train_loss_min:
-            self._distributed_train_loss_min = float(self._distributed_train_loss)
+        recent_losses=self._distributed_history_train_loss[(1-loss_moving_average_window_size):] 
+        self._distributed_filtered_train_loss=sum(recent_losses) /len(recent_losses)
+        self._distributed_history_filtered_train_loss.append(self._distributed_filtered_train_loss)
+        if float(self._distributed_filtered_train_loss) < self._distributed_train_loss_min:
+            self._distributed_train_loss_min = float(self._distributed_filtered_train_loss)
         #if (dist.get_rank ==0):
         #    print(colored('Distributed mean train. loss across ranks : {:+.2e}, min. train. loss: {:+.2e}'.format(self._distributed_train_loss, self._distributed_train_loss_min), 'yellow', attrs=['bold']))
 
-    def _distributed_update_valid_loss(self, loss, world_size):
+    def _distributed_update_valid_loss(self, loss, world_size, loss_moving_average_window_size):
         self._distributed_valid_loss = util.to_tensor(float(loss))
         dist.all_reduce(self._distributed_valid_loss)
         self._distributed_valid_loss /= float(world_size)
         self._distributed_history_valid_loss.append(float(self._distributed_valid_loss))
         self._distributed_history_valid_loss_trace.append(self._total_train_traces)
-        if float(self._distributed_valid_loss) < self._distributed_valid_loss_min:
-            self._distributed_valid_loss_min = float(self._distributed_valid_loss)
-        #if (dist.get_rank ==0):
-        #    print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
+        recent_losses=self._distributed_history_valid_loss[(1-loss_moving_average_window_size):]
+        self._distributed_filtered_valid_loss = sum(recent_losses) /len(recent_losses)
+        self._distributed_history_filtered_valid_loss.append(self._distributed_filtered_valid_loss)
+        if float(self._distributed_filtered_valid_loss) < self._distributed_valid_loss_min:
+            self._distributed_valid_loss_min = float(self._distributed_filtered_valid_loss)
+        if (dist.get_rank ==0):
+            print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_filtered_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
 
     def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_loss_update_every=None, dataloader_offline_num_workers=0, *args, **kwargs):
         if not self._layers_initialized:
@@ -337,6 +347,10 @@ class InferenceNetwork(nn.Module):
         self._distributed_valid_loss = util.to_tensor(0.)
         self._distributed_train_loss_min = float('inf')
         self._distributed_valid_loss_min = float('inf')
+        self._distributed_filtered_train_loss=util.to_tensor(0.)
+        self._distributed_filtered_valid_loss = util.to_tensor(0.)
+        self._distributed_history_filtered_train_loss = []
+        self._distributed_history_filtered_valid_loss = []
         self._optimizer_type = optimizer_type
         self._batch_size = batch_size
         self._learning_rate = learning_rate * distributed_world_size
@@ -351,6 +365,8 @@ class InferenceNetwork(nn.Module):
         if distributed_loss_update_every is None:
             distributed_loss_update_every = valid_every
         last_validation_trace = -valid_every + 1
+        loss_moving_average_window_size =10 # for distributed training only
+        
         epoch = 0
         iteration = 0
         trace = 0
@@ -466,12 +482,14 @@ class InferenceNetwork(nn.Module):
                             last_validation_trace = trace - 1
 
                             if distributed_world_size > 1:
-                                self._distributed_update_train_loss(loss, distributed_world_size)
-                                self._distributed_update_valid_loss(valid_loss, distributed_world_size)
+                                self._distributed_update_train_loss(loss, distributed_world_size, loss_moving_average_window_size)
+                                loss_str=colored('{:+.2e}'.format(self._distributed_filtered_train_loss), 'yellow')
+                                loss_min_str=colored('{:+.2e}'.format(self._distributed_train_loss_min), 'yellow')
+                                self._distributed_update_valid_loss(valid_loss, distributed_world_size, loss_moving_average_window_size)
 
                     if (distributed_world_size > 1): #and (iteration % distributed_loss_update_every == 0):
-                        self._distributed_update_train_loss(loss, distributed_world_size)
-                        loss_str=colored('{:+.2e}'.format(self._distributed_train_loss), 'yellow')
+                        self._distributed_update_train_loss(loss, distributed_world_size,loss_moving_average_window_size)
+                        loss_str=colored('{:+.2e}'.format(self._distributed_filtered_train_loss), 'yellow')
                         loss_min_str=colored('{:+.2e}'.format(self._distributed_train_loss_min), 'yellow')
 
          #          if (distributed_rank == 0) and (save_file_name_prefix is not None):
