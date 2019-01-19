@@ -292,7 +292,8 @@ class InferenceNetwork(nn.Module):
         self._distributed_history_train_loss_trace.append(self._total_train_traces)
         if float(self._distributed_train_loss) < self._distributed_train_loss_min:
             self._distributed_train_loss_min = float(self._distributed_train_loss)
-        print(colored('Distributed mean train. loss across ranks : {:+.2e}, min. train. loss: {:+.2e}'.format(self._distributed_train_loss, self._distributed_train_loss_min), 'yellow', attrs=['bold']))
+        #if (dist.get_rank ==0):
+        #    print(colored('Distributed mean train. loss across ranks : {:+.2e}, min. train. loss: {:+.2e}'.format(self._distributed_train_loss, self._distributed_train_loss_min), 'yellow', attrs=['bold']))
 
     def _distributed_update_valid_loss(self, loss, world_size):
         self._distributed_valid_loss = util.to_tensor(float(loss))
@@ -302,7 +303,8 @@ class InferenceNetwork(nn.Module):
         self._distributed_history_valid_loss_trace.append(self._total_train_traces)
         if float(self._distributed_valid_loss) < self._distributed_valid_loss_min:
             self._distributed_valid_loss_min = float(self._distributed_valid_loss)
-        print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
+        #if (dist.get_rank ==0):
+        #    print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
 
     def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_loss_update_every=None, dataloader_offline_num_workers=0, *args, **kwargs):
         if not self._layers_initialized:
@@ -318,12 +320,13 @@ class InferenceNetwork(nn.Module):
             distributed_world_size = dist.get_world_size()
             distributed_rank = dist.get_rank()
             util.init_distributed_print(distributed_rank, distributed_world_size, True)
-            print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
-            print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
-            print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
-            print(colored('Distributed minibatch size: {} (global), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
-            print(colored('Distributed learning rate : {} (global), {} (base)'.format(learning_rate * distributed_world_size, learning_rate), 'yellow', attrs=['bold']))
-            print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
+            if (distributed_rank ==0):
+                print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
+                print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
+                print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
+                print(colored('Distributed minibatch size: {} (global), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
+                print(colored('Distributed learning rate : {} (global), {} (base)'.format(learning_rate * distributed_world_size, learning_rate), 'yellow', attrs=['bold']))
+                print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
             self._distributed_backend = distributed_backend
             self._distributed_world_size = distributed_world_size
         self._distributed_history_train_loss = []
@@ -375,8 +378,8 @@ class InferenceNetwork(nn.Module):
                 #x=copy.deepcopy(batch)
                 # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
                 if (distributed_world_size > 1) and (iteration % distributed_params_sync_every == 0):
-                    if (distributed_rank ==0): 
-                       print ("Number of Parameters need to be broadcasted:%d"%len(list(self.parameters())))
+                    #if (distributed_rank ==0): 
+                    #   print ("Number of Parameters need to be broadcasted:%d"%len(list(self.parameters())))
                        #print ("Size of total parameters:%f bytes"%(sizeof(self.parameters())))
                     self._distributed_sync_parameters()
                     #self._distributed_sync_parameters_mpi()
@@ -466,8 +469,10 @@ class InferenceNetwork(nn.Module):
                                 self._distributed_update_train_loss(loss, distributed_world_size)
                                 self._distributed_update_valid_loss(valid_loss, distributed_world_size)
 
-                    if (distributed_world_size > 1) and (iteration % distributed_loss_update_every == 0):
+                    if (distributed_world_size > 1): #and (iteration % distributed_loss_update_every == 0):
                         self._distributed_update_train_loss(loss, distributed_world_size)
+                        loss_str=colored('{:+.2e}'.format(self._distributed_train_loss), 'yellow')
+                        loss_min_str=colored('{:+.2e}'.format(self._distributed_train_loss_min), 'yellow')
 
          #          if (distributed_rank == 0) and (save_file_name_prefix is not None):
          #               if time.time() - last_auto_save_time > save_every_sec:
@@ -478,7 +483,8 @@ class InferenceNetwork(nn.Module):
 
                     print_line = '{} | {} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
                     max_print_line_len = max(len(print_line), max_print_line_len)
-                    print(print_line.ljust(max_print_line_len), end='\r')
+                    if (distributed_rank ==0):
+                        print(print_line.ljust(max_print_line_len), end='\r')
                     sys.stdout.flush()
                     if stop:
                         break
