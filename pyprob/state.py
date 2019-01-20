@@ -187,7 +187,7 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                 # _current_trace.log_importance_weight += 0  # Not computed because log_importance_weight is zero when running importance sampling with prior as proposal
             elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
                 if control:
-                    _current_trace_inference_network.eval()
+                    #_current_trace_inference_network.eval() #Lei blocked it as there is also .eval() in model.py
                     variable = Variable(distribution=distribution, value=None, address_base=address_base, address=address, instance=instance, log_prob=0., control=control, replace=replace, name=name, observed=observed, reused=reused)
                     if replace:
                         if address not in _current_trace_replaced_variable_proposal_distributions:
