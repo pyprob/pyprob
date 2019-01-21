@@ -171,12 +171,14 @@ class OfflineDataset(ConcatDataset):
             hashes_file['sorted_indices'] = sorted_indices
             self._sorted_indices = sorted_indices
             self._hashes = hashes
-        print('Num. traces     : {:,}'.format(len(self)))
-        print('Num. trace types: {:,}'.format(len(set(self._hashes))))
+        if (hvd.rank()==0):
+            print('Num. traces     : {:,}'.format(len(self)))
+            print('Num. trace types: {:,}'.format(len(set(self._hashes))))
         hashes_and_counts = OrderedDict(sorted(Counter(self._hashes).items()))
-        print('Trace hash\tCount')
-        for hash, count in hashes_and_counts.items():
-            print('{:.8f}\t{}'.format(hash, count))
+        if (hvd.rank()==0):
+            print('Trace hash\tCount')
+            for hash, count in hashes_and_counts.items():
+                print('{:.8f}\t{}'.format(hash, count))
         print()
 
     def _compute_hashes(self):
