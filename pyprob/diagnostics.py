@@ -755,41 +755,86 @@ def mmd(trace_dist_p, trace_dist_q, names=None, n_most_frequent=50,
 
     # TODO: support for multi-dimensinal samples.
     # TODO: cleanup verbose for learn_kernel and mmd evaluation.
-    trace_lengths = [trace.length for trace in [trace_dist_p, trace_dist_q]]
-    num_traces = min(trace_lengths)
-    if max(trace_lengths) != num_traces:
-        print('Distributions have unequal length, setting the length to minimum: {}'.format(num_traces))
+    # TODO: Integrate this local _variable_values with the other main one.
+    def _variable_values(trace_dist, names=None, n_most_frequent=None, num_traces=None):
+        if num_traces is None:
+            num_traces = trace_dist.length
+        if names is None:
+            name_counts = defaultdict(int)
+            for i in range(num_traces):
+                trace = trace_dist._get_value(i)
+                for name in trace.named_variables.keys():
+                    name_counts[name] += 1
+            names = [name for name in name_counts if name_counts[name] == num_traces]  # Names of named variables that are found in all traces
 
-    variable_values_p = _variable_values(trace_dist_p, names, n_most_frequent, num_traces)
-    variable_values_q = _variable_values(trace_dist_q, names, n_most_frequent, num_traces)
+        variable_values = defaultdict(lambda: {'variable': None, 'values': np.ones(num_traces) * np.nan})
+        # Select named variables to process
+        for name in names:
+            variable = trace_dist[0].named_variables[name]
+            if variable.value.nelement() == 1:
+                variable_values[variable.address]['variable'] = variable
+
+        # Select most frequent variables to process (either named or not named)
+        if n_most_frequent is not None:
+            addresses = _n_most_frequent_addresses(trace_dist, n_most_frequent, num_traces)
+            for address in addresses:
+                variable = None
+                for trace_sample in trace_dist:
+                    if address in trace_sample.variables_dict_address:
+                        variable = trace_sample.variables_dict_address[address]
+                        break
+                if variable.value.nelement() == 1:
+                    variable_values[variable.address]['variable'] = variable
+
+        if len(variable_values) == 0:
+            raise RuntimeError('No variables with scalar value.')
+
+        util.progress_bar_init('Loading selected variables to memory', num_traces, 'Traces')
+        for i in range(num_traces):
+            trace = trace_dist._get_value(i)
+            util.progress_bar_update(i)
+            for address, v in variable_values.items():
+                if address in trace.variables_dict_address:
+                    v['values'][i] = float(trace.variables_dict_address[address].value)
+                else:
+                    v['values'][i] = float('nan')
+        util.progress_bar_end()
+        return variable_values
+
+    variable_values_p = _variable_values(trace_dist_p, names, n_most_frequent)
+    variable_values_q = _variable_values(trace_dist_q, names, n_most_frequent)
+
     # Remove 'nan's from sampled values
     for variable_values in [variable_values_p, variable_values_q]:
         for address, v in variable_values.items():
-            new_values_np = v['values']
-            new_values_np = new_values_np[~np.isnan(new_values_np)]
-            v['values'] = new_values_np
+            values_np = v['values']
+            values_np = values_np[~np.isnan(values_np)]
+            v['values'] = values_np
             variable_values[address] = v
 
     variable_values = {}    # Will contain aggregated values and mmd.
-    for i, (address, v),  in enumerate(variable_values_p.items()):
-        if v['variable'].observed:
+    for i, address in enumerate(variable_values_p):
+        if variable_values_p[address]['variable'].observed:
             # Do not perform MMD test on observed variables
             continue
         variable_info_log = 'address: {}, name: {} ({} of {})'.format(v['variable'].address, v['variable'].name, i + 1, len(variable_values_p))
         if address not in variable_values_q:
             print('Variable not found in q distribution. It will be ignored. ({})'.format(variable_info_log))
             continue
+        v_p = variable_values_p[address]['values']
         v_q = variable_values_q[address]['values'] # Get the samples for the same address from the other distribution
-        v_p = v['values']
+        # Reshape sampled values to nxd where n is the number of samples and d is samples' dimension
         if v_p.ndim == 1:
-            v_p = v_p.reshape(-1,1)
+            v_p = v_p.reshape(-1, 1)
         if v_q.ndim == 1:
             v_q = v_q.reshape(-1, 1)
         num_samples = min(len(v_p), len(v_q))
         # Remove extra samples from the larger sample set.
         if len(v_p) > len(v_q):
+            print('Q has less samples')
             v_p = np.random.choice(v_p, num_samples, replace=False)
         elif len(v_q) > len(v_p):
+            print('P has less samples')
             v_q = np.random.choice(v_q, num_samples, replace=False)
 
         n_test = int(num_samples * test_set_portion)
@@ -825,17 +870,21 @@ def mmd(trace_dist_p, trace_dist_q, names=None, n_most_frequent=50,
             log_params=mmd_log_params,
             verbose=verbose,
             **kwargs)
-        print('Computing MMD for variable address: {}, name: {} ({} of {})'.format(v['variable'].address, v['variable'].name, i + 1, len(variable_values)))
+        print('Computing MMD for variable {}'.format(variable_info_log))
         p_val, stat, null_samps = learn_kernel.eval_rep(
             get_rep, X_test, Y_test,
             linear_kernel=mmd_linear_kernel, sigma=sigma,
-            hotelling=mmd_criterion == 'hotelling',
+            hotelling=(mmd_criterion == 'hotelling'),
             null_samples=mmd_null_samples)
-        v['values_p'] = X
-        v['values_q'] = Y
-        v.pop('values')
+        # Aggregate info about P and Q in "variable values"
+        v = {}
         v['mmd'] = stat
         v['p_val'] = p_val
+        for vv_key in variable_values_p[address]:
+            if vv_key != 'values':
+                v[vv_key] = variable_values_p[address][vv_key]
+        v['values_p'] = X
+        v['values_q'] = Y
         variable_values[address] = v
 
     return variable_values
