@@ -72,7 +72,7 @@ def net_rbf(net_p, net_q, J=5):
     Network equivalent to Wittawat's mean embedding test:
     compute RBF kernel values to each of J test points.
     '''
-    from layers import RBFLayer
+    from .layers import RBFLayer
     net_p = RBFLayer(net_p, J)
     net_q = RBFLayer(net_q, J, locs=net_p.locs, log_sigma=net_p.log_sigma)
     return net_p, net_q, 0
@@ -82,7 +82,7 @@ def net_scf(net_p, net_q, n_freqs=5):
     '''
     Network equivalent to Wittawat's smoothed characteristic function test.
     '''
-    from layers import SmoothedCFLayer
+    from .layers import SmoothedCFLayer
     net_p = SmoothedCFLayer(net_p, n_freqs)
     net_q = SmoothedCFLayer(net_q, n_freqs,
                             freqs=net_p.freqs, log_sigma=net_p.log_sigma)
