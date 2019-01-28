@@ -273,7 +273,7 @@ class InferenceNetwork(nn.Module):
     def _distributed_sync_grad(self, world_size):
         """ all_reduce grads from all ranks """
         # make a local map of all non-zero gradients
-        ttmap = util.to_tensor([1 if p.grad is not None else 0 for p in self.pa
+        ttmap = util.to_tensor([1 if p.grad is not None else 0 for p in self.params()])
         # get the global map of all non-zero gradients
         dist.all_reduce([ttmap])
         gl = []
