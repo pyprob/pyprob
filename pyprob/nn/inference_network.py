@@ -269,24 +269,27 @@ class InferenceNetwork(nn.Module):
              
     def _distributed_sync_parameters_mpi(self):
         print ('Not implemented')
-        #dist.broadcast(torch.tensor(param_data),0)
-    def _distributed_zero_grad(self):
-        # Create zero tensors for gradients not initialized at this distributed training rank
-        # print('Distributed zeroing gradients...')
-        for param in self.parameters():
-            # if (param.grad is None):
-            param.grad = util.to_tensor(torch.zeros_like(param.data))
 
     def _distributed_sync_grad(self, world_size):
         """ all_reduce grads from all ranks """
-        # print('Distributed training synchronizing gradients across nodes...')
-        for param in self.parameters():
-            try:
-                dist.all_reduce(param.grad.data)
-                param.grad.data /= float(world_size)  # average gradients
-            except AttributeError:
-                # pass
-                print('None for grad, with param.size=', param.size())
+        # make a local map of all non-zero gradients
+        ttmap = util.to_tensor([1 if p.grad is not None else 0 for p in self.pa
+        # get the global map of all non-zero gradients
+        dist.all_reduce([ttmap])
+        gl = []
+        for i,param in enumerate(self.parameters()):
+            if param.grad is not None:
+                gl.append(param.grad.data)
+            elif ttmap[i]:
+                # someone else had a non-zero grad so make a local zero'd copy
+                param.grad = util.to_tensor(torch.zeros_like(param.data))
+                gl.append(param.grad.data)
+
+        # reduce all gradients used by at least one rank
+        dist.all_reduce(gl)
+        # average them
+        for li in gl:
+            li /= float(world_size)
 
     def _distributed_update_train_loss(self, loss, world_size,loss_moving_average_window_size):
         self._distributed_train_loss = util.to_tensor(float(loss))
@@ -409,11 +412,7 @@ class InferenceNetwork(nn.Module):
                         self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * distributed_world_size, weight_decay=weight_decay)
                     else:  # optimizer_type == Optimizer.SGD
                         self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * distributed_world_size, momentum=momentum, nesterov=True, weight_decay=weight_decay)
-                # self._optimizer.zero_grad()
-                if distributed_world_size > 1:
-                    self._distributed_zero_grad()
-                else:
-                    self._optimizer.zero_grad()
+                self._optimizer.zero_grad()
                 success, loss = self._loss(batch)
                 if not success:
                     print(colored('Cannot compute loss, skipping batch. Loss: {}'.format(loss), 'red', attrs=['bold']))
