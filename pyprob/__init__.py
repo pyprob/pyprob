@@ -1,4 +1,4 @@
-__version__ = '0.13.dev1'
+__version__ = '0.13.0'
 
 from .util import TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, Optimizer, ObserveEmbedding, set_verbosity, set_random_seed, set_cuda
 from .state import sample, observe, tag
