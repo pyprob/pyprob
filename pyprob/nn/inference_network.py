@@ -322,40 +322,26 @@ class InferenceNetwork(nn.Module):
 
 
 
-    def larc_optimizer_train_step(self, loss, world_size):
+    def larc_optimizer_train_step(self, loss): 
         LARC_mode = "clip"
         LARC_eta = 0.002
         LARC_epsilon = 1.0/16000.0
 
-
+        #The following is done after gradients have been averaged across ranks!!!
         for group in self._optimizer.param_groups:
 
             # make a local map of all non-zero gradients
             ttmap = util.to_tensor([1 if p.grad is not None else 0 for p in group['params']])
-            if ( world_size > 1):
-                # get the global map of all non-zero gradients
-                dist.all_reduce([ttmap])
 
             for i, p in enumerate(group['params']):
                 if not ttmap[i]:
                     continue
-                if ( world_size > 1):
-                    #at least one rank is nonzero below
-                    if p.grad is None:                    
-                        # someone else had a non-zero grad so make a local zero'd copy
-                        p.grad = util.to_tensor(torch.zeros_like(p.data))
-                    g = p.grad.data
-                    # reduce all gradients used by at least one rank
-                    dist.all_reduce(g)
-                    g_scale = 1./ world_size
-                else:
-                    g = p.grad.data
-                    g_scale = 1
                 weight_norm = torch.norm(p.data)
+                g = p.grad.data
                 grad_norm = torch.norm(g)
 
                 if (weight_norm != 0.0) and (grad_norm != 0.0):
-                    larc_local_lr = (LARC_eta / g_scale) * weight_norm /grad_norm
+                    larc_local_lr = LARC_eta  * weight_norm /grad_norm
                 else:
                     larc_local_lr = LARC_epsilon
 
@@ -364,8 +350,6 @@ class InferenceNetwork(nn.Module):
                 else:
                     effective_lr = min(larc_local_lr, group['lr']) / group['lr'] #group['lr'] is current global learning rate
 
-                #rescale gradients
-                effective_lr *= g_scale
 
                 #multiply gradients
                 g_scaled = effective_lr * g
@@ -378,6 +362,9 @@ class InferenceNetwork(nn.Module):
 
 
     def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, LR_schedule_method= LRScheduler.POLY_2, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_loss_update_every=None, dataloader_offline_num_workers=0, *args, **kwargs):
+
+        distributed_params_sync_every=10000
+
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
             self._init_layers()
@@ -494,7 +481,6 @@ class InferenceNetwork(nn.Module):
                 #adjust global learning rate
                 scheduler.step()
 
-                #x=copy.deepcopy(batch)
                 # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
                 if (distributed_world_size > 1) and (iteration % distributed_params_sync_every == 0):
                     #if (distributed_rank ==0): 
@@ -518,15 +504,18 @@ class InferenceNetwork(nn.Module):
                 if not success:
                     print(colored('Cannot compute loss, skipping batch. Loss: {}'.format(loss), 'red', attrs=['bold']))
                 else:
+                    #compute gradients
                     loss.backward()
-  
+
+                    if distributed_world_size > 1:
+                        #get averaged gradients across all ranks
+                        self._distributed_sync_grad(distributed_world_size)
+ 
                     if not optimizer_type in [Optimizer.LARC_ADAM, Optimizer.LARC_SGD]: 
-                        if distributed_world_size > 1:
-                            self._distributed_sync_grad(distributed_world_size)
                         self._optimizer.step()
                         loss = float(loss)
                     else:
-                        loss = self.larc_optimizer_train_step(loss, distributed_world_size)
+                        loss = self.larc_optimizer_train_step(loss) 
 
 
 
