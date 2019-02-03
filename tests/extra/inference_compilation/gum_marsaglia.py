@@ -4,11 +4,11 @@ import math
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-plt.switch_backend('agg')
 
 import pyprob
 from pyprob import Model, InferenceEngine
 from pyprob.distributions import Uniform, Normal
+plt.switch_backend('agg')
 
 
 class GaussianWithUnknownMeanMarsaglia(Model):
@@ -50,11 +50,11 @@ class GaussianWithUnknownMeanMarsaglia(Model):
 
 
 def produce_results(results_dir):
-    train_traces_max = 1000000
-    train_traces_resolution = 12
-    infer_traces = 10000
-    train_traces_step = int(train_traces_max/train_traces_resolution)
-    observe = {'obs0': 8, 'obs1': 9}
+    train_traces_max = 100000
+    train_traces_resolution = 6
+    infer_traces = 1000
+    train_traces_step = int(train_traces_max / (train_traces_resolution - 1))
+    observes = [{'obs0': 1, 'obs1': 1}, {'obs0': 3, 'obs1': 4}, {'obs0': 8, 'obs1': 9}]
 
     if os.path.exists(results_dir):
         shutil.rmtree(results_dir)
@@ -63,50 +63,55 @@ def produce_results(results_dir):
     model_replace_true = GaussianWithUnknownMeanMarsaglia(replace=True)
     model_replace_false = GaussianWithUnknownMeanMarsaglia(replace=False)
 
-    model_replace_true_is = model_replace_true.posterior_distribution(infer_traces, observe=observe)
-    model_replace_false_is = model_replace_false.posterior_distribution(infer_traces, observe=observe)
-
     traces = []
     model_replace_true_loss = []
     model_replace_false_loss = []
-    model_replace_true_is_ess = float(model_replace_true_is.effective_sample_size) / infer_traces
-    model_replace_false_is_ess = float(model_replace_false_is.effective_sample_size) / infer_traces
-    model_replace_true_ic_ess = []
-    model_replace_false_ic_ess = []
+
+    model_replace_true_is_posterior_ess = []
+    model_replace_false_is_posterior_ess = []
+    for observe in observes:
+        model_replace_true_is_posterior = model_replace_true.posterior_distribution(infer_traces, observe=observe)
+        model_replace_false_is_posterior = model_replace_false.posterior_distribution(infer_traces, observe=observe)
+        model_replace_true_is_posterior_ess.append(float(model_replace_true_is_posterior.effective_sample_size) / infer_traces)
+        model_replace_false_is_posterior_ess.append(float(model_replace_false_is_posterior.effective_sample_size) / infer_traces)
+
+    model_replace_true_ic_posterior_ess = np.zeros([len(observes), train_traces_resolution])
+    model_replace_false_ic_posterior_ess = np.zeros([len(observes), train_traces_resolution])
     model_replace_true.learn_inference_network(0, batch_size=1, observe_embeddings={'obs0': {}, 'obs1': {}}, inference_network=pyprob.InferenceNetwork.LSTM)
     model_replace_false.learn_inference_network(0, batch_size=1, observe_embeddings={'obs0': {}, 'obs1': {}}, inference_network=pyprob.InferenceNetwork.LSTM)
 
-    for train_traces in range(0, train_traces_max+1, train_traces_step):
+    for j in range(train_traces_resolution):
+        train_traces = j * train_traces_step
         print('\ntrain_traces: {}/{}'.format(train_traces, train_traces_max))
-        model_replace_true.learn_inference_network(train_traces_step)
-        model_replace_false.learn_inference_network(train_traces_step)
         model_replace_true_loss.append(float(model_replace_true._inference_network._history_train_loss[-1]))
         model_replace_false_loss.append(float(model_replace_false._inference_network._history_train_loss[-1]))
-        model_replace_true_ic = model_replace_true.posterior_distribution(infer_traces, observe=observe, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK)
-        model_replace_false_ic = model_replace_false.posterior_distribution(infer_traces, observe=observe, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK)
-        model_replace_true_ic_ess.append(float(model_replace_true_ic.effective_sample_size))
-        model_replace_false_ic_ess.append(float(model_replace_false_ic.effective_sample_size))
+        for i, observe in enumerate(observes):
+            model_replace_true_ic_posterior = model_replace_true.posterior_distribution(infer_traces, observe=observe, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK)
+            model_replace_false_ic_posterior = model_replace_false.posterior_distribution(infer_traces, observe=observe, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK)
+            model_replace_true_ic_posterior_ess[i, j] = float(model_replace_true_ic_posterior.effective_sample_size) / infer_traces
+            model_replace_false_ic_posterior_ess[i, j] = float(model_replace_false_ic_posterior.effective_sample_size) / infer_traces
+
+        model_replace_true.learn_inference_network(train_traces_step)
+        model_replace_false.learn_inference_network(train_traces_step)
         traces.append(train_traces)
 
-    model_replace_true_ic_ess = np.array(model_replace_true_ic_ess) / infer_traces
-    model_replace_false_ic_ess = np.array(model_replace_false_ic_ess) / infer_traces
-
-    plot_file_name = os.path.join(results_dir, 'result.pdf')
-    print('Saving result plot to: {}'.format(plot_file_name))
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(8, 8))
-    ax1.hlines(model_replace_true_is_ess, xmin=0, xmax=train_traces_max, label='IS, Replace=True')
-    ax1.hlines(model_replace_false_is_ess, xmin=0, xmax=train_traces_max, label='IS, Replace=False')
-    ax1.plot(traces, model_replace_true_ic_ess, label='IC, Replace=True')
-    ax1.plot(traces, model_replace_false_ic_ess, label='IC, Replace=False')
-    ax1.legend(loc='best')
-    ax1.set_ylabel('Normalized ESS')
-    ax2.plot(traces, model_replace_true_loss, label='Replace=True')
-    ax2.plot(traces, model_replace_false_loss, label='Replace=False')
-    ax2.set_ylabel('Loss')
-    ax2.set_xlabel('Training traces')
-    ax2.legend(loc='best')
-    plt.tight_layout()
-    fig.savefig(plot_file_name)
+    for i, observe in enumerate(observes):
+        plot_file_name = os.path.join(results_dir, 'obs_{}_{}.pdf'.format(observe['obs0'], observe['obs1']))
+        print('Saving result plot to: {}'.format(plot_file_name))
+        fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(8, 8))
+        ax1.hlines(model_replace_true_is_posterior_ess[i], xmin=0, xmax=train_traces_max, label='IS, Replace=True')
+        ax1.hlines(model_replace_false_is_posterior_ess[i], xmin=0, xmax=train_traces_max, label='IS, Replace=False')
+        ax1.plot(traces, model_replace_true_ic_posterior_ess[i], label='IC, Replace=True')
+        ax1.plot(traces, model_replace_false_ic_posterior_ess[i], label='IC, Replace=False')
+        ax1.legend(loc='best')
+        ax1.set_ylabel('Normalized ESS')
+        ax2.plot(traces, model_replace_true_loss, label='Replace=True')
+        ax2.plot(traces, model_replace_false_loss, label='Replace=False')
+        ax2.set_ylabel('Loss')
+        ax2.set_xlabel('Training traces')
+        ax2.legend(loc='best')
+        plt.tight_layout()
+        fig.savefig(plot_file_name)
 
 
 if __name__ == '__main__':
