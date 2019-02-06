@@ -430,14 +430,8 @@ class InferenceNetwork(nn.Module):
         loss_min_str = ''
         time_since_loss_min_str = ''
         last_auto_save_time = time.time() - save_every_sec
-        if isinstance(dataset, OfflineDataset) and (distributed_world_size == 1):
-            #dataloader_epoch_one = DataLoader(dataset, batch_sampler=SortedTraceBatchSampler(dataset, batch_size=batch_size, shuffle=False), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
-            dataloader_epoch_one = DataLoader(dataset, batch_sampler=SortedTraceBatchSamplerDistributed(dataset, batch_size=batch_size,num_replicas=distributed_world_size,rank=distributed_rank, shuffle=False), num_workers=dataloader_offline_num_workers, collate_fn =lambda x: Batch(x))
-            dataloader_epoch_all = DataLoader(dataset, batch_sampler=SortedTraceBatchSampler(dataset, batch_size=batch_size, shuffle=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
-        elif isinstance(dataset, OfflineDataset) and (distributed_world_size > 1):
-            #dataloader_epoch_one = DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
-            # use the following for distributed data loader 
-            dataloader_epoch_one = DataLoader(dataset, batch_sampler=SortedTraceBatchSamplerDistributed(dataset, batch_size=batch_size,num_replicas=distributed_world_size,rank=distributed_rank, shuffle=False), num_workers=dataloader_offline_num_workers, collate_fn =lambda x: Batch(x))
+        if isinstance(dataset, OfflineDataset):
+            dataloader_epoch_one = DataLoader(dataset, batch_sampler=SortedTraceBatchSamplerDistributed(dataset, batch_size=batch_size,num_replicas=distributed_world_size,rank=distributed_rank, shuffle=True), num_workers=dataloader_offline_num_workers, collate_fn =lambda x: Batch(x))
             dataloader_epoch_all = dataloader_epoch_one
         else:
             dataloader_epoch_one = DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
