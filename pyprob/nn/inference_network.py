@@ -306,19 +306,19 @@ class InferenceNetwork(nn.Module):
         #if (dist.get_rank ==0):
         #    print(colored('Distributed mean train. loss across ranks : {:+.2e}, min. train. loss: {:+.2e}'.format(self._distributed_train_loss, self._distributed_train_loss_min), 'yellow', attrs=['bold']))
 
-    def _distributed_update_valid_loss(self, loss, world_size, loss_moving_average_window_size):
+    def _distributed_update_valid_loss(self, loss, world_size):
         self._distributed_valid_loss = util.to_tensor(float(loss))
         dist.all_reduce(self._distributed_valid_loss)
         self._distributed_valid_loss /= float(world_size)
         self._distributed_history_valid_loss.append(float(self._distributed_valid_loss))
         self._distributed_history_valid_loss_trace.append(self._total_train_traces)
-        recent_losses=self._distributed_history_valid_loss[(1-loss_moving_average_window_size):]
-        self._distributed_filtered_valid_loss = sum(recent_losses) /len(recent_losses)
-        self._distributed_history_filtered_valid_loss.append(self._distributed_filtered_valid_loss)
-        if float(self._distributed_filtered_valid_loss) < self._distributed_valid_loss_min:
-            self._distributed_valid_loss_min = float(self._distributed_filtered_valid_loss)
+        #recent_losses=self._distributed_history_valid_loss[(1-loss_moving_average_window_size):]
+        #self._distributed_filtered_valid_loss = sum(recent_losses) /len(recent_losses)
+        #self._distributed_history_filtered_valid_loss.append(self._distributed_filtered_valid_loss)
+        if float(self._distributed_valid_loss) < self._distributed_valid_loss_min:
+            self._distributed_valid_loss_min = float(self._distributed_valid_loss)
         if (dist.get_rank ==0):
-            print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_filtered_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
+            print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
 
 
 
@@ -469,11 +469,12 @@ class InferenceNetwork(nn.Module):
 
         while not stop:
             epoch += 1
+
+            #adjust global learning rate
+            scheduler.step()
+
             dataloader = dataloader_epoch_one if epoch == 1 else dataloader_epoch_all
             for i_batch, batch in enumerate(dataloader):
-
-                #adjust global learning rate
-                scheduler.step()
 
                 # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
                 if (distributed_world_size > 1) and (iteration % distributed_params_sync_every == 0):
@@ -488,10 +489,6 @@ class InferenceNetwork(nn.Module):
                 else:
                     layers_changed = self._polymorph(batch)
 
-                
-
-                #adjust global learning rate
-                scheduler.step()                
 
                 self._optimizer.zero_grad()
                 success, loss = self._loss(batch)
@@ -574,19 +571,19 @@ class InferenceNetwork(nn.Module):
                                 self._distributed_update_train_loss(loss, distributed_world_size, loss_moving_average_window_size)
                                 loss_str=colored('{:+.2e}'.format(self._distributed_filtered_train_loss), 'yellow')
                                 loss_min_str=colored('{:+.2e}'.format(self._distributed_train_loss_min), 'yellow')
-                                self._distributed_update_valid_loss(valid_loss, distributed_world_size, loss_moving_average_window_size)
+                                self._distributed_update_valid_loss(valid_loss, distributed_world_size)
 
                     if (distributed_world_size > 1): #and (iteration % distributed_loss_update_every == 0):
                         self._distributed_update_train_loss(loss, distributed_world_size,loss_moving_average_window_size)
                         loss_str=colored('{:+.2e}'.format(self._distributed_filtered_train_loss), 'yellow')
                         loss_min_str=colored('{:+.2e}'.format(self._distributed_train_loss_min), 'yellow')
 
-         #          if (distributed_rank == 0) and (save_file_name_prefix is not None):
-         #               if time.time() - last_auto_save_time > save_every_sec:
-         #                   last_auto_save_time = time.time()
-         #                   file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
-         #                   print('\rSaving to disk...  ', end='\r')
-         #                   self._save(file_name)
+#                    if (distributed_rank == 0) and (save_file_name_prefix is not None):
+#                        if time.time() - last_auto_save_time > save_every_sec:
+#                            last_auto_save_time = time.time()
+#                            file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
+#                            print('\rSaving to disk...  ', end='\r')
+#                            self._save(file_name)
 
                     print_line = '{} | {} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
                     max_print_line_len = max(len(print_line), max_print_line_len)
@@ -597,7 +594,7 @@ class InferenceNetwork(nn.Module):
                         break
                 iteration += 1
 
-        #if (distributed_rank == 0) and (save_file_name_prefix is not None):
-        #    file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
-        #    print('\rSaving to disk...  ', end='\r')
-        #    self._save(file_name)
+#        if (distributed_rank == 0) and (save_file_name_prefix is not None):
+#            file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
+#            print('\rSaving to disk...  ', end='\r')
+#            self._save(file_name)
