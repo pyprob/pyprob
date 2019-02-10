@@ -437,7 +437,8 @@ class InferenceNetwork(nn.Module):
             dataloader_epoch_one = DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
             dataloader_epoch_all = dataloader_epoch_one
         if dataset_valid is not None:
-            dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
+            #dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
+            dataloader_valid = DataLoader(dataset_valid, batch_sampler=SortedTraceBatchSamplerDistributed(dataset_valid, batch_size=batch_size,num_replicas=distributed_world_size,rank=distributed_rank, shuffle=True), num_workers=dataloader_offline_num_workers, collate_fn =lambda x: Batch(x))
 
         if self._layers_pre_generated:
             layers_changed = False
