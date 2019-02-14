@@ -68,8 +68,8 @@ class Model():
         prior.rename('Prior, traces: {:,}'.format(prior.length))
         return prior
 
-    def prior_distribution(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=lambda trace: trace.result, file_name=None, *args, **kwargs):
-        return self.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, map_func=map_func, file_name=file_name, *args, **kwargs)
+    def prior_distribution(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=lambda trace: trace.result, file_name=None, thinning_steps=None, *args, **kwargs):
+        return self.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, map_func=map_func, file_name=file_name, thinning_steps=thinning_steps, *args, **kwargs)
 
     def posterior_traces(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=None, observe=None, file_name=None, thinning_steps=None, *args, **kwargs):
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
