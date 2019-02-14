@@ -4,7 +4,7 @@ from . import util
 
 
 class Variable():
-    def __init__(self, distribution=None, value=None, address_base=None, address=None, instance=None, log_prob=None, control=False, replace=False, name=None, observed=False, reused=False, tagged=False):
+    def __init__(self, distribution=None, value=None, address_base=None, address=None, instance=None, log_prob=None, log_importance_weight=None, control=False, replace=False, name=None, observed=False, reused=False, tagged=False):
         self.distribution = distribution
         if value is None:
             self.value = None
@@ -17,6 +17,10 @@ class Variable():
             self.log_prob = None
         else:
             self.log_prob = util.to_tensor(log_prob)
+        if log_importance_weight is None:
+            self.log_importance_weight = None
+        else:
+            self.log_importance_weight = float(log_importance_weight)
         self.control = control
         self.replace = replace
         self.name = name
@@ -112,6 +116,15 @@ class Trace():
         self.log_prob_observed = sum([torch.sum(v.log_prob) for v in self.variables_observed])
         self.length = len(self.variables)
         self.length_controlled = len(self.variables_controlled)
+        replaced_log_importance_weights = {}
+        for variable in self.variables:
+            if variable.log_importance_weight is not None:
+                if variable.replace:
+                    replaced_log_importance_weights[variable.address_base] = variable.log_importance_weight
+                else:
+                    self.log_importance_weight += variable.log_importance_weight
+        for _, log_importance_weight in replaced_log_importance_weights.items():
+            self.log_importance_weight += log_importance_weight
 
     def last_instance(self, address_base):
         if address_base in self.variables_dict_address_base:

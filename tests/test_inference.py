@@ -146,7 +146,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
-        posterior_effective_sample_size_min = samples * 0.4
+        posterior_effective_sample_size_min = samples * 0.2
 
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_ff_training_traces, observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}}, prior_inflation=importance_sampling_with_inference_network_ff_prior_inflation, inference_network=InferenceNetwork.FEEDFORWARD)
 
@@ -308,7 +308,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
-        posterior_effective_sample_size_min = samples * 0.02
+        posterior_effective_sample_size_min = samples * 0.01
 
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_ff_training_traces, observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}}, prior_inflation=importance_sampling_with_inference_network_ff_prior_inflation, inference_network=InferenceNetwork.FEEDFORWARD)
 
@@ -848,11 +848,11 @@ if __name__ == '__main__':
     pyprob.set_verbosity(2)
     # pyprob.set_cuda(True)
     tests = []
-    tests.append('GaussianWithUnknownMeanTestCase')
+    # tests.append('GaussianWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanMarsagliaTestCase')
     # tests.append('HiddenMarkovModelTestCase')
     # tests.append('BranchingTestCase')
-    tests.append('MiniCaptchaTestCase')
+    # tests.append('MiniCaptchaTestCase')
 
     time_start = time.time()
     success = unittest.main(defaultTest=tests, verbosity=2, exit=False).result.wasSuccessful()

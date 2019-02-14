@@ -131,9 +131,11 @@ def observe(distribution, value=None, name=None, address=None):
 
     log_prob = distribution.log_prob(value, sum=True)
     if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-        _current_trace.log_importance_weight += float(log_prob)
+        log_importance_weight = float(log_prob)
+    else:
+        log_importance_weight = None
 
-    variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True, name=name)
+    variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, observed=True, name=name)
     _current_trace.add(variable)
 
 
@@ -159,13 +161,14 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
 
     instance = _current_trace.last_instance(address_base) + 1
     address = address_base + '__' + ('replaced' if replace else str(instance))
+    log_importance_weight = None
 
     if name in _current_trace_observed_variables:
         # Variable is observed
         value = _current_trace_observed_variables[name]
         log_prob = distribution.log_prob(value, sum=True)
-        _current_trace.log_importance_weight += float(log_prob)
-        variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, observed=True, name=name)
+        log_importance_weight = float(log_prob)
+        variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, observed=True, name=name)
     else:
         reused = False
         observed = False
@@ -179,12 +182,12 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
             else:
                 value = inflated_distribution.sample()
                 log_prob = distribution.log_prob(value, sum=True)
-                _current_trace.log_importance_weight += float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))
+                log_importance_weight = float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))
         else:  # _trace_mode == TraceMode.POSTERIOR
             if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
                 value = distribution.sample()
                 log_prob = distribution.log_prob(value, sum=True)
-                # _current_trace.log_importance_weight += 0  # Not computed because log_importance_weight is zero when running importance sampling with prior as proposal
+                log_importance_weight = 0  # log_importance_weight is zero when running importance sampling with prior as proposal
             elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
                 if control:
                     _current_trace_inference_network.eval()
@@ -213,7 +216,7 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                         print('distribution', proposal_distribution)
                         print('value', value)
                         print('log_prob', proposal_log_prob)
-                    _current_trace.log_importance_weight += float(log_prob) - float(proposal_log_prob)
+                    log_importance_weight = float(log_prob) - float(proposal_log_prob)
                 else:
                     value = distribution.sample()
                     log_prob = distribution.log_prob(value, sum=True)
@@ -268,7 +271,7 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                             log_prob = distribution.log_prob(value, sum=True)
                             reused = False
 
-        variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, control=control, replace=replace, name=name, observed=observed, reused=reused)
+        variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, replace=replace, name=name, observed=observed, reused=reused)
         if update_previous_variable:
             _current_trace_previous_variable = variable
 
