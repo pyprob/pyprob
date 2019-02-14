@@ -27,11 +27,10 @@ script:
 - travis_wait 60 sh run_basic.sh
 - cd ..
 after_success:
-- if [ "$TRAVIS_PULL_REQUEST" == "true" ]; then exit 0; fi
 - export CURRENT_BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH;
   else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
 - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, TRAVIS_TAG=$TRAVIS_TAG, CURRENT_BRANCH=$CURRENT_BRANCH"
-- if [[ "$TRAVIS_BRANCH" == "master" ]] || [[ -n "$TRAVIS_TAG" ]]; then GIT_COMMIT="$(git
+- if [[ [[ "$TRAVIS_BRANCH" == "master" ]] || [[ -n "$TRAVIS_TAG" ]] ]] && [[-n "$DOCKER_PASSWORD" ]]; then GIT_COMMIT="$(git
   rev-parse HEAD)" ; echo "GIT_COMMIT=$GIT_COMMIT" ; PYPROB_VERSION="$(python setup.py
   --version)" ; echo "PYPROB_VERSION=$PYPROB_VERSION" ; docker login -u $DOCKER_USERNAME
   -p $DOCKER_PASSWORD ; docker build -t probprog/pyprob --build-arg PYPROB_VERSION=$PYPROB_VERSION
