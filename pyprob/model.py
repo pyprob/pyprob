@@ -71,7 +71,7 @@ class Model():
     def prior_distribution(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=lambda trace: trace.result, file_name=None, *args, **kwargs):
         return self.prior_traces(num_traces=num_traces, prior_inflation=prior_inflation, map_func=map_func, file_name=file_name, *args, **kwargs)
 
-    def posterior_traces(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=None, observe=None, file_name=None, *args, **kwargs):
+    def posterior_traces(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=None, observe=None, file_name=None, thinning_steps=None, *args, **kwargs):
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
             posterior = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, map_func=map_func, observe=observe, file_name=file_name, *args, **kwargs)
             posterior.rename('Posterior, IS, traces: {:,}, ESS: {:,.2f}'.format(posterior.length, posterior.effective_sample_size))
@@ -93,6 +93,9 @@ class Model():
             traces_accepted = 0
             samples_reused = 0
             samples_all = 0
+            if thinning_steps:
+                # adjust number of traces to sample, such that the provided num_traces is reached after thinning
+                num_traces = num_traces * thinning_steps
             if util._verbosity > 1:
                 len_str_num_traces = len(str(num_traces))
                 print('Time spent  | Time remain.| Progress             | {} | Accepted|Smp reuse| Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
@@ -123,10 +126,19 @@ class Model():
                 if math.log(random.random()) < float(log_acceptance_ratio):
                     traces_accepted += 1
                     current_trace = candidate_trace
-                if map_func is not None:
-                    posterior.add(map_func(current_trace))
+                # do thinning
+                if thinning_steps:
+                    if i % thinning_steps == 0:
+                        if map_func is not None:
+                            posterior.add(map_func(current_trace))
+                        else:
+                            posterior.add(current_trace)
                 else:
-                    posterior.add(current_trace)
+                    if map_func is not None:
+                        posterior.add(map_func(current_trace))
+                    else:
+                        posterior.add(current_trace)
+
             if util._verbosity > 1:
                 print()
 
