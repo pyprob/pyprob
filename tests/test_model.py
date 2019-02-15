@@ -297,19 +297,19 @@ class ModelTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
 
-    # def test_model_save_traces_load_train(self):
-    #     dataset_dir = tempfile.mkdtemp()
-    #     num_traces = 512
-    #     num_traces_per_file = 32
-    #     training_traces = 128
-    #
-    #     self._model.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces, num_traces_per_file=num_traces_per_file)
-    #     self._model.learn_inference_network(num_traces=training_traces, dataset_dir=dataset_dir, batch_size=16, valid_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
-    #     shutil.rmtree(dataset_dir)
-    #
-    #     util.eval_print('dataset_dir', 'num_traces', 'num_traces_per_file', 'training_traces')
-    #
-    #     self.assertTrue(True)
+    def test_model_save_traces_load_train(self):
+        dataset_dir = tempfile.mkdtemp()
+        num_traces = 512
+        num_traces_per_file = 32
+        training_traces = 128
+
+        self._model.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces, num_traces_per_file=num_traces_per_file)
+        self._model.learn_inference_network(num_traces=training_traces, dataset_dir=dataset_dir, batch_size=16, valid_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
+        shutil.rmtree(dataset_dir)
+
+        util.eval_print('dataset_dir', 'num_traces', 'num_traces_per_file', 'training_traces')
+
+        self.assertTrue(True)
 
 
 class ModelWithReplacementTestCase(unittest.TestCase):
