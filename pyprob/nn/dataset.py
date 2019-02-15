@@ -205,7 +205,7 @@ class OfflineDataset(ConcatDataset):
                 shelf = ConcurrentShelf(file_name)
                 shelf.lock(write=True)
                 shelf['__length'] = 0
-                util.progress_bar_update(cnt)
+            util.progress_bar_update(cnt)
 
             # append the trace to the current shelf
             shelf[str(shelf['__length'])] = self[idx]
