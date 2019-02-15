@@ -190,9 +190,9 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                 log_importance_weight = 0  # log_importance_weight is zero when running importance sampling with prior as proposal
             elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
                 if control:
-                    _current_trace_inference_network.eval()
                     variable = Variable(distribution=distribution, value=None, address_base=address_base, address=address, instance=instance, log_prob=0., control=control, replace=replace, name=name, observed=observed, reused=reused)
                     if replace:
+                        # TODO: address not in _current_trace_replaced_variable_proposal_distributions might not be sufficient to discover a new replace loop instance. Implement better.
                         if address not in _current_trace_replaced_variable_proposal_distributions:
                             _current_trace_replaced_variable_proposal_distributions[address] = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
                             update_previous_variable = True
@@ -302,6 +302,7 @@ def _init_traces(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflatio
         if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             raise ValueError('Cannot run trace with IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK without an inference network.')
     else:
+        _current_trace_inference_network.eval()
         _current_trace_inference_network._infer_init(_current_trace_observed_variables)
         _current_trace_inference_network_proposal_min_train_iterations = int(_current_trace_inference_network._total_train_iterations / 10)
 
