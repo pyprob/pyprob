@@ -37,6 +37,8 @@ class Model():
     def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=None, silent=False, observe=None, file_name=None, *args, **kwargs):
         generator = self._trace_generator(trace_mode=trace_mode, prior_inflation=prior_inflation, inference_engine=inference_engine, inference_network=inference_network, observe=observe, *args, **kwargs)
         traces = Empirical(file_name=file_name)
+        if map_func is None:
+            map_func = lambda trace: trace
         time_start = time.time()
         if (util._verbosity > 1) and not silent:
             len_str_num_traces = len(str(num_traces))
@@ -55,9 +57,7 @@ class Model():
                 log_weight = 1.
             else:
                 log_weight = trace.log_importance_weight
-            if map_func is not None:
-                trace = map_func(trace)
-            traces.add(trace, log_weight)
+            traces.add(map_func(trace), log_weight)
         if (util._verbosity > 1) and not silent:
             print()
         traces.finalize()
@@ -84,6 +84,8 @@ class Model():
             posterior.rename('Posterior, IC, traces: {:,}, train. traces: {:,}, ESS: {:,.2f}'.format(posterior.length, self._inference_network._total_train_traces, posterior.effective_sample_size))
         else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
             posterior = Empirical(file_name=file_name)
+            if map_func is None:
+                map_func = lambda trace: trace
             if initial_trace is None:
                 current_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, observe=observe, *args, **kwargs))
             else:
@@ -93,7 +95,9 @@ class Model():
             traces_accepted = 0
             samples_reused = 0
             samples_all = 0
-            if thinning_steps:
+            if thinning_steps is None:
+                thinning_steps = 1
+            else:
                 # adjust number of traces to sample, such that the provided num_traces is reached after thinning
                 num_traces = num_traces * thinning_steps
             if util._verbosity > 1:
@@ -127,17 +131,8 @@ class Model():
                     traces_accepted += 1
                     current_trace = candidate_trace
                 # do thinning
-                if thinning_steps:
-                    if i % thinning_steps == 0:
-                        if map_func is not None:
-                            posterior.add(map_func(current_trace))
-                        else:
-                            posterior.add(current_trace)
-                else:
-                    if map_func is not None:
-                        posterior.add(map_func(current_trace))
-                    else:
-                        posterior.add(current_trace)
+                if i % thinning_steps == 0:
+                    posterior.add(map_func(current_trace))
 
             if util._verbosity > 1:
                 print()
