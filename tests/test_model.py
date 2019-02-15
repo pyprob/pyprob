@@ -170,7 +170,70 @@ class ModelTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
+        
+    def test_model_rmh_posterior_with_online_thinning(self):
+        posterior_num_runs = 100
+        posterior_num_traces_each_run = 20
+        posterior_num_traces_correct = posterior_num_traces_each_run * posterior_num_runs
+        true_posterior = Normal(7.25, math.sqrt(1/1.2))
+        posterior_mean_correct = float(true_posterior.mean)
+        posterior_stddev_correct = float(true_posterior.stddev)
+        prior_mean_correct = 1.
+        prior_stddev_correct = math.sqrt(5)
+        thinning_steps = 10
 
+        posteriors = []
+        initial_trace = None
+        for i in range(posterior_num_runs):
+            posterior = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace, thinning_steps=thinning_steps)
+            initial_trace = posterior[-1]
+            posteriors.append(posterior)
+        posterior = Empirical.combine(posteriors).map(lambda trace: trace.result)
+        posterior_num_traces = posterior.length
+        posterior_mean = float(posterior.mean)
+        posterior_mean_unweighted = float(posterior.unweighted().mean)
+        posterior_stddev = float(posterior.stddev)
+        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
+
+        util.eval_print('posterior_num_runs', 'posterior_num_traces_each_run', 'posterior_num_traces', 'posterior_num_traces_correct', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+
+        self.assertEqual(posterior_num_traces, posterior_num_traces_correct)
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+        self.assertLess(kl_divergence, 0.25)
+
+    def test_model_lmh_posterior_with_online_thinning(self):
+        posterior_num_runs = 100
+        posterior_num_traces_each_run = 20
+        posterior_num_traces_correct = posterior_num_traces_each_run * posterior_num_runs
+        true_posterior = Normal(7.25, math.sqrt(1/1.2))
+        posterior_mean_correct = float(true_posterior.mean)
+        posterior_stddev_correct = float(true_posterior.stddev)
+        prior_mean_correct = 1.
+        prior_stddev_correct = math.sqrt(5)
+        thinning_steps = 10
+
+        posteriors = []
+        initial_trace = None
+        for i in range(posterior_num_runs):
+            posterior = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace, thinning_steps=thinning_steps)
+            initial_trace = posterior[-1]
+            posteriors.append(posterior)
+        posterior = Empirical.combine(posteriors).map(lambda trace: trace.result)
+        posterior_num_traces = posterior.length
+        posterior_mean = float(posterior.mean)
+        posterior_mean_unweighted = float(posterior.unweighted().mean)
+        posterior_stddev = float(posterior.stddev)
+        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
+
+        util.eval_print('posterior_num_runs', 'posterior_num_traces_each_run', 'posterior_num_traces', 'posterior_num_traces_correct', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+
+        self.assertEqual(posterior_num_traces, posterior_num_traces_correct)
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+        self.assertLess(kl_divergence, 0.25)
 
     def test_model_lmh_posterior_with_stop_and_resume_on_disk(self):
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
