@@ -97,9 +97,7 @@ class Model():
             samples_all = 0
             if thinning_steps is None:
                 thinning_steps = 1
-            else:
-                # adjust number of traces to sample, such that the provided num_traces is reached after thinning
-                num_traces = num_traces * thinning_steps
+
             if util._verbosity > 1:
                 len_str_num_traces = len(str(num_traces))
                 print('Time spent  | Time remain.| Progress             | {} | Accepted|Smp reuse| Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
@@ -138,7 +136,7 @@ class Model():
                 print()
 
             posterior.finalize()
-            posterior.rename('Posterior, {}, traces: {:,}, accepted: {:,.2f}%, sample reuse: {:,.2f}%'.format('LMH' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'RMH', posterior.length, 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all))
+            posterior.rename('Posterior, {}, traces: {:,}{}, accepted: {:,.2f}%, sample reuse: {:,.2f}%'.format('LMH' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'RMH', posterior.length, '' if thinning_steps == 1 else '(thinning_steps={:,})'.format(thinning_steps), 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all))
 
         return posterior
 
