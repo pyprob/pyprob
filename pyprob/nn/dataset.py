@@ -209,7 +209,8 @@ class OfflineDataset(ConcatDataset):
 
     def sort(self, sorted_dataset_dir, num_traces_per_file=1000):
         if os.path.exists(sorted_dataset_dir):
-            raise RuntimeError('Directory already exists, use a new directory name to avoid dataset corruption: {}'.format(sorted_dataset_dir))
+            if len(glob(os.path.join(sorted_dataset_dir, '*'))) > 0:
+                raise RuntimeError('Target directory is not empty, cannot proceed due to corruption risk: {}'.format(sorted_dataset_dir))
         util.create_path(sorted_dataset_dir, directory=True)
         num_traces_per_file = int(num_traces_per_file)
         num_files = int(math.ceil(len(self) / num_traces_per_file))
