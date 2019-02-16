@@ -208,6 +208,8 @@ class OfflineDataset(ConcatDataset):
         return hashes.cpu().numpy(), sorted_indices.cpu().numpy()
 
     def sort(self, sorted_dataset_dir, num_traces_per_file=1000):
+        if os.path.exists(sorted_dataset_dir):
+            raise RuntimeError('Directory already exists, use a new directory name to avoid dataset corruption: {}'.format(sorted_dataset_dir))
         util.create_path(sorted_dataset_dir, directory=True)
         num_traces_per_file = int(num_traces_per_file)
         num_files = int(math.ceil(len(self) / num_traces_per_file))
@@ -215,7 +217,7 @@ class OfflineDataset(ConcatDataset):
         filename_template = 'pyprob_traces_sorted_{{:d}}_{{:0{}d}}'.format(num_files_digits)
         util.progress_bar_init('Saving sorted offline dataset, traces:{}, traces per file:{}, files:{}'.format(len(self), num_traces_per_file, num_files), len(self), 'Traces')
         file_last_index = -1
-        file_number = -1
+        file_number = 0
         shelf = None
         for new_i, old_i in enumerate(self._sorted_indices):
             if new_i > file_last_index:
@@ -236,7 +238,6 @@ class OfflineDataset(ConcatDataset):
             shelf[str(shelf['__length'])] = self[old_i]
             shelf['__length'] += 1
         shelf.unlock()
-        util.progress_bar_update(new_i)
         util.progress_bar_end()
 
 
