@@ -179,6 +179,41 @@ class OfflineDataset(ConcatDataset):
             print('{:.8f}\t{}'.format(hash, count))
         print()
 
+    def sort(self, sorted_dataset_dir, num_traces_per_file=1000):
+        num_traces_per_file = int(num_traces_per_file)
+        if not os.path.exists(sorted_dataset_dir):
+            print('Directory does not exist, creating: {}'.format(sorted_dataset_dir))
+            os.makedirs(sorted_dataset_dir)
+
+        num_files = int(math.ceil(len(self) / num_traces_per_file))
+        num_files_digits = len(str(num_files))
+        filename_template = "pyprob_traces_{{:d}}_{{:0{}d}}".format(num_files_digits)
+        util.progress_bar_init('Saving sorted offline dataset, traces:{}, traces per file:{}, files:{}'.format(len(self), num_traces_per_file, num_files), len(self), 'Traces')
+        file_last_index = -1
+        file_number = -1
+        shelf = None
+        for cnt, idx in enumerate(self._sorted_indices):
+            if cnt > file_last_index:
+                if shelf is not None:
+                    # Close the current shelf
+                    shelf.unlock()
+                # Update the expected last index in file
+                file_last_index += num_traces_per_file
+                # Create a new shelf
+                file_number += 1
+                file_name = os.path.join(sorted_dataset_dir, filename_template.format(num_traces_per_file, file_number))
+                shelf = ConcurrentShelf(file_name)
+                shelf.lock(write=True)
+                shelf['__length'] = 0
+            util.progress_bar_update(cnt)
+
+            # append the trace to the current shelf
+            shelf[str(shelf['__length'])] = self[idx]
+            shelf['__length'] += 1
+        shelf.unlock()
+        util.progress_bar_update(cnt)
+        util.progress_bar_end()
+
     def _compute_hashes(self):
         def trace_hash(trace):
             h = hash(''.join([variable.address for variable in trace.variables_controlled])) + sys.maxsize + 1
