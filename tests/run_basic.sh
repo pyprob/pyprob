@@ -19,6 +19,9 @@ python test_model_remote.py
 echo "Running diagnostics tests"
 python test_diagnostics.py
 
+echo "Running dataset tests"
+python test_dataset.py
+
 echo "Running neural network tests"
 python test_nn.py
 

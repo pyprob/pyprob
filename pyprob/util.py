@@ -177,10 +177,10 @@ def progress_bar_init(message, num_iters, iter_name='Items'):
 def progress_bar_update(iter):
     global progress_bar_prev_duration
     duration = time.time() - progress_bar_time_start
-    if (duration - progress_bar_prev_duration > _print_refresh_rate) or (iter == progress_bar_num_iters - 1):
+    if (duration - progress_bar_prev_duration > _print_refresh_rate) or (iter >= progress_bar_num_iters):
         progress_bar_prev_duration = duration
         traces_per_second = (iter + 1) / duration
-        print('{} | {} | {} | {}/{} | {:,.2f}       '.format(days_hours_mins_secs_str(duration), days_hours_mins_secs_str((progress_bar_num_iters - iter) / traces_per_second), progress_bar(iter, progress_bar_num_iters), str(iter + 1).rjust(progress_bar_len_str_num_iters), progress_bar_num_iters, traces_per_second), end='\r')
+        print('{} | {} | {} | {}/{} | {:,.2f}       '.format(days_hours_mins_secs_str(duration), days_hours_mins_secs_str((progress_bar_num_iters - iter) / traces_per_second), progress_bar(iter, progress_bar_num_iters), str(iter).rjust(progress_bar_len_str_num_iters), progress_bar_num_iters, traces_per_second), end='\r')
         sys.stdout.flush()
 
 
@@ -237,6 +237,10 @@ def replace_negative_inf(value, replace_message=None):
 def rgb_to_hex(rgb):
     # rgb is a triple of (r, g, b) where r, g, b are between 0 and 1.
     return "#{:02x}{:02x}{:02x}".format(int(max(0, min(rgb[0], 1))*255), int(max(0, min(rgb[1], 1))*255), int(max(0, min(rgb[2], 1))*255))
+
+
+def is_sorted(lst):
+    return all(lst[i] <= lst[i+1] for i in range(len(lst)-1))
 
 
 def prod(iterable):

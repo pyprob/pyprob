@@ -143,7 +143,14 @@ class OfflineDataset(ConcatDataset):
     def __init__(self, dataset_dir):
         self._dataset_dir = dataset_dir
         # files = [name for name in os.listdir(self._dataset_dir)]
-        files = sorted(glob(os.path.join(self._dataset_dir, 'pyprob_traces_*')))
+        files = sorted(glob(os.path.join(self._dataset_dir, 'pyprob_traces_sorted_*')))
+        if len(files) > 0:
+            self._sorted_on_disk = True
+        else:
+            self._sorted_on_disk = False
+            files = sorted(glob(os.path.join(self._dataset_dir, 'pyprob_traces_*')))
+        if len(files) == 0:
+            raise RuntimeError('Cannot find any data set files at {}'.format(dataset_dir))
         datasets = []
         for file in files:
             try:
@@ -154,46 +161,64 @@ class OfflineDataset(ConcatDataset):
                 print(colored('Warning: dataset file potentially corrupt, omitting: {}'.format(file), 'red', attrs=['bold']))
         super().__init__(datasets)
         print('OfflineDataset at: {}'.format(self._dataset_dir))
-        file_name = os.path.join(self._dataset_dir, 'pyprob_hashes')
-        hashes_file = ConcurrentShelf(file_name)
-        if 'hashes' in hashes_file:
-            print('Using pre-computed hashes in: {}'.format(file_name))
-            self._sorted_indices = hashes_file['sorted_indices']
-            self._hashes = hashes_file['hashes']
-            if torch.is_tensor(self._hashes):
-                self._hashes = self._hashes.cpu().numpy()
-            if len(self._sorted_indices) != len(self):
-                raise RuntimeError('Length of pre-computed hashes ({}) and length of offline dataset ({}) do not match. Dataset files have been altered. Delete and re-generate pre-computed hash file: {}'.format(len(self._sorted_indices), len(self), file_name))
-        else:
-            print('No pre-computed hashes found, generating: {}'.format(file_name))
-            hashes, sorted_indices = self._compute_hashes()
-            hashes_file['hashes'] = hashes
-            hashes_file['sorted_indices'] = sorted_indices
-            self._sorted_indices = sorted_indices
-            self._hashes = hashes
         print('Num. traces     : {:,}'.format(len(self)))
-        print('Num. trace types: {:,}'.format(len(set(self._hashes))))
-        hashes_and_counts = OrderedDict(sorted(Counter(self._hashes).items()))
-        print('Trace hash\tCount')
-        for hash, count in hashes_and_counts.items():
-            print('{:.8f}\t{}'.format(hash, count))
+        print('Sorted on disk  : {}'.format(self._sorted_on_disk))
+        if self._sorted_on_disk:
+            self._sorted_indices = list(range(len(self)))
+        else:
+            file_name = os.path.join(self._dataset_dir, 'pyprob_hashes')
+            hashes_file = ConcurrentShelf(file_name)
+            if 'hashes' in hashes_file:
+                print('Using pre-computed hashes in: {}'.format(file_name))
+                self._sorted_indices = hashes_file['sorted_indices']
+                self._hashes = hashes_file['hashes']
+                if torch.is_tensor(self._hashes):
+                    self._hashes = self._hashes.cpu().numpy()
+                if len(self._sorted_indices) != len(self):
+                    raise RuntimeError('Length of pre-computed hashes ({}) and length of offline dataset ({}) do not match. Dataset files have been altered. Delete and re-generate pre-computed hash file: {}'.format(len(self._sorted_indices), len(self), file_name))
+            else:
+                print('No pre-computed hashes found, generating: {}'.format(file_name))
+                hashes, sorted_indices = self._compute_hashes()
+                hashes_file['hashes'] = hashes
+                hashes_file['sorted_indices'] = sorted_indices
+                self._sorted_indices = sorted_indices
+                self._hashes = hashes
+            print('Num. trace types: {:,}'.format(len(set(self._hashes))))
+            hashes_and_counts = OrderedDict(sorted(Counter(self._hashes).items()))
+            print('Trace hash\tCount')
+            for hash, count in hashes_and_counts.items():
+                print('{:.8f}\t{}'.format(hash, count))
         print()
 
-    def sort(self, sorted_dataset_dir, num_traces_per_file=1000):
-        num_traces_per_file = int(num_traces_per_file)
-        if not os.path.exists(sorted_dataset_dir):
-            print('Directory does not exist, creating: {}'.format(sorted_dataset_dir))
-            os.makedirs(sorted_dataset_dir)
+    @staticmethod
+    def _trace_hash(trace):
+        h = hash(''.join([variable.address for variable in trace.variables_controlled])) + sys.maxsize + 1
+        return float('{}.{}'.format(trace.length_controlled, h))
 
+    def _compute_hashes(self):
+        hashes = torch.zeros(len(self))
+        util.progress_bar_init('Hashing offline dataset for sorting', len(self), 'Traces')
+        for i in range(len(self)):
+            hashes[i] = self._trace_hash(self[i])
+            util.progress_bar_update(i)
+        util.progress_bar_end()
+        print('Sorting offline dataset')
+        _, sorted_indices = torch.sort(hashes)
+        print('Sorting done')
+        return hashes.cpu().numpy(), sorted_indices.cpu().numpy()
+
+    def sort(self, sorted_dataset_dir, num_traces_per_file=1000):
+        util.create_path(sorted_dataset_dir, directory=True)
+        num_traces_per_file = int(num_traces_per_file)
         num_files = int(math.ceil(len(self) / num_traces_per_file))
         num_files_digits = len(str(num_files))
-        filename_template = "pyprob_traces_{{:d}}_{{:0{}d}}".format(num_files_digits)
+        filename_template = 'pyprob_traces_sorted_{{:d}}_{{:0{}d}}'.format(num_files_digits)
         util.progress_bar_init('Saving sorted offline dataset, traces:{}, traces per file:{}, files:{}'.format(len(self), num_traces_per_file, num_files), len(self), 'Traces')
         file_last_index = -1
         file_number = -1
         shelf = None
-        for cnt, idx in enumerate(self._sorted_indices):
-            if cnt > file_last_index:
+        for new_i, old_i in enumerate(self._sorted_indices):
+            if new_i > file_last_index:
                 if shelf is not None:
                     # Close the current shelf
                     shelf.unlock()
@@ -205,29 +230,14 @@ class OfflineDataset(ConcatDataset):
                 shelf = ConcurrentShelf(file_name)
                 shelf.lock(write=True)
                 shelf['__length'] = 0
-            util.progress_bar_update(cnt)
+            util.progress_bar_update(new_i)
 
             # append the trace to the current shelf
-            shelf[str(shelf['__length'])] = self[idx]
+            shelf[str(shelf['__length'])] = self[old_i]
             shelf['__length'] += 1
         shelf.unlock()
-        util.progress_bar_update(cnt)
+        util.progress_bar_update(new_i)
         util.progress_bar_end()
-
-    def _compute_hashes(self):
-        def trace_hash(trace):
-            h = hash(''.join([variable.address for variable in trace.variables_controlled])) + sys.maxsize + 1
-            return float('{}.{}'.format(trace.length_controlled, h))
-        hashes = torch.zeros(len(self))
-        util.progress_bar_init('Hashing offline dataset for sorting', len(self), 'Traces')
-        for i in range(len(self)):
-            hashes[i] = trace_hash(self[i])
-            util.progress_bar_update(i)
-        util.progress_bar_end()
-        print('Sorting offline dataset')
-        _, sorted_indices = torch.sort(hashes)
-        print('Sorting done')
-        return hashes.cpu().numpy(), sorted_indices.cpu().numpy()
 
 
 class SortedTraceSampler(Sampler):
