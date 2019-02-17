@@ -1,4 +1,4 @@
-from .dataset import Batch, OnlineDataset, OfflineDataset, TraceSampler, TraceBatchSampler
+from .dataset import Batch, OnlineDataset, OfflineDataset, TraceSampler, TraceBatchSampler, DistributedTraceBatchSampler
 from .embedding_feedforward import EmbeddingFeedForward
 from .embedding_cnn_2d_5c import EmbeddingCNN2D5C
 from .embedding_cnn_3d_5c import EmbeddingCNN3D5C
