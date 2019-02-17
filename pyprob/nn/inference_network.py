@@ -14,7 +14,7 @@ import copy
 from threading import Thread
 from termcolor import colored
 
-from . import Batch, OfflineDataset, SortedTraceSampler, SortedTraceBatchSampler, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
+from . import Batch, OfflineDataset, TraceBatchSampler, DistributedTraceBatchSampler, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 from .. import __version__, util, Optimizer, ObserveEmbedding
 
 
@@ -269,7 +269,7 @@ class InferenceNetwork(nn.Module):
             self._distributed_valid_loss_min = float(self._distributed_valid_loss)
         print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
 
-    def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_loss_update_every=None, dataloader_offline_num_workers=0, stop_with_bad_loss=False, *args, **kwargs):
+    def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_loss_update_every=None, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=False, *args, **kwargs):
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
             self._init_layers()
@@ -315,8 +315,11 @@ class InferenceNetwork(nn.Module):
         loss_min_str = ''
         time_since_loss_min_str = ''
         last_auto_save_time = time.time() - save_every_sec
-        if isinstance(dataset, OfflineDataset) and (distributed_world_size == 1):
-            dataloader = DataLoader(dataset, batch_sampler=SortedTraceBatchSampler(dataset, batch_size=batch_size, shuffle=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+        if isinstance(dataset, OfflineDataset):
+            if distributed_world_size == 1:
+                dataloader = DataLoader(dataset, batch_sampler=TraceBatchSampler(dataset, batch_size=batch_size, shuffle_batches=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+            else:
+                dataloader = DataLoader(dataset, batch_sampler=DistributedTraceBatchSampler(dataset, batch_size=batch_size, num_buckets=distributed_num_buckets, shuffle_batches=True, shuffle_buckets=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
         else:
             dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
         if dataset_valid is not None:

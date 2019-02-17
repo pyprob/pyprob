@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import Dataset, ConcatDataset, Sampler
+import torch.distributed as dist
 import math
 import os
 import sys
@@ -242,8 +243,10 @@ class OfflineDataset(ConcatDataset):
         util.progress_bar_end()
 
 
-class SortedTraceSampler(Sampler):
+class TraceSampler(Sampler):
     def __init__(self, offline_dataset):
+        if not isinstance(offline_dataset, OfflineDataset):
+            raise TypeError('Expecting an OfflineDataset instance.')
         self._sorted_indices = offline_dataset._sorted_indices
 
     def __iter__(self):
@@ -253,15 +256,62 @@ class SortedTraceSampler(Sampler):
         return len(self._offline_dataset)
 
 
-class SortedTraceBatchSampler(Sampler):
-    def __init__(self, offline_dataset, batch_size, shuffle=False):
+class TraceBatchSampler(Sampler):
+    def __init__(self, offline_dataset, batch_size, shuffle_batches=True):
+        if not isinstance(offline_dataset, OfflineDataset):
+            raise TypeError('Expecting an OfflineDataset instance.')
         self._batches = list(util.chunks(offline_dataset._sorted_indices, batch_size))
-        self._shuffle = shuffle
+        self._shuffle_batches = shuffle_batches
 
     def __iter__(self):
-        if self._shuffle:
+        if self._shuffle_batches:
             np.random.shuffle(self._batches)
         return iter(self._batches)
+
+    def __len__(self):
+        return len(self._batches)
+
+
+class DistributedTraceBatchSampler(Sampler):
+    def __init__(self, offline_dataset, batch_size, shuffle_batches=True, num_buckets=1, shuffle_buckets=True):
+        if not isinstance(offline_dataset, OfflineDataset):
+            raise TypeError('Expecting an OfflineDataset instance.')
+        if not dist.is_available():
+            raise RuntimeError('Expecting distributed training.')
+        self._world_size = dist.get_world_size()
+        self._rank = dist.get_rank()
+        self._batches = list(util.chunks(offline_dataset._sorted_indices, batch_size))
+        # Discard last minibatch if it's not of batch_size
+        if len(self._batches[-1]) < batch_size:
+            del(self._batches[-1])
+        self._num_buckets = num_buckets
+        self._bucket_size = math.ceil(len(self._batches) / num_buckets)
+        if self._bucket_size < self._world_size:
+            raise RuntimeError('offline_dataset:{}, batch_size:{} and num_buckets:{} imply a bucket_size:{} smaller than world_size:{}'.format(len(offline_dataset), batch_size, num_buckets, self._bucket_size, self._world_size))
+        self._buckets = list(util.chunks(self._batches, self._bucket_size))
+        # Unify last two buckets if the last bucket is smaller than other buckets
+        if len(self._buckets[-1]) < self._bucket_size:
+            if len(self._buckets) < 2:
+                raise RuntimeError('offline_dataset:{} too small for given batch_size:{} and num_buckets:{}'.format(len(offline_dataset), batch_size, num_buckets))
+            self._buckets[-2].extend(self._buckets[-1])
+            del(self._buckets[-1])
+        self._shuffle_batches = shuffle_batches
+        self._shuffle_buckets = shuffle_buckets
+        self._epoch = 0
+
+    def __iter__(self):
+        self._epoch += 1
+        if self._shuffle_buckets:
+            st = np.random.get_state()
+            np.random.seed(self._epoch)
+            np.random.shuffle(self._buckets)
+            np.random.set_state(st)
+        for bucket in self._buckets:
+            batches = bucket[self._rank:len(bucket):self._world_size]
+            if self._shuffle_batches:
+                np.random.shuffle(batches)
+            for batch in batches:
+                yield batch
 
     def __len__(self):
         return len(self._batches)
