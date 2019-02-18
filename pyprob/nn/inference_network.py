@@ -320,6 +320,8 @@ class InferenceNetwork(nn.Module):
         loss_min_str = ''
         time_since_loss_min_str = ''
         last_auto_save_time = time.time() - save_every_sec
+
+        # Training data loader
         if isinstance(dataset, OfflineDataset):
             if distributed_world_size == 1:
                 dataloader = DataLoader(dataset, batch_sampler=TraceBatchSampler(dataset, batch_size=batch_size, shuffle_batches=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
@@ -327,8 +329,18 @@ class InferenceNetwork(nn.Module):
                 dataloader = DataLoader(dataset, batch_sampler=DistributedTraceBatchSampler(dataset, batch_size=batch_size, num_buckets=distributed_num_buckets, shuffle_batches=True, shuffle_buckets=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
         else:
             dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
+
+        # Validation data loader
         if dataset_valid is not None:
             dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
+            if isinstance(dataset_valid, OfflineDataset):
+                if distributed_world_size == 1:
+                    dataloader_valid = DataLoader(dataset_valid, batch_sampler=TraceBatchSampler(dataset_valid, batch_size=batch_size, shuffle_batches=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+                else:
+                    dataloader_valid = DataLoader(dataset_valid, batch_sampler=DistributedTraceBatchSampler(dataset_valid, batch_size=batch_size, num_buckets=distributed_num_buckets, shuffle_batches=True, shuffle_buckets=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+            else:
+                dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
+
         while not stop:
             epoch += 1
             for i_batch, batch in enumerate(dataloader):
@@ -413,7 +425,7 @@ class InferenceNetwork(nn.Module):
                                 for i_batch, batch in enumerate(dataloader_valid):
                                     _, v = self._loss(batch)
                                     valid_loss += v
-                            valid_loss = float(valid_loss / len(dataset_valid))
+                            valid_loss = float(valid_loss / len(dataloader_valid))
                             self._history_valid_loss.append(valid_loss)
                             self._history_valid_loss_trace.append(self._total_train_traces)
                             last_validation_trace = trace - 1
