@@ -332,7 +332,6 @@ class InferenceNetwork(nn.Module):
 
         # Validation data loader
         if dataset_valid is not None:
-            dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
             if isinstance(dataset_valid, OfflineDataset):
                 if distributed_world_size == 1:
                     dataloader_valid = DataLoader(dataset_valid, batch_sampler=TraceBatchSampler(dataset_valid, batch_size=batch_size, shuffle_batches=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
