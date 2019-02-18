@@ -11,6 +11,7 @@ import uuid
 import tempfile
 import tarfile
 import copy
+import math
 from threading import Thread
 from termcolor import colored
 
@@ -286,9 +287,13 @@ class InferenceNetwork(nn.Module):
             print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
             print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
             print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
-            print(colored('Distributed minibatch size: {} (global), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
+            print(colored('Distributed minibatch size: {} (global effective), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
             print(colored('Distributed learning rate : {} (global), {} (base)'.format(learning_rate * distributed_world_size, learning_rate), 'yellow', attrs=['bold']))
             print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
+            print(colored('Distributed dataset size  : {}'.format(len(dataset)), 'yellow', attrs=['bold']))
+            print(colored('Distributed num. buckets  : {}'.format(distributed_num_buckets), 'yellow', attrs=['bold']))
+            bucket_size = math.ceil((len(dataset) / batch_size) / distributed_num_buckets)
+            print(colored('Distributed bucket size   : {} minibatches (minimum)'.format(bucket_size), 'yellow', attrs=['bold']))
             self._distributed_backend = distributed_backend
             self._distributed_world_size = distributed_world_size
 

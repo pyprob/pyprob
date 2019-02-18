@@ -280,14 +280,16 @@ class DistributedTraceBatchSampler(Sampler):
             raise RuntimeError('Expecting distributed training.')
         self._world_size = dist.get_world_size()
         self._rank = dist.get_rank()
+        # List of all minibatches in the whole dataset, where each minibatch is a list of trace indices
         self._batches = list(util.chunks(offline_dataset._sorted_indices, batch_size))
-        # Discard last minibatch if it's not of batch_size
+        # Discard last minibatch if it's smaller than batch_size
         if len(self._batches[-1]) < batch_size:
             del(self._batches[-1])
         self._num_buckets = num_buckets
         self._bucket_size = math.ceil(len(self._batches) / num_buckets)
         if self._bucket_size < self._world_size:
             raise RuntimeError('offline_dataset:{}, batch_size:{} and num_buckets:{} imply a bucket_size:{} smaller than world_size:{}'.format(len(offline_dataset), batch_size, num_buckets, self._bucket_size, self._world_size))
+        # List of buckets, where each bucket is a list of minibatches
         self._buckets = list(util.chunks(self._batches, self._bucket_size))
         # Unify last two buckets if the last bucket is smaller than other buckets
         if len(self._buckets[-1]) < self._bucket_size:
@@ -302,13 +304,20 @@ class DistributedTraceBatchSampler(Sampler):
     def __iter__(self):
         self._epoch += 1
         if self._shuffle_buckets:
+            # Shuffle the list of buckets (but not the order of minibatches inside each bucket) at the beginning of each epoch, deterministically based on the epoch number so that all nodes have the same bucket order
+            # Idea from: https://github.com/pytorch/pytorch/blob/a3fb004b1829880547dd7b3e2cd9d16af657b869/torch/utils/data/distributed.py#L44
             st = np.random.get_state()
             np.random.seed(self._epoch)
             np.random.shuffle(self._buckets)
             np.random.set_state(st)
         for bucket in self._buckets:
-            batches = bucket[self._rank:len(bucket):self._world_size]
+            # num_batches is needed to ensure that all nodes have the same number of minibatches per iteration, in cases where the bucket size is not divisible by world_size.
+            num_batches = math.floor(len(bucket) / self._world_size)
+            # Select a num_batches-sized subset of the current bucket for the current node
+            # The part not selected by the current node will be selected by other nodes
+            batches = bucket[self._rank:len(bucket):self._world_size][:num_batches]
             if self._shuffle_batches:
+                # Shuffle the list of minibatches (but not the order trace indices inside each minibatch) selected for the current node
                 np.random.shuffle(batches)
             for batch in batches:
                 yield batch
