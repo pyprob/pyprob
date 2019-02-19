@@ -106,6 +106,7 @@ class Distribution():
             data = torch.load(tmp_file, map_location=torch.device('cpu'))
             shutil.rmtree(tmp_dir)
         except Exception as e:
+            print(e)
             raise RuntimeError('Cannot load distribution. {}'.format(traceback.format_exc()))
 
         if data['pyprob_version'] != __version__:

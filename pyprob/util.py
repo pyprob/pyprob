@@ -120,7 +120,8 @@ def to_numpy(value):
     else:
         try:
             return np.array(value)
-        except:
+        except Exception as e:
+            print(e)
             raise TypeError('Cannot convert to Numpy array.')
 
 
