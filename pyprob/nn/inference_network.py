@@ -379,13 +379,12 @@ class InferenceNetwork(nn.Module):
             distributed_world_size = dist.get_world_size()
             distributed_rank = dist.get_rank()
             util.init_distributed_print(distributed_rank, distributed_world_size, True)
-            global_LR = learning_rate * math.sqrt(distributed_world_size)
             if (distributed_rank ==0):
                 print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
                 print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
                 print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
                 print(colored('Distributed minibatch size: {} (global), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
-                print(colored('Distributed initial learning rate : {} (global), {} (base)'.format(global_LR, learning_rate), 'yellow', attrs=['bold']))
+                print(colored('Distributed initial learning rate : {} (global), {} (base)'.format(learning_rate * math.sqrt(distributed_world_size), learning_rate), 'yellow', attrs=['bold']))
                 print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
                 print(colored('Distributed learning rate scheduling method: {}'.format(str(LR_schedule_method)), 'yellow', attrs=['bold']))
             self._distributed_backend = distributed_backend
@@ -404,7 +403,7 @@ class InferenceNetwork(nn.Module):
         self._distributed_history_filtered_valid_loss = []
         self._optimizer_type = optimizer_type
         self._batch_size = batch_size
-        self._learning_rate = global_LR
+        self._learning_rate = learning_rate * math.sqrt(distributed_world_size)
         self._momentum = momentum
         self.train()
         prev_total_train_seconds = self._total_train_seconds
@@ -448,9 +447,9 @@ class InferenceNetwork(nn.Module):
         #move it here
         if (self._optimizer is None) or layers_changed:
             if (optimizer_type == Optimizer.ADAM) or (optimizer_type == Optimizer.LARC_ADAM):
-                self._optimizer = optim.Adam(self.parameters(), lr=global_LR, weight_decay=weight_decay)
+                self._optimizer = optim.Adam(self.parameters(), lr=self._learning_rate, weight_decay=weight_decay)
             elif (optimizer_type == Optimizer.SGD) or (optimizer_type == Optimizer.LARC_SGD):
-                self._optimizer = optim.SGD(self.parameters(), lr=global_LR, momentum=momentum, nesterov=True, weight_decay=weight_decay)
+                self._optimizer = optim.SGD(self.parameters(), lr=self._learning_rate, momentum=momentum, nesterov=True, weight_decay=weight_decay)
             else:
                 print("Unknown optimizer type: {}".format(optimizer_type))
                 quit()
