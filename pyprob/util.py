@@ -59,6 +59,15 @@ class Optimizer(enum.Enum):
     SGD = 1
 
 
+class LearningRateScheduler(enum.Enum):
+    NONE = 0
+    STEP = 1
+    MULTI_STEP = 2
+    # POLY1 = 3
+    # POLY2 = 4
+    # COSINE_ANNEALING = 5
+
+
 def set_random_seed(seed=123):
     if seed is None:
         seed = int((time.time()*1e6) % 1e8)

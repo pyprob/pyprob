@@ -7,7 +7,7 @@ import random
 from termcolor import colored
 
 from .distributions import Empirical
-from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, Optimizer, AddressDictionary
+from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, Optimizer, LearningRateScheduler, AddressDictionary
 from .nn import InferenceNetwork as InferenceNetworkBase
 from .nn import OnlineDataset, OfflineDataset, InferenceNetworkFeedForward, InferenceNetworkLSTM
 from .remote import ModelServer
@@ -142,7 +142,7 @@ class Model():
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, thinning_steps=None, *args, **kwargs):
         return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, file_name=file_name, thinning_steps=thinning_steps, *args, **kwargs)
 
-    def learn_inference_network(self, num_traces, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, dataset_valid_dir=None, observe_embeddings={}, batch_size=64, valid_size=None, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.001, momentum=0.9, weight_decay=0., save_file_name_prefix=None, save_every_sec=600, pre_generate_layers=True, distributed_backend=None, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=True):
+    def learn_inference_network(self, num_traces, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, dataset_valid_dir=None, observe_embeddings={}, batch_size=64, valid_size=None, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.001, learning_rate_scheduler=LearningRateScheduler.NONE, momentum=0.9, weight_decay=0., save_file_name_prefix=None, save_every_sec=600, pre_generate_layers=True, distributed_backend=None, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=True):
         if dataset_dir is None:
             dataset = OnlineDataset(model=self, prior_inflation=prior_inflation)
         else:
@@ -173,7 +173,7 @@ class Model():
             print('Total number of parameters: {:,}'.format(self._inference_network._history_num_params[-1]))
 
         self._inference_network.to(device=util._device)
-        self._inference_network.optimize(num_traces=num_traces, dataset=dataset, dataset_valid=dataset_valid, batch_size=batch_size, valid_every=valid_every, optimizer_type=optimizer_type, learning_rate=learning_rate, momentum=momentum, weight_decay=weight_decay, save_file_name_prefix=save_file_name_prefix, save_every_sec=save_every_sec, distributed_backend=distributed_backend, distributed_num_buckets=distributed_num_buckets, dataloader_offline_num_workers=dataloader_offline_num_workers, stop_with_bad_loss=stop_with_bad_loss)
+        self._inference_network.optimize(num_traces=num_traces, dataset=dataset, dataset_valid=dataset_valid, batch_size=batch_size, valid_every=valid_every, optimizer_type=optimizer_type, learning_rate=learning_rate, learning_rate_scheduler=learning_rate_scheduler, momentum=momentum, weight_decay=weight_decay, save_file_name_prefix=save_file_name_prefix, save_every_sec=save_every_sec, distributed_backend=distributed_backend, distributed_num_buckets=distributed_num_buckets, dataloader_offline_num_workers=dataloader_offline_num_workers, stop_with_bad_loss=stop_with_bad_loss)
 
     def save_inference_network(self, file_name):
         if self._inference_network is None:
