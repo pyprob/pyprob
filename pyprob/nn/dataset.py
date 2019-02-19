@@ -208,7 +208,16 @@ class OfflineDataset(ConcatDataset):
         print('Sorting done')
         return hashes.cpu().numpy(), sorted_indices.cpu().numpy()
 
-    def save_sorted(self, sorted_dataset_dir, num_traces_per_file=1000, begin_file_index=None, end_file_index=None):
+    def save_sorted(self, sorted_dataset_dir, num_traces_per_file=None, num_files=None, begin_file_index=None, end_file_index=None):
+        if num_traces_per_file is not None:
+            if num_files is not None:
+                raise ValueError('Expecting either num_traces_per_file or num_files')
+        else:
+            if num_files is None:
+                raise ValueError('Expecting either num_traces_per_file or num_files')
+            else:
+                num_traces_per_file = math.ceil(len(self) / num_files)
+
         if os.path.exists(sorted_dataset_dir):
             if len(glob(os.path.join(sorted_dataset_dir, '*'))) > 0:
                 print(colored('Warning: target directory is not empty: {})'.format(sorted_dataset_dir), 'red', attrs=['bold']))
