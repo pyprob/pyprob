@@ -227,7 +227,7 @@ class OfflineDataset(ConcatDataset):
         num_files = len(file_indices)
         num_files_digits = len(str(num_files))
         file_name_template = 'pyprob_traces_sorted_{{:d}}_{{:0{}d}}'.format(num_files_digits)
-        file_names = list(map(lambda x: os.path.join(sorted_dataset_dir, file_name_template.format(num_traces_per_file, x + 1)), range(num_files)))
+        file_names = list(map(lambda x: os.path.join(sorted_dataset_dir, file_name_template.format(num_traces_per_file, x)), range(num_files)))
         if begin_file_index is None:
             begin_file_index = 0
         if end_file_index is None:
