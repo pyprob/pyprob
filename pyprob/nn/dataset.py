@@ -212,36 +212,28 @@ class OfflineDataset(ConcatDataset):
         if os.path.exists(sorted_dataset_dir):
             if len(glob(os.path.join(sorted_dataset_dir, '*'))) > 0:
                 print(colored('Warning: target directory is not empty: {})'.format(sorted_dataset_dir), 'red', attrs=['bold']))
-
         util.create_path(sorted_dataset_dir, directory=True)
-        # num_traces_per_file = int(num_traces_per_file)
-        # num_files = int(math.ceil(len(self) / num_traces_per_file))
-        # if begin_file_index is None:
-        #     begin_file_index = 0
-        # if end_file_index is None:
-        #     end_file_index = num_files - 1
         file_indices = list(util.chunks(list(self._sorted_indices), num_traces_per_file))
         num_traces = len(self)
         num_files = len(file_indices)
         num_files_digits = len(str(num_files))
         file_name_template = 'pyprob_traces_sorted_{{:d}}_{{:0{}d}}'.format(num_files_digits)
         file_names = list(map(lambda x: os.path.join(sorted_dataset_dir, file_name_template.format(num_traces_per_file, x + 1)), range(num_files)))
-        print(num_files)
-        print(file_indices)
-        print(file_names)
         if begin_file_index is None:
             begin_file_index = 0
         if end_file_index is None:
             end_file_index = num_files
-        if begin_file_index < 0 or begin_file_index > end_file_index or end_file_index >= num_files or end_file_index < begin_file_index:
+        if begin_file_index < 0 or begin_file_index > end_file_index or end_file_index > num_files or end_file_index < begin_file_index:
             raise ValueError('Invalid indexes begin_file_index:{} and end_file_index: {}'.format(begin_file_index, end_file_index))
 
         print('Sorted offline dataset, traces: {}, traces per file: {}, files: {} (overall)'.format(num_traces, num_traces_per_file, num_files))
-        util.progress_bar_init('Saving sorted files with indices from {} to {} only ({} of {} files overall)'.format(begin_file_index, end_file_index, end_file_index - begin_file_index + 1, num_files), end_file_index - begin_file_index + 1, 'Files')
+        util.progress_bar_init('Saving sorted files with indices in range [{}, {}) ({} of {} files overall)'.format(begin_file_index, end_file_index, end_file_index - begin_file_index + 1, num_files), end_file_index - begin_file_index + 1, 'Files')
         j = 0
         for i in range(begin_file_index, end_file_index):
             j += 1
-            shelf = ConcurrentShelf(file_names[i])
+            file_name = file_names[i]
+            print(file_name)
+            shelf = ConcurrentShelf(file_name)
             shelf.lock(write=True)
             for new_i, old_i in enumerate(file_indices[i]):
                 shelf[str(new_i)] = self[old_i]
@@ -249,30 +241,6 @@ class OfflineDataset(ConcatDataset):
             shelf.unlock()
             util.progress_bar_update(j)
         util.progress_bar_end()
-
-        # file_last_index = -1
-        # file_number = 0
-        # shelf = None
-        # for new_i, old_i in enumerate(self._sorted_indices):
-        #     if new_i > file_last_index:
-        #         if shelf is not None:
-        #             # Close the current shelf
-        #             shelf.unlock()
-        #         # Update the expected last index in file
-        #         file_last_index += num_traces_per_file
-        #         # Create a new shelf
-        #         file_number += 1
-        #         file_name = os.path.join(sorted_dataset_dir, filename_template.format(num_traces_per_file, file_number))
-        #         shelf = ConcurrentShelf(file_name)
-        #         shelf.lock(write=True)
-        #         shelf['__length'] = 0
-        #     util.progress_bar_update(new_i)
-        #
-        #     # append the trace to the current shelf
-        #     shelf[str(shelf['__length'])] = self[old_i]
-        #     shelf['__length'] += 1
-        # shelf.unlock()
-        # util.progress_bar_end()
 
 
 class TraceSampler(Sampler):

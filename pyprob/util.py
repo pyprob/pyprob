@@ -194,6 +194,7 @@ def progress_bar_update(iter):
 
 
 def progress_bar_end(message=None):
+    progress_bar_update(progress_bar_num_iters)
     print()
     if message is not None:
         print(message)
