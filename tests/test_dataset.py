@@ -41,30 +41,30 @@ class DatasetTestCase(unittest.TestCase):
 
         self._model = GaussianWithUnknownMeanMarsaglia()
         super().__init__(*args, **kwargs)
-
-    def test_save_offline_dataset(self):
-        dataset_dir = tempfile.mkdtemp()
-        num_traces_correct = 20
-        num_traces_per_file_correct = 5
-        num_files_correct = 4
-
-        self._model.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces_correct, num_traces_per_file=num_traces_per_file_correct)
-        files = sorted(glob(os.path.join(dataset_dir, 'pyprob_traces_*')))
-        num_files = len(files)
-        dataset = OfflineDataset(dataset_dir)
-        hashes = dataset._hashes
-        indices = dataset._sorted_indices
-        sorted_on_disk = util.is_sorted(indices)
-        num_traces = len(dataset)
-        num_traces_per_file = num_traces / num_files
-        shutil.rmtree(dataset_dir)
-
-        util.eval_print('dataset_dir', 'num_traces', 'num_traces_correct', 'num_traces_per_file', 'num_traces_per_file_correct', 'files', 'num_files', 'num_files_correct', 'hashes', 'indices', 'sorted_on_disk')
-
-        self.assertEqual(num_files, num_files_correct)
-        self.assertEqual(num_traces, num_traces_correct)
-        self.assertEqual(num_traces_per_file, num_traces_per_file_correct)
-        self.assertFalse(sorted_on_disk)
+    #
+    # def test_save_offline_dataset(self):
+    #     dataset_dir = tempfile.mkdtemp()
+    #     num_traces_correct = 20
+    #     num_traces_per_file_correct = 5
+    #     num_files_correct = 4
+    #
+    #     self._model.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces_correct, num_traces_per_file=num_traces_per_file_correct)
+    #     files = sorted(glob(os.path.join(dataset_dir, 'pyprob_traces_*')))
+    #     num_files = len(files)
+    #     dataset = OfflineDataset(dataset_dir)
+    #     hashes = dataset._hashes
+    #     indices = dataset._sorted_indices
+    #     sorted_on_disk = util.is_sorted(indices)
+    #     num_traces = len(dataset)
+    #     num_traces_per_file = num_traces / num_files
+    #     shutil.rmtree(dataset_dir)
+    #
+    #     util.eval_print('dataset_dir', 'num_traces', 'num_traces_correct', 'num_traces_per_file', 'num_traces_per_file_correct', 'files', 'num_files', 'num_files_correct', 'hashes', 'indices', 'sorted_on_disk')
+    #
+    #     self.assertEqual(num_files, num_files_correct)
+    #     self.assertEqual(num_traces, num_traces_correct)
+    #     self.assertEqual(num_traces_per_file, num_traces_per_file_correct)
+    #     self.assertFalse(sorted_on_disk)
 
     def test_sort_offline_dataset(self):
         unsorted_dataset_dir = tempfile.mkdtemp()
@@ -79,7 +79,7 @@ class DatasetTestCase(unittest.TestCase):
         unsorted_dataset = OfflineDataset(unsorted_dataset_dir)
         unsorted_hashes = unsorted_dataset._hashes
         unsorted_indices = unsorted_dataset._sorted_indices
-        unsorted_dataset.sort(sorted_dataset_dir=sorted_dataset_dir, num_traces_per_file=sorted_num_traces_per_file_correct)
+        unsorted_dataset.save_sorted(sorted_dataset_dir=sorted_dataset_dir, num_traces_per_file=sorted_num_traces_per_file_correct)
         shutil.rmtree(unsorted_dataset_dir)
 
         sorted_dataset = OfflineDataset(sorted_dataset_dir)
@@ -99,6 +99,39 @@ class DatasetTestCase(unittest.TestCase):
         self.assertEqual(sorted_num_traces, unsorted_num_traces)
         self.assertEqual(sorted_num_traces_per_file, sorted_num_traces_per_file_correct)
 
+
+    def test_sort_offline_dataset_multi_node(self):
+        unsorted_dataset_dir = tempfile.mkdtemp()
+        unsorted_num_traces = 20
+        unsorted_num_traces_per_file = 5
+        sorted_dataset_dir = tempfile.mkdtemp()
+        sorted_num_traces_per_file_correct = 2
+        sorted_num_files_correct = 10
+
+        self._model.save_dataset(dataset_dir=unsorted_dataset_dir, num_traces=unsorted_num_traces, num_traces_per_file=unsorted_num_traces_per_file)
+        unsorted_files = sorted(glob(os.path.join(unsorted_dataset_dir, '*')))
+        unsorted_dataset = OfflineDataset(unsorted_dataset_dir)
+        unsorted_hashes = unsorted_dataset._hashes
+        unsorted_indices = unsorted_dataset._sorted_indices
+        unsorted_dataset.save_sorted(sorted_dataset_dir=sorted_dataset_dir, num_traces_per_file=sorted_num_traces_per_file_correct, begin_file=9)
+        shutil.rmtree(unsorted_dataset_dir)
+
+        sorted_dataset = OfflineDataset(sorted_dataset_dir)
+        sorted_files = sorted(glob(os.path.join(sorted_dataset_dir, '*')))
+        sorted_num_traces_per_file = len(sorted_dataset.datasets[0])
+        sorted_num_files = len(sorted_dataset.datasets)
+        sorted_num_traces = sorted_num_traces_per_file * sorted_num_files
+        sorted_hashes = [OfflineDataset._trace_hash(trace) for trace in sorted_dataset]
+        sorted_indices = sorted_dataset._sorted_indices
+        sorted_on_disk = util.is_sorted(sorted_indices)
+        shutil.rmtree(sorted_dataset_dir)
+
+        util.eval_print('unsorted_dataset_dir', 'unsorted_num_traces', 'unsorted_num_traces_per_file', 'unsorted_files', 'unsorted_hashes', 'unsorted_indices', 'sorted_dataset_dir', 'sorted_files', 'sorted_hashes', 'sorted_indices', 'sorted_on_disk', 'sorted_num_traces', 'sorted_num_files', 'sorted_num_files_correct', 'sorted_num_traces_per_file', 'sorted_num_traces_per_file_correct')
+
+        self.assertTrue(sorted_on_disk)
+        self.assertEqual(sorted_num_files, sorted_num_files_correct)
+        self.assertEqual(sorted_num_traces, unsorted_num_traces)
+        self.assertEqual(sorted_num_traces_per_file, sorted_num_traces_per_file_correct)
 
 if __name__ == '__main__':
     pyprob.set_random_seed(123)
