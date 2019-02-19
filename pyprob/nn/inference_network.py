@@ -15,6 +15,7 @@ import copy
 from threading import Thread
 from termcolor import colored
 import torch.optim.lr_scheduler as lr_scheduler
+import math
 
 from . import Batch, OfflineDataset, SortedTraceSampler, SortedTraceBatchSampler,SortedTraceBatchSamplerDistributed, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 from .. import __version__, util, Optimizer, ObserveEmbedding, LRScheduler
@@ -378,12 +379,13 @@ class InferenceNetwork(nn.Module):
             distributed_world_size = dist.get_world_size()
             distributed_rank = dist.get_rank()
             util.init_distributed_print(distributed_rank, distributed_world_size, True)
+            global_LR = learning_rate * math.sqrt(distributed_world_size)
             if (distributed_rank ==0):
                 print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
                 print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
                 print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
                 print(colored('Distributed minibatch size: {} (global), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
-                print(colored('Distributed initial learning rate : {} (global), {} (base)'.format(learning_rate * distributed_world_size, learning_rate), 'yellow', attrs=['bold']))
+                print(colored('Distributed initial learning rate : {} (global), {} (base)'.format(global_LR, learning_rate), 'yellow', attrs=['bold']))
                 print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
                 print(colored('Distributed learning rate scheduling method: {}'.format(str(LR_schedule_method)), 'yellow', attrs=['bold']))
             self._distributed_backend = distributed_backend
@@ -402,7 +404,7 @@ class InferenceNetwork(nn.Module):
         self._distributed_history_filtered_valid_loss = []
         self._optimizer_type = optimizer_type
         self._batch_size = batch_size
-        self._learning_rate = learning_rate * distributed_world_size
+        self._learning_rate = global_LR
         self._momentum = momentum
         self.train()
         prev_total_train_seconds = self._total_train_seconds
@@ -446,19 +448,19 @@ class InferenceNetwork(nn.Module):
         #move it here
         if (self._optimizer is None) or layers_changed:
             if (optimizer_type == Optimizer.ADAM) or (optimizer_type == Optimizer.LARC_ADAM):
-                self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * distributed_world_size, weight_decay=weight_decay)
+                self._optimizer = optim.Adam(self.parameters(), lr=global_LR, weight_decay=weight_decay)
             elif (optimizer_type == Optimizer.SGD) or (optimizer_type == Optimizer.LARC_SGD):
-                self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * distributed_world_size, momentum=momentum, nesterov=True, weight_decay=weight_decay)
+                self._optimizer = optim.SGD(self.parameters(), lr=global_LR, momentum=momentum, nesterov=True, weight_decay=weight_decay)
             else:
                 print("Unknown optimizer type: {}".format(optimizer_type))
                 quit()
 
-        max_epoch = 100 # TBD
+        max_epoch = 10 # TBD
 
         if LR_schedule_method== LRScheduler.STEP:
-            scheduler= lr_scheduler.StepLR(self._optimizer, step_size=30, gamma=0.1)
+            scheduler= lr_scheduler.StepLR(self._optimizer, step_size=3, gamma=0.1)
         elif LR_schedule_method== LRScheduler.MULTI_STEPS:
-            scheduler= lr_scheduler.MultiStepLR(self._optimizer, milestones=[30,80], gamma=0.1)
+            scheduler= lr_scheduler.MultiStepLR(self._optimizer, milestones=[1,2,3,4,5,6], gamma=0.83)
         elif LR_schedule_method== LRScheduler.POLY_2:
             lambda1 = lambda epoch: (1- float(epoch)/max_epoch)**2
             scheduler = lr_scheduler.LambdaLR(self._optimizer, lr_lambda= lambda1, last_epoch= -1)
@@ -579,12 +581,12 @@ class InferenceNetwork(nn.Module):
                         loss_str=colored('{:+.2e}'.format(self._distributed_filtered_train_loss), 'yellow')
                         loss_min_str=colored('{:+.2e}'.format(self._distributed_train_loss_min), 'yellow')
 
-#                    if (distributed_rank == 0) and (save_file_name_prefix is not None):
-#                        if time.time() - last_auto_save_time > save_every_sec:
-#                            last_auto_save_time = time.time()
-#                            file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
-#                            print('\rSaving to disk...  ', end='\r')
-#                            self._save(file_name)
+                    if (distributed_rank == 0) and (save_file_name_prefix is not None):
+                        if time.time() - last_auto_save_time > save_every_sec:
+                            last_auto_save_time = time.time()
+                            file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
+                            print('\rSaving to disk...  ', end='\r')
+                            self._save(file_name)
 
                     print_line = '{} | {} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
                     max_print_line_len = max(len(print_line), max_print_line_len)
@@ -595,7 +597,7 @@ class InferenceNetwork(nn.Module):
                         break
                 iteration += 1
 
-#        if (distributed_rank == 0) and (save_file_name_prefix is not None):
-#            file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
-#            print('\rSaving to disk...  ', end='\r')
-#            self._save(file_name)
+        if (distributed_rank == 0) and (save_file_name_prefix is not None):
+            file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
+            print('\rSaving to disk...  ', end='\r')
+            self._save(file_name)
