@@ -271,6 +271,16 @@ class InferenceNetwork(nn.Module):
             self._distributed_valid_loss_min = float(self._distributed_valid_loss)
         print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
 
+    def _get_scheduler(self, learning_rate_scheduler):
+        if self._optimizer is None:
+            return None
+        if learning_rate_scheduler == LearningRateScheduler.STEP:
+            return lr_scheduler.StepLR(self._optimizer, step_size=30, gamma=0.1)
+        elif learning_rate_scheduler == LearningRateScheduler.MULTI_STEP:
+            return lr_scheduler.MultiStepLR(self._optimizer, milestones=[30, 80], gamma=0.1)
+        else:
+            return None
+
     def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, learning_rate_scheduler=LearningRateScheduler.NONE, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_loss_update_every=None, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=False, *args, **kwargs):
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
@@ -299,11 +309,11 @@ class InferenceNetwork(nn.Module):
             self._distributed_world_size = distributed_world_size
 
         self._optimizer_type = optimizer_type
+        scheduler = self._get_scheduler(learning_rate_scheduler)
         self._batch_size = batch_size
         self._learning_rate = learning_rate * distributed_world_size
         self._momentum = momentum
         self.train()
-        scheduler = None
         prev_total_train_seconds = self._total_train_seconds
         time_start = time.time()
         time_loss_min = time.time()
@@ -362,10 +372,7 @@ class InferenceNetwork(nn.Module):
                         self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * distributed_world_size, weight_decay=weight_decay)
                     else:  # optimizer_type == Optimizer.SGD
                         self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * distributed_world_size, momentum=momentum, nesterov=True, weight_decay=weight_decay)
-                    if learning_rate_scheduler == LearningRateScheduler.STEP:
-                        scheduler = lr_scheduler.StepLR(self._optimizer, step_size=30, gamma=0.1)
-                    elif learning_rate_scheduler == LearningRateScheduler.MULTI_STEP:
-                        scheduler = lr_scheduler.MultiStepLR(self._optimizer, milestones=[30, 80], gamma=0.1)
+                    scheduler = self._get_scheduler(learning_rate_scheduler)
 
                 if distributed_world_size > 1:
                     self._distributed_zero_grad()
