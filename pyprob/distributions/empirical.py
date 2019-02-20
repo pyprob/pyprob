@@ -14,7 +14,8 @@ from .. import util
 
 
 class Empirical(Distribution):
-    def __init__(self, values=None, log_weights=None, weights=None, file_name=None, file_sync_timeout=1000, file_writeback=False, name='Empirical'):
+    def __init__(self, values=None, log_weights=None, weights=None, file_name=None, file_read_only=False, file_sync_timeout=1000, file_writeback=False, name='Empirical'):
+        super().__init__(name)
         self._finalized = False
         self._closed = False
         self._categorical = None
@@ -26,7 +27,8 @@ class Empirical(Distribution):
         else:
             self._on_disk = True
             self._file_name = file_name
-            self._shelf = shelve.open(self._file_name, writeback=file_writeback)
+            flag = 'r' if file_read_only else 'c'
+            self._shelf = shelve.open(self._file_name, flag=flag, writeback=file_writeback)
             if 'log_weights' in self._shelf:
                 if 'name' in self._shelf:
                     name = self._shelf['name']
@@ -37,6 +39,7 @@ class Empirical(Distribution):
                 self._file_last_key = -1
             self._file_sync_timeout = file_sync_timeout
             self._file_sync_countdown = self._file_sync_timeout
+            self.finalize()
         self._mean = None
         self._variance = None
         self._mode = None
@@ -44,7 +47,6 @@ class Empirical(Distribution):
         self._max = None
         self._effective_sample_size = None
         self._uniform_weights = False
-        super().__init__(name)
         if values is not None:
             if len(values) > 0:
                 self.add_sequence(values, log_weights, weights)
@@ -97,9 +99,12 @@ class Empirical(Distribution):
                 return Empirical(values=self._values, log_weights=self._log_weights, file_name=file_name, name=self.name)
 
     def finalize(self):
-        self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
-        self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
         self._length = len(self._log_weights)
+        self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+        if self._length > 0:
+            self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
+        else:
+            self._uniform_weights = False
         if self._on_disk:
             self._shelf['name'] = self.name
             self._shelf['log_weights'] = self._log_weights
