@@ -295,23 +295,24 @@ class InferenceNetwork(nn.Module):
             distributed_world_size = dist.get_world_size()
             distributed_rank = dist.get_rank()
             util.init_distributed_print(distributed_rank, distributed_world_size, False)
-            print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
-            print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
-            print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
-            print(colored('Distributed minibatch size: {} (global effective), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
-            print(colored('Distributed learning rate : {} (global), {} (base)'.format(learning_rate * distributed_world_size, learning_rate), 'yellow', attrs=['bold']))
-            print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
-            print(colored('Distributed dataset size  : {}'.format(len(dataset)), 'yellow', attrs=['bold']))
-            print(colored('Distributed num. buckets  : {}'.format(distributed_num_buckets), 'yellow', attrs=['bold']))
-            bucket_size = math.ceil((len(dataset) / batch_size) / distributed_num_buckets)
-            print(colored('Distributed bucket size   : {} minibatches (minimum)'.format(bucket_size), 'yellow', attrs=['bold']))
+            if distributed_rank == 0:
+                print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
+                print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
+                print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
+                print(colored('Distributed minibatch size: {} (global effective), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
+                print(colored('Distributed learning rate : {} (global), {} (base)'.format(learning_rate * distributed_world_size, learning_rate), 'yellow', attrs=['bold']))
+                print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
+                print(colored('Distributed dataset size  : {}'.format(len(dataset)), 'yellow', attrs=['bold']))
+                print(colored('Distributed num. buckets  : {}'.format(distributed_num_buckets), 'yellow', attrs=['bold']))
+                bucket_size = math.ceil((len(dataset) / batch_size) / distributed_num_buckets)
+                print(colored('Distributed bucket size   : {} minibatches (minimum)'.format(bucket_size), 'yellow', attrs=['bold']))
             self._distributed_backend = distributed_backend
             self._distributed_world_size = distributed_world_size
 
         self._optimizer_type = optimizer_type
         scheduler = self._get_scheduler(learning_rate_scheduler)
         self._batch_size = batch_size
-        self._learning_rate = learning_rate * distributed_world_size
+        self._learning_rate = learning_rate * math.sqrt(distributed_world_size)  # Suggested by Lei Shao
         self._momentum = momentum
         self.train()
         prev_total_train_seconds = self._total_train_seconds
