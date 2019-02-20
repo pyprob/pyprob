@@ -52,7 +52,7 @@ class Edge():
 
 
 class Graph():
-    def __init__(self, trace_dist, base_graph=None, use_address_base=True, n_most_frequent=None):
+    def __init__(self, trace_dist, base_graph=None, use_address_base=True, n_most_frequent=None, normalize_weights=True):
         self.nodes = []
         self.edges = []
         if base_graph is None:
@@ -114,7 +114,8 @@ class Graph():
 
             self.add_edge(node_0.add_outgoing_edge(node_1, weight))
 
-        self.normalize_weights()
+        if normalize_weights:
+            self.normalize_weights()
 
     def add_node(self, node):
         self.nodes.append(node)

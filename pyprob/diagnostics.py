@@ -428,13 +428,24 @@ def network(inference_network, save_dir=None):
     return stats
 
 
-def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=None, file_name=None):
-    graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent, base_graph=base_graph)
+def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=None, file_name=None, normalize_weights=True):
+    graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent, base_graph=base_graph, normalize_weights=normalize_weights)
     if file_name is not None:
         graph.render_to_file(file_name, background_graph=base_graph)
         for trace_id, trace_graph in graph.trace_graphs():
             trace_graph.render_to_file('{}_{}'.format(file_name, trace_id), background_graph=(graph if base_graph is None else base_graph))
     return graph
+
+
+def address_dictionary(address_dictionary, file_name):
+    print('Saving address_id, address pairs to {}'.format(file_name))
+    with open(file_name, 'w') as file:
+        file.write('address_id, address\n')
+        for key, value in address_dictionary._shelf.items():
+            if key.startswith('__id__'):
+                address_id = key.replace('__id__', '')
+                address = value
+                file.write('{}, {}\n'.format(address_id, address))
 
 
 def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, file_name=None, min_index=None, max_index=None, *args, **kwargs):
