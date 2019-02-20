@@ -4,6 +4,7 @@ import torch.distributed as dist
 import math
 import os
 import sys
+import shelve
 from glob import glob
 import numpy as np
 import uuid
@@ -130,7 +131,8 @@ class OnlineDataset(Dataset):
 class OfflineDatasetFile(Dataset):
     def __init__(self, file_name):
         self._file_name = file_name
-        self._shelf = ConcurrentShelf(file_name)
+        self._closed = False
+        self._shelf = shelve.open(file_name, flag='r')
         self._length = self._shelf['__length']
 
     def __len__(self):
@@ -138,6 +140,22 @@ class OfflineDatasetFile(Dataset):
 
     def __getitem__(self, idx):
         return self._shelf[str(idx)]
+
+    def __enter__(self):
+        return self
+
+    def __exit(self, exception_type, exception_value, traceback):
+        if not self._closed:
+            self.close()
+
+    def __del__(self):
+        if not self._closed:
+            self.close()
+
+    def close(self):
+        if not self._closed:
+            self._shelf.close()
+            self._closed = True
 
 
 class OfflineDataset(ConcatDataset):
