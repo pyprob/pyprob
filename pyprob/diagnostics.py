@@ -439,6 +439,7 @@ def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=No
 
 def address_dictionary(address_dictionary, file_name):
     print('Saving address_id, address pairs to {}'.format(file_name))
+    util.create_path(file_name)
     with open(file_name, 'w') as file:
         file.write('address_id, address\n')
         for key, value in address_dictionary._shelf.items():
