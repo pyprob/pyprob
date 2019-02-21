@@ -7,6 +7,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import random
 import math
+import os
 from termcolor import colored
 
 from . import Distribution, Categorical
@@ -17,21 +18,28 @@ class Empirical(Distribution):
     def __init__(self, values=None, log_weights=None, weights=None, file_name=None, file_read_only=False, file_sync_timeout=1000, file_writeback=False, name='Empirical'):
         super().__init__(name)
         self._finalized = False
+        self._read_only = file_read_only
         self._closed = False
         self._categorical = None
         self._log_weights = []
         self._length = 0
+        self._uniform_weights = False
         if file_name is None:
             self._on_disk = False
             self._values = []
         else:
             self._on_disk = True
+            if self._read_only:
+                if not os.path.exists(file_name):
+                    raise ValueError('File not found: {}'.format(file_name))
+                flag = 'r'
+            else:
+                flag = 'c'
             self._file_name = file_name
-            flag = 'r' if file_read_only else 'c'
             self._shelf = shelve.open(self._file_name, flag=flag, writeback=file_writeback)
+            if 'name' in self._shelf:
+                self.name = self._shelf['name']
             if 'log_weights' in self._shelf:
-                if 'name' in self._shelf:
-                    name = self._shelf['name']
                 self._log_weights = self._shelf['log_weights']
                 self._file_last_key = self._shelf['last_key']
                 self._length = len(self._log_weights)
@@ -46,7 +54,6 @@ class Empirical(Distribution):
         self._min = None
         self._max = None
         self._effective_sample_size = None
-        self._uniform_weights = False
         if values is not None:
             if len(values) > 0:
                 self.add_sequence(values, log_weights, weights)
@@ -105,7 +112,7 @@ class Empirical(Distribution):
             self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
         else:
             self._uniform_weights = False
-        if self._on_disk:
+        if self._on_disk and not self._read_only:
             self._shelf['name'] = self.name
             self._shelf['log_weights'] = self._log_weights
             self._shelf['last_key'] = self._file_last_key
