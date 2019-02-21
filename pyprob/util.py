@@ -57,6 +57,15 @@ class ObserveEmbedding(enum.Enum):
 class Optimizer(enum.Enum):
     ADAM = 0
     SGD = 1
+    LARC_ADAM = 2
+    LARC_SGD = 3
+
+class LRScheduler(enum.Enum):
+    STEP = 0
+    MULTI_STEPS = 1
+    POLY_2 = 2
+    POLY_1 = 3
+    COSINEANNEALING = 4
 
 
 def set_random_seed(seed=123):
@@ -158,7 +167,7 @@ progress_bar_time_start = None
 progress_bar_prev_duration = None
 
 
-def progress_bar_init(message, num_iters, iter_name='Traces'):
+def progress_bar_init(message, num_iters, iter_name='Items'):
     global progress_bar_num_iters
     global progress_bar_len_str_num_iters
     global progress_bar_time_start
@@ -180,7 +189,7 @@ def progress_bar_update(iter):
     if (duration - progress_bar_prev_duration > _print_refresh_rate) or (iter == progress_bar_num_iters - 1):
         progress_bar_prev_duration = duration
         traces_per_second = (iter + 1) / duration
-        print('{} | {} | {} | {}/{} | {:,.2f}       '.format(days_hours_mins_secs_str(duration), days_hours_mins_secs_str((progress_bar_num_iters - iter) / traces_per_second), progress_bar(iter, progress_bar_num_iters), str(iter).rjust(progress_bar_len_str_num_iters), progress_bar_num_iters, traces_per_second), end='\r')
+        print('{} | {} | {} | {}/{} | {:,.2f}       '.format(days_hours_mins_secs_str(duration), days_hours_mins_secs_str((progress_bar_num_iters - iter) / traces_per_second), progress_bar(iter, progress_bar_num_iters), str(iter + 1).rjust(progress_bar_len_str_num_iters), progress_bar_num_iters, traces_per_second), end='\r')
         sys.stdout.flush()
 
 
@@ -325,6 +334,12 @@ def chunks(l, n):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(l), n):
         yield l[i:i + n]
+
+
+# From https://github.com/pytorch/pytorch/blob/master/torch/distributions/utils.py
+def clamp_probs(probs):
+    eps = torch.finfo(probs.dtype).eps
+    return probs.clamp(min=eps, max=1 - eps)
 
 
 def init_distributed_print(rank, world_size, debug_print=True):

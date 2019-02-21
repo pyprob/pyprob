@@ -14,9 +14,10 @@ import tarfile
 import copy
 from threading import Thread
 from termcolor import colored
+import torch.optim.lr_scheduler as lr_scheduler
 
 from . import Batch, OfflineDataset, SortedTraceSampler, SortedTraceBatchSampler,SortedTraceBatchSamplerDistributed, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
-from .. import __version__, util, Optimizer, ObserveEmbedding
+from .. import __version__, util, Optimizer, ObserveEmbedding, LRScheduler
 
 
 class InferenceNetwork(nn.Module):
@@ -327,7 +328,51 @@ class InferenceNetwork(nn.Module):
         if (dist.get_rank ==0):
             print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_filtered_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
 
-    def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_loss_update_every=None, dataloader_offline_num_workers=0, *args, **kwargs):
+
+
+    def larc_optimizer_train_step(self, loss): 
+        LARC_mode = "clip"
+        LARC_eta = 0.002
+        LARC_epsilon = 1.0/16000.0
+
+        #The following is done after gradients have been averaged across ranks!!!
+        for group in self._optimizer.param_groups:
+
+            # make a local map of all non-zero gradients
+            ttmap = util.to_tensor([1 if p.grad is not None else 0 for p in group['params']])
+
+            for i, p in enumerate(group['params']):
+                if not ttmap[i]:
+                    continue
+                weight_norm = torch.norm(p.data)
+                g = p.grad.data
+                grad_norm = torch.norm(g)
+
+                if (weight_norm != 0.0) and (grad_norm != 0.0):
+                    larc_local_lr = LARC_eta  * weight_norm /grad_norm
+                else:
+                    larc_local_lr = LARC_epsilon
+
+                if LARC_mode == "scale":
+                    effective_lr = larc_local_lr
+                else:
+                    effective_lr = min(larc_local_lr, group['lr']) / group['lr'] #group['lr'] is current global learning rate
+
+
+                #multiply gradients
+                g_scaled = effective_lr * g
+                p.grad.data = g_scaled
+
+        #apply gradients
+        self._optimizer.step()
+        loss = float(loss)
+        return loss
+
+
+    def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, LR_schedule_method= LRScheduler.POLY_2, learning_rate=0.0001, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_loss_update_every=None, dataloader_offline_num_workers=0, *args, **kwargs):
+
+        distributed_params_sync_every=10000
+
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
             self._init_layers()
@@ -346,8 +391,9 @@ class InferenceNetwork(nn.Module):
                 print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
                 print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
                 print(colored('Distributed minibatch size: {} (global), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
-                print(colored('Distributed learning rate : {} (global), {} (base)'.format(learning_rate * distributed_world_size, learning_rate), 'yellow', attrs=['bold']))
+                print(colored('Distributed initial learning rate : {} (global), {} (base)'.format(learning_rate * distributed_world_size, learning_rate), 'yellow', attrs=['bold']))
                 print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
+                print(colored('Distributed learning rate scheduling method: {}'.format(str(LR_schedule_method)), 'yellow', attrs=['bold']))
             self._distributed_backend = distributed_backend
             self._distributed_world_size = distributed_world_size
         self._distributed_history_train_loss = []
@@ -376,7 +422,12 @@ class InferenceNetwork(nn.Module):
         if distributed_loss_update_every is None:
             distributed_loss_update_every = valid_every
         last_validation_trace = -valid_every + 1
-        loss_moving_average_window_size =10 # for distributed training only
+
+        #for distributed training only
+        loss_moving_average_window_size=10
+        Enable_MA_filter = True
+        per_rank_print = False
+        base_lr = self._learning_rate
         
         epoch = 0
         iteration = 0
@@ -387,22 +438,51 @@ class InferenceNetwork(nn.Module):
         loss_min_str = ''
         time_since_loss_min_str = ''
         last_auto_save_time = time.time() - save_every_sec
-        if isinstance(dataset, OfflineDataset) and (distributed_world_size == 1):
-            #dataloader_epoch_one = DataLoader(dataset, batch_sampler=SortedTraceBatchSampler(dataset, batch_size=batch_size, shuffle=False), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
-            dataloader_epoch_one = DataLoader(dataset, batch_sampler=SortedTraceBatchSamplerDistributed(dataset, batch_size=batch_size,num_replicas=distributed_world_size,rank=distributed_rank, shuffle=False), num_workers=dataloader_offline_num_workers, collate_fn =lambda x: Batch(x))
-            dataloader_epoch_all = DataLoader(dataset, batch_sampler=SortedTraceBatchSampler(dataset, batch_size=batch_size, shuffle=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+        if isinstance(dataset, OfflineDataset):
+            dataloader_epoch_one = DataLoader(dataset, batch_sampler=SortedTraceBatchSamplerDistributed(dataset, batch_size=batch_size,num_replicas=distributed_world_size,rank=distributed_rank, shuffle=True), num_workers=dataloader_offline_num_workers, collate_fn =lambda x: Batch(x))
+            dataloader_epoch_all = dataloader_epoch_one
         else:
-            #dataloader_epoch_one = DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
-            # use the following for distributed data loader 
-            dataloader_epoch_one = DataLoader(dataset, batch_sampler=SortedTraceBatchSamplerDistributed(dataset, batch_size=batch_size,num_replicas=distributed_world_size,rank=distributed_rank, shuffle=False), num_workers=dataloader_offline_num_workers, collate_fn =lambda x: Batch(x))
+            dataloader_epoch_one = DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
             dataloader_epoch_all = dataloader_epoch_one
         if dataset_valid is not None:
             dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
+
+        if self._layers_pre_generated:
+            layers_changed = False
+
+        #move it here
+        if (self._optimizer is None) or layers_changed:
+            if (optimizer_type == Optimizer.ADAM) or (optimizer_type == Optimizer.LARC_ADAM):
+                self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * distributed_world_size, weight_decay=weight_decay)
+            elif (optimizer_type == Optimizer.SGD) or (optimizer_type == Optimizer.LARC_SGD):
+                self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * distributed_world_size, momentum=momentum, nesterov=True, weight_decay=weight_decay)
+            else:
+                print("Unknown optimizer type: {}".format(optimizer_type))
+                quit()
+
+        max_epoch = 100 # TBD
+
+        if LR_schedule_method== LRScheduler.STEP:
+            scheduler= lr_scheduler.StepLR(self._optimizer, step_size=30, gamma=0.1)
+        elif LR_schedule_method== LRScheduler.MULTI_STEPS:
+            scheduler= lr_scheduler.MultiStepLR(self._optimizer, milestones=[30,80], gamma=0.1)
+        elif LR_schedule_method== LRScheduler.POLY_2:
+            lambda1 = lambda epoch: (1- float(epoch)/max_epoch)**2
+            scheduler = lr_scheduler.LambdaLR(self._optimizer, lr_lambda= lambda1, last_epoch= -1)
+        elif LR_schedule_method== LRScheduler.POLY_1:
+            lambda2 = lambda epoch: (1- float(epoch)/max_epoch)
+            scheduler = lr_scheduler.LambdaLR(self._optimizer, lr_lambda= lambda2, last_epoch= -1)
+        elif LR_schedule_method== LRScheduler.COSINEANNEALING:
+            scheduler= lr_scheduler.CosineAnnealingLR(self._optimizer,T_max=10000, eta_min=1e-4, last_epoch=-1) #not done
+
         while not stop:
             epoch += 1
             dataloader = dataloader_epoch_one if epoch == 1 else dataloader_epoch_all
             for i_batch, batch in enumerate(dataloader):
-                #x=copy.deepcopy(batch)
+
+                #adjust global learning rate
+                scheduler.step()
+
                 # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
                 if (distributed_world_size > 1) and (iteration % distributed_params_sync_every == 0):
                     #if (distributed_rank ==0): 
@@ -410,26 +490,36 @@ class InferenceNetwork(nn.Module):
                        #print ("Size of total parameters:%f bytes"%(sizeof(self.parameters())))
                     self._distributed_sync_parameters()
                     #self._distributed_sync_parameters_mpi()
+
                 if self._layers_pre_generated:  # and (distributed_world_size > 1):
                     layers_changed = False
                 else:
                     layers_changed = self._polymorph(batch)
 
-                if (self._optimizer is None) or layers_changed:
-                    if optimizer_type == Optimizer.ADAM:
-                        self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * distributed_world_size, weight_decay=weight_decay)
-                    else:  # optimizer_type == Optimizer.SGD
-                        self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * distributed_world_size, momentum=momentum, nesterov=True, weight_decay=weight_decay)
+                
+
+                #adjust global learning rate
+                scheduler.step()                
+
                 self._optimizer.zero_grad()
                 success, loss = self._loss(batch)
                 if not success:
                     print(colored('Cannot compute loss, skipping batch. Loss: {}'.format(loss), 'red', attrs=['bold']))
                 else:
+                    #compute gradients
                     loss.backward()
+
                     if distributed_world_size > 1:
+                        #get averaged gradients across all ranks
                         self._distributed_sync_grad(distributed_world_size)
-                    self._optimizer.step()
-                    loss = float(loss)
+ 
+                    if not optimizer_type in [Optimizer.LARC_ADAM, Optimizer.LARC_SGD]: 
+                        self._optimizer.step()
+                        loss = float(loss)
+                    else:
+                        loss = self.larc_optimizer_train_step(loss) 
+
+
 
                     if self._loss_initial is None:
                         self._loss_initial = loss
