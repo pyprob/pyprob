@@ -275,7 +275,12 @@ class InferenceNetwork(nn.Module):
         # make a local map of all non-zero gradients
         ttmap = util.to_tensor([1 if p.grad is not None else 0 for p in self.parameters()])
         # get the global map of all non-zero gradients
-        dist.all_reduce([ttmap])
+        pytorch_allreduce_supports_list = True
+        try:
+            dist.all_reduce([ttmap])
+        except:
+            pytorch_allreduce_supports_list = False
+            dist.all_reduce(ttmap)
         gl = []
         for i,param in enumerate(self.parameters()):
             if param.grad is not None:
@@ -286,7 +291,10 @@ class InferenceNetwork(nn.Module):
                 gl.append(param.grad.data)
 
         # reduce all gradients used by at least one rank
-        dist.all_reduce(gl)
+        if pytorch_allreduce_supports_list:
+            dist.all_reduce(gl)
+        else:
+            for g in gl: dist.all_reduce(g)
         # average them
         for li in gl:
             li /= float(world_size)

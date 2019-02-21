@@ -2,94 +2,46 @@ from collections.abc import Mapping
 import shelve
 import random
 import time
+import collections
 
 
 class ConcurrentShelf(Mapping):
+    capacity = 32
+    cache = collections.OrderedDict()
     def __init__(self, file_name, time_out_seconds=60):
         self._file_name = file_name
-        self._time_out_seconds = time_out_seconds
-        self._locked_shelf = None
-        #shelf = self._open(write=True)
-        shelf = self._open(write=False)
-        shelf.close()
 
-    def __del__(self):
-        if self._locked_shelf is not None:
-            self._locked_shelf.close()
-
-    def _open(self, write=False):
-        flag = 'c' if write else 'r'
-        start = time.time()
-        while True:
-            if time.time() - start > self._time_out_seconds:
-                raise RuntimeError('ConcurrentShelf time out, cannot gain access to shelf on disk')
-            try:
-                shelf = shelve.open(self._file_name, flag=flag)
-                return shelf
-            except Exception as e:
-                if '[Errno 11] Resource temporarily unavailable' in str(e):
-                    # print('Shelf locked, waiting...')
-                    time.sleep(random.uniform(0.01, 0.250))
-                    next
-                else:
-                    raise e
+    def _open(self):
+# idea from https://www.kunxi.org/2014/05/lru-cache-in-python
+        try:
+            shelf = ConcurrentShelf.cache.pop(self._file_name)
+            # it was in the cache, put it back on the front
+            ConcurrentShelf.cache[self._file_name] = shelf
+            return shelf
+        except KeyError:
+            # not in the cache
+            if len(ConcurrentShelf.cache) >= ConcurrentShelf.capacity:
+                # cache is full, delete the last entry
+                _,s = ConcurrentShelf.cache.popitem(last=False)
+                s.close()
+            shelf = shelve.open(self._file_name, flag='r')
+            ConcurrentShelf.cache[self._file_name] = shelf
+            return shelf
 
     def lock(self, write=True):
-        self._locked_shelf = self._open(write=write)
+        pass
 
     def unlock(self):
-        if self._locked_shelf is not None:
-            self._locked_shelf.close()
-            self._locked_shelf = None
+        pass
 
     def __getitem__(self, key):
-        if self._locked_shelf is not None:
-            return self._locked_shelf[key]
-        else:
-            shelf = self._open()
-            try:
-                value = shelf[key]
-                shelf.close()
-            except Exception as e:
-                shelf.close()
-                raise e
-            return value
-
-    def __setitem__(self, key, value):
-        if self._locked_shelf is not None:
-            self._locked_shelf[key] = value
-        else:
-            shelf = self._open(write=True)
-            try:
-                shelf[key] = value
-                shelf.close()
-            except Exception as e:
-                shelf.close()
-                raise e
+        shelf = self._open()
+        return shelf[key]
 
     def __iter__(self):
-        if self._locked_shelf is not None:
-            for value in self._locked_shelf:
+        shelf = self._open()
+        for value in shelf:
                 yield value
-        else:
-            shelf = self._open()
-            try:
-                for value in shelf:
-                    yield value
-                shelf.close()
-            except Exception as e:
-                shelf.close()
-                raise e
-
     def __len__(self):
-        if self._locked_shelf is not None:
-            return len(self._locked_shelf)
-        else:
-            shelf = self._open()
-            try:
-                value = len(shelf)
-                shelf.close()
-            except Exception as e:
-                shelf.close()
-                raise e
-            return value
+        shelf = self._open()
+        return len(shelf)
