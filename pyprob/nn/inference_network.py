@@ -202,6 +202,24 @@ class InferenceNetwork(nn.Module):
             if ret._on_cuda:
                 print(colored('Warning: loading CUDA (device {}) network to CPU'.format(ret._device), 'red', attrs=['bold']))
         ret.to(device=util._device)
+
+        # For compatibility loading NNs saved before 0.13.2.dev2
+        if not hasattr(ret, '_distributed_train_loss'):
+            ret._distributed_train_loss = util.to_tensor(0.)
+        if not hasattr(ret, '_distributed_valid_loss'):
+            ret._distributed_valid_loss = util.to_tensor(0.)
+        if not hasattr(ret, '_distributed_train_loss_min'):
+            ret._distributed_train_loss_min = float('inf')
+        if not hasattr(ret, '_distributed_valid_loss_min'):
+            ret._distributed_valid_loss_min = float('inf')
+        if not hasattr(ret, '_distributed_history_train_loss'):
+            ret._distributed_history_train_loss = []
+        if not hasattr(ret, '_distributed_history_train_loss_trace'):
+            ret._distributed_history_train_loss_trace = []
+        if not hasattr(ret, '_distributed_history_valid_loss'):
+            ret._distributed_history_valid_loss = []
+        if not hasattr(ret, '_distributed_history_valid_loss_trace'):
+            ret._distributed_history_valid_loss_trace = []
         return ret
 
     def to(self, device=None, *args, **kwargs):
