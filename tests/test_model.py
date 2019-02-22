@@ -104,6 +104,10 @@ class ModelTestCase(unittest.TestCase):
         self._model.load_inference_network(file_name)
         os.remove(file_name)
         self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
+        self._model.save_inference_network(file_name)
+        self._model.load_inference_network(file_name)
+        os.remove(file_name)
+        self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
 
         util.eval_print('training_traces', 'file_name')
 

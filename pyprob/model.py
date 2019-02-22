@@ -184,6 +184,7 @@ class Model():
         self._inference_network = InferenceNetworkBase._load(file_name)
         # The following is due to a temporary hack related with https://github.com/pytorch/pytorch/issues/9981 and can be deprecated by using dill as pickler with torch > 0.4.1
         self._inference_network._model = self
+        print('optim {}'.format(self._inference_network._optimizer))
 
     def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, prior_inflation=PriorInflation.DISABLED, *args, **kwargs):
         if not os.path.exists(dataset_dir):

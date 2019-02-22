@@ -34,6 +34,9 @@ class InferenceNetwork(nn.Module):
         self._infer_observe = None
         self._infer_observe_embedding = {}
         self._optimizer = None
+        self._optimizer_state = None
+        self._learning_rate_scheduler = None
+        self._learning_rate_scheduler_state = None
 
         self._total_train_seconds = 0
         self._total_train_traces = 0
@@ -154,7 +157,6 @@ class InferenceNetwork(nn.Module):
         # The following is due to a temporary hack related with https://github.com/pytorch/pytorch/issues/9981 and can be deprecated by using dill as pickler with torch > 0.4.1
         data['inference_network'] = copy.copy(self)
         data['inference_network']._model = None
-        data['inference_network']._optimizer = None
 
         def thread_save():
             tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
@@ -329,9 +331,9 @@ class InferenceNetwork(nn.Module):
             self._distributed_world_size = distributed_world_size
 
         self._optimizer_type = optimizer_type
-        scheduler = self._get_scheduler(learning_rate_scheduler)
+        if self._learning_rate_scheduler is None:
+            self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler)
         self._batch_size = batch_size
-        self._learning_rate = learning_rate * math.sqrt(distributed_world_size)  # Suggested by Lei Shao
         self._momentum = momentum
         self.train()
         prev_total_train_seconds = self._total_train_seconds
@@ -374,8 +376,8 @@ class InferenceNetwork(nn.Module):
 
         while not stop:
             epoch += 1
-            if scheduler is not None:
-                scheduler.step()
+            if self._learning_rate_scheduler is not None:
+                self._learning_rate_scheduler.step()
 
             for i_batch, batch in enumerate(dataloader):
                 # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
@@ -389,11 +391,12 @@ class InferenceNetwork(nn.Module):
 
                 if (self._optimizer is None) or layers_changed:
                     if optimizer_type == Optimizer.ADAM:
-                        self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * distributed_world_size, weight_decay=weight_decay)
+                        self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * math.sqrt(distributed_world_size), weight_decay=weight_decay)
                     else:  # optimizer_type == Optimizer.SGD
-                        self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * distributed_world_size, momentum=momentum, nesterov=True, weight_decay=weight_decay)
-                    scheduler = self._get_scheduler(learning_rate_scheduler)
+                        self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * math.sqrt(distributed_world_size), momentum=momentum, nesterov=True, weight_decay=weight_decay)
+                    self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler)
 
+                # print(self._optimizer.state[self._optimizer.param_groups[0]['params'][0]])
                 if distributed_world_size > 1:
                     self._distributed_zero_grad()
                 else:
