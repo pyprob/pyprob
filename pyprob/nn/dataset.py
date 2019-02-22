@@ -214,17 +214,34 @@ class OfflineDataset(ConcatDataset):
         h = hash(''.join([variable.address for variable in trace.variables_controlled])) + sys.maxsize + 1
         return float('{}.{}'.format(trace.length_controlled, h))
 
-    def _compute_hashes(self):
-        hashes = torch.zeros(len(self))
-        util.progress_bar_init('Hashing offline dataset for sorting', len(self), 'Traces')
-        for i in range(len(self)):
+    def _compute_hashes(self, num_workers=32):
+        def compute(hashes, start, end):
+            for i in range(start, end):
+                hashes[i] = self._trace_hash(self[i])
+        import multiprocessing
+        hashes = multiprocessing.Array('f', len(self))
+        nprocs = num_workers
+        blocksize = (len(self) + nprocs - 1) // nprocs
+        procs = []
+        print('starting hash')
+        for i in range(1, nprocs):
+            start = i * blocksize
+            end = min(start+blocksize, len(self))
+            p = multiprocessing.Process(target=compute, args=(hashes, start, end))
+            p.start()
+            procs.append(p)
+        util.progress_bar_init('Hashing offline dataset for sorting', blocksize, 'Traces')
+        for i in range(0, blocksize):
             hashes[i] = self._trace_hash(self[i])
             util.progress_bar_update(i)
         util.progress_bar_end()
+        for i in range(nprocs-1):
+            procs[i].join()
+        hashes = np.array(hashes, dtype='f')
         print('Sorting offline dataset')
-        _, sorted_indices = torch.sort(hashes)
+        sorted_indices = np.argsort(hashes)
         print('Sorting done')
-        return hashes.cpu().numpy(), sorted_indices.cpu().numpy()
+        return hashes, sorted_indices
 
     def save_sorted(self, sorted_dataset_dir, num_traces_per_file=None, num_files=None, begin_file_index=None, end_file_index=None):
         if num_traces_per_file is not None:
