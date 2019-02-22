@@ -243,13 +243,32 @@ class InferenceNetwork(nn.Module):
     def _distributed_sync_grad(self, world_size):
         """ all_reduce grads from all ranks """
         # print('Distributed training synchronizing gradients across nodes...')
-        for param in self.parameters():
-            try:
-                dist.all_reduce(param.grad.data)
-                param.grad.data /= float(world_size)  # average gradients
-            except AttributeError:
-                # pass
-                print('None for grad, with param.size=', param.size())
+        # make a local map of all non-zero gradients
+        ttmap = util.to_tensor([1 if p.grad is not None else 0 for p in self.parameters()])
+        # get the global map of all non-zero gradients
+        pytorch_allreduce_supports_list = True
+        try:
+            dist.all_reduce([ttmap])
+        except:
+            pytorch_allreduce_supports_list = False
+            dist.all_reduce(ttmap)
+        gl = []
+        for i,param in enumerate(self.parameters()):
+            if param.grad is not None:
+                gl.append(param.grad.data)
+            elif ttmap[i]:
+                # someone else had a non-zero grad so make a local zero'd copy
+                param.grad = util.to_tensor(torch.zeros_like(param.data))
+                gl.append(param.grad.data)
+
+        # reduce all gradients used by at least one rank
+        if pytorch_allreduce_supports_list:
+            dist.all_reduce(gl)
+        else:
+            for g in gl: dist.all_reduce(g)
+        # average them
+        for li in gl:
+            li /= float(world_size)
 
     def _distributed_update_train_loss(self, loss, world_size):
         self._distributed_train_loss = util.to_tensor(float(loss))
