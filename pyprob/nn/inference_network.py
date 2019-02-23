@@ -415,10 +415,7 @@ class InferenceNetwork(nn.Module):
                     self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler)
 
                 # print(self._optimizer.state[self._optimizer.param_groups[0]['params'][0]])
-                if distributed_world_size > 1:
-                    self._distributed_zero_grad()
-                else:
-                    self._optimizer.zero_grad()
+                self._optimizer.zero_grad()
                 success, loss = self._loss(batch)
                 if not success:
                     print(colored('Cannot compute loss, skipping batch. Loss: {}'.format(loss), 'red', attrs=['bold']))
