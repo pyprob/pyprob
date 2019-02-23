@@ -1,6 +1,7 @@
 from .distribution import Distribution
 from .categorical import Categorical
 from .empirical import Empirical
+from .concat_empirical import ConcatEmpirical
 from .normal import Normal
 from .uniform import Uniform
 from .poisson import Poisson

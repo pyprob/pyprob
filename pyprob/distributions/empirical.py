@@ -10,7 +10,7 @@ import math
 import os
 from termcolor import colored
 
-from . import Distribution, Categorical
+from . import Distribution
 from .. import util
 
 
