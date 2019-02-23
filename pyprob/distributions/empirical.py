@@ -8,46 +8,79 @@ import matplotlib.pyplot as plt
 import random
 import math
 import os
+import enum
 from termcolor import colored
 
 from . import Distribution
 from .. import util
 
 
+class EmpiricalType(enum.Enum):
+    MEMORY = 1
+    FILE = 2
+    CONCAT_MEMORY = 3
+    CONCAT_FILE = 4
+
+
 class Empirical(Distribution):
-    def __init__(self, values=None, log_weights=None, weights=None, file_name=None, file_read_only=False, file_sync_timeout=1000, file_writeback=False, name='Empirical'):
+    def __init__(self, values=None, log_weights=None, weights=None, file_name=None, file_read_only=False, file_sync_timeout=1000, file_writeback=False, concat_empiricals=None, concat_empirical_file_names=None, name='Empirical'):
         super().__init__(name)
         self._finalized = False
         self._read_only = file_read_only
+        if self._read_only:
+            if not os.path.exists(file_name):
+                raise ValueError('File not found: {}'.format(file_name))
+            shelf_flag = 'r'
+        else:
+            shelf_flag = 'c'
         self._closed = False
         self._categorical = None
         self._log_weights = []
         self._length = 0
         self._uniform_weights = False
-        if file_name is None:
-            self._on_disk = False
-            self._values = []
+        if concat_empiricals is not None or concat_empirical_file_names is not None:
+            self._type = EmpiricalType.CONCAT_MEMORY
+            if concat_empiricals is not None:
+                if type(concat_empiricals) == list:
+                    if type(concat_empiricals[0]) == Empirical:
+                        self._concat_empiricals = concat_empiricals
+                    else:
+                        raise TypeError('Expecting concat_empiricals to be a list of Empiricals.')
+                else:
+                    raise TypeError('Expecting concat_empiricals to be a list of Empiricals.')
+            else:
+                if type(concat_empirical_file_names) == list:
+                    if type(concat_empirical_file_names[0]) == str:
+                        self._concat_empiricals = [Empirical(file_name=f, file_read_only=True) for f in concat_empirical_file_names]
+                    else:
+                        raise TypeError('Expecting concat_empirical_file_names to be a list of file names.')
+                else:
+                    raise TypeError('Expecting concat_empirical_file_names to be a list of file names.')
+            self._concat_cum_sizes = np.cumsum([emp.length for emp in self._concat_empiricals])
+            self._length = self._concat_cum_sizes[-1]
+            self._log_weights = torch.cat([util.to_tensor(emp._log_weights) for emp in self._concat_empiricals])
+            self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+            self._finalized = True
+            self._read_only = True
         else:
-            self._on_disk = True
-            if self._read_only:
-                if not os.path.exists(file_name):
-                    raise ValueError('File not found: {}'.format(file_name))
-                flag = 'r'
+            if file_name is None:
+                self._type = EmpiricalType.MEMORY
+                self._values = []
             else:
-                flag = 'c'
-            self._file_name = file_name
-            self._shelf = shelve.open(self._file_name, flag=flag, writeback=file_writeback)
-            if 'name' in self._shelf:
-                self.name = self._shelf['name']
-            if 'log_weights' in self._shelf:
-                self._log_weights = self._shelf['log_weights']
-                self._file_last_key = self._shelf['last_key']
-                self._length = len(self._log_weights)
-            else:
-                self._file_last_key = -1
-            self._file_sync_timeout = file_sync_timeout
-            self._file_sync_countdown = self._file_sync_timeout
-            self.finalize()
+                self._type = EmpiricalType.FILE
+                self._file_name = file_name
+                self._shelf = shelve.open(self._file_name, flag=shelf_flag, writeback=file_writeback)
+                if 'name' in self._shelf:
+                    self.name = self._shelf['name']
+                if 'log_weights' in self._shelf:
+                    self._log_weights = self._shelf['log_weights']
+                    self._file_last_key = self._shelf['last_key']
+                    self._length = len(self._log_weights)
+                else:
+                    self._file_last_key = -1
+                self._file_sync_timeout = file_sync_timeout
+                self._file_sync_countdown = self._file_sync_timeout
+                self.finalize()
         self._mean = None
         self._variance = None
         self._mode = None
@@ -78,7 +111,7 @@ class Empirical(Distribution):
         return self._length
 
     def close(self):
-        if self._on_disk:
+        if self._type == EmpiricalType.FILE:
             self.finalize()
             if not self._closed:
                 self._shelf.close()
@@ -86,44 +119,51 @@ class Empirical(Distribution):
 
     def copy(self, file_name=None):
         self._check_finalized()
-        if self._on_disk:
+        if self._type == EmpiricalType.FILE:
             if file_name is None:
-                print('Copying Empirical(file_name: {}) to Empirical(on memory)...'.format(self._file_name))
+                print('Copying Empirical(file_name: {}) to Empirical(memory)...'.format(self._file_name))
                 return Empirical(values=self.get_values(), log_weights=self._log_weights, name=self.name)
             else:
                 print('Copying Empirical(file_name: {}) to Empirical(file_name: {})...'.format(self._file_name, file_name))
                 ret = Empirical(file_name=file_name, name=self.name)
                 for i in range(self._length):
-                    ret.add(value=self._shelf[str(i)], log_weight=self._log_weights[i])
+                    ret.add(value=self._get_value(i), log_weight=self._log_weights[i])
                 ret.finalize()
                 return ret
-        else:
+        elif self._type == EmpiricalType.MEMORY:
             if file_name is None:
-                print('Copying Empirical(on memory) to Empirical(on memory)...')
+                print('Copying Empirical(memory) to Empirical(memory)...')
                 return copy.copy(self)
             else:
-                print('Copying Empirical(on memory) to Empirical(file_name: {})...'.format(file_name))
+                print('Copying Empirical(memory) to Empirical(file_name: {})...'.format(file_name))
                 return Empirical(values=self._values, log_weights=self._log_weights, file_name=file_name, name=self.name)
+        else:
+            raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
 
     def finalize(self):
-        self._length = len(self._log_weights)
-        self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
-        if self._length > 0:
-            self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
+        if self._read_only:
+            return
         else:
-            self._uniform_weights = False
-        if self._on_disk and not self._read_only:
-            self._shelf['name'] = self.name
-            self._shelf['log_weights'] = self._log_weights
-            self._shelf['last_key'] = self._file_last_key
-            self._shelf.sync()
-        self._finalized = True
+            self._length = len(self._log_weights)
+            self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+            if self._length > 0:
+                self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
+            else:
+                self._uniform_weights = False
+            if self._type == EmpiricalType.FILE and not self._read_only:
+                self._shelf['name'] = self.name
+                self._shelf['log_weights'] = self._log_weights
+                self._shelf['last_key'] = self._file_last_key
+                self._shelf.sync()
+            self._finalized = True
 
     def _check_finalized(self):
         if not self._finalized:
             raise RuntimeError('Empirical not finalized. Call finalize first.')
 
     def add(self, value, log_weight=None, weight=None):
+        if self._read_only:
+            raise RuntimeError('Empirical is read-only.')
         self._finalized = False
         self._mean = None
         self._variance = None
@@ -138,7 +178,7 @@ class Empirical(Distribution):
         else:
             self._log_weights.append(util.to_tensor(0.))
 
-        if self._on_disk:
+        if self._type == EmpiricalType.FILE:
             self._file_last_key += 1
             self._shelf[str(self._file_last_key)] = value
             self._file_sync_countdown -= 1
@@ -149,6 +189,8 @@ class Empirical(Distribution):
             self._values.append(value)
 
     def add_sequence(self, values, log_weights=None, weights=None):
+        if self._read_only:
+            raise RuntimeError('Empirical is read-only.')
         if log_weights is not None:
             for i in range(len(values)):
                 self.add(values[i], log_weight=log_weights[i])
@@ -161,17 +203,22 @@ class Empirical(Distribution):
 
     def rename(self, name):
         self.name = name
-        if self._on_disk:
+        if self._type == EmpiricalType.FILE:
             self._shelf['name'] = self.name
         return self
 
     def _get_value(self, index):
-        if self._on_disk:
-            if index < 0:
-                return self._get_value(self._length + index)
-            return self._shelf[str(index)]
-        else:
+        if self._type == EmpiricalType.MEMORY:
             return self._values[index]
+        elif self._type == EmpiricalType.FILE:
+            if index < 0:
+                index = self._length + index
+            return self._shelf[str(index)]
+        else:  # CONCAT_MEMORY or CONCAT_FILE
+            emp_index = self._concat_cum_sizes.searchsorted(index, 'right')
+            if emp_index > 0:
+                index = index - self._concat_cum_sizes[emp_index - 1]
+            return self._concat_empiricals[emp_index]._get_value(index)
 
     def _get_log_weight(self, index):
         return self._categorical.logits[index]
@@ -181,10 +228,12 @@ class Empirical(Distribution):
 
     def get_values(self):
         self._check_finalized()
-        if self._on_disk:
+        if self._type == EmpiricalType.MEMORY:
+            return self._values
+        elif self._type == EmpiricalType.FILE:
             return [self._shelf[str(i)] for i in range(self._length)]
         else:
-            return self._values
+            raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
 
     def sample(self, min_index=None, max_index=None):
         self._check_finalized()
@@ -196,7 +245,7 @@ class Empirical(Distribution):
             index = random.randint(min_index, max_index)
         else:
             if min_index is not None or max_index is not None:
-                raise NotImplementedError()
+                raise NotImplementedError('Sample with min_index and/or max_index not implemented for Empirical with non-uniform weights.')
             index = int(self._categorical.sample())
         return self._get_value(index)
 
@@ -208,24 +257,28 @@ class Empirical(Distribution):
     def __getitem__(self, index):
         self._check_finalized()
         if isinstance(index, slice):
-            if self._on_disk:
-                raise NotImplementedError()
-            return Empirical(values=self._values[index], log_weights=self._log_weights[index], name=self.name)
+            if self._type == EmpiricalType.MEMORY:
+                return Empirical(values=self._values[index], log_weights=self._log_weights[index], name=self.name)
+            else:
+                raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
         else:
             return self._get_value(index)
 
     def expectation(self, func):
         self._check_finalized()
         ret = 0.
-        if self._on_disk:
-            for i in range(self._length):
-                ret += util.to_tensor(func(self._shelf[str(i)]), dtype=torch.float64) * self._categorical.probs[i]
-        else:
+        if self._type == EmpiricalType.MEMORY:
             if self._uniform_weights:
                 ret = sum(map(func, self._values)) / self._length
             else:
                 for i in range(self._length):
                     ret += util.to_tensor(func(self._values[i]), dtype=torch.float64) * self._categorical.probs[i]
+        elif self._type == EmpiricalType.FILE:
+            for i in range(self._length):
+                ret += util.to_tensor(func(self._shelf[str(i)]), dtype=torch.float64) * self._categorical.probs[i]
+        else:  # CONCAT_MEMORY or CONCAT_FILE
+            for i in range(self._length):
+                ret += util.to_tensor(func(self._get_value(i)), dtype=torch.float64) * self._categorical.probs[i]
         return util.to_tensor(ret)
 
     def map(self, func, *args, **kwargs):
@@ -382,9 +435,7 @@ class Empirical(Distribution):
 
     def combine_duplicates(self, *args, **kwargs):
         self._check_finalized()
-        if self._on_disk:
-            raise NotImplementedError()
-        else:
+        if self._type == EmpiricalType.MEMORY:
             distribution = collections.defaultdict(float)
             # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
             hashable = util.is_hashable(self._values[0])
@@ -403,17 +454,19 @@ class Empirical(Distribution):
                 return Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
             else:
                 raise RuntimeError('The values in this Empirical as not hashable. Combining of duplicates not currently supported.')
+        else:
+            raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
 
     @staticmethod
     def combine(empirical_distributions, file_name=None):
-        on_disk = empirical_distributions[0]._on_disk
+        empirical_type = empirical_distributions[0]._type
         for dist in empirical_distributions:
-            if dist._on_disk != on_disk:
-                raise RuntimeError('Expecting all Empirical distributions to be on disk or in memory.')
+            if dist._type != empirical_type:
+                raise RuntimeError('Expecting all Empirical distributions to be of the same type. Encountered: {} and {}'.format(empirical_type, dist._type))
             if not isinstance(dist, Empirical):
                 raise TypeError('Combination is only supported between Empirical distributions.')
 
-        if on_disk:
+        if empirical_type == EmpiricalType.FILE:
             if file_name is None:
                 raise RuntimeError('Expecting a target file_name for the combined Empirical.')
             ret = Empirical(file_name=file_name)
@@ -422,7 +475,7 @@ class Empirical(Distribution):
                     ret.add(value=dist._shelf[str(i)], log_weight=dist._log_weights[i])
             ret.finalize()
             return ret
-        else:
+        elif empirical_type == EmpiricalType.MEMORY:
             values = []
             log_weights = []
             length = empirical_distributions[0].length
@@ -432,6 +485,8 @@ class Empirical(Distribution):
                 values += dist._values
                 log_weights += dist._log_weights
             return Empirical(values=values, log_weights=log_weights, file_name=file_name)
+        else:
+            raise NotImplementedError('Not implemented for type: {}'.format(str(empirical_type)))
 
     def values_numpy(self):
         self._check_finalized()
