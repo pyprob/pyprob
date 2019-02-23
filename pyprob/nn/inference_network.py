@@ -253,13 +253,6 @@ class InferenceNetwork(nn.Module):
         for param in self.parameters():
             dist.broadcast(param.data, 0)
 
-    def _distributed_zero_grad(self):
-        # Create zero tensors for gradients not initialized at this distributed training rank
-        # print('Distributed zeroing gradients...')
-        for param in self.parameters():
-            # if (param.grad is None):
-            param.grad = util.to_tensor(torch.zeros_like(param.data))
-
     def _distributed_sync_grad(self, world_size):
         """ all_reduce grads from all ranks """
         # print('Distributed training synchronizing gradients across nodes...')
