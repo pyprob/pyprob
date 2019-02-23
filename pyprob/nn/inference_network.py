@@ -16,6 +16,7 @@ from threading import Thread
 from termcolor import colored
 import torch.optim.lr_scheduler as lr_scheduler
 import math
+from .learning_rate_scheduler import Polynomial_decayLR 
 
 from . import Batch, OfflineDataset, SortedTraceSampler, SortedTraceBatchSampler,SortedTraceBatchSamplerDistributed, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 from .. import __version__, util, Optimizer, ObserveEmbedding, LRScheduler
@@ -349,6 +350,8 @@ class InferenceNetwork(nn.Module):
                 if LARC_mode == "scale":
                     effective_lr = larc_local_lr
                 else:
+                    #print(colored('larc_local_lr='.format(larc_local_lr), 'yellow', attrs=['bold']))
+                    #print(colored('global LR='.format(group['lr']), 'yellow', attrs=['bold']))
                     effective_lr = min(larc_local_lr, group['lr']) / group['lr'] #group['lr'] is current global learning rate
 
 
@@ -383,7 +386,7 @@ class InferenceNetwork(nn.Module):
                 print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
                 print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
                 print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
-                print(colored('Distributed minibatch size: {} (global), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
+                print(colored('Distributed minibatch size: {} (global), {} (per rank)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
                 print(colored('Distributed initial learning rate : {} (global), {} (base)'.format(learning_rate * math.sqrt(distributed_world_size), learning_rate), 'yellow', attrs=['bold']))
                 print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
                 print(colored('Distributed learning rate scheduling method: {}'.format(str(LR_schedule_method)), 'yellow', attrs=['bold']))
@@ -453,27 +456,33 @@ class InferenceNetwork(nn.Module):
             else:
                 print("Unknown optimizer type: {}".format(optimizer_type))
                 quit()
-
-        max_epoch = 10 # TBD
-
+        max_epoch = math.ceil(num_traces/len(dataset))
+        end_learning_rate = 1e-7
+        max_decay_steps = int(num_traces / (batch_size * distributed_world_size))
         if LR_schedule_method== LRScheduler.STEP:
-            scheduler= lr_scheduler.StepLR(self._optimizer, step_size=3, gamma=0.1)
+            scheduler= lr_scheduler.StepLR(self._optimizer, step_size=math.ceil(max_epoch/2), gamma=0.1)
         elif LR_schedule_method== LRScheduler.MULTI_STEPS:
-            scheduler= lr_scheduler.MultiStepLR(self._optimizer, milestones=[1,2,3,4,5,6], gamma=0.83)
+            scheduler= lr_scheduler.MultiStepLR(self._optimizer, milestones=range(1,max_epoch), gamma=0.83)
         elif LR_schedule_method== LRScheduler.POLY_2:
-            lambda1 = lambda epoch: (1- float(epoch)/max_epoch)**2
-            scheduler = lr_scheduler.LambdaLR(self._optimizer, lr_lambda= lambda1, last_epoch= -1)
+            #lambda1 = lambda epoch: (1- float(epoch)/max_epoch)**2
+            #scheduler = lr_scheduler.LambdaLR(self._optimizer, lr_lambda= lambda1, last_epoch= -1)
+            scheduler = Polynomial_decayLR(self._optimizer,max_decay_steps=max_decay_steps, last_decay_step=-1, power=2, end_learning_rate=end_learning_rate)
+            #print("scheduler1.optimizer.param_groups[0]['lr']={}".format(scheduler1.optimizer.param_groups[0]['lr']))
+            #print("self._optimizer.param_groups[0]['lr']={}".format(self._optimizer.param_groups[0]['lr']))
         elif LR_schedule_method== LRScheduler.POLY_1:
-            lambda2 = lambda epoch: (1- float(epoch)/max_epoch)
-            scheduler = lr_scheduler.LambdaLR(self._optimizer, lr_lambda= lambda2, last_epoch= -1)
+            #lambda2 = lambda epoch: (1- float(epoch)/max_epoch)
+            #scheduler = lr_scheduler.LambdaLR(self._optimizer, lr_lambda= lambda2, last_epoch= -1)
+            scheduler = Polynomial_decayLR(self._optimizer,max_decay_steps=max_decay_steps, last_decay_step=-1, power=1, end_learning_rate=end_learning_rate)
         elif LR_schedule_method== LRScheduler.COSINEANNEALING:
             scheduler= lr_scheduler.CosineAnnealingLR(self._optimizer,T_max=10000, eta_min=1e-4, last_epoch=-1) #not done
 
         while not stop:
             epoch += 1
-
+            
+            if (LR_schedule_method== LRScheduler.MULTI_STEPS) or (LR_schedule_method== LRScheduler.STEP):
+                lr= self._optimizer.param_groups[0]['lr']
             #adjust global learning rate
-            scheduler.step()
+            #scheduler.step()
 
             dataloader = dataloader_epoch_one if epoch == 1 else dataloader_epoch_all
             for i_batch, batch in enumerate(dataloader):
@@ -509,7 +518,10 @@ class InferenceNetwork(nn.Module):
                         loss = float(loss)
                     else:
                         loss = self.larc_optimizer_train_step(loss) 
-
+                    #adjust global learning rate for iteration based LR scheduler
+                    if (LR_schedule_method== LRScheduler.POLY_2) or (LR_schedule_method== LRScheduler.POLY_1):
+                        lr= self._optimizer.param_groups[0]['lr']
+                        scheduler.step()
 
 
                     if self._loss_initial is None:
@@ -587,14 +599,25 @@ class InferenceNetwork(nn.Module):
                             print('\rSaving to disk...  ', end='\r')
                             self._save(file_name)
 
-                    print_line = '{} | {} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
+                    print_line = '{} | {} | {} | {} | {} | {} | {} | {} | {} '.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str, lr)
                     max_print_line_len = max(len(print_line), max_print_line_len)
                     if (distributed_rank ==0):
                         print(print_line.ljust(max_print_line_len), end='\r')
                     sys.stdout.flush()
                     if stop:
                         break
+                
+                #adjust global learning rate for iteration based LR scheduler
+                #if (LR_schedule_method== LRScheduler.POLY_2) or (LR_schedule_method== LRScheduler.POLY_1):
+                #    scheduler.step()
+
                 iteration += 1
+
+            #adjust global learning rate for epoch based LR scheduler
+            if (LR_schedule_method== LRScheduler.MULTI_STEPS) or (LR_schedule_method== LRScheduler.STEP):
+                scheduler.step()
+
+                
 
         if (distributed_rank == 0) and (save_file_name_prefix is not None):
             file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
