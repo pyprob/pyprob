@@ -77,41 +77,41 @@ class Distribution():
             raise ValueError('KL divergence is not currently supported for this pair of distributions.')
         return torch.distributions.kl.kl_divergence(distribution_1._torch_dist, distribution_2._torch_dist)
 
-    def save(self, file_name):
-        data = {}
-        data['distribution'] = self
-        data['pyprob_version'] = __version__
-        data['torch_version'] = torch.__version__
-
-        def thread_save():
-            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
-            tmp_file_name = os.path.join(tmp_dir, 'pyprob_distribution')
-            torch.save(data, tmp_file_name)
-            tar = tarfile.open(file_name, 'w:gz', compresslevel=9)
-            tar.add(tmp_file_name, arcname='pyprob_distribution')
-            tar.close()
-            shutil.rmtree(tmp_dir)
-        t = Thread(target=thread_save)
-        t.start()
-        t.join()
-
-    @staticmethod
-    def load(file_name):
-        try:
-            tar = tarfile.open(file_name, 'r:gz')
-            tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
-            tmp_file = os.path.join(tmp_dir, 'pyprob_distribution')
-            tar.extract('pyprob_distribution', tmp_dir)
-            tar.close()
-            data = torch.load(tmp_file, map_location=torch.device('cpu'))
-            shutil.rmtree(tmp_dir)
-        except Exception as e:
-            print(e)
-            raise RuntimeError('Cannot load distribution. {}'.format(traceback.format_exc()))
-
-        if data['pyprob_version'] != __version__:
-            print(colored('Warning: different pyprob versions (loaded distribution: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
-        if data['torch_version'] != torch.__version__:
-            print(colored('Warning: different PyTorch versions (loaded distribution: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
-
-        return data['distribution']
+    # def save(self, file_name):
+    #     data = {}
+    #     data['distribution'] = self
+    #     data['pyprob_version'] = __version__
+    #     data['torch_version'] = torch.__version__
+    #
+    #     def thread_save():
+    #         tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+    #         tmp_file_name = os.path.join(tmp_dir, 'pyprob_distribution')
+    #         torch.save(data, tmp_file_name)
+    #         tar = tarfile.open(file_name, 'w:gz', compresslevel=9)
+    #         tar.add(tmp_file_name, arcname='pyprob_distribution')
+    #         tar.close()
+    #         shutil.rmtree(tmp_dir)
+    #     t = Thread(target=thread_save)
+    #     t.start()
+    #     t.join()
+    #
+    # @staticmethod
+    # def load(file_name):
+    #     try:
+    #         tar = tarfile.open(file_name, 'r:gz')
+    #         tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
+    #         tmp_file = os.path.join(tmp_dir, 'pyprob_distribution')
+    #         tar.extract('pyprob_distribution', tmp_dir)
+    #         tar.close()
+    #         data = torch.load(tmp_file, map_location=torch.device('cpu'))
+    #         shutil.rmtree(tmp_dir)
+    #     except Exception as e:
+    #         print(e)
+    #         raise RuntimeError('Cannot load distribution. {}'.format(traceback.format_exc()))
+    #
+    #     if data['pyprob_version'] != __version__:
+    #         print(colored('Warning: different pyprob versions (loaded distribution: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
+    #     if data['torch_version'] != torch.__version__:
+    #         print(colored('Warning: different PyTorch versions (loaded distribution: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
+    #
+    #     return data['distribution']

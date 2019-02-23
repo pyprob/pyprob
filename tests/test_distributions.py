@@ -367,10 +367,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_expectation_sin_correct = 0.3921678960323334
         dist_map_sin_mean_correct = 0.3921678960323334
 
-        dist_on_file = Empirical(values, log_weights)
-        dist_on_file.save(file_name)
-        dist = Distribution.load(file_name)
-        os.remove(file_name)
+        dist_on_file = Empirical(values, log_weights=log_weights, file_name=file_name)
+        dist_on_file.close()
+        dist = Empirical(file_name=file_name)
         dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
         dist_mean = float(dist.mean)
         dist_mean_empirical = float(dist_empirical.mean)
@@ -378,6 +377,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddev_empirical = float(dist_empirical.stddev)
         dist_expectation_sin = float(dist.expectation(torch.sin))
         dist_map_sin_mean = float(dist.map(torch.sin).mean)
+        os.remove(file_name)
 
         util.eval_print('file_name', 'dist_mean', 'dist_mean_empirical', 'dist_mean_correct', 'dist_stddev', 'dist_stddev_empirical', 'dist_stddev_correct', 'dist_expectation_sin', 'dist_expectation_sin_correct', 'dist_map_sin_mean', 'dist_map_sin_mean_correct')
 
