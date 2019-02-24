@@ -337,7 +337,7 @@ class InferenceNetwork(nn.Module):
                 print(colored('Distributed dataset size  : {:,}'.format(len(dataset)), 'yellow', attrs=['bold']))
                 print(colored('Distributed num. buckets  : {:,}'.format(distributed_num_buckets), 'yellow', attrs=['bold']))
                 bucket_size = math.ceil((len(dataset) / batch_size) / distributed_num_buckets)
-                print(colored('Distributed bucket size   : {:,} minibatches (minimum)'.format(bucket_size), 'yellow', attrs=['bold']))
+                print(colored('Distributed bucket size   : {:,} minibatches ({:,} traces)'.format(bucket_size, bucket_size * batch_size), 'yellow', attrs=['bold']))
             self._distributed_backend = distributed_backend
             self._distributed_world_size = distributed_world_size
 
