@@ -388,7 +388,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_expectation_sin, dist_expectation_sin_correct, places=1)
         self.assertAlmostEqual(dist_map_sin_mean, dist_map_sin_mean_correct, places=1)
 
-    def test_dist_concat_empirical(self):
+    def test_dist_empirical_concat_mem_to_mem(self):
         values_correct = [0., 1, 2, 3, 4, 5, 6, 7, 8, 9]
         log_weights_correct = [-10, -15, -200, -2, -3, -22, -100, 1, 2, -0.3]
         mean_correct = 7.741360664367676
@@ -418,7 +418,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(concat_emp_stddev, stddev_correct, places=1)
         self.assertAlmostEqual(concat_emp_ess, ess_correct, places=1)
 
-    def test_dist_concat_empirical_file(self):
+    def test_dist_empirical_concat_file_to_mem(self):
         values_correct = [0., 1, 2, 3, 4, 5, 6, 7, 8, 9]
         log_weights_correct = [-10, -15, -200, -2, -3, -22, -100, 1, 2, -0.3]
         mean_correct = 7.741360664367676
@@ -442,7 +442,44 @@ class DistributionsTestCase(unittest.TestCase):
         concat_emp_ess = float(concat_emp.effective_sample_size)
         [os.remove(file_name) for file_name in file_names]
 
-        util.eval_print('values_correct', 'log_weights_correct', 'dist_correct_mean', 'concat_emp_mean', 'mean_correct', 'dist_correct_stddev', 'concat_emp_stddev', 'stddev_correct', 'dist_correct_ess', 'concat_emp_ess', 'ess_correct')
+        util.eval_print('file_names', 'values_correct', 'log_weights_correct', 'dist_correct_mean', 'concat_emp_mean', 'mean_correct', 'dist_correct_stddev', 'concat_emp_stddev', 'stddev_correct', 'dist_correct_ess', 'concat_emp_ess', 'ess_correct')
+
+        self.assertAlmostEqual(dist_correct_mean, mean_correct, places=1)
+        self.assertAlmostEqual(dist_correct_stddev, stddev_correct, places=1)
+        self.assertAlmostEqual(dist_correct_ess, ess_correct, places=1)
+        self.assertAlmostEqual(concat_emp_mean, mean_correct, places=1)
+        self.assertAlmostEqual(concat_emp_stddev, stddev_correct, places=1)
+        self.assertAlmostEqual(concat_emp_ess, ess_correct, places=1)
+
+    def test_dist_empirical_concat_file_to_file(self):
+        values_correct = [0., 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        log_weights_correct = [-10, -15, -200, -2, -3, -22, -100, 1, 2, -0.3]
+        mean_correct = 7.741360664367676
+        stddev_correct = 0.7910336256027222
+        ess_correct = 1.9459790014029552
+
+        dist_correct = Empirical(values=values_correct, log_weights=log_weights_correct)
+        dist_correct_mean = float(dist_correct.mean)
+        dist_correct_stddev = float(dist_correct.stddev)
+        dist_correct_ess = float(dist_correct.effective_sample_size)
+        file_names = [os.path.join(tempfile.mkdtemp(), str(uuid.uuid4())) for i in range(0, 4)]
+        empiricals = []
+        empiricals.append(Empirical(values=values_correct[0:3], log_weights=log_weights_correct[0:3], file_name=file_names[0]))
+        empiricals.append(Empirical(values=values_correct[3:5], log_weights=log_weights_correct[3:5], file_name=file_names[1]))
+        empiricals.append(Empirical(values=values_correct[5:9], log_weights=log_weights_correct[5:9], file_name=file_names[2]))
+        empiricals.append(Empirical(values=values_correct[9:10], log_weights=log_weights_correct[9:10], file_name=file_names[3]))
+        [emp.close() for emp in empiricals]
+        concat_file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        concat_emp = Empirical(concat_empirical_file_names=file_names, file_name=concat_file_name)
+        concat_emp.close()
+        concat_emp2 = Empirical(file_name=concat_file_name)
+        concat_emp_mean = float(concat_emp2.mean)
+        concat_emp_stddev = float(concat_emp2.stddev)
+        concat_emp_ess = float(concat_emp2.effective_sample_size)
+        [os.remove(file_name) for file_name in file_names]
+        os.remove(concat_file_name)
+
+        util.eval_print('file_names', 'concat_file_name', 'values_correct', 'log_weights_correct', 'dist_correct_mean', 'concat_emp_mean', 'mean_correct', 'dist_correct_stddev', 'concat_emp_stddev', 'stddev_correct', 'dist_correct_ess', 'concat_emp_ess', 'ess_correct')
 
         self.assertAlmostEqual(dist_correct_mean, mean_correct, places=1)
         self.assertAlmostEqual(dist_correct_stddev, stddev_correct, places=1)

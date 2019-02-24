@@ -33,13 +33,13 @@ class Empirical(Distribution):
             shelf_flag = 'r'
         else:
             shelf_flag = 'c'
+        self._file_name = file_name
         self._closed = False
         self._categorical = None
         self._log_weights = []
         self._length = 0
         self._uniform_weights = False
         if concat_empiricals is not None or concat_empirical_file_names is not None:
-            self._type = EmpiricalType.CONCAT_MEMORY
             if concat_empiricals is not None:
                 if type(concat_empiricals) == list:
                     if type(concat_empiricals[0]) == Empirical:
@@ -62,25 +62,48 @@ class Empirical(Distribution):
             self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
             self._finalized = True
             self._read_only = True
+            if file_name is None:
+                self._type = EmpiricalType.CONCAT_MEMORY
+            else:
+                if concat_empirical_file_names is None:
+                    raise ValueError('Expecting concat_empirical_file_names to write a concatenated empirical file.')
+                if shelf_flag == 'r':
+                    raise RuntimeError('Empirical file already exists, cannot write new concatenated Empirical: {}'.format(self._file_name))
+                else:
+                    self._type = EmpiricalType.CONCAT_FILE
+                    self._shelf = shelve.open(self._file_name, flag=shelf_flag, writeback=False)
+                    self._shelf['concat_empirical_file_names'] = concat_empirical_file_names
+                    self._shelf['name'] = name
+                    self._shelf.close()
         else:
             if file_name is None:
                 self._type = EmpiricalType.MEMORY
                 self._values = []
             else:
-                self._type = EmpiricalType.FILE
-                self._file_name = file_name
                 self._shelf = shelve.open(self._file_name, flag=shelf_flag, writeback=file_writeback)
-                if 'name' in self._shelf:
-                    self.name = self._shelf['name']
-                if 'log_weights' in self._shelf:
-                    self._log_weights = self._shelf['log_weights']
-                    self._file_last_key = self._shelf['last_key']
-                    self._length = len(self._log_weights)
+                if 'concat_empirical_file_names' in self._shelf:
+                    self._type = EmpiricalType.CONCAT_FILE
+                    concat_empirical_file_names = self._shelf['concat_empirical_file_names']
+                    self._concat_empiricals = [Empirical(file_name=f, file_read_only=True) for f in concat_empirical_file_names]
+                    self._concat_cum_sizes = np.cumsum([emp.length for emp in self._concat_empiricals])
+                    self._length = self._concat_cum_sizes[-1]
+                    self._log_weights = torch.cat([util.to_tensor(emp._log_weights) for emp in self._concat_empiricals])
+                    self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+                    self._finalized = True
+                    self._read_only = True
                 else:
-                    self._file_last_key = -1
-                self._file_sync_timeout = file_sync_timeout
-                self._file_sync_countdown = self._file_sync_timeout
-                self.finalize()
+                    self._type = EmpiricalType.FILE
+                    if 'name' in self._shelf:
+                        self.name = self._shelf['name']
+                    if 'log_weights' in self._shelf:
+                        self._log_weights = self._shelf['log_weights']
+                        self._file_last_key = self._shelf['last_key']
+                        self._length = len(self._log_weights)
+                    else:
+                        self._file_last_key = -1
+                    self._file_sync_timeout = file_sync_timeout
+                    self._file_sync_countdown = self._file_sync_timeout
+                    self.finalize()
         self._mean = None
         self._variance = None
         self._mode = None
