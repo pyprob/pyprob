@@ -61,6 +61,9 @@ class Empirical(Distribution):
             self._length = self._concat_cum_sizes[-1]
             self._log_weights = torch.cat([util.to_tensor(emp._log_weights) for emp in self._concat_empiricals])
             self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+            weights = self._categorical.probs
+            self._effective_sample_size = 1. / weights.pow(2).sum()
+            name = 'Combined empirical, traces: {:,}, ESS: {:,.2f}'.format(self._length, self._effective_sample_size)
             self._finalized = True
             self._read_only = True
             if file_name is None:
@@ -90,6 +93,7 @@ class Empirical(Distribution):
                     self._length = self._concat_cum_sizes[-1]
                     self._log_weights = torch.cat([util.to_tensor(emp._log_weights) for emp in self._concat_empiricals])
                     self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+                    self.name = self._shelf['name']
                     self._finalized = True
                     self._read_only = True
                 else:
