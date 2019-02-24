@@ -291,7 +291,7 @@ class InferenceNetwork(nn.Module):
             distributed_world_size = 1
             distributed_rank = 0
         else:
-            dist.init_process_group(backend=distributed_backend)
+            #dist.init_process_group(backend=distributed_backend)
             distributed_world_size = dist.get_world_size()
             distributed_rank = dist.get_rank()
             util.init_distributed_print(distributed_rank, distributed_world_size, False)

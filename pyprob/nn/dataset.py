@@ -10,6 +10,7 @@ import numpy as np
 import uuid
 from termcolor import colored
 from collections import Counter, OrderedDict
+import hashlib
 
 from .. import util
 from ..util import TraceMode, PriorInflation
@@ -186,8 +187,12 @@ class OfflineDataset(ConcatDataset):
             self._sorted_indices = list(range(len(self)))
         else:
             file_name = os.path.join(self._dataset_dir, 'pyprob_hashes')
-            hashes_file = ConcurrentShelf(file_name)
-            if 'hashes' in hashes_file:
+            hashes_file = None
+            try:
+                hashes_file = shelve.open(file_name,flag='r')
+            except:
+                pass
+            if hashes_file is not None and 'hashes' in hashes_file:
                 print('Using pre-computed hashes in: {}'.format(file_name))
                 self._sorted_indices = hashes_file['sorted_indices']
                 self._hashes = hashes_file['hashes']
@@ -197,9 +202,16 @@ class OfflineDataset(ConcatDataset):
                     raise RuntimeError('Length of pre-computed hashes ({}) and length of offline dataset ({}) do not match. Dataset files have been altered. Delete and re-generate pre-computed hash file: {}'.format(len(self._sorted_indices), len(self), file_name))
             else:
                 print('No pre-computed hashes found, generating: {}'.format(file_name))
+                if hashes_file is not None:
+                    hashes_file.close()
                 hashes, sorted_indices = self._compute_hashes()
-                hashes_file['hashes'] = hashes
-                hashes_file['sorted_indices'] = sorted_indices
+                if not dist.is_initialized() or dist.get_rank() == 0:
+                    hashes_file = shelve.open(file_name,flag='c')
+                    hashes_file['hashes'] = hashes
+                    hashes_file['sorted_indices'] = sorted_indices
+                    hashes_file.close()
+                if dist.is_initialized(): dist.barrier()
+                hashes_file = shelve.open(file_name,flag='r')
                 self._sorted_indices = sorted_indices
                 self._hashes = hashes
             print('Num. trace types: {:,}'.format(len(set(self._hashes))))
@@ -211,20 +223,49 @@ class OfflineDataset(ConcatDataset):
 
     @staticmethod
     def _trace_hash(trace):
-        h = hash(''.join([variable.address for variable in trace.variables_controlled])) + sys.maxsize + 1
+        hh = hashlib.sha1(''.join([variable.address for variable in trace.variables_controlled]).encode('utf-8')).hexdigest()
+        h = int(hh[0:8],16)
         return float('{}.{}'.format(trace.length_controlled, h))
 
     def _compute_hashes(self):
-        hashes = torch.zeros(len(self))
-        util.progress_bar_init('Hashing offline dataset for sorting', len(self), 'Traces')
-        for i in range(len(self)):
-            hashes[i] = self._trace_hash(self[i])
-            util.progress_bar_update(i)
-        util.progress_bar_end()
-        print('Sorting offline dataset')
-        _, sorted_indices = torch.sort(hashes)
-        print('Sorting done')
-        return hashes.cpu().numpy(), sorted_indices.cpu().numpy()
+        if not dist.is_initialized():
+            print('Serial hashing')
+            hashes = np.empty(len(self),dtype='f')
+            util.progress_bar_init('Hashing offline dataset for sorting', len(self), 'Traces')
+            for i in range(len(self)):
+                 hashes[i] = self._trace_hash(self[i])
+                 util.progress_bar_update(i)
+            util.progress_bar_end()
+        else:
+            nprocs = dist.get_world_size()
+            print('MPI hashing with '+str(nprocs)+' ranks',flush=True)
+            rank = dist.get_rank()
+            blocksize = (len(self) + nprocs - 1) // nprocs
+            local_hashes = np.empty(blocksize,dtype='f')
+            start = rank * blocksize
+            end = min(start+blocksize, len(self))
+            if rank == 0:
+                util.progress_bar_init('Hashing offline dataset for sorting', blocksize, 'Traces')
+            for i in range(start, end):
+                 local_hashes[i-start] = self._trace_hash(self[i])
+                 if rank == 0: util.progress_bar_update(i)
+            if rank == 0: util.progress_bar_end()
+            tlist = []
+            for i in range(nprocs):
+                tlist.append(torch.zeros(blocksize))
+            print('Doing allgather',flush=True)
+            dist.all_gather(tlist,torch.tensor(local_hashes))
+            hashes = np.empty(len(self),dtype='f')
+            for i in range(nprocs):
+                start = i * blocksize
+                end = start + blocksize
+                print('vals',i,tlist[i].numpy()[0],flush=True)
+                hashes[start:end] = tlist[i].numpy()
+            hashes = hashes[:len(self)]
+        print('Sorting offline dataset',flush=True)
+        sorted_indices = np.argsort(hashes)
+        print('Sorting done',flush=True)
+        return hashes, sorted_indices
 
     def save_sorted(self, sorted_dataset_dir, num_traces_per_file=None, num_files=None, begin_file_index=None, end_file_index=None):
         if num_traces_per_file is not None:
