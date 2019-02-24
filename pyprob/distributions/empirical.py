@@ -51,6 +51,7 @@ class Empirical(Distribution):
             else:
                 if type(concat_empirical_file_names) == list:
                     if type(concat_empirical_file_names[0]) == str:
+                        concat_empirical_file_names = list(map(os.path.abspath, concat_empirical_file_names))
                         self._concat_empiricals = [Empirical(file_name=f, file_read_only=True) for f in concat_empirical_file_names]
                     else:
                         raise TypeError('Expecting concat_empirical_file_names to be a list of file names.')
