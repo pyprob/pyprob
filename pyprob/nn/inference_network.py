@@ -305,7 +305,7 @@ class InferenceNetwork(nn.Module):
             self._distributed_valid_loss_min = float(self._distributed_valid_loss)
         print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
 
-    def _get_scheduler(self, learning_rate_scheduler, max_epoch=100, max_decay_steps=1e9, end_learning_rate=1e-7):
+    def _get_scheduler(self, learning_rate_scheduler, max_epoch=100, max_decay_steps=1e9, end_learning_rate=1e-6):
         if self._optimizer is None:
             return None
         if learning_rate_scheduler == LearningRateScheduler.STEP:
@@ -319,7 +319,7 @@ class InferenceNetwork(nn.Module):
         else:
             return None
 
-    def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.0001, learning_rate_scheduler=LearningRateScheduler.NONE, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_loss_update_every=None, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=False, *args, **kwargs):
+    def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate_init=0.0001, learning_rate_scheduler=LearningRateScheduler.NONE, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_loss_update_every=None, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=False, *args, **kwargs):
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
             self._init_layers()
@@ -335,25 +335,19 @@ class InferenceNetwork(nn.Module):
             util.init_distributed_print(distributed_rank, distributed_world_size, False)
             if distributed_rank == 0:
                 print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
-                print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
-                print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
-                print(colored('Distributed minibatch size: {} (global effective), {} (per rank)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
-                print(colored('Distributed learning rate : {} (global), {} (base)'.format(learning_rate * math.sqrt(distributed_world_size), learning_rate), 'yellow', attrs=['bold']))
-                print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
-                print(colored('Distributed dataset size  : {:,}'.format(len(dataset)), 'yellow', attrs=['bold']))
-                print(colored('Distributed num. buckets  : {:,}'.format(distributed_num_buckets), 'yellow', attrs=['bold']))
+                print(colored('Distributed backend        : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
+                print(colored('Distributed world size     : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
+                print(colored('Distributed minibatch size : {} (global effective), {} (per rank)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
+                print(colored('Distributed init.learn rate: {} (global), {} (base)'.format(learning_rate_init * math.sqrt(distributed_world_size), learning_rate_init), 'yellow', attrs=['bold']))
+                print(colored('Distributed optimizer      : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
+                print(colored('Distributed dataset size   : {:,}'.format(len(dataset)), 'yellow', attrs=['bold']))
+                print(colored('Distributed num. buckets   : {:,}'.format(distributed_num_buckets), 'yellow', attrs=['bold']))
                 bucket_size = math.ceil((len(dataset) / batch_size) / distributed_num_buckets)
-                print(colored('Distributed bucket size   : {:,} minibatches ({:,} traces)'.format(bucket_size, bucket_size * batch_size), 'yellow', attrs=['bold']))
+                print(colored('Distributed bucket size    : {:,} minibatches ({:,} traces)'.format(bucket_size, bucket_size * batch_size), 'yellow', attrs=['bold']))
             self._distributed_backend = distributed_backend
             self._distributed_world_size = distributed_world_size
 
-        max_epoch = math.ceil(num_traces / len (dataset)) #now the num_traces is the total traces to be trained across all ranks!
-        max_decay_steps = int(num_traces / (batch_size * distributed_world_size)) #now the num_traces is the total traces to be trained across all ranks!
-        end_learning_rate = 1e-6 
-
         self._optimizer_type = optimizer_type
-        if self._learning_rate_scheduler is None:
-            self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps, end_learning_rate=end_learning_rate)
         self._batch_size = batch_size
         self._momentum = momentum
         self.train()
@@ -370,7 +364,7 @@ class InferenceNetwork(nn.Module):
         iteration = 0
         trace = 0
         stop = False
-        print('Train. time | Epoch| Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec | Learning rate')
+        print('Train. time | Epoch| Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Learn.rate| Traces/sec')
         max_print_line_len = 0
         loss_min_str = ''
         time_since_loss_min_str = ''
@@ -397,9 +391,6 @@ class InferenceNetwork(nn.Module):
 
         while not stop:
             epoch += 1
-
-            # do not adjust global learning rate at the beginning of the epoch, otherwise the initial global LR will never be used
-
             for i_batch, batch in enumerate(dataloader):
                 # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
                 if (distributed_world_size > 1) and (iteration % distributed_params_sync_every == 0):
@@ -412,13 +403,16 @@ class InferenceNetwork(nn.Module):
 
                 if (self._optimizer is None) or layers_changed:
                     if optimizer_type == Optimizer.ADAM:
-                        self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * math.sqrt(distributed_world_size), weight_decay=weight_decay)
+                        self._optimizer = optim.Adam(self.parameters(), lr=learning_rate_init * math.sqrt(distributed_world_size), weight_decay=weight_decay)
                     else:  # optimizer_type == Optimizer.SGD
-                        self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * math.sqrt(distributed_world_size), momentum=momentum, nesterov=True, weight_decay=weight_decay)
-                    self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps,end_learning_rate=end_learning_rate)
-                lr = self._optimizer.param_groups[0]['lr'] #to prepare for LR print!
+                        self._optimizer = optim.SGD(self.parameters(), lr=learning_rate_init * math.sqrt(distributed_world_size), momentum=momentum, nesterov=True, weight_decay=weight_decay)
+                    max_epoch = math.ceil(num_traces / len(dataset))  # num_traces is the total traces to be trained across all ranks
+                    max_decay_steps = int(num_traces / (batch_size * distributed_world_size))  # num_traces is the total traces to be trained across all ranks
+                    self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps)
+                learning_rate_current = self._optimizer.param_groups[0]['lr']
+                learning_rate_current_str = '{:+.2e}'.format(learning_rate_current)
 
-                # print(self._optimizer.state[self._optimizer.param_groups[0]['params'][0]])end_learning_rate
+                # print(self._optimizer.state[self._optimizer.param_groups[0]['params'][0]])
                 self._optimizer.zero_grad()
                 success, loss = self._loss(batch)
                 if not success:
@@ -431,11 +425,6 @@ class InferenceNetwork(nn.Module):
                         self._distributed_sync_grad(distributed_world_size)
                     self._optimizer.step()
                     loss = float(loss)
-
-                    # adjust global learning rate for iteration based LR scheduler
-                    if (learning_rate_scheduler == LearningRateScheduler.POLY2) or (learning_rate_scheduler == LearningRateScheduler.POLY1):
-                        lr = self._optimizer.param_groups[0]['lr']
-                        self._learning_rate_scheduler.step()
 
                     if self._loss_initial is None:
                         self._loss_initial = loss
@@ -465,7 +454,7 @@ class InferenceNetwork(nn.Module):
 
                     self._loss_previous = loss
                     self._total_train_iterations += 1
-                    trace += batch.size
+                    trace += batch.size * distributed_world_size
                     self._total_train_traces += batch.size * distributed_world_size
                     total_train_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
                     epoch_str = '{:4}'.format('{:,}'.format(epoch))
@@ -474,8 +463,7 @@ class InferenceNetwork(nn.Module):
                     traces_per_second_str = '{:,.1f}'.format(int(batch.size * distributed_world_size / (time.time() - time_last_batch)))
                     time_last_batch = time.time()
                     if num_traces is not None:
-                        #if trace >= num_traces:
-                        if self._total_train_traces >= num_traces:
+                        if trace >= num_traces:
                             stop = True
 
                     self._history_train_loss.append(loss)
@@ -507,15 +495,18 @@ class InferenceNetwork(nn.Module):
                             print('\rSaving to disk...  ', end='\r')
                             self._save(file_name)
 
-                    print_line = '{} | {} | {} | {} | {} | {} | {} | {} | {} '.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str, lr)
+                    print_line = '{} | {} | {} | {} | {} | {} | {} | {} | {} '.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, learning_rate_current_str, traces_per_second_str)
                     max_print_line_len = max(len(print_line), max_print_line_len)
                     print(print_line.ljust(max_print_line_len), end='\r')
                     sys.stdout.flush()
                     if stop:
                         break
                 iteration += 1
-            # adjust global learning rate for epoch based LR scheduler
-            if (learning_rate_scheduler == LearningRateScheduler.MULTI_STEP) or (learning_rate_scheduler == LearningRateScheduler.STEP):
+                # adjust global learning rate for iteration-based LR scheduler
+                if (learning_rate_scheduler == LearningRateScheduler.POLY1) or (learning_rate_scheduler == LearningRateScheduler.POLY2):
+                    self._learning_rate_scheduler.step()
+            # adjust global learning rate for epoch-based LR scheduler
+            if (learning_rate_scheduler == LearningRateScheduler.STEP) or (learning_rate_scheduler == LearningRateScheduler.MULTI_STEP):
                 self._learning_rate_scheduler.step()
 
         print()

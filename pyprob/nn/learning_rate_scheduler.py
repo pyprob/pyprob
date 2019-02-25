@@ -6,7 +6,8 @@ class PolynomialDecayLR(_LRScheduler):
     A scheduler which applies a polynomial decay to the learning rate
     with idea from https://www.tensorflow.org/api_docs/python/tf/train/polynomial_decay
     """
-    def __init__(self, optimizer, max_decay_steps, last_decay_step=-1, power=2,  end_learning_rate=1e-7):
+
+    def __init__(self, optimizer, max_decay_steps, last_decay_step=-1, power=2,  end_learning_rate=1e-6):
         self.optimizer = optimizer
         self.max_decay_steps = max_decay_steps
         self.global_step = last_decay_step
