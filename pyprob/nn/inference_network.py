@@ -346,13 +346,12 @@ class InferenceNetwork(nn.Module):
             self._distributed_backend = distributed_backend
             self._distributed_world_size = distributed_world_size
 
-        max_epoch = math.ceil(num_traces * distributed_world_size / len (dataset)) #note that the current num_traces is per rank number, not total number!!!
-        max_decay_steps = int(num_traces / (batch_size)) 
-       #note that the current num_traces is per rank number, not total number!!!
-
+        max_epoch = math.ceil(num_traces / len (dataset)) #now the num_traces is the total traces to be trained across all ranks!
+        max_decay_steps = int(num_traces / (batch_size * distributed_world_size)) #now the num_traces is the total traces to be trained across all ranks!
+        end_learning_rate = 1e-6 
         self._optimizer_type = optimizer_type
         if self._learning_rate_scheduler is None:
-            self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps)
+            self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps, end_learning_rate=end_learning_rate)
         self._batch_size = batch_size
         self._momentum = momentum
         self.train()
@@ -414,10 +413,10 @@ class InferenceNetwork(nn.Module):
                         self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * math.sqrt(distributed_world_size), weight_decay=weight_decay)
                     else:  # optimizer_type == Optimizer.SGD
                         self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * math.sqrt(distributed_world_size), momentum=momentum, nesterov=True, weight_decay=weight_decay)
-                    self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps)
+                    self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps,end_learning_rate=end_learning_rate)
                 lr = self._optimizer.param_groups[0]['lr'] #to prepare for LR print!
 
-                # print(self._optimizer.state[self._optimizer.param_groups[0]['params'][0]])
+                # print(self._optimizer.state[self._optimizer.param_groups[0]['params'][0]])end_learning_rate
                 self._optimizer.zero_grad()
                 success, loss = self._loss(batch)
                 if not success:
@@ -473,7 +472,8 @@ class InferenceNetwork(nn.Module):
                     traces_per_second_str = '{:,.1f}'.format(int(batch.size * distributed_world_size / (time.time() - time_last_batch)))
                     time_last_batch = time.time()
                     if num_traces is not None:
-                        if trace >= num_traces:
+                        #if trace >= num_traces:
+                        if self._total_train_traces >= num_traces:
                             stop = True
 
                     self._history_train_loss.append(loss)
