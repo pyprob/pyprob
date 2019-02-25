@@ -142,16 +142,17 @@ class Model():
     def posterior_distribution(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, thinning_steps=None, *args, **kwargs):
         return self.posterior_traces(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, file_name=file_name, thinning_steps=thinning_steps, *args, **kwargs)
 
+    def reset_inference_network(self):
+        self._inference_network = None
+
     def learn_inference_network(self, num_traces, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, dataset_valid_dir=None, observe_embeddings={}, batch_size=64, valid_size=None, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate=0.001, learning_rate_scheduler=LearningRateScheduler.NONE, momentum=0.9, weight_decay=0., save_file_name_prefix=None, save_every_sec=600, pre_generate_layers=True, distributed_backend=None, distributed_params_sync_every=10000, distributed_loss_update_every=None, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=True):
         if dataset_dir is None:
             dataset = OnlineDataset(model=self, prior_inflation=prior_inflation)
         else:
             dataset = OfflineDataset(dataset_dir=dataset_dir)
 
-        dataset_valid = None
         if dataset_valid_dir is None:
-            if valid_size is not None:
-                dataset_valid = OnlineDataset(model=self, length=valid_size, prior_inflation=prior_inflation)
+            dataset_valid = None
         else:
             dataset_valid = OfflineDataset(dataset_dir=dataset_valid_dir)
 

@@ -133,6 +133,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
         posterior_effective_sample_size_min = samples * 0.03
 
+        self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs0': {'dim': 256, 'depth': 1}, 'obs1': {'dim': 256, 'depth': 1}})
 
         start = time.time()
@@ -241,6 +242,7 @@ class GaussianWithUnknownMeanMarsagliaWithReplacementTestCase(unittest.TestCase)
         posterior_stddev_correct = float(true_posterior.stddev)
         posterior_effective_sample_size_min = samples * 0.03
 
+        self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs0': {'dim': 256, 'depth': 1}, 'obs1': {'dim': 256, 'depth': 1}})
 
         start = time.time()
@@ -360,6 +362,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         posterior_mean_correct = self._posterior_mean_correct
         posterior_effective_sample_size_min = samples * 0.03
 
+        self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs{}'.format(i): {'depth': 2, 'dim': 16} for i in range(len(observation))})
 
         start = time.time()
@@ -472,6 +475,7 @@ class BranchingTestCase(unittest.TestCase):
     #     samples = importance_sampling_samples
     #     posterior_correct = util.empirical_to_categorical(self._model.true_posterior(), max_val=40)
     #
+    #     self._model.reset_inference_network()
     #     self._model.learn_inference_network(num_traces=2000, observe_embeddings={'obs': {'depth': 2, 'dim': 32}})
     #
     #     start = time.time()

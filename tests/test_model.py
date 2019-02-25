@@ -7,7 +7,7 @@ import uuid
 import shutil
 
 import pyprob
-from pyprob import util, Model, InferenceEngine
+from pyprob import util, Model, InferenceEngine, LearningRateScheduler
 from pyprob.distributions import Normal, Uniform, Empirical
 
 
@@ -99,6 +99,7 @@ class ModelTestCase(unittest.TestCase):
         training_traces = 128
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
 
+        self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
         self._model.save_inference_network(file_name)
         self._model.load_inference_network(file_name)
@@ -308,10 +309,31 @@ class ModelTestCase(unittest.TestCase):
         training_traces = 128
 
         self._model.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces, num_traces_per_file=num_traces_per_file)
+        self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=training_traces, dataset_dir=dataset_dir, batch_size=16, valid_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
         shutil.rmtree(dataset_dir)
 
         util.eval_print('dataset_dir', 'num_traces', 'num_traces_per_file', 'training_traces')
+
+        self.assertTrue(True)
+
+    def test_model_train(self):
+        num_traces = 512
+
+        self._model.reset_inference_network()
+        self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
+
+        util.eval_print('num_traces')
+
+        self.assertTrue(True)
+
+    def test_model_train_lr_scheduler(self):
+        num_traces = 512
+
+        self._model.reset_inference_network()
+        self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, learning_rate_scheduler=LearningRateScheduler.MULTI_STEP)
+
+        util.eval_print('num_traces')
 
         self.assertTrue(True)
 

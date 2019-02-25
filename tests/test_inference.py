@@ -148,6 +148,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
         posterior_effective_sample_size_min = samples * 0.2
 
+        self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_ff_training_traces, observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}}, prior_inflation=importance_sampling_with_inference_network_ff_prior_inflation, inference_network=InferenceNetwork.FEEDFORWARD)
 
         start = time.time()
@@ -176,6 +177,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
         posterior_effective_sample_size_min = samples * 0.2
 
+        self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_lstm_training_traces, observe_embeddings={'obs0': {'dim': 64, 'depth': 6}, 'obs1': {'dim': 64, 'depth': 6}}, prior_inflation=importance_sampling_with_inference_network_lstm_prior_inflation, inference_network=InferenceNetwork.LSTM)
 
         # pyprob.diagnostics.network_statistics(self._model._inference_network, './report_tmp')
@@ -310,6 +312,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
         posterior_effective_sample_size_min = samples * 0.01
 
+        self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_ff_training_traces, observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}}, prior_inflation=importance_sampling_with_inference_network_ff_prior_inflation, inference_network=InferenceNetwork.FEEDFORWARD)
 
         start = time.time()
@@ -338,6 +341,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
         posterior_effective_sample_size_min = samples * 0.02
 
+        self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_ff_training_traces, observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}}, prior_inflation=importance_sampling_with_inference_network_lstm_prior_inflation, inference_network=InferenceNetwork.LSTM)
 
         start = time.time()
@@ -481,6 +485,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         posterior_mean_correct = self._posterior_mean_correct
         posterior_effective_sample_size_min = samples * 0.001
 
+        self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_ff_training_traces, observe_embeddings={'obs{}'.format(i): {'depth': 2, 'dim': 32} for i in range(len(observation))}, prior_inflation=importance_sampling_with_inference_network_ff_prior_inflation, inference_network=InferenceNetwork.FEEDFORWARD)
 
         start = time.time()
@@ -506,6 +511,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         posterior_mean_correct = self._posterior_mean_correct
         posterior_effective_sample_size_min = samples * 0.001
 
+        self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_lstm_training_traces, observe_embeddings={'obs{}'.format(i): {'depth': 2, 'dim': 32} for i in range(len(observation))}, prior_inflation=importance_sampling_with_inference_network_lstm_prior_inflation, inference_network=InferenceNetwork.LSTM)
 
         start = time.time()
@@ -633,6 +639,7 @@ class BranchingTestCase(unittest.TestCase):
     #     samples = importance_sampling_samples
     #     posterior_correct = util.empirical_to_categorical(self._model.true_posterior(), max_val=40)
     #
+    #     self._model.reset_inference_network()
     #     self._model.learn_inference_network(num_traces=2000, observe_embeddings={'obs': {'depth': 2, 'dim': 32}})
     #
     #     start = time.time()
@@ -743,6 +750,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         test_letters = self._model._alphabet
         mean_effective_sample_size_min = 0.9 * samples
 
+        self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_ff_training_traces, observe_embeddings={'query_image': {'dim': 32, 'reshape': [1, 28, 28], 'embedding': ObserveEmbedding.CNN2D5C}}, prior_inflation=importance_sampling_with_inference_network_ff_prior_inflation, inference_network=InferenceNetwork.FEEDFORWARD)
 
         # pyprob.diagnostics.network_statistics(self._model._inference_network, './report_ff')
@@ -772,6 +780,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         test_letters = self._model._alphabet
         mean_effective_sample_size_min = 0.9 * samples
 
+        self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_lstm_training_traces, observe_embeddings={'query_image': {'dim': 32, 'reshape': [1, 28, 28], 'embedding': ObserveEmbedding.CNN2D5C}}, prior_inflation=importance_sampling_with_inference_network_lstm_prior_inflation, inference_network=InferenceNetwork.LSTM)
 
         # pyprob.diagnostics.network_statistics(self._model._inference_network, './report_lstm')

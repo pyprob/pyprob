@@ -235,7 +235,7 @@ class InferenceNetwork(nn.Module):
             self._layers_initialized = True
 
         self._layers_pre_generated = True
-        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, collate_fn=lambda x: Batch(x))
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0, collate_fn=lambda x: Batch(x))
         util.progress_bar_init('Layer pre-generation...', len(dataset), 'Traces')
         i = 0
         for i_batch, batch in enumerate(dataloader):
@@ -381,13 +381,13 @@ class InferenceNetwork(nn.Module):
 
         # Validation data loader
         if dataset_valid is not None:
-            if isinstance(dataset_valid, OfflineDataset):
-                if distributed_world_size == 1:
-                    dataloader_valid = DataLoader(dataset_valid, batch_sampler=TraceBatchSampler(dataset_valid, batch_size=batch_size, shuffle_batches=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
-                else:
-                    dataloader_valid = DataLoader(dataset_valid, batch_sampler=DistributedTraceBatchSampler(dataset_valid, batch_size=batch_size, num_buckets=distributed_num_buckets, shuffle_batches=True, shuffle_buckets=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+            if distributed_world_size == 1:
+                dataloader_valid = DataLoader(dataset_valid, batch_sampler=TraceBatchSampler(dataset_valid, batch_size=batch_size, shuffle_batches=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
             else:
-                dataloader_valid = DataLoader(dataset_valid, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
+                dataloader_valid = DataLoader(dataset_valid, batch_sampler=DistributedTraceBatchSampler(dataset_valid, batch_size=batch_size, num_buckets=distributed_num_buckets, shuffle_batches=True, shuffle_buckets=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+            if not self._layers_pre_generated:
+                for i_batch, batch in enumerate(dataloader_valid):
+                    self._polymorph(batch)
 
         while not stop:
             epoch += 1
@@ -470,7 +470,7 @@ class InferenceNetwork(nn.Module):
                     self._history_train_loss_trace.append(self._total_train_traces)
                     if dataset_valid is not None:
                         if trace - last_validation_trace > valid_every:
-                            print('\rComputing validation loss...  ', end='\r')
+                            print('Computing validation loss')
                             valid_loss = 0
                             with torch.no_grad():
                                 for i_batch, batch in enumerate(dataloader_valid):

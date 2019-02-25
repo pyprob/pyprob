@@ -70,7 +70,7 @@ class InferenceNetworkFeedForward(InferenceNetwork):
             for time_step in range(example_trace.length_controlled):
                 address = example_trace.variables_controlled[time_step].address
                 if address not in self._layer_proposal:
-                    print(colored('Unknown address in pre-generated inference network: {}'.format(address), 'red', attrs=['bold']))
+                    print(colored('Address unknown by inference network: {}'.format(address), 'red', attrs=['bold']))
                     return False, 0
                 variables = [trace.variables_controlled[time_step] for trace in sub_batch]
                 values = torch.stack([v.value for v in variables])
