@@ -63,8 +63,8 @@ class LearningRateScheduler(enum.Enum):
     NONE = 0
     STEP = 1
     MULTI_STEP = 2
-    # POLY1 = 3
-    # POLY2 = 4
+    POLY1 = 3
+    POLY2 = 4
     # COSINE_ANNEALING = 5
 
 
