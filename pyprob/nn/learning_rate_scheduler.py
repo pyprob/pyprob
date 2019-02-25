@@ -7,11 +7,11 @@ class PolynomialDecayLR(_LRScheduler):
     with idea from https://www.tensorflow.org/api_docs/python/tf/train/polynomial_decay
     """
 
-    def __init__(self, optimizer, max_decay_steps, last_decay_step=-1, power=2,  end_learning_rate=1e-6):
+    def __init__(self, optimizer, max_decay_steps, last_decay_step=-1, power=2,  learning_rate_end=1e-6):
         self.optimizer = optimizer
         self.max_decay_steps = max_decay_steps
         self.global_step = last_decay_step
-        self.end_learning_rate = end_learning_rate
+        self.learning_rate_end = learning_rate_end
         self.power = power
 
         if last_decay_step == -1:
@@ -30,7 +30,7 @@ class PolynomialDecayLR(_LRScheduler):
 
     def lr_decay_func(self, start_lr):
         self.global_step = min(self.global_step, self.max_decay_steps)
-        new_lr = (start_lr - self.end_learning_rate) * ((1 - self.global_step / self.max_decay_steps) ** self.power) + self.end_learning_rate
+        new_lr = (start_lr - self.learning_rate_end) * ((1 - self.global_step / self.max_decay_steps) ** self.power) + self.learning_rate_end
         return new_lr
 
     def step(self, epoch=None):

@@ -318,7 +318,7 @@ class ModelTestCase(unittest.TestCase):
         self.assertTrue(True)
 
     def test_model_train(self):
-        num_traces = 512
+        num_traces = 256
 
         self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
@@ -327,11 +327,21 @@ class ModelTestCase(unittest.TestCase):
 
         self.assertTrue(True)
 
-    def test_model_train_lr_scheduler(self):
-        num_traces = 512
+    def test_model_train_lr_scheduler_step(self):
+        num_traces = 256
 
         self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, learning_rate_scheduler=LearningRateScheduler.MULTI_STEP)
+
+        util.eval_print('num_traces')
+
+        self.assertTrue(True)
+
+    def test_model_train_lr_scheduler_poly2(self):
+        num_traces = 256
+
+        self._model.reset_inference_network()
+        self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, learning_rate_scheduler=LearningRateScheduler.POLY2)
 
         util.eval_print('num_traces')
 
