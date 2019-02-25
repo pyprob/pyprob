@@ -369,7 +369,7 @@ class InferenceNetwork(nn.Module):
         iteration = 0
         trace = 0
         stop = False
-        print('Train. time | Epoch| Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec')
+        print('Train. time | Epoch| Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Traces/sec | Learning rate')
         max_print_line_len = 0
         loss_min_str = ''
         time_since_loss_min_str = ''
