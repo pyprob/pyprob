@@ -15,6 +15,7 @@ import copy
 import math
 from threading import Thread
 from termcolor import colored
+from .learning_rate_scheduler import Polynomial_decayLR
 
 from . import Batch, OfflineDataset, TraceBatchSampler, DistributedTraceBatchSampler, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 from .. import __version__, util, Optimizer, LearningRateScheduler, ObserveEmbedding
@@ -303,13 +304,17 @@ class InferenceNetwork(nn.Module):
             self._distributed_valid_loss_min = float(self._distributed_valid_loss)
         print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
 
-    def _get_scheduler(self, learning_rate_scheduler):
+    def _get_scheduler(self, learning_rate_scheduler, max_epoch=100,max_decay_steps=1e9, end_learning_rate=1e-7):
         if self._optimizer is None:
             return None
         if learning_rate_scheduler == LearningRateScheduler.STEP:
-            return lr_scheduler.StepLR(self._optimizer, step_size=30, gamma=0.1)
+            return lr_scheduler.StepLR(self._optimizer, step_size=math.ceil(max_epoch/2), gamma=0.1)
         elif learning_rate_scheduler == LearningRateScheduler.MULTI_STEP:
-            return lr_scheduler.MultiStepLR(self._optimizer, milestones=[30, 80], gamma=0.1)
+            return lr_scheduler.MultiStepLR(self._optimizer, milestones=range(1,max_epoch), gamma=0.83)
+        elif learning_rate_scheduler == LearningRateScheduler.POLY2:
+            return Polynomial_decayLR(self._optimizer,max_decay_steps=max_decay_steps, last_decay_step=-1, power=2, end_learning_rate=end_learning_rate)
+        elif learning_rate_scheduler == LearningRateScheduler.POLY1:
+            return Polynomial_decayLR(self._optimizer,max_decay_steps=max_decay_steps, last_decay_step=-1, power=1, end_learning_rate=end_learning_rate) 
         else:
             return None
 
@@ -331,8 +336,8 @@ class InferenceNetwork(nn.Module):
                 print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
                 print(colored('Distributed backend       : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
                 print(colored('Distributed world size    : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
-                print(colored('Distributed minibatch size: {} (global effective), {} (per node)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
-                print(colored('Distributed learning rate : {} (global), {} (base)'.format(learning_rate * distributed_world_size, learning_rate), 'yellow', attrs=['bold']))
+                print(colored('Distributed minibatch size: {} (global effective), {} (per rank)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
+                print(colored('Distributed learning rate : {} (global), {} (base)'.format(learning_rate * math.sqrt(distributed_world_size), learning_rate), 'yellow', attrs=['bold']))
                 print(colored('Distributed optimizer     : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
                 print(colored('Distributed dataset size  : {:,}'.format(len(dataset)), 'yellow', attrs=['bold']))
                 print(colored('Distributed num. buckets  : {:,}'.format(distributed_num_buckets), 'yellow', attrs=['bold']))
@@ -341,9 +346,13 @@ class InferenceNetwork(nn.Module):
             self._distributed_backend = distributed_backend
             self._distributed_world_size = distributed_world_size
 
+        max_epoch = math.ceil(num_traces * distributed_world_size / len (dataset)) #note that the current num_traces is per rank number, not total number!!!
+        max_decay_steps = int(num_traces / (batch_size)) 
+       #note that the current num_traces is per rank number, not total number!!!
+
         self._optimizer_type = optimizer_type
         if self._learning_rate_scheduler is None:
-            self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler)
+            self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps)
         self._batch_size = batch_size
         self._momentum = momentum
         self.train()
@@ -387,8 +396,8 @@ class InferenceNetwork(nn.Module):
 
         while not stop:
             epoch += 1
-            if self._learning_rate_scheduler is not None:
-                self._learning_rate_scheduler.step()
+            
+            # do not adjust global learning rate at the beginning of the epoch, otherwise the initial global LR will never be used
 
             for i_batch, batch in enumerate(dataloader):
                 # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
@@ -405,7 +414,8 @@ class InferenceNetwork(nn.Module):
                         self._optimizer = optim.Adam(self.parameters(), lr=learning_rate * math.sqrt(distributed_world_size), weight_decay=weight_decay)
                     else:  # optimizer_type == Optimizer.SGD
                         self._optimizer = optim.SGD(self.parameters(), lr=learning_rate * math.sqrt(distributed_world_size), momentum=momentum, nesterov=True, weight_decay=weight_decay)
-                    self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler)
+                    self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps)
+                lr = self._optimizer.param_groups[0]['lr'] #to prepare for LR print!
 
                 # print(self._optimizer.state[self._optimizer.param_groups[0]['params'][0]])
                 self._optimizer.zero_grad()
@@ -420,6 +430,11 @@ class InferenceNetwork(nn.Module):
                         self._distributed_sync_grad(distributed_world_size)
                     self._optimizer.step()
                     loss = float(loss)
+
+                    #adjust global learning rate for iteration beased LR scheduler
+                    if (learning_rate_scheduler == LearningRateScheduler.POLY2) or (learning_rate_scheduler == LearningRateScheduler.POLY1):
+                        lr = self._optimizer.param_groups[0]['lr']
+                        self._learning_rate_scheduler.step()
 
                     if self._loss_initial is None:
                         self._loss_initial = loss
@@ -490,13 +505,17 @@ class InferenceNetwork(nn.Module):
                             print('\rSaving to disk...  ', end='\r')
                             self._save(file_name)
 
-                    print_line = '{} | {} | {} | {} | {} | {} | {} | {}'.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str)
+                    print_line = '{} | {} | {} | {} | {} | {} | {} | {} | {} '.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, traces_per_second_str, lr)
                     max_print_line_len = max(len(print_line), max_print_line_len)
                     print(print_line.ljust(max_print_line_len), end='\r')
                     sys.stdout.flush()
                     if stop:
                         break
                 iteration += 1
+            #adjust global learning rate for epoch based LR scheduler
+            if (learning_rate_scheduler == LearningRateScheduler.MULTI_STEP) or (learning_rate_scheduler == LearningRateScheduler.STEP):
+                self._learning_rate_scheduler.step()
+
 
         print()
         if (distributed_rank == 0) and (save_file_name_prefix is not None):
