@@ -295,6 +295,47 @@ class InferenceNetwork(nn.Module):
         self._distributed_history_valid_loss_trace.append(self._total_train_traces)
         return self._distributed_valid_loss
 
+    def larc_optimizer_train_step(self, loss):
+        LARC_mode = "clip"
+        LARC_eta = 0.002
+        LARC_epsilon = 1.0/16000.0
+
+        #The following is done after gradients have been averaged across ranks!!!
+        for group in self._optimizer.param_groups:
+
+            # make a local map of all non-zero gradients
+            ttmap = util.to_tensor([1 if p.grad is not None else 0 for p in group['params']])
+
+            for i, p in enumerate(group['params']):
+                if not ttmap[i]:
+                    continue
+                weight_norm = torch.norm(p.data)
+                g = p.grad.data
+                grad_norm = torch.norm(g)
+
+                if (weight_norm != 0.0) and (grad_norm != 0.0):
+                    larc_local_lr = LARC_eta  * weight_norm /grad_norm
+                else:
+                    larc_local_lr = LARC_epsilon
+
+                if LARC_mode == "scale":
+                    effective_lr = larc_local_lr
+                else:
+                    #print(colored('larc_local_lr='.format(larc_local_lr), 'yellow', attrs=['bold']))
+                    #print(colored('global LR='.format(group['lr']), 'yellow', attrs=['bold']))
+                    effective_lr = min(larc_local_lr, group['lr']) / group['lr'] #group['lr'] is current global learning rate
+
+
+                #multiply gradients
+                g_scaled = effective_lr * g
+                p.grad.data = g_scaled
+
+        #apply gradients
+        self._optimizer.step()
+        loss = float(loss)
+        return loss
+
+
     def _get_scheduler(self, learning_rate_scheduler, max_epoch=100, max_decay_steps=1e9, learning_rate_end=1e-6):
         if self._optimizer is None:
             return None
@@ -399,10 +440,13 @@ class InferenceNetwork(nn.Module):
                     layers_changed = self._polymorph(batch)
 
                 if (self._optimizer is None) or layers_changed:
-                    if optimizer_type == Optimizer.ADAM:
+                    if (optimizer_type == Optimizer.ADAM) or (optimizer_type == Optimizer.LARC_ADAM):
                         self._optimizer = optim.Adam(self.parameters(), lr=learning_rate_init * math.sqrt(distributed_world_size), weight_decay=weight_decay)
-                    else:  # optimizer_type == Optimizer.SGD
+                    elif (optimizer_type == Optimizer.SGD) or (optimizer_type == Optimizer.LARC_SGD):
                         self._optimizer = optim.SGD(self.parameters(), lr=learning_rate_init * math.sqrt(distributed_world_size), momentum=momentum, nesterov=True, weight_decay=weight_decay)
+                    else:
+                        print("Unknown optimizer type: {}".format(optimizer_type))
+                        quit()
                     max_epoch = math.ceil(num_traces / len(dataset))  # num_traces is the total traces to be trained across all ranks
                     max_decay_steps = int(num_traces / (batch_size * distributed_world_size))  # num_traces is the total traces to be trained across all ranks
                     self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps, learning_rate_end=learning_rate_end)
@@ -420,8 +464,13 @@ class InferenceNetwork(nn.Module):
                     loss.backward()
                     if distributed_world_size > 1:
                         self._distributed_sync_grad(distributed_world_size)
-                    self._optimizer.step()
-                    loss = float(loss)
+
+                    if not optimizer_type in [Optimizer.LARC_ADAM, Optimizer.LARC_SGD]:
+                        self._optimizer.step()
+                        loss = float(loss)
+                    else:
+                        loss = self.larc_optimizer_train_step(loss)
+
                     if (distributed_world_size > 1):
                         loss = self._distributed_update_train_loss(loss, distributed_world_size)
 
