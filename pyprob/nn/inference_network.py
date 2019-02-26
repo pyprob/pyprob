@@ -508,11 +508,11 @@ class InferenceNetwork(nn.Module):
 
                     time_last_batch = time_batch
                     if trace >= num_traces:
-                        print('Stop condition reached. num_traces: {}'.format(num_traces))
+                        print('\nStop condition reached. num_traces: {}'.format(num_traces))
                         stop = True
                         break
                     if self._total_train_traces >= self._total_train_traces_max:
-                        print('Stop condition reached. num_traces_max: {}'.format(self._total_train_traces_max))
+                        print('\nStop condition reached. num_traces_max: {}'.format(self._total_train_traces_max))
                         stop = True
                         break
 
