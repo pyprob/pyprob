@@ -41,6 +41,7 @@ class InferenceNetwork(nn.Module):
 
         self._total_train_seconds = 0
         self._total_train_traces = 0
+        self._total_train_traces_max = None
         self._total_train_iterations = 0
         self._loss_initial = None
         self._loss_min = float('inf')
@@ -215,6 +216,9 @@ class InferenceNetwork(nn.Module):
             ret._distributed_history_valid_loss = []
         if not hasattr(ret, '_distributed_history_valid_loss_trace'):
             ret._distributed_history_valid_loss_trace = []
+        # For compatibility loading NNs saved before 0.13.2.dev5
+        if not hasattr(ret, '_total_train_traces_max'):
+            ret._total_train_traces_max = None
         return ret
 
     def to(self, device=None, *args, **kwargs):
@@ -309,7 +313,7 @@ class InferenceNetwork(nn.Module):
         else:
             return None
 
-    def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate_init=0.0001, learning_rate_end=1e-6, learning_rate_scheduler=LearningRateScheduler.NONE, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=False, log_file_name=None):
+    def optimize(self, num_traces, dataset, dataset_valid=None, num_traces_max=1e9, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate_init=0.0001, learning_rate_end=1e-6, learning_rate_scheduler=LearningRateScheduler.NONE, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=False, log_file_name=None):
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
             self._init_layers()
@@ -370,6 +374,10 @@ class InferenceNetwork(nn.Module):
             valid_every = max(100, num_traces / 1000)
         last_validation_trace = -valid_every + 1
         valid_loss = 0
+        num_traces_max_changed = False
+        if (self._total_train_traces_max is None) or (self._total_train_traces_max != num_traces_max):
+            self._total_train_traces_max = num_traces_max
+            num_traces_max_changed = True
         epoch = 0
         iteration = 0
         trace = 0
@@ -398,13 +406,13 @@ class InferenceNetwork(nn.Module):
                 else:
                     layers_changed = self._polymorph(batch)
 
-                if (self._optimizer is None) or layers_changed:
+                if (self._optimizer is None) or layers_changed or num_traces_max_changed:
                     if optimizer_type == Optimizer.ADAM:
                         self._optimizer = optim.Adam(self.parameters(), lr=learning_rate_init * math.sqrt(distributed_world_size), weight_decay=weight_decay)
                     else:  # optimizer_type == Optimizer.SGD
                         self._optimizer = optim.SGD(self.parameters(), lr=learning_rate_init * math.sqrt(distributed_world_size), momentum=momentum, nesterov=True, weight_decay=weight_decay)
-                    max_epoch = math.ceil(num_traces / len(dataset))  # num_traces is the total traces to be trained across all ranks
-                    max_decay_steps = int(num_traces / (batch_size * distributed_world_size))  # num_traces is the total traces to be trained across all ranks
+                    max_epoch = math.ceil(self._total_train_traces_max / len(dataset))  # self._total_train_traces_max is the total traces to be trained across all ranks
+                    max_decay_steps = int(self._total_train_traces_max / (batch_size * distributed_world_size))  # self._total_train_traces_max is the total traces to be trained across all ranks
                     self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps, learning_rate_end=learning_rate_end)
                 learning_rate_current = self._optimizer.param_groups[0]['lr']
                 learning_rate_current_str = '{:+.2e}'.format(learning_rate_current)
