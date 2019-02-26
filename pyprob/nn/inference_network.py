@@ -507,10 +507,14 @@ class InferenceNetwork(nn.Module):
                         log_file.write('{}, {}, {}, {}, {}, {}, {}, {}, {}, {}\n'.format(self._total_train_seconds, self._total_train_iterations, self._total_train_traces, loss, valid_loss, learning_rate_current, batch.mean_length_controlled, len(batch.sub_batches), bucket_id, traces_per_second))
 
                     time_last_batch = time_batch
-                    if num_traces is not None:
-                        if trace >= num_traces:
-                            stop = True
-                            break
+                    if trace >= num_traces:
+                        print('Stop condition reached. num_traces: {}'.format(num_traces))
+                        stop = True
+                        break
+                    if self._total_train_traces >= self._total_train_traces_max:
+                        print('Stop condition reached. num_traces_max: {}'.format(self._total_train_traces_max))
+                        stop = True
+                        break
 
                 iteration += 1
                 # adjust global learning rate for iteration-based LR scheduler
