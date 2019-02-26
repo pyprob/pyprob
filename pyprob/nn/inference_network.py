@@ -54,8 +54,6 @@ class InferenceNetwork(nn.Module):
         self._history_num_params_trace = []
         self._distributed_train_loss = util.to_tensor(0.)
         self._distributed_valid_loss = util.to_tensor(0.)
-        self._distributed_train_loss_min = float('inf')
-        self._distributed_valid_loss_min = float('inf')
         self._distributed_history_train_loss = []
         self._distributed_history_train_loss_trace = []
         self._distributed_history_valid_loss = []
@@ -209,10 +207,6 @@ class InferenceNetwork(nn.Module):
             ret._distributed_train_loss = util.to_tensor(0.)
         if not hasattr(ret, '_distributed_valid_loss'):
             ret._distributed_valid_loss = util.to_tensor(0.)
-        if not hasattr(ret, '_distributed_train_loss_min'):
-            ret._distributed_train_loss_min = float('inf')
-        if not hasattr(ret, '_distributed_valid_loss_min'):
-            ret._distributed_valid_loss_min = float('inf')
         if not hasattr(ret, '_distributed_history_train_loss'):
             ret._distributed_history_train_loss = []
         if not hasattr(ret, '_distributed_history_train_loss_trace'):
@@ -291,9 +285,7 @@ class InferenceNetwork(nn.Module):
         self._distributed_train_loss /= float(world_size)
         self._distributed_history_train_loss.append(float(self._distributed_train_loss))
         self._distributed_history_train_loss_trace.append(self._total_train_traces)
-        if float(self._distributed_train_loss) < self._distributed_train_loss_min:
-            self._distributed_train_loss_min = float(self._distributed_train_loss)
-        print(colored('Distributed mean train. loss across ranks : {:+.2e}, min. train. loss: {:+.2e}'.format(self._distributed_train_loss, self._distributed_train_loss_min), 'yellow', attrs=['bold']))
+        return self._distributed_train_loss
 
     def _distributed_update_valid_loss(self, loss, world_size):
         self._distributed_valid_loss = util.to_tensor(float(loss))
@@ -301,9 +293,7 @@ class InferenceNetwork(nn.Module):
         self._distributed_valid_loss /= float(world_size)
         self._distributed_history_valid_loss.append(float(self._distributed_valid_loss))
         self._distributed_history_valid_loss_trace.append(self._total_train_traces)
-        if float(self._distributed_valid_loss) < self._distributed_valid_loss_min:
-            self._distributed_valid_loss_min = float(self._distributed_valid_loss)
-        print(colored('Distributed mean valid. loss across ranks : {:+.2e}, min. valid. loss: {:+.2e}'.format(self._distributed_valid_loss, self._distributed_valid_loss_min), 'yellow', attrs=['bold']))
+        return self._distributed_valid_loss
 
     def _get_scheduler(self, learning_rate_scheduler, max_epoch=100, max_decay_steps=1e9, learning_rate_end=1e-6):
         if self._optimizer is None:
@@ -353,8 +343,8 @@ class InferenceNetwork(nn.Module):
         self.train()
         prev_total_train_seconds = self._total_train_seconds
         time_start = time.time()
-        time_loss_min = time.time()
-        time_last_batch = time.time()
+        time_loss_min = time_start
+        time_last_batch = time_start
         if valid_every is None:
             valid_every = max(100, num_traces / 1000)
         # if distributed_loss_update_every is None:
@@ -368,7 +358,8 @@ class InferenceNetwork(nn.Module):
         max_print_line_len = 0
         loss_min_str = ''
         time_since_loss_min_str = ''
-        last_auto_save_time = time.time() - save_every_sec
+        last_auto_save_time = time_start - save_every_sec
+        last_print = time_start - util._print_refresh_rate
 
         # Training data loader
         if isinstance(dataset, OfflineDataset):
@@ -392,6 +383,7 @@ class InferenceNetwork(nn.Module):
         while not stop:
             epoch += 1
             for i_batch, batch in enumerate(dataloader):
+                time_batch = time.time()
                 # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
                 if (distributed_world_size > 1) and (iteration % distributed_params_sync_every == 0):
                     self._distributed_sync_parameters()
@@ -425,17 +417,19 @@ class InferenceNetwork(nn.Module):
                         self._distributed_sync_grad(distributed_world_size)
                     self._optimizer.step()
                     loss = float(loss)
+                    if (distributed_world_size > 1):
+                        loss = self._distributed_update_train_loss(loss, distributed_world_size)
 
                     if self._loss_initial is None:
                         self._loss_initial = loss
                         self._loss_max = loss
-                    loss_initial_str = '{:+.2e}'.format(self._loss_initial)
+                        loss_initial_str = '{:+.2e}'.format(self._loss_initial)
                     # loss_max_str = '{:+.3e}'.format(self._loss_max)
                     if loss < self._loss_min:
                         self._loss_min = loss
                         loss_str = colored('{:+.2e}'.format(loss), 'green', attrs=['bold'])
                         loss_min_str = colored('{:+.2e}'.format(self._loss_min), 'green', attrs=['bold'])
-                        time_loss_min = time.time()
+                        time_loss_min = time_batch
                         time_since_loss_min_str = colored(util.days_hours_mins_secs_str(0), 'green', attrs=['bold'])
                     elif loss > self._loss_max:
                         self._loss_max = loss
@@ -450,22 +444,13 @@ class InferenceNetwork(nn.Module):
                             loss_str = '{:+.2e}'.format(loss)
                         loss_min_str = '{:+.2e}'.format(self._loss_min)
                         # loss_max_str = '{:+.3e}'.format(self._loss_max)
-                        time_since_loss_min_str = util.days_hours_mins_secs_str(time.time() - time_loss_min)
+                        time_since_loss_min_str = util.days_hours_mins_secs_str(time_batch - time_loss_min)
 
                     self._loss_previous = loss
                     self._total_train_iterations += 1
                     trace += batch.size * distributed_world_size
                     self._total_train_traces += batch.size * distributed_world_size
-                    total_train_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
-                    epoch_str = '{:4}'.format('{:,}'.format(epoch))
-                    self._total_train_seconds = prev_total_train_seconds + (time.time() - time_start)
-                    total_training_seconds_str = util.days_hours_mins_secs_str(self._total_train_seconds)
-                    traces_per_second_str = '{:,.1f}'.format(int(batch.size * distributed_world_size / (time.time() - time_last_batch)))
-                    time_last_batch = time.time()
-                    if num_traces is not None:
-                        if trace >= num_traces:
-                            stop = True
-
+                    self._total_train_seconds = prev_total_train_seconds + (time_batch - time_start)
                     self._history_train_loss.append(loss)
                     self._history_train_loss_trace.append(self._total_train_traces)
                     if dataset_valid is not None:
@@ -477,30 +462,37 @@ class InferenceNetwork(nn.Module):
                                     _, v = self._loss(batch)
                                     valid_loss += v
                             valid_loss = float(valid_loss / len(dataloader_valid))
+                            if distributed_world_size > 1:
+                                valid_loss = self._distributed_update_valid_loss(valid_loss, distributed_world_size)
                             self._history_valid_loss.append(valid_loss)
                             self._history_valid_loss_trace.append(self._total_train_traces)
                             last_validation_trace = trace - 1
 
-                            if distributed_world_size > 1:
-                                self._distributed_update_train_loss(loss, distributed_world_size)
-                                self._distributed_update_valid_loss(valid_loss, distributed_world_size)
-
-                    if (distributed_world_size > 1) and (iteration % distributed_loss_update_every == 0):
-                        self._distributed_update_train_loss(loss, distributed_world_size)
-
                     if (distributed_rank == 0) and (save_file_name_prefix is not None):
-                        if time.time() - last_auto_save_time > save_every_sec:
-                            last_auto_save_time = time.time()
+                        if time_batch - last_auto_save_time > save_every_sec:
+                            last_auto_save_time = time_batch
                             file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
                             print('\rSaving to disk...  ', end='\r')
                             self._save(file_name)
 
-                    print_line = '{} | {} | {} | {} | {} | {} | {} | {} | {} '.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, learning_rate_current_str, traces_per_second_str)
-                    max_print_line_len = max(len(print_line), max_print_line_len)
-                    print(print_line.ljust(max_print_line_len), end='\r')
-                    sys.stdout.flush()
-                    if stop:
-                        break
+                    if (time_batch - last_print > util._print_refresh_rate):
+                        last_print = time_batch
+                        total_training_seconds_str = util.days_hours_mins_secs_str(self._total_train_seconds)
+                        epoch_str = '{:4}'.format('{:,}'.format(epoch))
+                        total_train_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
+                        traces_per_second_str = '{:,.1f}'.format(int(batch.size * distributed_world_size / (time_batch - time_last_batch)))
+
+                        print_line = '{} | {} | {} | {} | {} | {} | {} | {} | {} '.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, learning_rate_current_str, traces_per_second_str)
+                        max_print_line_len = max(len(print_line), max_print_line_len)
+                        print(print_line.ljust(max_print_line_len), end='\r')
+                        sys.stdout.flush()
+
+                    time_last_batch = time_batch
+                    if num_traces is not None:
+                        if trace >= num_traces:
+                            stop = True
+                            break
+
                 iteration += 1
                 # adjust global learning rate for iteration-based LR scheduler
                 if (learning_rate_scheduler == LearningRateScheduler.POLY1) or (learning_rate_scheduler == LearningRateScheduler.POLY2):
