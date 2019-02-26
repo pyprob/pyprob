@@ -293,7 +293,7 @@ class InferenceNetwork(nn.Module):
         self._distributed_history_train_loss_trace.append(self._total_train_traces)
         if float(self._distributed_train_loss) < self._distributed_train_loss_min:
             self._distributed_train_loss_min = float(self._distributed_train_loss)
-        print(colored('Distributed mean train. loss across ranks : {:+.2e}, min. train. loss: {:+.2e}'.format(self._distributed_train_loss, self._distributed_train_loss_min), 'yellow', attrs=['bold']))
+        #print(colored('Distributed mean train. loss across ranks : {:+.2e}, min. train. loss: {:+.2e}'.format(self._distributed_train_loss, self._distributed_train_loss_min), 'yellow', attrs=['bold']))
 
     def _distributed_update_valid_loss(self, loss, world_size):
         self._distributed_valid_loss = util.to_tensor(float(loss))
@@ -357,8 +357,8 @@ class InferenceNetwork(nn.Module):
         time_last_batch = time.time()
         if valid_every is None:
             valid_every = max(100, num_traces / 1000)
-        # if distributed_loss_update_every is None:
-        #     distributed_loss_update_every = valid_every
+        if distributed_loss_update_every is None:
+             distributed_loss_update_every = 1 #valid_every
         last_validation_trace = -valid_every + 1
         epoch = 0
         iteration = 0
@@ -487,6 +487,8 @@ class InferenceNetwork(nn.Module):
 
                     if (distributed_world_size > 1) and (iteration % distributed_loss_update_every == 0):
                         self._distributed_update_train_loss(loss, distributed_world_size)
+                        loss_str=colored('{:+.2e}'.format(self._distributed_train_loss), 'yellow', attrs=['bold'])
+                        loss_min_str=colored('{:+.2e}'.format(self._distributed_train_loss_min), 'yellow', attrs=['bold'])
 
                     if (distributed_rank == 0) and (save_file_name_prefix is not None):
                         if time.time() - last_auto_save_time > save_every_sec:
