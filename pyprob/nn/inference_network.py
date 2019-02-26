@@ -309,7 +309,7 @@ class InferenceNetwork(nn.Module):
         else:
             return None
 
-    def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate_init=0.0001, learning_rate_end=1e-6, learning_rate_scheduler=LearningRateScheduler.NONE, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_loss_update_every=1, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=False, *args, **kwargs):
+    def optimize(self, num_traces, dataset, dataset_valid, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate_init=0.0001, learning_rate_end=1e-6, learning_rate_scheduler=LearningRateScheduler.NONE, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every=10000, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=False, log_file_name=None):
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
             self._init_layers()
@@ -337,30 +337,6 @@ class InferenceNetwork(nn.Module):
             self._distributed_backend = distributed_backend
             self._distributed_world_size = distributed_world_size
 
-        self._optimizer_type = optimizer_type
-        self._batch_size = batch_size
-        self._momentum = momentum
-        self.train()
-        prev_total_train_seconds = self._total_train_seconds
-        time_start = time.time()
-        time_loss_min = time_start
-        time_last_batch = time_start
-        if valid_every is None:
-            valid_every = max(100, num_traces / 1000)
-        # if distributed_loss_update_every is None:
-        #     distributed_loss_update_every = valid_every
-        last_validation_trace = -valid_every + 1
-        epoch = 0
-        iteration = 0
-        trace = 0
-        stop = False
-        print('Train. time | Epoch| Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Learn.rate| Traces/sec')
-        max_print_line_len = 0
-        loss_min_str = ''
-        time_since_loss_min_str = ''
-        last_auto_save_time = time_start - save_every_sec
-        last_print = time_start - util._print_refresh_rate
-
         # Training data loader
         if isinstance(dataset, OfflineDataset):
             if distributed_world_size == 1:
@@ -379,6 +355,33 @@ class InferenceNetwork(nn.Module):
             if not self._layers_pre_generated:
                 for i_batch, batch in enumerate(dataloader_valid):
                     self._polymorph(batch)
+
+        self._optimizer_type = optimizer_type
+        self._batch_size = batch_size
+        self._momentum = momentum
+        self.train()
+        prev_total_train_seconds = self._total_train_seconds
+        time_start = time.time()
+        time_loss_min = time_start
+        time_last_batch = time_start
+        if valid_every is None:
+            valid_every = max(100, num_traces / 1000)
+        last_validation_trace = -valid_every + 1
+        valid_loss = 0
+        epoch = 0
+        iteration = 0
+        trace = 0
+        stop = False
+        print('Train. time | Epoch| Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Learn.rate| Traces/sec')
+        max_print_line_len = 0
+        loss_min_str = ''
+        time_since_loss_min_str = ''
+        loss_initial_str = '' if self._loss_initial is None else '{:+.2e}'.format(self._loss_initial)
+        last_auto_save_time = time_start - save_every_sec
+        last_print = time_start - util._print_refresh_rate
+        if (distributed_rank == 0) and log_file_name is not None:
+            log_file = open(log_file_name, mode='w', buffering=1)
+            log_file.write('time, iteration, trace, loss, valid_loss, learning_rate\n')
 
         while not stop:
             epoch += 1
@@ -487,6 +490,10 @@ class InferenceNetwork(nn.Module):
                         print(print_line.ljust(max_print_line_len), end='\r')
                         sys.stdout.flush()
 
+                    if (distributed_rank == 0) and log_file_name is not None:
+                        # log_file.write('time, iteration, trace, loss, valid_loss, learning_rate')
+                        log_file.write('{}, {}, {}, {}, {}, {}\n'.format(self._total_train_seconds, epoch, self._total_train_iterations, self._total_train_traces, loss, valid_loss, learning_rate_current))
+
                     time_last_batch = time_batch
                     if num_traces is not None:
                         if trace >= num_traces:
@@ -501,6 +508,8 @@ class InferenceNetwork(nn.Module):
             if (learning_rate_scheduler == LearningRateScheduler.STEP) or (learning_rate_scheduler == LearningRateScheduler.MULTI_STEP):
                 self._learning_rate_scheduler.step()
 
+        if (distributed_rank == 0) and log_file_name is not None:
+            log_file.close()
         print()
         if (distributed_rank == 0) and (save_file_name_prefix is not None):
             file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
