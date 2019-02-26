@@ -21,14 +21,18 @@ class Batch():
         self.traces = traces
         self.size = len(traces)
         sub_batches = {}
+        total_length_controlled = 0
         for trace in traces:
-            if trace.length == 0:
+            tl = trace.length_controlled
+            if tl == 0:
                 raise ValueError('Trace of length zero.')
+            total_length_controlled += tl
             trace_hash = ''.join([variable.address for variable in trace.variables_controlled])
             if trace_hash not in sub_batches:
                 sub_batches[trace_hash] = []
             sub_batches[trace_hash].append(trace)
         self.sub_batches = list(sub_batches.values())
+        self.mean_length_controlled = total_length_controlled / self.size
 
     def __len__(self):
         return len(self.traces)
@@ -344,6 +348,7 @@ class DistributedTraceBatchSampler(Sampler):
         self._shuffle_batches = shuffle_batches
         self._shuffle_buckets = shuffle_buckets
         self._epoch = 0
+        self._current_bucket_id = 0
 
     def __iter__(self):
         self._epoch += 1
@@ -354,7 +359,8 @@ class DistributedTraceBatchSampler(Sampler):
             np.random.seed(self._epoch)
             np.random.shuffle(self._buckets)
             np.random.set_state(st)
-        for bucket in self._buckets:
+        for bucket_id, bucket in enumerate(self._buckets):
+            self._current_bucket_id = bucket_id
             # num_batches is needed to ensure that all nodes have the same number of minibatches per iteration, in cases where the bucket size is not divisible by world_size.
             num_batches = math.floor(len(bucket) / self._world_size)
             # Select a num_batches-sized subset of the current bucket for the current node

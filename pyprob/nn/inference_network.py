@@ -322,18 +322,6 @@ class InferenceNetwork(nn.Module):
             dist.init_process_group(backend=distributed_backend)
             distributed_world_size = dist.get_world_size()
             distributed_rank = dist.get_rank()
-            util.init_distributed_print(distributed_rank, distributed_world_size, False)
-            if distributed_rank == 0:
-                print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
-                print(colored('Distributed backend        : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
-                print(colored('Distributed world size     : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
-                print(colored('Distributed minibatch size : {} (global effective), {} (per rank)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
-                print(colored('Distributed init.learn rate: {} (global), {} (base)'.format(learning_rate_init * math.sqrt(distributed_world_size), learning_rate_init), 'yellow', attrs=['bold']))
-                print(colored('Distributed optimizer      : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
-                print(colored('Distributed dataset size   : {:,}'.format(len(dataset)), 'yellow', attrs=['bold']))
-                print(colored('Distributed num. buckets   : {:,}'.format(distributed_num_buckets), 'yellow', attrs=['bold']))
-                bucket_size = math.ceil((len(dataset) / batch_size) / distributed_num_buckets)
-                print(colored('Distributed bucket size    : {:,} minibatches ({:,} traces)'.format(bucket_size, bucket_size * batch_size), 'yellow', attrs=['bold']))
             self._distributed_backend = distributed_backend
             self._distributed_world_size = distributed_world_size
 
@@ -355,6 +343,20 @@ class InferenceNetwork(nn.Module):
             if not self._layers_pre_generated:
                 for i_batch, batch in enumerate(dataloader_valid):
                     self._polymorph(batch)
+
+        if distributed_world_size > 1:
+            util.init_distributed_print(distributed_rank, distributed_world_size, False)
+            if distributed_rank == 0:
+                print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
+                print(colored('Distributed backend        : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
+                print(colored('Distributed world size     : {}'.format(distributed_world_size), 'yellow', attrs=['bold']))
+                print(colored('Distributed minibatch size : {} (global effective), {} (per rank)'.format(batch_size * distributed_world_size, batch_size), 'yellow', attrs=['bold']))
+                print(colored('Distributed init.learn rate: {} (global), {} (base)'.format(learning_rate_init * math.sqrt(distributed_world_size), learning_rate_init), 'yellow', attrs=['bold']))
+                print(colored('Distributed optimizer      : {}'.format(str(optimizer_type)), 'yellow', attrs=['bold']))
+                print(colored('Distributed dataset size   : {:,}'.format(len(dataset)), 'yellow', attrs=['bold']))
+                print(colored('Distributed num. buckets   : {:,}'.format(len(dataloader.batch_sampler._buckets)), 'yellow', attrs=['bold']))
+                # bucket_size = math.ceil((len(dataset) / batch_size) / distributed_num_buckets)
+                # print(colored('Distributed bucket size    : {:,} minibatches ({:,} traces)'.format(bucket_size, bucket_size * batch_size), 'yellow', attrs=['bold']))
 
         self._optimizer_type = optimizer_type
         self._batch_size = batch_size
@@ -381,7 +383,7 @@ class InferenceNetwork(nn.Module):
         last_print = time_start - util._print_refresh_rate
         if (distributed_rank == 0) and log_file_name is not None:
             log_file = open(log_file_name, mode='w', buffering=1)
-            log_file.write('time, iteration, trace, loss, valid_loss, learning_rate\n')
+            log_file.write('time, iteration, trace, loss, valid_loss, learning_rate, mean_trace_length_controlled, sub_mini_batches, distributed_bucket_id, traces_per_second\n')
 
         while not stop:
             epoch += 1
@@ -456,6 +458,7 @@ class InferenceNetwork(nn.Module):
                     self._total_train_seconds = prev_total_train_seconds + (time_batch - time_start)
                     self._history_train_loss.append(loss)
                     self._history_train_loss_trace.append(self._total_train_traces)
+                    traces_per_second = batch.size * distributed_world_size / (time_batch - time_last_batch)
                     if dataset_valid is not None:
                         if trace - last_validation_trace > valid_every:
                             print('Computing validation loss')
@@ -483,7 +486,7 @@ class InferenceNetwork(nn.Module):
                         total_training_seconds_str = util.days_hours_mins_secs_str(self._total_train_seconds)
                         epoch_str = '{:4}'.format('{:,}'.format(epoch))
                         total_train_traces_str = '{:9}'.format('{:,}'.format(self._total_train_traces))
-                        traces_per_second_str = '{:,.1f}'.format(int(batch.size * distributed_world_size / (time_batch - time_last_batch)))
+                        traces_per_second_str = '{:,.1f}'.format(traces_per_second)
 
                         print_line = '{} | {} | {} | {} | {} | {} | {} | {} | {} '.format(total_training_seconds_str, epoch_str, total_train_traces_str, loss_initial_str, loss_min_str, loss_str, time_since_loss_min_str, learning_rate_current_str, traces_per_second_str)
                         max_print_line_len = max(len(print_line), max_print_line_len)
@@ -491,8 +494,9 @@ class InferenceNetwork(nn.Module):
                         sys.stdout.flush()
 
                     if (distributed_rank == 0) and log_file_name is not None:
-                        # log_file.write('time, iteration, trace, loss, valid_loss, learning_rate')
-                        log_file.write('{}, {}, {}, {}, {}, {}\n'.format(self._total_train_seconds, epoch, self._total_train_iterations, self._total_train_traces, loss, valid_loss, learning_rate_current))
+                        if isinstance(dataloader.batch_sampler, DistributedTraceBatchSampler):
+                            bucket_id = dataloader.batch_sampler._current_bucket_id
+                        log_file.write('{}, {}, {}, {}, {}, {}, {}, {}, {}, {}\n'.format(self._total_train_seconds, self._total_train_iterations, self._total_train_traces, loss, valid_loss, learning_rate_current, batch.mean_length_controlled, len(batch.sub_batches), bucket_id, traces_per_second))
 
                     time_last_batch = time_batch
                     if num_traces is not None:
