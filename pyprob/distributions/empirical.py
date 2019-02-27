@@ -169,21 +169,18 @@ class Empirical(Distribution):
             raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
 
     def finalize(self):
-        if self._read_only:
-            self._finalized = True
+        self._length = len(self._log_weights)
+        self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+        if self._length > 0:
+            self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
         else:
-            self._length = len(self._log_weights)
-            self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
-            if self._length > 0:
-                self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
-            else:
-                self._uniform_weights = False
-            if self._type == EmpiricalType.FILE and not self._read_only:
-                self._shelf['name'] = self.name
-                self._shelf['log_weights'] = self._log_weights
-                self._shelf['last_key'] = self._file_last_key
-                self._shelf.sync()
-            self._finalized = True
+            self._uniform_weights = False
+        if self._type == EmpiricalType.FILE and not self._read_only:
+            self._shelf['name'] = self.name
+            self._shelf['log_weights'] = self._log_weights
+            self._shelf['last_key'] = self._file_last_key
+            self._shelf.sync()
+        self._finalized = True
 
     def _check_finalized(self):
         if not self._finalized:
