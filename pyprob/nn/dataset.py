@@ -120,14 +120,13 @@ class OnlineDataset(Dataset):
         while i < num_traces:
             i += num_traces_per_file
             file_name = os.path.join(dataset_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
-            shelf = ConcurrentShelf(file_name)
-            shelf.lock(write=True)
+            shelf = shelve.open(file_name, flag='c')
             for j in range(num_traces_per_file):
                 trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, *args, **kwargs))
                 self._prune_trace(trace)
                 shelf[str(j)] = trace
                 shelf['__length'] = j + 1
-            shelf.unlock()
+            shelf.close()
             util.progress_bar_update(i)
         util.progress_bar_end()
 
@@ -190,20 +189,29 @@ class OfflineDataset(ConcatDataset):
             self._sorted_indices = list(range(len(self)))
         else:
             file_name = os.path.join(self._dataset_dir, 'pyprob_hashes')
-            hashes_file = ConcurrentShelf(file_name)
-            if 'hashes' in hashes_file:
+            try:
+                hashes_file = shelve.open(file_name, 'r')
+                hashes_exist = 'hashes' in hashes_file
+                hashes_file.close()
+            except:
+                hashes_exist = False
+            if hashes_exist:
                 print('Using pre-computed hashes in: {}'.format(file_name))
-                self._sorted_indices = hashes_file['sorted_indices']
+                hashes_file = shelve.open(file_name)
                 self._hashes = hashes_file['hashes']
+                self._sorted_indices = hashes_file['sorted_indices']
+                hashes_file.close()
                 if torch.is_tensor(self._hashes):
                     self._hashes = self._hashes.cpu().numpy()
                 if len(self._sorted_indices) != len(self):
                     raise RuntimeError('Length of pre-computed hashes ({}) and length of offline dataset ({}) do not match. Dataset files have been altered. Delete and re-generate pre-computed hash file: {}'.format(len(self._sorted_indices), len(self), file_name))
             else:
                 print('No pre-computed hashes found, generating: {}'.format(file_name))
+                hashes_file = shelve.open(file_name, 'c')
                 hashes, sorted_indices = self._compute_hashes()
                 hashes_file['hashes'] = hashes
                 hashes_file['sorted_indices'] = sorted_indices
+                hashes_file.close()
                 self._sorted_indices = sorted_indices
                 self._hashes = hashes
             print('Num. trace types: {:,}'.format(len(set(self._hashes))))
