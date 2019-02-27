@@ -13,6 +13,7 @@ from . import util, TraceMode, PriorInflation, InferenceEngine
 _trace_mode = TraceMode.PRIOR
 _inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
 _prior_inflation = PriorInflation.DISABLED
+_likelihood_importance = 1.
 _current_trace = None
 _current_trace_root_function_name = None
 _current_trace_inference_network = None
@@ -129,7 +130,7 @@ def observe(distribution, value=None, name=None, address=None):
     elif distribution is not None:
         value = distribution.sample()
 
-    log_prob = distribution.log_prob(value, sum=True)
+    log_prob = _likelihood_importance * distribution.log_prob(value, sum=True)
     if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
         log_importance_weight = float(log_prob)
     else:
@@ -279,13 +280,15 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
     return variable.value
 
 
-def _init_traces(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None, address_dictionary=None):
+def _init_traces(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None, address_dictionary=None, likelihood_importance=1.):
     global _trace_mode
     global _inference_engine
     global _prior_inflation
+    global _likelihood_importance
     _trace_mode = trace_mode
     _inference_engine = inference_engine
     _prior_inflation = prior_inflation
+    _likelihood_importance = likelihood_importance
     global _current_trace_root_function_name
     global _current_trace_inference_network
     global _current_trace_inference_network_proposal_min_train_iterations
