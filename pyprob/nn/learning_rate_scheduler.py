@@ -31,6 +31,7 @@ class PolynomialDecayLR(_LRScheduler):
     def lr_decay_func(self, start_lr):
         self.global_step = min(self.global_step, self.max_decay_steps)
         new_lr = (start_lr - self.learning_rate_end) * ((1 - self.global_step / self.max_decay_steps) ** self.power) + self.learning_rate_end
+        #print("self.global_step={},self.max_decay_steps={},start_lr={},self.learning_rate_end={},new_lr={}".format(self.global_step,self.max_decay_steps,start_lr,self.learning_rate_end, new_lr))
         return new_lr
 
     def step(self, epoch=None):
