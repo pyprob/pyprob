@@ -7,7 +7,7 @@ import uuid
 import shutil
 
 import pyprob
-from pyprob import util, Model, InferenceEngine, LearningRateScheduler
+from pyprob import util, Model, InferenceEngine, LearningRateScheduler, Optimizer
 from pyprob.distributions import Normal, Uniform, Empirical
 
 
@@ -342,6 +342,16 @@ class ModelTestCase(unittest.TestCase):
 
         self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, learning_rate_scheduler=LearningRateScheduler.POLY2)
+
+        util.eval_print('num_traces')
+
+        self.assertTrue(True)
+
+    def test_model_train_adam_larc(self):
+        num_traces = 256
+
+        self._model.reset_inference_network()
+        self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, optimizer_type=Optimizer.ADAM_LARC)
 
         util.eval_print('num_traces')
 

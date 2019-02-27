@@ -18,6 +18,7 @@ from termcolor import colored
 
 from . import Batch, OfflineDataset, TraceBatchSampler, DistributedTraceBatchSampler, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 from .learning_rate_scheduler import PolynomialDecayLR
+from .optimizer_larc import LARC
 from .. import __version__, util, Optimizer, LearningRateScheduler, ObserveEmbedding
 
 
@@ -407,10 +408,12 @@ class InferenceNetwork(nn.Module):
                     layers_changed = self._polymorph(batch)
 
                 if (self._optimizer is None) or layers_changed or num_traces_max_changed:
-                    if optimizer_type == Optimizer.ADAM:
+                    if optimizer_type in [Optimizer.ADAM, Optimizer.ADAM_LARC]:
                         self._optimizer = optim.Adam(self.parameters(), lr=learning_rate_init * math.sqrt(distributed_world_size), weight_decay=weight_decay)
-                    else:  # optimizer_type == Optimizer.SGD
+                    else:  # optimizer_type in [Optimizer.SGD, Optimizer.SGD_LARC]
                         self._optimizer = optim.SGD(self.parameters(), lr=learning_rate_init * math.sqrt(distributed_world_size), momentum=momentum, nesterov=True, weight_decay=weight_decay)
+                    if optimizer_type in [Optimizer.ADAM_LARC, Optimizer.SGD_LARC]:
+                        self._optimizer = LARC(self._optimizer)
                     max_epoch = math.ceil(self._total_train_traces_max / len(dataset))  # self._total_train_traces_max is the total traces to be trained across all ranks
                     max_decay_steps = int(self._total_train_traces_max / (batch_size * distributed_world_size))  # self._total_train_traces_max is the total traces to be trained across all ranks
                     self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps, learning_rate_end=learning_rate_end)

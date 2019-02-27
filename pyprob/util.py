@@ -57,6 +57,8 @@ class ObserveEmbedding(enum.Enum):
 class Optimizer(enum.Enum):
     ADAM = 0
     SGD = 1
+    ADAM_LARC = 2
+    SGD_LARC = 3
 
 
 class LearningRateScheduler(enum.Enum):
