@@ -170,7 +170,7 @@ class Empirical(Distribution):
 
     def finalize(self):
         if self._read_only:
-            return
+            self._finalized = True
         else:
             self._length = len(self._log_weights)
             self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
