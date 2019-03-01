@@ -132,33 +132,38 @@ class OnlineDataset(Dataset):
 
 
 class OfflineDatasetFile(Dataset):
+    capacity = 8
+    cache = OrderedDict()
+
     def __init__(self, file_name):
         self._file_name = file_name
         self._closed = False
-        self._shelf = shelve.open(file_name, flag='r')
-        self._length = self._shelf['__length']
+        shelf = self._open()
+        self._length = shelf['__length']
+
+    def _open(self):
+        # idea from https://www.kunxi.org/2014/05/lru-cache-in-python
+        try:
+            shelf = OfflineDatasetFile.cache.pop(self._file_name)
+            # it was in the cache, put it back on the front
+            OfflineDatasetFile.cache[self._file_name] = shelf
+            return shelf
+        except KeyError:
+            # not in the cache
+            if len(OfflineDatasetFile.cache) >= OfflineDatasetFile.capacity:
+                # cache is full, delete the last entry
+                n, s = OfflineDatasetFile.cache.popitem(last=False)
+                s.close()
+            shelf = shelve.open(self._file_name, flag='r')
+            OfflineDatasetFile.cache[self._file_name] = shelf
+            return shelf
 
     def __len__(self):
         return self._length
 
     def __getitem__(self, idx):
-        return self._shelf[str(idx)]
-
-    def __enter__(self):
-        return self
-
-    def __exit(self, exception_type, exception_value, traceback):
-        if not self._closed:
-            self.close()
-
-    def __del__(self):
-        if not self._closed:
-            self.close()
-
-    def close(self):
-        if not self._closed:
-            self._shelf.close()
-            self._closed = True
+        shelf = self._open()
+        return shelf[str(idx)]
 
 
 class OfflineDataset(ConcatDataset):
