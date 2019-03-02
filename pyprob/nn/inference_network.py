@@ -350,7 +350,7 @@ class InferenceNetwork(nn.Module):
                     self._polymorph(batch)
 
         if distributed_world_size > 1:
-            util.init_distributed_print(distributed_rank, distributed_world_size, False)
+            util.init_distributed_print(distributed_rank, distributed_world_size, True)
             if distributed_rank == 0:
                 print(colored('Distributed synchronous training', 'yellow', attrs=['bold']))
                 print(colored('Distributed backend        : {}'.format(distributed_backend), 'yellow', attrs=['bold']))
@@ -394,6 +394,19 @@ class InferenceNetwork(nn.Module):
             log_file = open(log_file_name, mode='w', buffering=1)
             log_file.write('time, iteration, trace, loss, valid_loss, learning_rate, mean_trace_length_controlled, sub_mini_batches, distributed_bucket_id, traces_per_second\n')
 
+        #for offline training only
+        if (self._layers_pre_generated) and ((self._optimizer is None) or num_traces_max_changed):
+            if optimizer_type in [Optimizer.ADAM, Optimizer.ADAM_LARC]:
+                self._optimizer = optim.Adam(self.parameters(), lr=learning_rate_init * math.sqrt(distributed_world_size), weight_decay=weight_decay)
+            else:  # optimizer_type in [Optimizer.SGD, Optimizer.SGD_LARC]
+                self._optimizer = optim.SGD(self.parameters(), lr=learning_rate_init * math.sqrt(distributed_world_size), momentum=momentum, nesterov=True, weight_decay=weight_decay)
+            if optimizer_type in [Optimizer.ADAM_LARC, Optimizer.SGD_LARC]:
+                self._optimizer = LARC(self._optimizer)
+            max_epoch = math.ceil(self._total_train_traces_max / len(dataset))  # self._total_train_traces_max is the total traces to be trained across all ranks
+            max_decay_steps = int(self._total_train_traces_max / (batch_size * distributed_world_size))  # self._total_train_traces_max is the total traces to be trained across all ranks
+            self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps, learning_rate_end=learning_rate_end)
+
+        count_optimize_init=0
         while not stop:
             epoch += 1
             for i_batch, batch in enumerate(dataloader):
@@ -407,7 +420,10 @@ class InferenceNetwork(nn.Module):
                 else:
                     layers_changed = self._polymorph(batch)
 
-                if (self._optimizer is None) or layers_changed or num_traces_max_changed:
+                #for online training or NN is not pre-generated only
+                if layers_changed or (self._optimizer is None):
+                    count_optimize_init+=1
+                    print("initialize optimizer and LR scheduler for the {} time at iteration {}".format(count_optimize_init, iteration))
                     if optimizer_type in [Optimizer.ADAM, Optimizer.ADAM_LARC]:
                         self._optimizer = optim.Adam(self.parameters(), lr=learning_rate_init * math.sqrt(distributed_world_size), weight_decay=weight_decay)
                     else:  # optimizer_type in [Optimizer.SGD, Optimizer.SGD_LARC]
@@ -417,9 +433,9 @@ class InferenceNetwork(nn.Module):
                     max_epoch = math.ceil(self._total_train_traces_max / len(dataset))  # self._total_train_traces_max is the total traces to be trained across all ranks
                     max_decay_steps = int(self._total_train_traces_max / (batch_size * distributed_world_size))  # self._total_train_traces_max is the total traces to be trained across all ranks
                     self._learning_rate_scheduler = self._get_scheduler(learning_rate_scheduler, max_epoch=max_epoch, max_decay_steps=max_decay_steps, learning_rate_end=learning_rate_end)
+        
                 learning_rate_current = self._optimizer.param_groups[0]['lr']
                 learning_rate_current_str = '{:+.2e}'.format(learning_rate_current)
-
                 # print(self._optimizer.state[self._optimizer.param_groups[0]['params'][0]])
                 self._optimizer.zero_grad()
                 success, loss = self._loss(batch)
@@ -522,7 +538,7 @@ class InferenceNetwork(nn.Module):
                 iteration += 1
                 # adjust global learning rate for iteration-based LR scheduler
                 if (learning_rate_scheduler == LearningRateScheduler.POLY1) or (learning_rate_scheduler == LearningRateScheduler.POLY2):
-                    self._learning_rate_scheduler.step()
+                    self._learning_rate_scheduler.step(iteration)#must put iteration value in to avoid error!
             # adjust global learning rate for epoch-based LR scheduler
             if (learning_rate_scheduler == LearningRateScheduler.STEP) or (learning_rate_scheduler == LearningRateScheduler.MULTI_STEP):
                 self._learning_rate_scheduler.step()
