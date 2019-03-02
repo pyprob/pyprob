@@ -132,8 +132,8 @@ class OnlineDataset(Dataset):
 
 
 class OfflineDatasetFile(Dataset):
-    capacity = 8
     cache = OrderedDict()
+    cache_capacity = 8
 
     def __init__(self, file_name):
         self._file_name = file_name
@@ -150,7 +150,7 @@ class OfflineDatasetFile(Dataset):
             return shelf
         except KeyError:
             # not in the cache
-            if len(OfflineDatasetFile.cache) >= OfflineDatasetFile.capacity:
+            if len(OfflineDatasetFile.cache) >= OfflineDatasetFile.cache_capacity:
                 # cache is full, delete the last entry
                 n, s = OfflineDatasetFile.cache.popitem(last=False)
                 s.close()
