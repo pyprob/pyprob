@@ -3,9 +3,10 @@
 # https://github.com/NVIDIA/apex/blob/d74fda260c403f775817470d87f810f816f3d615/apex/parallel/LARC.py
 
 import torch
+from torch.optim import Optimizer
 
 
-class LARC(object):
+class LARC(Optimizer):
     """
     :class:`LARC` is a pytorch implementation of both the scaling and clipping variants of LARC,
     in which the ratio between gradient and parameter magnitudes is used to calculate an adaptive
@@ -51,8 +52,10 @@ class LARC(object):
 
     def __setstate__(self, state):
         self.optim.__setstate__(state)
+        print(self)
 
     def __repr__(self):
+        # print(self)
         return self.optim.__repr__()
 
     def state_dict(self):

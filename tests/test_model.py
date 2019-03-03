@@ -4,10 +4,9 @@ import torch
 import os
 import tempfile
 import uuid
-import shutil
 
 import pyprob
-from pyprob import util, Model, InferenceEngine, LearningRateScheduler, Optimizer
+from pyprob import util, Model, InferenceEngine
 from pyprob.distributions import Normal, Uniform, Empirical
 
 
@@ -94,25 +93,6 @@ class ModelTestCase(unittest.TestCase):
         self.assertAlmostEqual(trace_length_mean, trace_length_mean_correct, places=0)
         self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)
         self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
-
-    def test_model_train_save_load_train(self):
-        training_traces = 128
-        file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
-
-        self._model.reset_inference_network()
-        self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
-        self._model.save_inference_network(file_name)
-        self._model.load_inference_network(file_name)
-        os.remove(file_name)
-        self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
-        self._model.save_inference_network(file_name)
-        self._model.load_inference_network(file_name)
-        os.remove(file_name)
-        self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
-
-        util.eval_print('training_traces', 'file_name')
-
-        self.assertTrue(True)
 
     def test_model_lmh_posterior_with_stop_and_resume(self):
         posterior_num_runs = 100
@@ -301,61 +281,6 @@ class ModelTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
-
-    def test_model_save_traces_load_train(self):
-        dataset_dir = tempfile.mkdtemp()
-        num_traces = 512
-        num_traces_per_file = 32
-        training_traces = 128
-
-        self._model.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces, num_traces_per_file=num_traces_per_file)
-        self._model.reset_inference_network()
-        self._model.learn_inference_network(num_traces=training_traces, dataset_dir=dataset_dir, batch_size=16, valid_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
-        shutil.rmtree(dataset_dir)
-
-        util.eval_print('dataset_dir', 'num_traces', 'num_traces_per_file', 'training_traces')
-
-        self.assertTrue(True)
-
-    def test_model_train(self):
-        num_traces = 256
-
-        self._model.reset_inference_network()
-        self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
-
-        util.eval_print('num_traces')
-
-        self.assertTrue(True)
-
-    def test_model_train_lr_scheduler_step(self):
-        num_traces = 256
-
-        self._model.reset_inference_network()
-        self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, learning_rate_scheduler=LearningRateScheduler.MULTI_STEP)
-
-        util.eval_print('num_traces')
-
-        self.assertTrue(True)
-
-    def test_model_train_lr_scheduler_poly2(self):
-        num_traces = 256
-
-        self._model.reset_inference_network()
-        self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, learning_rate_scheduler=LearningRateScheduler.POLY2)
-
-        util.eval_print('num_traces')
-
-        self.assertTrue(True)
-
-    def test_model_train_adam_larc(self):
-        num_traces = 256
-
-        self._model.reset_inference_network()
-        self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, optimizer_type=Optimizer.ADAM_LARC)
-
-        util.eval_print('num_traces')
-
-        self.assertTrue(True)
 
 
 class ModelWithReplacementTestCase(unittest.TestCase):

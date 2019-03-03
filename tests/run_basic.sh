@@ -25,5 +25,8 @@ python test_dataset.py
 echo "Running neural network tests"
 python test_nn.py
 
+echo "Running neural network training tests"
+python test_train.py
+
 echo "Running util tests"
 python test_util.py

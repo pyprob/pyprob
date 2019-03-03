@@ -63,11 +63,8 @@ class Optimizer(enum.Enum):
 
 class LearningRateScheduler(enum.Enum):
     NONE = 0
-    STEP = 1
-    MULTI_STEP = 2
-    POLY1 = 3
-    POLY2 = 4
-    # COSINE_ANNEALING = 5
+    POLY1 = 1
+    POLY2 = 2
 
 
 def set_random_seed(seed=123):
