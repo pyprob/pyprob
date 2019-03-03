@@ -202,7 +202,7 @@ class OfflineDataset(ConcatDataset):
                 hashes_exist = False
             if hashes_exist:
                 print('Using pre-computed hashes in: {}'.format(file_name))
-                hashes_file = shelve.open(file_name)
+                hashes_file = shelve.open(file_name, 'r')
                 self._hashes = hashes_file['hashes']
                 self._sorted_indices = hashes_file['sorted_indices']
                 hashes_file.close()
