@@ -234,6 +234,15 @@ class InferenceNetwork(nn.Module):
         # For compatibility loading NNs saved before 0.13.2.dev5
         if not hasattr(ret, '_total_train_traces_end'):
             ret._total_train_traces_end = None
+        # For compatibility loading NNs saved before 0.13.2.dev6
+        if not hasattr(ret, '_learning_rate_init'):
+            ret._learning_rate_init = 0
+        if not hasattr(ret, '_learning_rate_end'):
+            ret._learning_rate_end = 0
+        if not hasattr(ret, '_weight_decay'):
+            ret._weight_decay = 0
+        if not hasattr(ret, '_learning_rate_scheduler_type'):
+            ret._learning_rate_scheduler_type = LearningRateScheduler.NONE
 
         ret._create_optimizer(ret._optimizer_state)
         ret._create_lr_scheduler(ret._learning_rate_scheduler_state)
