@@ -242,7 +242,7 @@ class InferenceNetwork(nn.Module):
         if not hasattr(ret, '_weight_decay'):
             ret._weight_decay = 0
         if not hasattr(ret, '_learning_rate_scheduler_type'):
-            ret._learning_rate_scheduler_type = LearningRateScheduler.NONE
+            ret._learning_rate_scheduler_type = None
 
         ret._create_optimizer(ret._optimizer_state)
         ret._create_lr_scheduler(ret._learning_rate_scheduler_state)
@@ -327,6 +327,8 @@ class InferenceNetwork(nn.Module):
         return self._distributed_valid_loss
 
     def _create_optimizer(self, state_dict=None):
+        if self._optimizer_type is None:  # happens when loading pre-generated network
+            return
         # print('Creating new optimizer')
         if self._optimizer_type in [Optimizer.ADAM, Optimizer.ADAM_LARC]:
             self._optimizer = optim.Adam(self.parameters(), lr=self._learning_rate_init, weight_decay=self._weight_decay)
@@ -339,6 +341,8 @@ class InferenceNetwork(nn.Module):
             self._optimizer.load_state_dict(state_dict)
 
     def _create_lr_scheduler(self, state_dict=None):
+        if self._learning_rate_scheduler_type is None:  # happens when loading pre-generated network
+            return
         # print('Creating new learning rate scheduler')
         learning_rate_scheduler_type = self._learning_rate_scheduler_type
         iter_end = self._total_train_traces_end
