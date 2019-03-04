@@ -235,6 +235,8 @@ class InferenceNetwork(nn.Module):
         if not hasattr(ret, '_total_train_traces_end'):
             ret._total_train_traces_end = None
         # For compatibility loading NNs saved before 0.13.2.dev6
+        if not hasattr(ret, '_loss_init'):
+            ret._loss_init = None
         if not hasattr(ret, '_learning_rate_init'):
             ret._learning_rate_init = 0
         if not hasattr(ret, '_learning_rate_end'):
