@@ -25,7 +25,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
         self._distribution_type_embedding_dim = distribution_type_embedding_dim
 
     def _init_layers(self):
-        self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
+        self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + self._sample_attention_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
         self._layers_lstm = nn.LSTM(self._lstm_input_dim, self._lstm_dim, self._lstm_depth)
         self._layers_lstm.to(device=util._device)
 
@@ -65,6 +65,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     sample_embedding_layer.to(device=util._device)
                     self._layers_sample_embedding[address] = sample_embedding_layer
                     self._layers_proposal[address] = proposal_layer
+                    super()._polymorph_attention(variable)
                     layers_changed = True
                     print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address), distribution.name))
         if layers_changed:
@@ -78,6 +79,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
         success = True
         if prev_variable is None:
             # First time step
+            if self.prev_sample_attention:
+                self.prev_samples_embedder.init_for_trace()
             prev_sample_embedding = util.to_tensor(torch.zeros(1, self._sample_embedding_dim))
             prev_address_embedding = util.to_tensor(torch.zeros(self._address_embedding_dim))
             prev_distribution_type_embedding = util.to_tensor(torch.zeros(self._distribution_type_embedding_dim))
@@ -85,6 +88,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
             c0 = util.to_tensor(torch.zeros(self._lstm_depth, 1, self._lstm_dim))
             self._infer_lstm_state = (h0, c0)
         else:
+            if self.prev_sample_attention:
+                self.prev_samples_embedder.add_value([prev_variable])
             prev_address = prev_variable.address
             prev_distribution = prev_variable.distribution
             prev_value = prev_variable.value
@@ -103,6 +108,10 @@ class InferenceNetworkLSTM(InferenceNetwork):
         if current_address in self._layers_address_embedding:
             current_address_embedding = self._layers_address_embedding[current_address]
             current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution.name]
+            if self.prev_sample_attention:
+                prev_sample_embedding_attention = self.prev_samples_embedder([variable], [self._infer_observe_embedding], batch_size=1)
+            else:
+                prev_sample_embedding_attention = torch.Tensor([[]])
         else:
             print('Warning: address of current variable unknown by inference network: {}'.format(current_address))
             success = False
@@ -113,7 +122,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
                            prev_distribution_type_embedding,
                            prev_address_embedding,
                            current_distribution_type_embedding,
-                           current_address_embedding]).unsqueeze(0)
+                           current_address_embedding,
+                           prev_sample_embedding_attention[0]]).unsqueeze(0)
             lstm_input = t.unsqueeze(0)
             lstm_output, self._infer_lstm_state = self._layers_lstm(lstm_input, self._infer_lstm_state)
             proposal_input = lstm_output[0]
@@ -150,10 +160,14 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution.name]
 
                 if time_step == 0:
+                    if self.prev_sample_attention:
+                        self.prev_samples_embedder.init_for_trace()
                     prev_sample_embedding = util.to_tensor(torch.zeros(sub_batch_length, self._sample_embedding_dim))
                     prev_address_embedding = util.to_tensor(torch.zeros(self._address_embedding_dim))
                     prev_distribution_type_embedding = util.to_tensor(torch.zeros(self._distribution_type_embedding_dim))
                 else:
+                    if self.prev_sample_attention:
+                        self.prev_samples_embedder.add_value([t.variables_controlled[time_step - 1] for t in sub_batch])
                     prev_variable = example_trace.variables_controlled[time_step - 1]
                     prev_address = prev_variable.address
                     if prev_address not in self._layers_address_embedding:
@@ -164,6 +178,11 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
                     prev_address_embedding = self._layers_address_embedding[prev_address]
                     prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution.name]
+                if self.prev_sample_attention:
+                    prev_sample_embedding_attention = self.prev_samples_embedder([trace.variables_controlled[time_step] for trace in sub_batch],
+                                                                                 observe_embedding, batch_size=len(sub_batch))
+                else:
+                    prev_sample_embedding_attention = torch.Tensor([[]]*sub_batch_length)
 
                 lstm_input_time_step = []
                 for b in range(sub_batch_length):
@@ -172,7 +191,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
                                    prev_distribution_type_embedding,
                                    prev_address_embedding,
                                    current_distribution_type_embedding,
-                                   current_address_embedding])
+                                   current_address_embedding,
+                                   prev_sample_embedding_attention[b]])
                     lstm_input_time_step.append(t)
                 lstm_input.append(torch.stack(lstm_input_time_step))
 

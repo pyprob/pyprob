@@ -27,17 +27,18 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                 if address not in self._layer_proposal:
                     print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address), distribution.name))
                     if isinstance(distribution, Normal):
-                        layer = ProposalNormalNormalMixture(self._observe_embedding_dim, variable_shape)
+                        layer = ProposalNormalNormalMixture(self._observe_embedding_dim+self._sample_attention_embedding_dim, variable_shape)
                     elif isinstance(distribution, Uniform):
-                        layer = ProposalUniformTruncatedNormalMixture(self._observe_embedding_dim, variable_shape)
+                        layer = ProposalUniformTruncatedNormalMixture(self._observe_embedding_dim+self._sample_attention_embedding_dim, variable_shape)
                     elif isinstance(distribution, Poisson):
-                        layer = ProposalPoissonTruncatedNormalMixture(self._observe_embedding_dim, variable_shape)
+                        layer = ProposalPoissonTruncatedNormalMixture(self._observe_embedding_dim+self._sample_attention_embedding_dim, variable_shape)
                     elif isinstance(distribution, Categorical):
-                        layer = ProposalCategoricalCategorical(self._observe_embedding_dim, distribution.num_categories)
+                        layer = ProposalCategoricalCategorical(self._observe_embedding_dim+self._sample_attention_embedding_dim, distribution.num_categories)
                     else:
                         raise RuntimeError('Distribution currently unsupported: {}'.format(distribution.name))
                     layer.to(device=util._device)
                     self._layer_proposal[address] = layer
+                    super()._polymorph_attention(variable)
                     layers_changed = True
         if layers_changed:
             num_params = sum(p.numel() for p in self.parameters())
@@ -49,13 +50,23 @@ class InferenceNetworkFeedForward(InferenceNetwork):
     def _infer_step(self, variable, prev_variable=None, proposal_min_train_iterations=None):
         address = variable.address
         distribution = variable.distribution
+        if self.prev_sample_attention:
+            if prev_variable is None:
+                self.prev_samples_embedder.init_for_trace()
+            else:
+                self.prev_samples_embedder.add_value([prev_variable])
         if address in self._layer_proposal:
             proposal_layer = self._layer_proposal[address]
             if proposal_min_train_iterations is not None:
                 if proposal_layer._total_train_iterations < proposal_min_train_iterations:
                     print(colored('Warning: using prior, proposal not sufficiently trained ({}/{}) for address: {}'.format(proposal_layer._total_train_iterations, proposal_min_train_iterations, address), 'yellow', attrs=['bold']))
                     return distribution
-            proposal_distribution = proposal_layer.forward(self._infer_observe_embedding, [variable])
+            if self.prev_sample_attention:
+                prev_samples_embedding = self.prev_samples_embedder([variable], self._infer_observe_embedding, batch_size=1)
+                proposal_layer_input = torch.cat([prev_samples_embedding, self._infer_observe_embedding], dim=1)
+            else:
+                proposal_layer_input = self._infer_observe_embedding
+            proposal_distribution = proposal_layer.forward(proposal_layer_input, [variable])
             return proposal_distribution
         else:
             print(colored('Warning: using prior, no proposal layer for address: {}'.format(address), 'yellow', attrs=['bold']))
@@ -68,6 +79,11 @@ class InferenceNetworkFeedForward(InferenceNetwork):
             observe_embedding = self._embed_observe(sub_batch)
             sub_batch_loss = 0.
             for time_step in range(example_trace.length_controlled):
+                if self.prev_sample_attention:
+                    if time_step == 0:
+                        self.prev_samples_embedder.init_for_trace()
+                    else:
+                        self.prev_samples_embedder.add_value([t.variables_controlled[time_step - 1] for t in sub_batch])
                 address = example_trace.variables_controlled[time_step].address
                 if address not in self._layer_proposal:
                     print(colored('Address unknown by inference network: {}'.format(address), 'red', attrs=['bold']))
@@ -76,7 +92,12 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                 values = torch.stack([v.value for v in variables])
                 proposal_layer = self._layer_proposal[address]
                 proposal_layer._total_train_iterations += 1
-                proposal_distribution = proposal_layer.forward(observe_embedding, variables)
+                if self.prev_sample_attention:
+                    prev_samples_embedding = self.prev_samples_embedder(variables, observe_embedding, batch_size=len(sub_batch))
+                    proposal_layer_input = torch.cat([prev_samples_embedding, observe_embedding], dim=1)
+                else:
+                    proposal_layer_input = observe_embedding
+                proposal_distribution = proposal_layer.forward(proposal_layer_input, variables)
                 log_prob = proposal_distribution.log_prob(values)
                 if util.has_nan_or_inf(log_prob):
                     print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))
