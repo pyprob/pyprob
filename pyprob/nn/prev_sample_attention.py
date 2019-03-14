@@ -144,8 +144,10 @@ class PrevSamplesEmbedder(nn.Module):
                      - n_keys x sample_embedding_dim
         """
         if self.empty:
-            return torch.zeros(batch_size,
-                               self.n_queries*self.sample_embedding_dim)
+            return util.to_tensor(torch.zeros(
+                batch_size,
+                self.n_queries*self.sample_embedding_dim
+            ))
         if len(queries) == 0:
             queries = [torch.Tensor([0])] * self.n_queries
         queries = torch.cat([self._query_layers[var.address](

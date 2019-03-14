@@ -182,7 +182,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     prev_sample_embedding_attention = self.prev_samples_embedder([trace.variables_controlled[time_step] for trace in sub_batch],
                                                                                  observe_embedding, batch_size=len(sub_batch))
                 else:
-                    prev_sample_embedding_attention = torch.Tensor([[]]*sub_batch_length)
+                    prev_sample_embedding_attention = util.to_tensor([[]]*sub_batch_length)
 
                 lstm_input_time_step = []
                 for b in range(sub_batch_length):
