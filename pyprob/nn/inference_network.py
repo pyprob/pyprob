@@ -547,8 +547,10 @@ class InferenceNetwork(nn.Module):
                         print('\nStop condition reached. num_traces: {}'.format(num_traces))
                         stop = True
                     if self._total_train_traces >= self._total_train_traces_end:
-                        print('\nStop condition reached. num_traces_end: {}'.format(self._total_train_traces_end))
-                        stop = True
+                        print(colored('\nStop condition reached. num_traces_end set during network generation: {}'.format(self._total_train_traces_end), 'red', attrs=['bold']))
+                        if self._learning_rate_scheduler is not None:
+                            print(colored('Warning: continuing training with learning rate scheduler beyond num_traces_end, make sure this is intended'.format(self._total_train_traces_end), 'red', attrs=['bold']))
+                        # stop = True
 
                     if self._learning_rate_scheduler is not None:
                         self._learning_rate_scheduler.step(self._total_train_traces)
