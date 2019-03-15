@@ -446,7 +446,8 @@ class InferenceNetwork(nn.Module):
         loss_min_str = ''
         time_since_loss_min_str = ''
         loss_init_str = '' if self._loss_init is None else '{:+.2e}'.format(self._loss_init)
-        last_auto_save_time = time_start - save_every_sec
+        if save_every_sec is not None:
+            last_auto_save_time = time_start - save_every_sec
         last_print = time_start - util._print_refresh_rate
         if (distributed_rank == 0) and log_file_name is not None:
             log_file = open(log_file_name, mode='w', buffering=1)
@@ -534,7 +535,7 @@ class InferenceNetwork(nn.Module):
                             self._history_valid_loss_trace.append(self._total_train_traces)
                             last_validation_trace = trace - 1
 
-                    if (distributed_rank == 0) and (save_file_name_prefix is not None):
+                    if (distributed_rank == 0) and (save_file_name_prefix is not None) and (save_every_sec is not None):
                         if time_batch - last_auto_save_time > save_every_sec:
                             last_auto_save_time = time_batch
                             file_name = '{}_{}_traces_{}.network'.format(save_file_name_prefix, util.get_time_stamp(), self._total_train_traces)
