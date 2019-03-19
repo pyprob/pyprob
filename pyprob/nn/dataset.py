@@ -361,7 +361,7 @@ class DistributedTraceBatchSampler(Sampler):
             num_batches = math.floor(len(bucket) / self._world_size)
             # Select a num_batches-sized subset of the current bucket for the current node
             # The part not selected by the current node will be selected by other nodes
-            batches = bucket[self._rank:len(bucket):self._world_size][:num_batches]
+            batches = bucket[(len(bucket)%(self._world_size)+self._rank):len(bucket):self._world_size][:num_batches]
             if self._shuffle_batches:
                 # Shuffle the list of minibatches (but not the order trace indices inside each minibatch) selected for the current node
                 np.random.shuffle(batches)
