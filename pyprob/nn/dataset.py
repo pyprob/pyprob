@@ -11,6 +11,7 @@ import uuid
 from termcolor import colored
 from collections import Counter, OrderedDict
 import random
+
 from .. import util
 from ..util import TraceMode, PriorInflation
 from ..concurrency import ConcurrentShelf
@@ -324,13 +325,11 @@ class DistributedTraceBatchSampler(Sampler):
             raise RuntimeError('Expecting distributed training.')
         self._world_size = dist.get_world_size()
         self._rank = dist.get_rank()
+        # Randomly drop a number of traces so that the number of all minibatches in the whole dataset is an integer multiple of world size
+        num_batches_to_drop = math.floor(len(offline_dataset._sorted_indices) / batch_size) % self._world_size
+        num_traces_to_drop = num_batches_to_drop * batch_size
         # List of all minibatches in the whole dataset, where each minibatch is a list of trace indices
-        #self._batches = list(util.chunks(offline_dataset._sorted_indices, batch_size))
-        batches_skip = (len(offline_dataset._sorted_indices)/batch_size)%self._world_size
-        #chosen_size = len(offline_dataset._sorted_indices)-batches_skip * batch_size
-        chosen_size = int(len(offline_dataset._sorted_indices)-batches_skip * batch_size)
-        chosen_indices = random.sample(list(offline_dataset._sorted_indices), chosen_size)
-        self._batches = list(util.chunks(chosen_indices, batch_size))
+        self._batches = list(util.chunks(util.drop_items(list(offline_dataset._sorted_indices), num_traces_to_drop), batch_size))
         # Discard last minibatch if it's smaller than batch_size
         if len(self._batches[-1]) < batch_size:
             del(self._batches[-1])
@@ -362,7 +361,7 @@ class DistributedTraceBatchSampler(Sampler):
             np.random.set_state(st)
         for bucket_id, bucket in enumerate(self._buckets):
             self._current_bucket_id = bucket_id
-            # num_batches is needed to ensure that all nodes have the same number of minibatches per iteration, in cases where the bucket size is not divisible by world_size.
+            # num_batches is needed to ensure that all nodes have the same number of minibatches (iterations) in each bucket, in cases where the bucket size is not divisible by world_size.
             num_batches = math.floor(len(bucket) / self._world_size)
             # Select a num_batches-sized subset of the current bucket for the current node
             # The part not selected by the current node will be selected by other nodes

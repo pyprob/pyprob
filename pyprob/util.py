@@ -369,3 +369,12 @@ def init_distributed_print(rank, world_size, debug_print=True):
                     old_out.write('[r%d/ws%d] %s' % (self._rank, self._world_size, x))
 
         sys.stdout = LabeledStdout(rank, world_size)
+
+
+def drop_items(l, num_items_to_drop):
+    if num_items_to_drop > len(l):
+        raise ValueError('Cannot drop more items than the list length')
+    ret = l.copy()
+    for _ in range(num_items_to_drop):
+        del(ret[random.randrange(len(ret))])
+    return ret
