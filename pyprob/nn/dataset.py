@@ -10,7 +10,7 @@ import numpy as np
 import uuid
 from termcolor import colored
 from collections import Counter, OrderedDict
-
+import random
 from .. import util
 from ..util import TraceMode, PriorInflation
 from ..concurrency import ConcurrentShelf
@@ -325,7 +325,12 @@ class DistributedTraceBatchSampler(Sampler):
         self._world_size = dist.get_world_size()
         self._rank = dist.get_rank()
         # List of all minibatches in the whole dataset, where each minibatch is a list of trace indices
-        self._batches = list(util.chunks(offline_dataset._sorted_indices, batch_size))
+        #self._batches = list(util.chunks(offline_dataset._sorted_indices, batch_size))
+        batches_skip = (len(offline_dataset._sorted_indices)/batch_size)%self._world_size
+        #chosen_size = len(offline_dataset._sorted_indices)-batches_skip * batch_size
+        chosen_size = int(len(offline_dataset._sorted_indices)-batches_skip * batch_size)
+        chosen_indices = random.sample(list(offline_dataset._sorted_indices), chosen_size)
+        self._batches = list(util.chunks(chosen_indices, batch_size))
         # Discard last minibatch if it's smaller than batch_size
         if len(self._batches[-1]) < batch_size:
             del(self._batches[-1])
