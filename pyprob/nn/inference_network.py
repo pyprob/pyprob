@@ -88,21 +88,26 @@ class InferenceNetwork(nn.Module):
             # else:
             if 'reshape' in value:
                 input_shape = torch.Size(value['reshape'])
+                print('Observable {}: reshape to {}.'.format(name, input_shape))
             else:
                 input_shape = variable.value.size()
+                print('Observable {}: reshape not specified, using shape {}.'.format(name, input_shape))
             if 'dim' in value:
                 output_shape = torch.Size([value['dim']])
+                print('Observable {}: using embedding dim {}.'.format(name, output_shape))
             else:
                 print('Observable {}: embedding dim not specified, using the default 256.'.format(name))
                 output_shape = torch.Size([256])
             if 'embedding' in value:
                 embedding = value['embedding']
+                print('Observable {}: using observe embedding {}.'.format(name, embedding))
             else:
                 print('Observable {}: observe embedding not specified, using the default FEEDFORWARD.'.format(name))
                 embedding = ObserveEmbedding.FEEDFORWARD
             if embedding == ObserveEmbedding.FEEDFORWARD:
                 if 'depth' in value:
                     depth = value['depth']
+                    print('Observable {}: using embedding depth {}.'.format(name, depth))
                 else:
                     print('Observable {}: embedding depth not specified, using the default 2.'.format(name))
                     depth = 2
