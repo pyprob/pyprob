@@ -236,6 +236,10 @@ class InferenceNetwork(nn.Module):
             ret._distributed_history_valid_loss = []
         if not hasattr(ret, '_distributed_history_valid_loss_trace'):
             ret._distributed_history_valid_loss_trace = []
+        if not hasattr(ret, '_optimizer_state'):
+            ret._optimizer_state = None
+        if not hasattr(ret, '_learning_rate_scheduler_state'):
+            ret._learning_rate_scheduler_state = None
         # For compatibility loading NNs saved before 0.13.2.dev5
         if not hasattr(ret, '_total_train_traces_end'):
             ret._total_train_traces_end = None
