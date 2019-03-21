@@ -145,7 +145,7 @@ class Model():
     def reset_inference_network(self):
         self._inference_network = None
 
-    def learn_inference_network(self, num_traces, num_traces_end=1e9, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, dataset_valid_dir=None, observe_embeddings={}, batch_size=64, valid_size=None, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate_init=0.001, learning_rate_end=1e-6, learning_rate_scheduler_type=LearningRateScheduler.NONE, momentum=0.9, weight_decay=0., save_file_name_prefix=None, save_every_sec=600, pre_generate_layers=True, distributed_backend=None, distributed_params_sync_every_iter=10000, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=True, log_file_name=None):
+    def learn_inference_network(self, num_traces, num_traces_end=1e9, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, dataset_valid_dir=None, observe_embeddings={}, batch_size=64, valid_size=None, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate_init=0.001, learning_rate_end=1e-6, learning_rate_scheduler_type=LearningRateScheduler.NONE, momentum=0.9, weight_decay=0., save_file_name_prefix=None, save_every_sec=600, pre_generate_layers=True, distributed_backend=None, distributed_params_sync_every_iter=10000, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=True, log_file_name=None, lstm_dim=512, lstm_depth=1, proposal_mixture_components=10):
         if dataset_dir is None:
             dataset = OnlineDataset(model=self, prior_inflation=prior_inflation)
         else:
@@ -159,9 +159,9 @@ class Model():
         if self._inference_network is None:
             print('Creating new inference network...')
             if inference_network == InferenceNetwork.FEEDFORWARD:
-                self._inference_network = InferenceNetworkFeedForward(model=self, observe_embeddings=observe_embeddings)
+                self._inference_network = InferenceNetworkFeedForward(model=self, observe_embeddings=observe_embeddings, proposal_mixture_components=proposal_mixture_components)
             elif inference_network == InferenceNetwork.LSTM:
-                self._inference_network = InferenceNetworkLSTM(model=self, observe_embeddings=observe_embeddings)
+                self._inference_network = InferenceNetworkLSTM(model=self, observe_embeddings=observe_embeddings, lstm_dim=lstm_dim, lstm_depth=lstm_depth, proposal_mixture_components=proposal_mixture_components)
             else:
                 raise ValueError('Unknown inference_network: {}'.format(inference_network))
             if pre_generate_layers:

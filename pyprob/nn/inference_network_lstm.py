@@ -9,7 +9,7 @@ from ..distributions import Normal, Uniform, Categorical, Poisson
 
 class InferenceNetworkLSTM(InferenceNetwork):
     # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'reshape': [10, 10], 'dim': 32, 'depth': 2}}
-    def __init__(self, lstm_dim=512, lstm_depth=1, sample_embedding_dim=4, address_embedding_dim=64, distribution_type_embedding_dim=8, *args, **kwargs):
+    def __init__(self, lstm_dim=512, lstm_depth=1, sample_embedding_dim=4, address_embedding_dim=64, distribution_type_embedding_dim=8, proposal_mixture_components=10, *args, **kwargs):
         super().__init__(network_type='InferenceNetworkLSTM', *args, **kwargs)
         self._layers_proposal = nn.ModuleDict()
         self._layers_sample_embedding = nn.ModuleDict()
@@ -23,6 +23,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
         self._sample_embedding_dim = sample_embedding_dim
         self._address_embedding_dim = address_embedding_dim
         self._distribution_type_embedding_dim = distribution_type_embedding_dim
+        self._proposal_mixture_components = proposal_mixture_components
 
     def _init_layers(self):
         self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
@@ -48,13 +49,13 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 if address not in self._layers_proposal:
                     variable_shape = variable.value.shape
                     if isinstance(distribution, Normal):
-                        proposal_layer = ProposalNormalNormalMixture(self._lstm_dim, variable_shape)
+                        proposal_layer = ProposalNormalNormalMixture(self._lstm_dim, variable_shape, mixture_components=self._proposal_mixture_components)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     elif isinstance(distribution, Uniform):
-                        proposal_layer = ProposalUniformTruncatedNormalMixture(self._lstm_dim, variable_shape)
+                        proposal_layer = ProposalUniformTruncatedNormalMixture(self._lstm_dim, variable_shape, mixture_components=self._proposal_mixture_components)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     elif isinstance(distribution, Poisson):
-                        proposal_layer = ProposalPoissonTruncatedNormalMixture(self._lstm_dim, variable_shape)
+                        proposal_layer = ProposalPoissonTruncatedNormalMixture(self._lstm_dim, variable_shape, mixture_components=self._proposal_mixture_components)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     elif isinstance(distribution, Categorical):
                         proposal_layer = ProposalCategoricalCategorical(self._lstm_dim, distribution.num_categories)
