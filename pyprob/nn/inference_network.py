@@ -531,7 +531,7 @@ class InferenceNetwork(nn.Module):
                     traces_per_second = batch.size * distributed_world_size / (time_batch - time_last_batch)
                     if dataset_valid is not None:
                         if trace - last_validation_trace > valid_every:
-                            print('Computing validation loss')
+                            print('\nComputing validation loss')
                             valid_loss = 0
                             with torch.no_grad():
                                 for i_batch, batch in enumerate(dataloader_valid):
