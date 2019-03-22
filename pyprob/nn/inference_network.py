@@ -537,7 +537,7 @@ class InferenceNetwork(nn.Module):
                                 for i_batch, batch in enumerate(dataloader_valid):
                                     _, v = self._loss(batch)
                                     valid_loss += v
-                            valid_loss = float(valid_loss / len(dataloader_valid))
+                            valid_loss = float(valid_loss) / (len(dataloader_valid) / distributed_world_size)
                             if distributed_world_size > 1:
                                 valid_loss = self._distributed_update_valid_loss(valid_loss, distributed_world_size)
                             self._history_valid_loss.append(valid_loss)
