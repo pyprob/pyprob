@@ -40,12 +40,13 @@ class LARC(Optimizer):
         eps: epsilon kludge to help with numerical stability while calculating adaptive_lr
     """
 
-    def __init__(self, optimizer, trust_coefficient=0.02, clip=True, eps=1e-8):
+    def __init__(self, optimizer, trust_coefficient=0.002, clip=True, eps=1e-8, epsilon=1.0/16000.0):
         self.param_groups = optimizer.param_groups
         self.optim = optimizer
         self.trust_coefficient = trust_coefficient
         self.eps = eps
         self.clip = clip
+        self.epsilon = epsilon
 
     def __getstate__(self):
         return self.optim.__getstate__()
@@ -86,15 +87,19 @@ class LARC(Optimizer):
 
                     if param_norm != 0 and grad_norm != 0:
                         # calculate adaptive lr + weight decay
-                        adaptive_lr = self.trust_coefficient * (param_norm) / (grad_norm + param_norm * weight_decay + self.eps)
+                        larc_local_lr = self.trust_coefficient * (param_norm) / (grad_norm + param_norm * weight_decay + self.eps)
+                    else:
+                        larc_local_lr = self.epsilon
 
-                        # clip learning rate for LARC
-                        if self.clip:
-                            # calculation of adaptive_lr so that when multiplied by lr it equals `min(adaptive_lr, lr)`
-                            adaptive_lr = min(adaptive_lr/group['lr'], 1)
+                    # clip learning rate for LARC
+                    if self.clip:
+                        # calculation of adaptive_lr so that when multiplied by lr it equals `min(adaptive_lr, lr)`
+                        adaptive_lr = min(larc_local_lr/group['lr'], 1)
+                    else: #scale mode
+                        adaptive_lr = larc_local_lr
 
-                        p.grad.data += weight_decay * p.data
-                        p.grad.data *= adaptive_lr
+                    p.grad.data += weight_decay * p.data
+                    p.grad.data *= adaptive_lr
 
         self.optim.step()
         # return weight decay control to optimizer
