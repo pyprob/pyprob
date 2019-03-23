@@ -188,6 +188,13 @@ class OfflineDataset(ConcatDataset):
                 print(e)
                 print(colored('Warning: dataset file potentially corrupt, omitting: {}'.format(file), 'red', attrs=['bold']))
         super().__init__(datasets)
+        trace_length_filename=os.path.join(self._dataset_dir, 'pyprob_trace_length')
+        try: 
+            with open(trace_length_filename, 'rb') as f:
+                self._trace_length = pickle.load(f)
+        except:
+            trace_length_exist = False
+            self._trace_length=None
         print('OfflineDataset at: {}'.format(self._dataset_dir))
         print('Num. traces     : {:,}'.format(len(self)))
         print('Sorted on disk  : {}'.format(self._sorted_on_disk))
@@ -329,7 +336,15 @@ class DistributedTraceBatchSampler(Sampler):
         num_batches_to_drop = math.floor(len(offline_dataset._sorted_indices) / batch_size) % self._world_size
         num_traces_to_drop = num_batches_to_drop * batch_size
         # List of all minibatches in the whole dataset, where each minibatch is a list of trace indices
-        self._batches = list(util.chunks(util.drop_items(list(offline_dataset._sorted_indices), num_traces_to_drop), batch_size))
+        if (offline_dataset._trace_length is not None):
+            #balance the load based on tokens
+            self.batches = list(util.groups(util.drop_items(list(offline_dataset._sorted_indices, offline_dataset._trace_length), num_traces_to_drop)))
+        else:
+            #balance the load with fixed size batch 
+            self._batches = list(util.chunks(util.drop_items(list(offline_dataset._sorted_indices), num_traces_to_drop), batch_size))
+            # Discard last minibatch if it's smaller than batch_size
+            if len(self._batches[-1]) < batch_size:
+                del(self._batches[-1])
         # Discard last minibatch if it's smaller than batch_size
         if len(self._batches[-1]) < batch_size:
             del(self._batches[-1])

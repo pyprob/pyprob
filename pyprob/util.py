@@ -372,17 +372,47 @@ def init_distributed_print(rank, world_size, debug_print=True):
         sys.stdout = LabeledStdout(rank, world_size)
 
 
-def drop_items(l, num_items_to_drop):
+def drop_items(l, num_items_to_drop,t=None):
+    """if t is not None, drop both indices and corresponding trace lengthes from lists"""
     if num_items_to_drop > len(l):
         raise ValueError('Cannot drop more items than the list length')
     ret = l.copy()
+    if(t is not None):
+        trace_length = t.copy()
     for _ in range(num_items_to_drop):
-        del(ret[random.randrange(len(ret))])
-    return ret
-
+        
+        del_id=random.randrange(len(ret))
+        del(ret[del_id])
+        if(t is not None):
+            del(trace_length[del_id])
+    if (t is not None):
+        return (ret, trace_length)
+    return ret, trace_length
 
 def get_source(obj):
     try:
         return inspect.getsource(obj)
     except:
         return obj.__name__
+
+def groups(l,t):
+    """Yield successive n-tokens-sized chunks from l."""
+    # l: indices list
+    # t: trace lengthes list
+    tokensize = np.histogram(t)[1][5] # empirical choice, numpy histogram by default returns 10 bins's edge, choose the middle bin's edge  
+    # the tokensize needs to be eavaluted, Mar 21 2019, Jialin
+    s=t[0]
+    indices=[]
+    j=0
+    for i in range(len(t)):
+        if (s>=tokensize):
+            indices.append(l[j:i+1])
+            j=i+1
+            if(i==len(t)-1):
+                break
+            s=t[i+1]
+        else:
+            if(i==len(t)-1):
+                break
+            s+=t[i+1]
+    return indices
