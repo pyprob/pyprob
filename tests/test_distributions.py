@@ -273,7 +273,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_mean_2, dist_mean_2_correct, places=1)
         self.assertAlmostEqual(dist_mean_3, dist_mean_3_correct, places=1)
 
-    def test_dist_empirical_combine_uniform_weights(self):
+    def test_dist_empirical_combine_unweighted(self):
         dist1_mean_correct = 1
         dist1_stddev_correct = 3
         dist2_mean_correct = 5
@@ -299,7 +299,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist3_mean_empirical = float(dist3_empirical.mean)
         dist3_stddev_empirical = float(dist3_empirical.stddev)
 
-        dist_combined_empirical = Empirical.combine(empirical_distributions=[dist1_empirical, dist2_empirical, dist3_empirical])
+        dist_combined_empirical = Empirical(concat_empiricals=[dist1_empirical, dist2_empirical, dist3_empirical])
         dist_combined_mean_empirical = float(dist_combined_empirical.mean)
         dist_combined_stddev_empirical = float(dist_combined_empirical.stddev)
 
@@ -314,7 +314,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_combined_mean_empirical, dist_combined_mean_correct, places=1)
         self.assertAlmostEqual(dist_combined_stddev_empirical, dist_combined_stddev_correct, places=1)
 
-    def test_dist_empirical_disk_combine_uniform_weights(self):
+    def test_dist_empirical_disk_combine_unweighted(self):
         file_name_1 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
         file_name_2 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
         file_name_3 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
@@ -332,22 +332,118 @@ class DistributionsTestCase(unittest.TestCase):
         dist1_empirical = Empirical([dist1.sample() for i in range(int(empirical_samples / 10))], file_name=file_name_1)
         dist1_mean_empirical = float(dist1_empirical.mean)
         dist1_stddev_empirical = float(dist1_empirical.stddev)
+        dist1_empirical.close()
 
         dist2 = Normal(dist2_mean_correct, dist2_stddev_correct)
         dist2_empirical = Empirical([dist2.sample() for i in range(int(empirical_samples / 10))], file_name=file_name_2)
         dist2_mean_empirical = float(dist2_empirical.mean)
         dist2_stddev_empirical = float(dist2_empirical.stddev)
+        dist2_empirical.close()
 
         dist3 = Normal(dist3_mean_correct, dist3_stddev_correct)
         dist3_empirical = Empirical([dist3.sample() for i in range(int(empirical_samples / 10))], file_name=file_name_3)
         dist3_mean_empirical = float(dist3_empirical.mean)
         dist3_stddev_empirical = float(dist3_empirical.stddev)
+        dist3_empirical.close()
 
-        dist_combined_empirical = Empirical.combine(empirical_distributions=[dist1_empirical, dist2_empirical, dist3_empirical], file_name=file_name_combined)
+        dist_combined_empirical = Empirical(concat_empirical_file_names=[file_name_1, file_name_2, file_name_3], file_name=file_name_combined)
         dist_combined_mean_empirical = float(dist_combined_empirical.mean)
         dist_combined_stddev_empirical = float(dist_combined_empirical.stddev)
 
-        util.eval_print('dist1_mean_empirical', 'dist1_stddev_empirical', 'dist1_mean_correct', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_stddev_empirical', 'dist2_mean_correct', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_stddev_empirical', 'dist3_mean_correct', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_stddev_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_correct')
+        util.eval_print('dist1_mean_empirical', 'dist1_mean_correct', 'dist1_stddev_empirical', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_mean_correct', 'dist2_stddev_empirical', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_mean_correct', 'dist3_stddev_empirical', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_empirical', 'dist_combined_stddev_correct')
+
+        self.assertAlmostEqual(dist1_mean_empirical, dist1_mean_correct, places=0)
+        self.assertAlmostEqual(dist1_stddev_empirical, dist1_stddev_correct, places=0)
+        self.assertAlmostEqual(dist2_mean_empirical, dist2_mean_correct, places=0)
+        self.assertAlmostEqual(dist2_stddev_empirical, dist2_stddev_correct, places=0)
+        self.assertAlmostEqual(dist3_mean_empirical, dist3_mean_correct, places=0)
+        self.assertAlmostEqual(dist3_stddev_empirical, dist3_stddev_correct, places=0)
+        self.assertAlmostEqual(dist_combined_mean_empirical, dist_combined_mean_correct, places=0)
+        self.assertAlmostEqual(dist_combined_stddev_empirical, dist_combined_stddev_correct, places=0)
+
+    def test_dist_empirical_combine_weighted(self):
+        dist1_values = [1, 2, 3]
+        dist1_log_weights = [1, 2, 3]
+        dist1_mean_correct = 2.5752103328704834
+        dist1_stddev_correct = 0.6514633893966675
+        dist2_values = [1.4, -9, 5]
+        dist2_log_weights = [-10, -2, -3]
+        dist2_mean_correct = -5.233193397521973
+        dist2_stddev_correct = 6.207840442657471
+        dist3_values = [10, 4, -1]
+        dist3_log_weights = [1, -2, -2.5]
+        dist3_mean_correct = 9.415830612182617
+        dist3_stddev_correct = 2.168320417404175
+        dist_combined_mean_correct = 3.1346240043640137
+        dist_combined_stddev_correct = 2.2721681594848633
+
+        dist1_empirical = Empirical(values=dist1_values, log_weights=dist1_log_weights)
+        dist1_mean_empirical = float(dist1_empirical.mean)
+        dist1_stddev_empirical = float(dist1_empirical.stddev)
+
+        dist2_empirical = Empirical(values=dist2_values, log_weights=dist2_log_weights)
+        dist2_mean_empirical = float(dist2_empirical.mean)
+        dist2_stddev_empirical = float(dist2_empirical.stddev)
+
+        dist3_empirical = Empirical(values=dist3_values, log_weights=dist3_log_weights)
+        dist3_mean_empirical = float(dist3_empirical.mean)
+        dist3_stddev_empirical = float(dist3_empirical.stddev)
+
+        dist_combined_empirical = Empirical(concat_empiricals=[dist1_empirical, dist2_empirical, dist3_empirical])
+        dist_combined_mean_empirical = float(dist_combined_empirical.mean)
+        dist_combined_stddev_empirical = float(dist_combined_empirical.stddev)
+
+        util.eval_print('dist1_mean_empirical', 'dist1_mean_correct', 'dist1_stddev_empirical', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_mean_correct', 'dist2_stddev_empirical', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_mean_correct', 'dist3_stddev_empirical', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_empirical', 'dist_combined_stddev_correct')
+
+        self.assertAlmostEqual(dist1_mean_empirical, dist1_mean_correct, places=1)
+        self.assertAlmostEqual(dist1_stddev_empirical, dist1_stddev_correct, places=1)
+        self.assertAlmostEqual(dist2_mean_empirical, dist2_mean_correct, places=1)
+        self.assertAlmostEqual(dist2_stddev_empirical, dist2_stddev_correct, places=1)
+        self.assertAlmostEqual(dist3_mean_empirical, dist3_mean_correct, places=1)
+        self.assertAlmostEqual(dist3_stddev_empirical, dist3_stddev_correct, places=1)
+        self.assertAlmostEqual(dist_combined_mean_empirical, dist_combined_mean_correct, places=1)
+        self.assertAlmostEqual(dist_combined_stddev_empirical, dist_combined_stddev_correct, places=1)
+
+    def test_dist_empirical_disk_combine_weighted(self):
+        file_name_1 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        file_name_2 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        file_name_3 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        file_name_combined = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        dist1_values = [1, 2, 3]
+        dist1_log_weights = [1, 2, 3]
+        dist1_mean_correct = 2.5752103328704834
+        dist1_stddev_correct = 0.6514633893966675
+        dist2_values = [1.4, -9, 5]
+        dist2_log_weights = [-10, -2, -3]
+        dist2_mean_correct = -5.233193397521973
+        dist2_stddev_correct = 6.207840442657471
+        dist3_values = [10, 4, -1]
+        dist3_log_weights = [1, -2, -2.5]
+        dist3_mean_correct = 9.415830612182617
+        dist3_stddev_correct = 2.168320417404175
+        dist_combined_mean_correct = 3.1346240043640137
+        dist_combined_stddev_correct = 2.2721681594848633
+
+        dist1_empirical = Empirical(values=dist1_values, log_weights=dist1_log_weights, file_name=file_name_1)
+        dist1_mean_empirical = float(dist1_empirical.mean)
+        dist1_stddev_empirical = float(dist1_empirical.stddev)
+        dist1_empirical.close()
+
+        dist2_empirical = Empirical(values=dist2_values, log_weights=dist2_log_weights, file_name=file_name_2)
+        dist2_mean_empirical = float(dist2_empirical.mean)
+        dist2_stddev_empirical = float(dist2_empirical.stddev)
+        dist2_empirical.close()
+
+        dist3_empirical = Empirical(values=dist3_values, log_weights=dist3_log_weights, file_name=file_name_3)
+        dist3_mean_empirical = float(dist3_empirical.mean)
+        dist3_stddev_empirical = float(dist3_empirical.stddev)
+        dist3_empirical.close()
+
+        dist_combined_empirical = Empirical(concat_empirical_file_names=[file_name_1, file_name_2, file_name_3], file_name=file_name_combined)
+        dist_combined_mean_empirical = float(dist_combined_empirical.mean)
+        dist_combined_stddev_empirical = float(dist_combined_empirical.stddev)
+
+        util.eval_print('dist1_mean_empirical', 'dist1_mean_correct', 'dist1_stddev_empirical', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_mean_correct', 'dist2_stddev_empirical', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_mean_correct', 'dist3_stddev_empirical', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_empirical', 'dist_combined_stddev_correct')
 
         self.assertAlmostEqual(dist1_mean_empirical, dist1_mean_correct, places=0)
         self.assertAlmostEqual(dist1_stddev_empirical, dist1_stddev_correct, places=0)

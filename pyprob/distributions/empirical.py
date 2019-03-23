@@ -3,12 +3,14 @@ import numpy as np
 import copy
 import shelve
 import collections
+from collections import OrderedDict
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import random
 import math
 import os
 import enum
+import yaml
 from termcolor import colored
 
 from . import Distribution
@@ -39,6 +41,8 @@ class Empirical(Distribution):
         self._log_weights = []
         self._length = 0
         self._uniform_weights = False
+        self._type = None
+        self._metadata = OrderedDict()
         if concat_empiricals is not None or concat_empirical_file_names is not None:
             if concat_empiricals is not None:
                 if type(concat_empiricals) == list:
@@ -63,7 +67,15 @@ class Empirical(Distribution):
             self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
             weights = self._categorical.probs
             self._effective_sample_size = 1. / weights.pow(2).sum()
-            name = 'Combined empirical, traces: {:,}, ESS: {:,.2f}'.format(self._length, self._effective_sample_size)
+            name = 'Concatenated empirical, length: {:,}, ESS: {:,.2f}'.format(self._length, self._effective_sample_size)
+            # self._metadata.append('Begin concatenate empiricals ({})'.format(len(self._concat_empiricals)))
+            # for i, emp in enumerate(self._concat_empiricals):
+            #     self._metadata.append('Begin source empirical ({}/{})'.format(i+1, len(self._concat_empiricals)))
+            #     self._metadata.extend(emp._metadata)
+            #     self._metadata.append('End source empirical ({}/{})'.format(i+1, len(self._concat_empiricals)))
+            # self._metadata.append('End concatenate empiricals ({})'.format(len(self._concat_empiricals)))
+            self.add_metadata(op='concat', num_empiricals=len(self._concat_empiricals), metadata_empiricals=[emp._metadata for emp in self._concat_empiricals])
+            self.rename(name)
             self._finalized = True
             self._read_only = True
             if file_name is None:
@@ -77,7 +89,8 @@ class Empirical(Distribution):
                     self._type = EmpiricalType.CONCAT_FILE
                     self._shelf = shelve.open(self._file_name, flag=shelf_flag, writeback=False)
                     self._shelf['concat_empirical_file_names'] = concat_empirical_file_names
-                    self._shelf['name'] = name
+                    self._shelf['name'] = self.name
+                    self._shelf['metadata'] = self._metadata
                     self._shelf.close()
         else:
             if file_name is None:
@@ -94,12 +107,16 @@ class Empirical(Distribution):
                     self._log_weights = torch.cat([util.to_tensor(emp._log_weights) for emp in self._concat_empiricals])
                     self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
                     self.name = self._shelf['name']
+                    if 'metadata' in self._shelf:
+                        self._metadata = self._shelf['metadata']
                     self._finalized = True
                     self._read_only = True
                 else:
                     self._type = EmpiricalType.FILE
                     if 'name' in self._shelf:
                         self.name = self._shelf['name']
+                    if 'metadata' in self._shelf:
+                        self._metadata = self._shelf['metadata']
                     if 'log_weights' in self._shelf:
                         self._log_weights = self._shelf['log_weights']
                         self._file_last_key = self._shelf['last_key']
@@ -115,6 +132,7 @@ class Empirical(Distribution):
         self._min = None
         self._max = None
         self._effective_sample_size = None
+        self.add_metadata(name=self.name)
         if values is not None:
             if len(values) > 0:
                 self.add_sequence(values, log_weights, weights)
@@ -138,6 +156,13 @@ class Empirical(Distribution):
     def length(self):
         return self._length
 
+    @property
+    def metadata(self):
+        return self._metadata
+
+    def add_metadata(self, **kwargs):
+        self._metadata['{}'.format(len(self._metadata))] = kwargs
+
     def close(self):
         if self._type == EmpiricalType.FILE:
             self.finalize()
@@ -149,34 +174,51 @@ class Empirical(Distribution):
         self._check_finalized()
         if self._type == EmpiricalType.FILE:
             if file_name is None:
-                print('Copying Empirical(file_name: {}) to Empirical(memory)...'.format(self._file_name))
-                return Empirical(values=self.get_values(), log_weights=self._log_weights, name=self.name)
+                status = 'Copy Empirical(file_name: {}) to Empirical(memory)'.format(self._file_name)
+                print(status)
+                ret = Empirical(values=self.get_values(), log_weights=self._log_weights, name=self.name)
+                ret._metadata = copy.deepcopy(self._metadata)
+                ret.add_metadata(op='copy', source='Empirical(file_name: {})'.format(self._file_name), target='Empirical(memory)')
+                return ret
             else:
-                print('Copying Empirical(file_name: {}) to Empirical(file_name: {})...'.format(self._file_name, file_name))
+                status = 'Copy Empirical(file_name: {}) to Empirical(file_name: {})'.format(self._file_name, file_name)
+                print(status)
                 ret = Empirical(file_name=file_name, name=self.name)
                 for i in range(self._length):
                     ret.add(value=self._get_value(i), log_weight=self._log_weights[i])
                 ret.finalize()
+                ret._metadata = copy.deepcopy(self._metadata)
+                ret.add_metadata(op='copy', source='Empirical(file_name: {})'.format(self._file_name), target='Empirical(file_name: {})'.format(file_name))
                 return ret
         elif self._type == EmpiricalType.MEMORY:
             if file_name is None:
-                print('Copying Empirical(memory) to Empirical(memory)...')
-                return copy.copy(self)
+                status = 'Copy Empirical(memory) to Empirical(memory)'
+                print(status)
+                ret = copy.copy(self)
+                ret._metadata = copy.deepcopy(self._metadata)
+                ret.add_metadata(op='copy', source='Empirical(memory)', target='Empirical(memory)')
+                return ret
             else:
-                print('Copying Empirical(memory) to Empirical(file_name: {})...'.format(file_name))
-                return Empirical(values=self._values, log_weights=self._log_weights, file_name=file_name, name=self.name)
+                status = 'Copy Empirical(memory) to Empirical(file_name: {})'.format(file_name)
+                print(status)
+                ret = Empirical(values=self._values, log_weights=self._log_weights, file_name=file_name, name=self.name)
+                ret._metadata = copy.deepcopy(self._metadata)
+                ret.add_metadata(op='copy', source='Empirical(memory)', target='Empirical(file_name: {})'.format(file_name))
+                return ret
         else:
             raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
 
     def finalize(self):
         self._length = len(self._log_weights)
         self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+        self.add_metadata(op='finalize', length=self._length)
         if self._length > 0:
             self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
         else:
             self._uniform_weights = False
         if self._type == EmpiricalType.FILE and not self._read_only:
             self._shelf['name'] = self.name
+            self._shelf['metadata'] = self._metadata
             self._shelf['log_weights'] = self._log_weights
             self._shelf['last_key'] = self._file_last_key
             self._shelf.sync()
@@ -227,6 +269,7 @@ class Empirical(Distribution):
                 self.add(values[i])
 
     def rename(self, name):
+        self.add_metadata(op='rename', name=name)
         self.name = name
         if self._type == EmpiricalType.FILE:
             self._shelf['name'] = self.name
@@ -283,7 +326,10 @@ class Empirical(Distribution):
         self._check_finalized()
         if isinstance(index, slice):
             if self._type == EmpiricalType.MEMORY:
-                return Empirical(values=self._values[index], log_weights=self._log_weights[index], name=self.name)
+                ret = Empirical(values=self._values[index], log_weights=self._log_weights[index], name=self.name)
+                ret._metadata = copy.deepcopy(self._metadata)
+                ret.add_metadata(op='slice', index='{}'.format(index))
+                return ret
             else:
                 raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
         else:
@@ -311,7 +357,10 @@ class Empirical(Distribution):
         values = []
         for i in range(self._length):
             values.append(func(self._get_value(i)))
-        return Empirical(values=values, log_weights=self._log_weights, name=self.name, *args, **kwargs)
+        ret = Empirical(values=values, log_weights=self._log_weights, name=self.name, *args, **kwargs)
+        ret._metadata = copy.deepcopy(self._metadata)
+        ret.add_metadata(op='map', length=len(self), func=util.get_source(func))
+        return ret
 
     def filter(self, func, *args, **kwargs):
         self._check_finalized()
@@ -324,21 +373,31 @@ class Empirical(Distribution):
             if func(value):
                 filtered_values.append(value)
                 filtered_log_weights.append(self._get_log_weight(i))
-        return Empirical(filtered_values, log_weights=filtered_log_weights, name=self.name, *args, **kwargs)
+        ret = Empirical(filtered_values, log_weights=filtered_log_weights, name=self.name, *args, **kwargs)
+        ret._metadata = copy.deepcopy(self._metadata)
+        ret.add_metadata(op='filter', length=len(self), length_after=len(filtered_values), func=util.get_source(func))
+        return ret
 
     def resample(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):
         self._check_finalized()
         # TODO: improve this with a better resampling algorithm
         if map_func is None:
             map_func = lambda x: x
+        if min_index is None:
+            min_index = 0
+        if max_index is None:
+            max_index = self.length
         values = []
-        message = 'Resampling{}{}...'.format('' if min_index is None else ', min_index: ' + str(min_index), '' if max_index is None else ', max_index: ' + str(max_index))
-        util.progress_bar_init(message, num_samples, 'Samples')
+        status = 'Resample, num_samples: {}, min_index: {}, max_index: {}'.format(num_samples, min_index, max_index)
+        util.progress_bar_init(status, num_samples, 'Samples')
         for i in range(num_samples):
             util.progress_bar_update(i)
             values.append(map_func(self.sample(min_index=None, max_index=None)))
         util.progress_bar_end()
-        return Empirical(values=values, name=self.name, *args, **kwargs)
+        ret = Empirical(values=values, name=self.name, *args, **kwargs)
+        ret._metadata = copy.deepcopy(self._metadata)
+        ret.add_metadata(op='resample', length=len(self), num_samples=int(num_samples), min_index=int(min_index), max_index=int(max_index))
+        return ret
 
     def thin(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):
         self._check_finalized()
@@ -352,14 +411,17 @@ class Empirical(Distribution):
         indices = range(min_index, max_index, step)
         values = []
         log_weights = []
-        message = 'Thinning, step: {}{}{}...'.format(step, '' if min_index is None else ', min_index: ' + str(min_index), '' if max_index is None else ', max_index: ' + str(max_index))
-        util.progress_bar_init(message, len(indices), 'Samples')
+        status = 'Thin, num_samples: {}, step: {}, min_index: {}, max_index: {}'.format(num_samples, step, min_index, max_index)
+        util.progress_bar_init(status, len(indices), 'Samples')
         for i in range(len(indices)):
             util.progress_bar_update(i)
             values.append(map_func(self._get_value(indices[i])))
             log_weights.append(self._get_log_weight(indices[i]))
         util.progress_bar_end()
-        return Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
+        ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
+        ret._metadata = copy.deepcopy(self._metadata)
+        ret.add_metadata(op='thin', length=len(self), num_samples=int(num_samples), step=int(step), min_index=int(min_index), max_index=int(max_index))
+        return ret
 
     @property
     def mean(self):
@@ -436,7 +498,10 @@ class Empirical(Distribution):
 
     def unweighted(self, *args, **kwargs):
         self._check_finalized()
-        return Empirical(values=self.get_values(), name=self.name, *args, **kwargs)
+        ret = Empirical(values=self.get_values(), name=self.name, *args, **kwargs)
+        ret._metadata = copy.deepcopy(self._metadata)
+        ret.add_metadata(op='discard_weights')
+        return ret
 
     def _find_min_max(self):
         try:
@@ -476,42 +541,46 @@ class Empirical(Distribution):
                         distribution[self._values[i]] = self._log_weights[i]
                 values = list(distribution.keys())
                 log_weights = list(distribution.values())
-                return Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
+                ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
+                ret._metadata = copy.deepcopy(self._metadata)
+                ret.add_metadata(op='combine_duplicates')
+                return ret
             else:
                 raise RuntimeError('The values in this Empirical as not hashable. Combining of duplicates not currently supported.')
         else:
             raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
 
-    @staticmethod
-    def combine(empirical_distributions, file_name=None):
-        empirical_type = empirical_distributions[0]._type
-        for dist in empirical_distributions:
-            if dist._type != empirical_type:
-                raise RuntimeError('Expecting all Empirical distributions to be of the same type. Encountered: {} and {}'.format(empirical_type, dist._type))
-            if not isinstance(dist, Empirical):
-                raise TypeError('Combination is only supported between Empirical distributions.')
-
-        if empirical_type == EmpiricalType.FILE:
-            if file_name is None:
-                raise RuntimeError('Expecting a target file_name for the combined Empirical.')
-            ret = Empirical(file_name=file_name)
-            for dist in empirical_distributions:
-                for i in range(dist._length):
-                    ret.add(value=dist._shelf[str(i)], log_weight=dist._log_weights[i])
-            ret.finalize()
-            return ret
-        elif empirical_type == EmpiricalType.MEMORY:
-            values = []
-            log_weights = []
-            length = empirical_distributions[0].length
-            for dist in empirical_distributions:
-                if dist.length != length:
-                    raise RuntimeError('Combination is only supported between Empirical distributions of equal length.')
-                values += dist._values
-                log_weights += dist._log_weights
-            return Empirical(values=values, log_weights=log_weights, file_name=file_name)
-        else:
-            raise NotImplementedError('Not implemented for type: {}'.format(str(empirical_type)))
+    # Deprecated in favor of concat_empiricals in constructor
+    # @staticmethod
+    # def combine(empirical_distributions, file_name=None):
+    #     empirical_type = empirical_distributions[0]._type
+    #     for dist in empirical_distributions:
+    #         if dist._type != empirical_type:
+    #             raise RuntimeError('Expecting all Empirical distributions to be of the same type. Encountered: {} and {}'.format(empirical_type, dist._type))
+    #         if not isinstance(dist, Empirical):
+    #             raise TypeError('Combination is only supported between Empirical distributions.')
+    #
+    #     if empirical_type == EmpiricalType.FILE:
+    #         if file_name is None:
+    #             raise RuntimeError('Expecting a target file_name for the combined Empirical.')
+    #         ret = Empirical(file_name=file_name)
+    #         for dist in empirical_distributions:
+    #             for i in range(dist._length):
+    #                 ret.add(value=dist._shelf[str(i)], log_weight=dist._log_weights[i])
+    #         ret.finalize()
+    #         return ret
+    #     elif empirical_type == EmpiricalType.MEMORY:
+    #         values = []
+    #         log_weights = []
+    #         length = empirical_distributions[0].length
+    #         for dist in empirical_distributions:
+    #             if dist.length != length:
+    #                 raise RuntimeError('Combination is only supported between Empirical distributions of equal length.')
+    #             values += dist._values
+    #             log_weights += dist._log_weights
+    #         return Empirical(values=values, log_weights=log_weights, file_name=file_name)
+    #     else:
+    #         raise NotImplementedError('Not implemented for type: {}'.format(str(empirical_type)))
 
     def values_numpy(self):
         self._check_finalized()
@@ -556,3 +625,7 @@ class Empirical(Distribution):
             plt.savefig(file_name)
         if show:
             plt.show()
+
+    def save_metadata(self, file_name):
+        with open(file_name, 'w') as file:
+            file.write(yaml.dump(self._metadata))

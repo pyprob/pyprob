@@ -11,6 +11,7 @@ import math
 from functools import reduce
 import operator
 import datetime
+import inspect
 import torch.multiprocessing
 
 from .distributions import Categorical
@@ -378,3 +379,10 @@ def drop_items(l, num_items_to_drop):
     for _ in range(num_items_to_drop):
         del(ret[random.randrange(len(ret))])
     return ret
+
+
+def get_source(obj):
+    try:
+        return inspect.getsource(obj)
+    except:
+        return obj.__name__

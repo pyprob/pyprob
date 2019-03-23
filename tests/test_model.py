@@ -110,7 +110,7 @@ class ModelTestCase(unittest.TestCase):
             posterior = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace)
             initial_trace = posterior[-1]
             posteriors.append(posterior)
-        posterior = Empirical.combine(posteriors).map(lambda trace: trace.result)
+        posterior = Empirical(concat_empiricals=posteriors).map(lambda trace: trace.result)
         posterior_num_traces = posterior.length
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.unweighted().mean)
@@ -141,7 +141,7 @@ class ModelTestCase(unittest.TestCase):
             posterior = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace)
             initial_trace = posterior[-1]
             posteriors.append(posterior)
-        posterior = Empirical.combine(posteriors).map(lambda trace: trace.result)
+        posterior = Empirical(concat_empiricals=posteriors).map(lambda trace: trace.result)
         posterior_num_traces = posterior.length
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.unweighted().mean)
