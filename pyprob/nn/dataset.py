@@ -11,7 +11,7 @@ import uuid
 from termcolor import colored
 from collections import Counter, OrderedDict
 import random
-
+import pickle
 from .. import util
 from ..util import TraceMode, PriorInflation
 from ..concurrency import ConcurrentShelf
@@ -193,7 +193,6 @@ class OfflineDataset(ConcatDataset):
             with open(trace_length_filename, 'rb') as f:
                 self._trace_length = pickle.load(f)
         except:
-            trace_length_exist = False
             self._trace_length=None
         print('OfflineDataset at: {}'.format(self._dataset_dir))
         print('Num. traces     : {:,}'.format(len(self)))
