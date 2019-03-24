@@ -396,11 +396,12 @@ def get_source(obj):
     except:
         return obj.__name__
 
-def groups(l,t):
+def groups(l,t,token_size=None):
     """Yield successive n-tokens-sized chunks from l."""
     # l: indices list
     # t: trace lengthes list
-    tokensize = np.histogram(t)[1][5] # empirical choice, numpy histogram by default returns 10 bins's edge, choose the middle bin's edge  
+    if (token_size==None):
+        tokensize = np.histogram(t)[1][5] # empirical choice, numpy histogram by default returns 10 bins's edge, choose the middle bin's edge  
     # the tokensize needs to be eavaluted, Mar 21 2019, Jialin
     s=t[0]
     indices=[]

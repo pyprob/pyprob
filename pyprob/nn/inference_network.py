@@ -375,7 +375,7 @@ class InferenceNetwork(nn.Module):
             # print('Setting learning rate scheduler state')
             self._learning_rate_scheduler.load_state_dict(state_dict)
 
-    def optimize(self, num_traces, dataset, dataset_valid=None, num_traces_end=1e9, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate_init=0.0001, learning_rate_end=1e-6, learning_rate_scheduler_type=LearningRateScheduler.NONE, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every_iter=10000, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=False, log_file_name=None):
+    def optimize(self, num_traces, dataset, dataset_valid=None, num_traces_end=1e9, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate_init=0.0001, learning_rate_end=1e-6, learning_rate_scheduler_type=LearningRateScheduler.NONE, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every_iter=10000, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=False, log_file_name=None, token_size=None):
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
             self._init_layers()
@@ -396,7 +396,7 @@ class InferenceNetwork(nn.Module):
             if distributed_world_size == 1:
                 dataloader = DataLoader(dataset, batch_sampler=TraceBatchSampler(dataset, batch_size=batch_size, shuffle_batches=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
             else:
-                dataloader = DataLoader(dataset, batch_sampler=DistributedTraceBatchSampler(dataset, batch_size=batch_size, num_buckets=distributed_num_buckets, shuffle_batches=True, shuffle_buckets=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+                dataloader = DataLoader(dataset, batch_sampler=DistributedTraceBatchSampler(dataset, batch_size=batch_size, num_buckets=distributed_num_buckets, shuffle_batches=True, shuffle_buckets=True, token_size=token_size), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
         else:
             dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
 
