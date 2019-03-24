@@ -324,7 +324,7 @@ class TraceBatchSampler(Sampler):
 
 
 class DistributedTraceBatchSampler(Sampler):
-    def __init__(self, offline_dataset, batch_size, shuffle_batches=True, num_buckets=1, shuffle_buckets=True, token_size):
+    def __init__(self, offline_dataset, batch_size, shuffle_batches=True, num_buckets=1, shuffle_buckets=True, token_size=457):
         if not isinstance(offline_dataset, OfflineDataset):
             raise TypeError('Expecting an OfflineDataset instance.')
         if not dist.is_available():
