@@ -387,7 +387,8 @@ def drop_items(l, num_items_to_drop,t=None):
             del(trace_length[del_id])
     if (t is not None):
         return (ret, trace_length)
-    return ret, trace_length
+    else:
+        return ret
 
 def get_source(obj):
     try:
@@ -404,8 +405,9 @@ def groups(l,t):
     s=t[0]
     indices=[]
     j=0
+    rate=0.9
     for i in range(len(t)):
-        if (s>=tokensize):
+        if (s>=tokensize * rate):
             indices.append(l[j:i+1])
             j=i+1
             if(i==len(t)-1):
