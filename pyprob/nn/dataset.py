@@ -324,7 +324,7 @@ class TraceBatchSampler(Sampler):
 
 
 class DistributedTraceBatchSampler(Sampler):
-    def __init__(self, offline_dataset, batch_size, shuffle_batches=True, num_buckets=1, shuffle_buckets=True, token_size=457):
+    def __init__(self, offline_dataset, batch_size, shuffle_batches=True, num_buckets=1, shuffle_buckets=True, token_size=None):
         if not isinstance(offline_dataset, OfflineDataset):
             raise TypeError('Expecting an OfflineDataset instance.')
         if not dist.is_available():
@@ -335,7 +335,7 @@ class DistributedTraceBatchSampler(Sampler):
         num_batches_to_drop = math.floor(len(offline_dataset._sorted_indices) / batch_size) % self._world_size
         num_traces_to_drop = num_batches_to_drop * batch_size
         # List of all minibatches in the whole dataset, where each minibatch is a list of trace indices
-        if (offline_dataset._trace_length is not None):
+        if (offline_dataset._trace_length is not None and token_size is not None):
             #balance the load based on tokens
             self._batches = list(util.groups(offline_dataset._sorted_indices, offline_dataset._trace_length, token_size))
             num_groups_to_drop = len(self._batches) % self._world_size
@@ -347,7 +347,7 @@ class DistributedTraceBatchSampler(Sampler):
             if len(self._batches[-1]) < batch_size:
                 del(self._batches[-1])
         # Discard last minibatch if it's smaller than batch_size
-        if len(self._batches[-1]) < batch_size and offline_dataset._trace_length is not None:
+        if len(self._batches[-1]) < batch_size and offline_dataset._trace_length is not None and token_size is not None:
             del(self._batches[-1])
         self._num_buckets = num_buckets
         self._bucket_size = math.ceil(len(self._batches) / num_buckets)
