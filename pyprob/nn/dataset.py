@@ -188,7 +188,7 @@ class OfflineDataset(ConcatDataset):
                 print(e)
                 print(colored('Warning: dataset file potentially corrupt, omitting: {}'.format(file), 'red', attrs=['bold']))
         super().__init__(datasets)
-        trace_length_filename=os.path.join(self._dataset_dir, 'pyprob_trace_length')
+        trace_length_filename='/tmp/pyprob_trace_length'
         try: 
             with open(trace_length_filename, 'rb') as f:
                 self._trace_length = pickle.load(f)
