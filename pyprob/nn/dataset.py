@@ -338,8 +338,8 @@ class DistributedTraceBatchSampler(Sampler):
         if (offline_dataset._trace_length is not None):
             #balance the load based on tokens
             self._batches = list(util.groups(offline_dataset._sorted_indices, offline_dataset._trace_length))
-            num_groups_to_drop = len(self.batches) % self._world_size
-            self._batches = list(util.drop_items(self.batches, num_groups_to_drop))
+            num_groups_to_drop = len(self._batches) % self._world_size
+            self._batches = list(util.drop_items(self._batches, num_groups_to_drop))
         else:
             #balance the load with fixed size batch 
             self._batches = list(util.chunks(util.drop_items(list(offline_dataset._sorted_indices), num_traces_to_drop), batch_size))
