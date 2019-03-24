@@ -337,9 +337,9 @@ class DistributedTraceBatchSampler(Sampler):
         # List of all minibatches in the whole dataset, where each minibatch is a list of trace indices
         if (offline_dataset._trace_length is not None):
             #balance the load based on tokens
-            self.batches = list(util.groups(offline_dataset._sorted_indices, offline_dataset._trace_length))
+            self._batches = list(util.groups(offline_dataset._sorted_indices, offline_dataset._trace_length))
             num_groups_to_drop = len(self.batches) % self._world_size
-            self.batches = list(util.drop_items(self.batches, num_groups_to_drop))
+            self._batches = list(util.drop_items(self.batches, num_groups_to_drop))
         else:
             #balance the load with fixed size batch 
             self._batches = list(util.chunks(util.drop_items(list(offline_dataset._sorted_indices), num_traces_to_drop), batch_size))
@@ -347,7 +347,7 @@ class DistributedTraceBatchSampler(Sampler):
             if len(self._batches[-1]) < batch_size:
                 del(self._batches[-1])
         # Discard last minibatch if it's smaller than batch_size
-        if len(self._batches[-1]) < batch_size:
+        if len(self._batches[-1]) < batch_size and offline_dataset._trace_length is not None:
             del(self._batches[-1])
         self._num_buckets = num_buckets
         self._bucket_size = math.ceil(len(self._batches) / num_buckets)
