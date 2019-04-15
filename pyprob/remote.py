@@ -4,7 +4,8 @@ import flatbuffers
 from termcolor import colored
 
 from . import util, state, __version__
-from .distributions import Uniform, Normal, Categorical, Poisson
+# Brdley: Additional dists added
+from .distributions import Uniform, Normal, Categorical, Poisson, LogNormal, Gamma, Exponential, Beta, Weibull
 from .ppx import Message as ppx_Message
 from .ppx import MessageBody as ppx_MessageBody
 from .ppx import Tensor as ppx_Tensor
@@ -13,6 +14,13 @@ from .ppx import Uniform as ppx_Uniform
 from .ppx import Normal as ppx_Normal
 from .ppx import Categorical as ppx_Categorical
 from .ppx import Poisson as ppx_Poisson
+# Bradley: Additional imports added **
+from .ppx import Gamma as ppx_Gamma
+from .ppx import LogNormal as ppx_LogNormal
+from .ppx import Exponential as ppx_Exponential
+# from .ppx import Beta as ppx_Beta
+from .ppx import Weibull as ppx_Weibull
+# Added by bradley **
 from .ppx import Handshake as ppx_Handshake
 from .ppx import HandshakeResult as ppx_HandshakeResult
 from .ppx import Run as ppx_Run
@@ -177,6 +185,9 @@ class ModelServer(object):
 
         message = builder.Output()
         self._requester.send_request(message)
+        # Bradley: This is very inefficient. Should replace
+        # with a hash map. But I don't think this will be used
+        # once everything is connected. 
 
         while True:
             reply = self._requester.receive_reply()
@@ -215,6 +226,29 @@ class ModelServer(object):
                     poisson.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
                     rate = self._protocol_tensor_to_variable(poisson.Rate())
                     dist = Poisson(rate)
+                elif distribution_type == ppx_Distribution.Distribution().Gamma:
+                    gamma = ppx_Gamma.Gamma()
+                    gamma.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    concentration = self._protocol_tensor_to_variable(gamma.Concentration())
+                    rate = self._protocol_tensor_to_variable(gamma.Rate())
+                    dist = Gamma(concentration, rate)
+                elif distribution_type == ppx_Distribution.Distribution().LogNormal:
+                    log_normal = ppx_LogNormal.LogNormal()
+                    log_normal.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    mean = self._protocol_tensor_to_variable(log_normal.Mean())
+                    stddev = self._protocol_tensor_to_variable(log_normal.Stddev())
+                    dist = LogNormal(mean, stddev)
+                elif distribution_type == ppx_Distribution.Distribution().Exponential:
+                    exponential = ppx_Exponential.Exponential()
+                    exponential.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    rate = self._protocol_tensor_to_variable(exponential.Rate())
+                    dist = Exponential(rate)
+                elif distribution_type == ppx_Distribution.Distribution().Weibull:
+                    weibull = ppx_Weibull.Weibull()
+                    weibull.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    scale = self._protocol_tensor_to_variable(weibull.Scale())
+                    concentration = self._protocol_tensor_to_variable(weibull.Concetration())
+                    dist = Weibull(scale, concentration)
                 else:
                     raise RuntimeError('ppx (Python): Sample from an unexpected distribution requested.')
                 result = state.sample(distribution=dist, control=control, replace=replace, name=name, address=address)
@@ -264,6 +298,29 @@ class ModelServer(object):
                     poisson.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
                     rate = self._protocol_tensor_to_variable(poisson.Rate())
                     dist = Poisson(rate)
+                elif distribution_type == ppx_Distribution.Distribution().Gamma:
+                    gamma = ppx_Gamma.Gamma()
+                    gamma.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    concentration = self._protocol_tensor_to_variable(gamma.Concentration())
+                    rate = self._protocol_tensor_to_variable(gamma.Rate())
+                    dist = Gamma(concentration, rate)
+                elif distribution_type == ppx_Distribution.Distribution().LogNormal:
+                    log_normal = ppx_LogNormal.LogNormal()
+                    log_normal.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    mean = self._protocol_tensor_to_variable(log_normal.Mean())
+                    stddev = self._protocol_tensor_to_variable(log_normal.Stddev())
+                    dist = LogNormal(mean, stddev)
+                elif distribution_type == ppx_Distribution.Distribution().Exponential:
+                    exponential = ppx_Exponential.Exponential()
+                    exponential.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    rate = self._protocol_tensor_to_variable(exponential.Rate())
+                    dist = Exponential(rate)
+                elif distribution_type == ppx_Distribution.Distribution().Weibull:
+                    weibull = ppx_Weibull.Weibull()
+                    weibull.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    scale = self._protocol_tensor_to_variable(weibull.Scale())
+                    concentration = self._protocol_tensor_to_variable(weibull.Concetration())
+                    dist = Weibull(scale, concentration)                
                 else:
                     raise RuntimeError('ppx (Python): Sample from an unexpected distribution requested: {}'.format(distribution_type))
 
