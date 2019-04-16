@@ -17,3 +17,8 @@ class Exponential(Distribution):
 
     def icdf(self, value):
         return self._torch_dist.icdf(value)
+
+    @property
+    def rate(self):
+    	return self._torch_dist.mean
+    

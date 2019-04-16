@@ -252,6 +252,9 @@ class ModelServer(object):
                 else:
                     raise RuntimeError('ppx (Python): Sample from an unexpected distribution requested.')
                 result = state.sample(distribution=dist, control=control, replace=replace, name=name, address=address)
+                print(" Debug statement in pyprob.Remote.forward(). \n Printing the sampling statement \n \
+                Result :  {0} \n \
+                Distribution : {1}".format(result,dist))
                 builder = flatbuffers.Builder(64)
                 result = self._variable_to_protocol_tensor(builder, result)
                 ppx_SampleResult.SampleResultStart(builder)
