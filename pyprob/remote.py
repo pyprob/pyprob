@@ -247,14 +247,14 @@ class ModelServer(object):
                     weibull = ppx_Weibull.Weibull()
                     weibull.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
                     scale = self._protocol_tensor_to_variable(weibull.Scale())
-                    concentration = self._protocol_tensor_to_variable(weibull.Concetration())
+                    concentration = self._protocol_tensor_to_variable(weibull.Concentration())
                     dist = Weibull(scale, concentration)
                 else:
                     raise RuntimeError('ppx (Python): Sample from an unexpected distribution requested.')
                 result = state.sample(distribution=dist, control=control, replace=replace, name=name, address=address)
-                print(" Debug statement in pyprob.Remote.forward(). \n Printing the sampling statement \n \
-                Result :  {0} \n \
-                Distribution : {1}".format(result,dist))
+                # print(" Debug statement in pyprob.Remote.forward(). \n Printing the sampling statement \n \
+                # Result :  {0} \n \
+                # Distribution : {1}".format(result,dist))
                 builder = flatbuffers.Builder(64)
                 result = self._variable_to_protocol_tensor(builder, result)
                 ppx_SampleResult.SampleResultStart(builder)
