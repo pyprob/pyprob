@@ -76,16 +76,16 @@ class Trace():
         self.execution_time_sec = None
 
     def __repr__(self):
-        return 'Trace(all:{:,}, controlled:{:,}, replaced:{:,}, observeable:{:,}, observed:{:,}, tagged:{:,}, uncontrolled:{:,}, log_prob:{}, log_importance_weight:{})'.format(
-            len(self.variables),
-            len(self.variables_controlled),
-            len(self.variables_replaced),
-            len(self.variables_observable),
-            len(self.variables_observed),
-            len(self.variables_tagged),
-            len(self.variables_uncontrolled),
-            str(self.log_prob),
-            str(self.log_importance_weight))
+        return 'Trace(all:{:,}, controlled:{:,}, replaced:{}, observeable:{}, observed:{}, tagged:{}, uncontrolled:{}, log_prob:{}, log_importance_weight:{})'.format(
+            self.length,
+            self.length_controlled,
+            '{:,}'.format(len(self.variables_replaced)) if hasattr(self, 'variables_replaced') else 'Unknown',
+            '{:,}'.format(len(self.variables_observed)) if hasattr(self, 'variables_observed') else 'Unknown',
+            '{:,}'.format(len(self.variables_observable)) if hasattr(self, 'variables_observable') else 'Unknown',
+            '{:,}'.format(len(self.variables_tagged)) if hasattr(self, 'variables_tagged') else 'Unknown',
+            '{:,}'.format(len(self.variables_uncontrolled)) if hasattr(self, 'variables_uncontrolled') else 'Unknown',
+            str(self.log_prob) if hasattr(self, 'lob_prob') else 'Unknown',
+            str(self.log_importance_weight) if hasattr(self, 'log_importance_weight') else 'Unknown')
 
     def add(self, variable):
         self.variables.append(variable)
