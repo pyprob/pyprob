@@ -31,16 +31,16 @@ class Variable():
 
     def __repr__(self):
         return 'Variable(name:{}, control:{}, replace:{}, observable:{}, observed:{}, tagged:{}, address:{}, distribution:{}, value:{}: log_prob:{})'.format(
-            self.name,
-            self.control,
-            self.replace,
-            self.observable,
-            self.observed,
-            self.tagged,
-            self.address,
-            str(self.distribution),
-            str(self.value),
-            str(self.log_prob))
+            self.name if hasattr(self, 'name') else 'Unknown',
+            self.control if hasattr(self, 'control') else 'Unknown',
+            self.replace if hasattr(self, 'replace') else 'Unknown',
+            self.observable if hasattr(self, 'observable') else 'Unknown',
+            self.observed if hasattr(self, 'observed') else 'Unknown',
+            self.tagged if hasattr(self, 'tagged') else 'Unknown',
+            self.address if hasattr(self, 'address') else 'Unknown',
+            str(self.distribution) if hasattr(self, 'distribution') else 'Unknown',
+            str(self.value) if hasattr(self, 'value') else 'Unknown',
+            str(self.log_prob) if hasattr(self, 'log_prob') else 'Unknown')
 
     def to(self, device):
         if self.value is not None:
@@ -76,6 +76,7 @@ class Trace():
         self.execution_time_sec = None
 
     def __repr__(self):
+        # The 'Unknown' cases below are for handling pruned traces in offline training datasets
         return 'Trace(all:{:,}, controlled:{:,}, replaced:{}, observeable:{}, observed:{}, tagged:{}, uncontrolled:{}, log_prob:{}, log_importance_weight:{})'.format(
             self.length,
             self.length_controlled,
