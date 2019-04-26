@@ -36,7 +36,7 @@ class Model():
 
     def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=None, silent=False, observe=None, file_name=None, likelihood_importance=1., *args, **kwargs):
         generator = self._trace_generator(trace_mode=trace_mode, prior_inflation=prior_inflation, inference_engine=inference_engine, inference_network=inference_network, observe=observe, likelihood_importance=likelihood_importance, *args, **kwargs)
-        traces = Empirical(file_name=file_name)
+        traces = Empirical(file_name=file_name, file_sync_timeout=kwargs.get("file_sync_timeout", 1000))
         if map_func is None:
             map_func = lambda trace: trace
         time_start = time.time()
