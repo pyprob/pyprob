@@ -189,6 +189,8 @@ class TraceShelve():
         self._file_sync_countdown = 0
         self.file_sync_timeout = file_sync_timeout
 
+        self.entry_ctr = 0
+
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned traces in offline training datasets
         return 'Trace(all:{:,}, controlled:{:,}, replaced:{}, observeable:{}, observed:{}, tagged:{}, uncontrolled:{}, log_prob:{}, log_importance_weight:{})'.format(
@@ -203,9 +205,10 @@ class TraceShelve():
             str(self.log_importance_weight) if hasattr(self, 'log_importance_weight') else 'Unknown')
 
     def add(self, variable):
-        tmp = self._shelf["variables"]
-        tmp.append(variable)
-        self._shelf["variables"] = tmp
+        self._shelf["variables__{}".format(self.entry_ctr)] = variable
+        # tmp = self._shelf["variables"]
+        # tmp.append(variable)
+        # self._shelf["variables"] = tmp
         tmp = self._shelf["variables_dict_address"]
         tmp[variable.address] = variable
         self._shelf["variables_dict_address"] = tmp
@@ -217,6 +220,8 @@ class TraceShelve():
             print("SYNCING TRACE SHELF")
             self._shelf.sync()
             self._file_sync_countdown = 0
+
+        self.entry_ctr += 1
 
     def end(self, result, execution_time_sec):
         self.result = result
