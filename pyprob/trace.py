@@ -149,11 +149,11 @@ class TraceShelve():
     """
     Implemented by Christian Schroeder de Witt April 2019
     """
-    def __init__(self, file_path, file_sync_timeout=100):
+    def __init__(self, file_name, file_sync_timeout=100):
 
         shelf_flag = "r"
-        self._file_path = file_path
-        self._shelf = shelve.open(self._file_path,
+        self._file_name = file_name
+        self._shelf = shelve.open(self._file_name,
                                   flag=shelf_flag,
                                   writeback=False)
 
