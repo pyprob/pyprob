@@ -245,10 +245,12 @@ class Empirical(Distribution):
         else:
             self._log_weights.append(util.to_tensor(0.))
     
+        print("hello")
         if self._type == EmpiricalType.FILE:
             self._file_last_key += 1
             self._shelf[str(self._file_last_key)] = value
             self._shelf.sync() # DON'T CLOGG MEMORY
+            print("sync")
             self._file_sync_countdown -= 1
             if self._file_sync_countdown == 0:
                 self.finalize()

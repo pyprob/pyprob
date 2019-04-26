@@ -6,7 +6,7 @@ import time
 from termcolor import colored
 
 from .distributions import Normal, Categorical, Uniform, TruncatedNormal
-from .trace import Variable, Trace
+from .trace import Variable, Trace, TraceShelve
 from . import util, TraceMode, PriorInflation, InferenceEngine
 
 
@@ -320,13 +320,17 @@ def _init_traces(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflatio
             _metropolis_hastings_site_address = variable.address
 
 
-def _begin_trace():
+def _begin_trace(file_name=None, file_sync_countdown=100):
     global _current_trace
     global _current_trace_previous_variable
     global _current_trace_replaced_variable_proposal_distributions
     global _current_trace_execution_start
     _current_trace_execution_start = time.time()
-    _current_trace = Trace()
+    if file_name is not None:
+        _current_trace = TraceShelve(file_name=file_name,
+                                     file_sync_countdown=file_sync_countdown)
+    else:
+        _current_trace = Trace()
     _current_trace_previous_variable = None
     _current_trace_replaced_variable_proposal_distributions = {}
 

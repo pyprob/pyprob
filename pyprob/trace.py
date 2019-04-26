@@ -142,3 +142,108 @@ class Trace():
 
     def __eq__(self, other):
         return hash(self) == hash(other)
+
+import shelve
+
+class TraceShelve():
+    """
+    Implemented by Christian Schroeder de Witt April 2019
+    """
+    def __init__(self, file_path, file_sync_countdown=100):
+
+        shelf_flag = "r"
+        self._shelf = shelve.open(self._file_name, flag=shelf_flag, writeback=False)
+
+        self._shelf["variables"] = []
+        self._shelf["variables_controlled"] = []
+        self._shelf["variables_uncontrolled"] = []
+        self._shelf["variables_replaced"] = []
+        self._shelf["variables_observed"] = []
+        self._shelf["variables_observable"] = []
+        self._shelf["variables_tagged"] = []
+        self._shelf["variables_dict_address"] = {}
+        self._shelf["variables_dict_address_base"] = {}
+        self._shelf["named_variables"] = {}
+        self.result = None
+        self.log_prob = 0.
+        self.log_prob_observed = 0.
+        self.log_importance_weight = 0.
+        self.length = 0
+        self.length_controlled = 0
+        self.execution_time_sec = None
+
+        self._file_sync_countdown = 0
+        self.file_sync_countdown = file_sync_countdown
+
+    def __repr__(self):
+        # The 'Unknown' cases below are for handling pruned traces in offline training datasets
+        return 'Trace(all:{:,}, controlled:{:,}, replaced:{}, observeable:{}, observed:{}, tagged:{}, uncontrolled:{}, log_prob:{}, log_importance_weight:{})'.format(
+            self.length,
+            self.length_controlled,
+            '{:,}'.format(len(self._shelf["variables_replaced"])) if 'variables_replaced' in self._shelf else 'Unknown',
+            '{:,}'.format(len(self.variables_observed)) if 'variables_observed' in self._shelf else 'Unknown',
+            '{:,}'.format(len(self.variables_observable)) if 'variables_observable' in self._shelf else 'Unknown',
+            '{:,}'.format(len(self.variables_tagged)) if 'variables_tagged' in self._shelf else 'Unknown',
+            '{:,}'.format(len(self.variables_uncontrolled)) if 'variables_uncontrolled' in self._shelf else 'Unknown',
+            str(self.log_prob) if hasattr(self, 'log_prob') else 'Unknown',
+            str(self.log_importance_weight) if hasattr(self, 'log_importance_weight') else 'Unknown')
+
+    def add(self, variable):
+        self._shelf["variables"].append(variable)
+        self._shelf["variables_dict_address"][variable.address] = variable
+        self._shelf["variables_dict_address_base"][variable.address_base] = variable
+        self._file_sync_countdown += 1
+        if self._file_sync_countdown >= self.file_sync_countdown:
+            self._shelf.sync()
+            self._file_sync_countdown = 0
+
+    def end(self, result, execution_time_sec):
+        self.result = result
+        self.execution_time_sec = execution_time_sec
+        replaced_indices = []
+        for i in range(len(self.variables)):
+            variable = self._shelf["variables"][i]
+            if variable.name is not None:
+                self._shelf["named_variables"][variable.name] = variable
+            if variable.control and i not in replaced_indices:
+                if variable.replace:
+                    for j in range(i + 1, len(self._shelf["variables"])):
+                        if self._shelf["variables"][j].address_base == variable.address_base:
+                            self._shelf["variables_replaced"].append(variable)
+                            variable = self._shelf["variables"][j]
+                            replaced_indices.append(j)
+                self._shelf["variables_controlled"].append(variable)
+        self._shelf["variables_uncontrolled"] = [v for v in self._shelf["variables"] if (not v.control) and (not v.observed) and (not v.tagged)]
+        self._shelf["variables_observed"] = [v for v in self._shelf["variables"] if v.observed]
+        self._shelf["variables_observable"] = [v for v in self._shelf["variables"] if v.observable]
+        self._shelf["variables_tagged"] = [v for v in self._shelf["variables"] if v.tagged]
+        self.log_prob = sum([torch.sum(v.log_prob) for v in self._shelf["variables"] if v.control or v.observed])
+        self.log_prob_observed = sum([torch.sum(v.log_prob) for v in self._shelf["variables_observed"]])
+        self.length = len(self._shelf["variables"])
+        self.length_controlled = len(self._shelf["variables_controlled"])
+        replaced_log_importance_weights = {}
+        for variable in self._shelf["variables"]:
+            if variable.log_importance_weight is not None:
+                if variable.replace:
+                    replaced_log_importance_weights[variable.address_base] = variable.log_importance_weight
+                else:
+                    self.log_importance_weight += variable.log_importance_weight
+        for _, log_importance_weight in replaced_log_importance_weights.items():
+            self.log_importance_weight += log_importance_weight
+
+    def last_instance(self, address_base):
+        if address_base in self._shelf["variables_dict_address_base"]:
+            return self._shelf["variables_dict_address_base"][address_base].instance
+        else:
+            return 0
+
+    def to(self, device):
+        for variable in self._shelf["variables"]:
+            variable.to(device)
+
+    def __hash__(self):
+        h = [hash(variable) for variable in self._shelf["variables"]]
+        return hash(sum(h))
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
