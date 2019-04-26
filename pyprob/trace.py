@@ -203,9 +203,15 @@ class TraceShelve():
             str(self.log_importance_weight) if hasattr(self, 'log_importance_weight') else 'Unknown')
 
     def add(self, variable):
-        self._shelf["variables"].append(variable)
-        self._shelf["variables_dict_address"][variable.address] = variable
-        self._shelf["variables_dict_address_base"][variable.address_base] = variable
+        tmp = self._shelf["variables"]
+        tmp.append(variable)
+        self._shelf["variables"] = tmp
+        tmp = self._shelf["variables_dict_address"]
+        tmp[variable.address] = variable
+        self._shelf["variables_dict_address"] = tmp
+        tmp = self._shelf["variables_dict_address_base"]
+        tmp[variable.address_base] = variable
+        self._shelf["variables_dict_address_base"] = tmp
         self._file_sync_countdown += 1
         if self._file_sync_countdown >= self.file_sync_timeout:
             print("SYNCING TRACE SHELF")
