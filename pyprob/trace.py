@@ -234,6 +234,7 @@ class TraceShelve():
                     self.log_importance_weight += variable.log_importance_weight
         for _, log_importance_weight in replaced_log_importance_weights.items():
             self.log_importance_weight += log_importance_weight
+        self._shelf.close()
 
     def last_instance(self, address_base):
         if address_base in self._shelf["variables_dict_address_base"]:
