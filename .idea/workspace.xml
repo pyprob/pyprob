@@ -2,9 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="cde8c6ed-9c14-4105-bdad-eecf5bc110b0" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pyprob/distributions/empirical.py" beforeDir="false" afterPath="$PROJECT_DIR$/pyprob/distributions/empirical.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pyprob/model.py" beforeDir="false" afterPath="$PROJECT_DIR$/pyprob/model.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pyprob/state.py" beforeDir="false" afterPath="$PROJECT_DIR$/pyprob/state.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pyprob/trace.py" beforeDir="false" afterPath="$PROJECT_DIR$/pyprob/trace.py" afterDir="false" />
     </list>
@@ -28,11 +25,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/pyprob/trace.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="455">
-              <caret line="171" column="34" lean-forward="true" selection-start-line="171" selection-start-column="34" selection-end-line="171" selection-end-column="34" />
+            <state relative-caret-position="380">
+              <caret line="157" column="50" lean-forward="true" selection-start-line="157" selection-start-column="50" selection-end-line="157" selection-end-column="50" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
               </folding>
@@ -40,11 +37,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/pyprob/model.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="296">
-              <caret line="37" column="40" lean-forward="true" selection-start-line="37" selection-start-column="40" selection-end-line="37" selection-end-column="40" />
+            <state relative-caret-position="645">
+              <caret line="43" column="88" lean-forward="true" selection-start-line="43" selection-start-column="88" selection-end-line="43" selection-end-column="88" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
               </folding>
@@ -55,8 +52,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/pyprob/state.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="695">
-              <caret line="332" column="26" selection-start-line="332" selection-start-column="26" selection-end-line="332" selection-end-column="26" />
+            <state relative-caret-position="679">
+              <caret line="330" column="73" selection-start-line="330" selection-start-column="73" selection-end-line="330" selection-end-column="73" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
               </folding>
@@ -92,9 +89,9 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/pyprob/trace.py" />
-        <option value="$PROJECT_DIR$/pyprob/state.py" />
         <option value="$PROJECT_DIR$/pyprob/model.py" />
+        <option value="$PROJECT_DIR$/pyprob/state.py" />
+        <option value="$PROJECT_DIR$/pyprob/trace.py" />
       </list>
     </option>
   </component>
@@ -156,12 +153,12 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1556278995817</updated>
-      <workItem from="1556278997312" duration="3952000" />
+      <workItem from="1556278997312" duration="4859000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="3952000" />
+    <option name="totallyTimeSpent" value="4859000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="67" y="25" width="1853" height="1175" extended-state="6" />
@@ -214,16 +211,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/pyprob/state.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="695">
-          <caret line="332" column="26" selection-start-line="332" selection-start-column="26" selection-end-line="332" selection-end-column="26" />
-          <folding>
-            <element signature="e#0#12#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/../EMODPP/src/examples/ewan/OM_conversion_scripts/scenarios/wu_5000_158.xml">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="323">
@@ -241,20 +228,30 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/pyprob/trace.py">
+    <entry file="file://$PROJECT_DIR$/pyprob/model.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="455">
-          <caret line="171" column="34" lean-forward="true" selection-start-line="171" selection-start-column="34" selection-end-line="171" selection-end-column="34" />
+        <state relative-caret-position="645">
+          <caret line="43" column="88" lean-forward="true" selection-start-line="43" selection-start-column="88" selection-end-line="43" selection-end-column="88" />
           <folding>
             <element signature="e#0#12#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/pyprob/model.py">
+    <entry file="file://$PROJECT_DIR$/pyprob/state.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="296">
-          <caret line="37" column="40" lean-forward="true" selection-start-line="37" selection-start-column="40" selection-end-line="37" selection-end-column="40" />
+        <state relative-caret-position="679">
+          <caret line="330" column="73" selection-start-line="330" selection-start-column="73" selection-end-line="330" selection-end-column="73" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/pyprob/trace.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="380">
+          <caret line="157" column="50" lean-forward="true" selection-start-line="157" selection-start-column="50" selection-end-line="157" selection-end-column="50" />
           <folding>
             <element signature="e#0#12#0" expanded="true" />
           </folding>

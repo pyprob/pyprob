@@ -320,7 +320,7 @@ def _init_traces(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflatio
             _metropolis_hastings_site_address = variable.address
 
 
-def _begin_trace(file_name=None, file_sync_countdown=100):
+def _begin_trace(file_name=None, file_sync_timeout=100):
     global _current_trace
     global _current_trace_previous_variable
     global _current_trace_replaced_variable_proposal_distributions
@@ -328,7 +328,7 @@ def _begin_trace(file_name=None, file_sync_countdown=100):
     _current_trace_execution_start = time.time()
     if file_name is not None:
         _current_trace = TraceShelve(file_name=file_name,
-                                     file_sync_countdown=file_sync_countdown)
+                                     file_sync_timeout=file_sync_timeout)
     else:
         _current_trace = Trace()
     _current_trace_previous_variable = None

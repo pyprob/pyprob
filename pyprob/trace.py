@@ -149,10 +149,13 @@ class TraceShelve():
     """
     Implemented by Christian Schroeder de Witt April 2019
     """
-    def __init__(self, file_path, file_sync_countdown=100):
+    def __init__(self, file_path, file_sync_timeout=100):
 
         shelf_flag = "r"
-        self._shelf = shelve.open(self._file_name, flag=shelf_flag, writeback=False)
+        self._file_path = file_path
+        self._shelf = shelve.open(self._file_path,
+                                  flag=shelf_flag,
+                                  writeback=False)
 
         self._shelf["variables"] = []
         self._shelf["variables_controlled"] = []
@@ -173,7 +176,7 @@ class TraceShelve():
         self.execution_time_sec = None
 
         self._file_sync_countdown = 0
-        self.file_sync_countdown = file_sync_countdown
+        self.file_sync_timeout = file_sync_timeout
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned traces in offline training datasets
@@ -181,10 +184,10 @@ class TraceShelve():
             self.length,
             self.length_controlled,
             '{:,}'.format(len(self._shelf["variables_replaced"])) if 'variables_replaced' in self._shelf else 'Unknown',
-            '{:,}'.format(len(self.variables_observed)) if 'variables_observed' in self._shelf else 'Unknown',
-            '{:,}'.format(len(self.variables_observable)) if 'variables_observable' in self._shelf else 'Unknown',
-            '{:,}'.format(len(self.variables_tagged)) if 'variables_tagged' in self._shelf else 'Unknown',
-            '{:,}'.format(len(self.variables_uncontrolled)) if 'variables_uncontrolled' in self._shelf else 'Unknown',
+            '{:,}'.format(len(self._shelf["variables_observed"])) if 'variables_observed' in self._shelf else 'Unknown',
+            '{:,}'.format(len(self._shelf["variables_observable"])) if 'variables_observable' in self._shelf else 'Unknown',
+            '{:,}'.format(len(self._shelf["variables_tagged"])) if 'variables_tagged' in self._shelf else 'Unknown',
+            '{:,}'.format(len(self._shelf["variables_uncontrolled"])) if 'variables_uncontrolled' in self._shelf else 'Unknown',
             str(self.log_prob) if hasattr(self, 'log_prob') else 'Unknown',
             str(self.log_importance_weight) if hasattr(self, 'log_importance_weight') else 'Unknown')
 
@@ -193,7 +196,7 @@ class TraceShelve():
         self._shelf["variables_dict_address"][variable.address] = variable
         self._shelf["variables_dict_address_base"][variable.address_base] = variable
         self._file_sync_countdown += 1
-        if self._file_sync_countdown >= self.file_sync_countdown:
+        if self._file_sync_countdown >= self.file_sync_timeout:
             self._shelf.sync()
             self._file_sync_countdown = 0
 
@@ -201,7 +204,7 @@ class TraceShelve():
         self.result = result
         self.execution_time_sec = execution_time_sec
         replaced_indices = []
-        for i in range(len(self.variables)):
+        for i in range(len(self._shelf["variables"])):
             variable = self._shelf["variables"][i]
             if variable.name is not None:
                 self._shelf["named_variables"][variable.name] = variable
