@@ -167,6 +167,17 @@ class TraceShelve():
         self._shelf["variables_dict_address"] = {}
         self._shelf["variables_dict_address_base"] = {}
         self._shelf["named_variables"] = {}
+        self.variables = self._shelf["variables"]
+        self.variables_controlled = self._shelf["variables_controlled"]
+        self.variables_uncontrolled = self._shelf["variables_uncontrolled"]
+        self.variables_replaced = self._shelf["variables_replaced"]
+        self.variables_observed = self._shelf["variables_observed"]
+        self.variables_observable = self._shelf["variables_observable"]
+        self.variables_tagged = self._shelf["variables_tagged"]
+        self.variables_dict_address = self._shelf["variables_dict_address"]
+        self.variables_dict_address_base = self._shelf["variables_dict_address_base"]
+        self.named_variables = self._shelf["named_variables"]
+
         self.result = None
         self.log_prob = 0.
         self.log_prob_observed = 0.
