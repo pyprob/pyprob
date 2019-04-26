@@ -151,7 +151,7 @@ class TraceShelve():
     """
     def __init__(self, file_name, file_sync_timeout=100):
 
-        shelf_flag = "r"
+        shelf_flag = "n"
         self._file_name = file_name
         self._shelf = shelve.open(self._file_name,
                                   flag=shelf_flag,
