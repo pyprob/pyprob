@@ -197,6 +197,7 @@ class TraceShelve():
         self._shelf["variables_dict_address_base"][variable.address_base] = variable
         self._file_sync_countdown += 1
         if self._file_sync_countdown >= self.file_sync_timeout:
+            print("SYNCING TRACE SHELF")
             self._shelf.sync()
             self._file_sync_countdown = 0
 
