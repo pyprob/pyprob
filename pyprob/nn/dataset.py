@@ -374,7 +374,7 @@ class DistributedTraceBatchSampler(Sampler):
             np.random.seed(self._epoch)
             np.random.shuffle(bucket_ids)
             np.random.set_state(st)
-        max_bucket_length = max([len(self._buckets[bucket_id]) for bucket_id in bucket_ids])/ self._world_size
+        max_bucket_length = math.floor(max([len(self._buckets[bucket_id]) for bucket_id in bucket_ids])/ self._world_size)
         while(max_bucket_length):
             max_bucket_length = max_bucket_length -1
             np.random_shuffle(bucket_ids)
