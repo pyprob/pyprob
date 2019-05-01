@@ -374,19 +374,24 @@ class DistributedTraceBatchSampler(Sampler):
             np.random.seed(self._epoch)
             np.random.shuffle(bucket_ids)
             np.random.set_state(st)
-        for bucket_id in bucket_ids:
-            bucket = self._buckets[bucket_id]
-            self._current_bucket_id = bucket_id
-            # num_batches is needed to ensure that all nodes have the same number of minibatches (iterations) in each bucket, in cases where the bucket size is not divisible by world_size.
-            num_batches = math.floor(len(bucket) / self._world_size)
-            # Select a num_batches-sized subset of the current bucket for the current node
-            # The part not selected by the current node will be selected by other nodes
-            batches = bucket[self._rank:len(bucket):self._world_size][:num_batches]
-            if self._shuffle_batches:
-                # Shuffle the list of minibatches (but not the order trace indices inside each minibatch) selected for the current node
-                np.random.shuffle(batches)
-            for batch in batches:
-                yield batch
-
+        max_bucket_length = max([len(self._buckets[bucket_id]) for bucket_id in bucket_ids])/ self._world_size
+        while(max_bucket_length):
+            max_bucket_length = max_bucket_length -1
+            np.random_shuffle(bucket_ids)
+            for bucket_id in bucket_ids:
+                bucket = self._buckets[bucket_id]
+                self._current_bucket_id = bucket_id
+                # num_batches is needed to ensure that all nodes have the same number of minibatches (iterations) in each bucket, in cases where the bucket size is not divisible by world_size.
+                num_batches = math.floor(len(bucket) / self._world_size)
+                # Select a num_batches-sized subset of the current bucket for the current node
+                # The part not selected by the current node will be selected by other nodes
+                batches = bucket[self._rank:len(bucket):self._world_size][:num_batches]
+                if self._shuffle_batches:
+                   # Shuffle the list of minibatches (but not the order trace indices inside each minibatch) selected for the current node
+                   np.random.shuffle(batches)
+                #for batch in batches:
+                #    yield batch
+                batch_rid = random.randint(0,len(batches)-1)
+                yield batches[batch_rid] 
     def __len__(self):
         return len(self._batches)
