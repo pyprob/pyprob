@@ -405,7 +405,7 @@ class InferenceNetwork(nn.Module):
             if distributed_world_size == 1:
                 dataloader_valid = DataLoader(dataset_valid, batch_sampler=TraceBatchSampler(dataset_valid, batch_size=batch_size, shuffle_batches=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
             else:
-                dataloader_valid = DataLoader(dataset_valid, batch_sampler=DistributedTraceBatchSampler(dataset_valid, batch_size=batch_size, num_buckets=distributed_num_buckets, shuffle_batches=True, shuffle_buckets=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+                dataloader_valid = DataLoader(dataset_valid, batch_sampler=DistributedTraceBatchSampler(dataset_valid, batch_size=batch_size, num_buckets=1, shuffle_batches=True, shuffle_buckets=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
             if not self._layers_pre_generated:
                 for i_batch, batch in enumerate(dataloader_valid):
                     self._polymorph(batch)
