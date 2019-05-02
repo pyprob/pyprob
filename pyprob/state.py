@@ -6,9 +6,8 @@ import time
 from termcolor import colored
 
 from .distributions import Normal, Categorical, Uniform, TruncatedNormal
-from .trace import Variable, Trace, TraceShelve
+from .trace import Variable, Trace, TraceHash
 from . import util, TraceMode, PriorInflation, InferenceEngine
-
 
 _trace_mode = TraceMode.PRIOR
 _inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
@@ -327,8 +326,10 @@ def _begin_trace(file_name=None, file_sync_timeout=100):
     global _current_trace_execution_start
     _current_trace_execution_start = time.time()
     if file_name is not None:
-        _current_trace = TraceShelve(file_name=file_name,
-                                     file_sync_timeout=file_sync_timeout)
+        #_current_trace = TraceShelve(file_name=file_name,
+        #                             file_sync_timeout=file_sync_timeout)
+        _current_trace = TraceHash(file_name=file_name)
+
     else:
         _current_trace = Trace()
     _current_trace_previous_variable = None

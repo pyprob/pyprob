@@ -14,7 +14,7 @@ from .remote import ModelServer
 
 
 class Model():
-    def __init__(self, name='Unnamed pyprob model', address_dict_file_name=None, use_trace_shelve=None):
+    def __init__(self, name='Unnamed pyprob model', address_dict_file_name=None, use_trace_hash=None):
         super().__init__()
         self.name = name
         self._inference_network = None
@@ -22,7 +22,7 @@ class Model():
             self._address_dictionary = None
         else:
             self._address_dictionary = AddressDictionary(address_dict_file_name)
-        self.use_trace_shelve = use_trace_shelve
+        self.use_trace_hash = use_trace_hash
 
     def forward(self):
         raise NotImplementedError()
@@ -65,7 +65,7 @@ class Model():
                                           inference_network=inference_network,
                                           observe=observe,
                                           likelihood_importance=likelihood_importance,
-                                          file_name="{}.traces".format(file_name) if self.use_trace_shelve else None,
+                                          file_name="{}.traces".format(file_name) if self.use_trace_hash else None,
                                           file_sync_timeout=file_sync_timeout,
                                           *args, **kwargs)
         traces = Empirical(file_name=file_name, file_sync_timeout=file_sync_timeout)

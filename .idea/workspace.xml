@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="cde8c6ed-9c14-4105-bdad-eecf5bc110b0" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/pyprob/trace.py" beforeDir="false" afterPath="$PROJECT_DIR$/pyprob/trace.py" afterDir="false" />
-    </list>
+    <list default="true" id="cde8c6ed-9c14-4105-bdad-eecf5bc110b0" name="Default Changelist" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -24,7 +22,7 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/pyprob/trace.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="555">
@@ -39,10 +37,21 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/pyprob/diagnostics.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="311">
-              <caret line="218" column="76" selection-start-line="218" selection-start-column="70" selection-end-line="218" selection-end-column="76" />
+            <state relative-caret-position="3195">
+              <caret line="213" column="36" lean-forward="true" selection-start-line="213" selection-start-column="36" selection-end-line="213" selection-end-column="36" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/pyprob/graph.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-732">
+              <folding>
+                <element signature="e#0#16#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -91,8 +100,8 @@
       <find>Trace</find>
       <find>begin_trace</find>
       <find>_trace_generator</find>
-      <find>trace.</find>
       <find>Trace(</find>
+      <find>trace.</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -170,12 +179,12 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1556278995817</updated>
-      <workItem from="1556278997312" duration="8827000" />
+      <workItem from="1556278997312" duration="9711000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="8827000" />
+    <option name="totallyTimeSpent" value="9711000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="67" y="25" width="1853" height="1175" extended-state="6" />
@@ -245,16 +254,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/pyprob/diagnostics.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="311">
-          <caret line="218" column="76" selection-start-line="218" selection-start-column="70" selection-end-line="218" selection-end-column="76" />
-          <folding>
-            <element signature="e#0#12#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/pyprob/model.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="315">
@@ -281,6 +280,25 @@
           <caret line="207" column="70" lean-forward="true" selection-start-line="207" selection-start-column="70" selection-end-line="207" selection-end-column="70" />
           <folding>
             <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/pyprob/diagnostics.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="3195">
+          <caret line="213" column="36" lean-forward="true" selection-start-line="213" selection-start-column="36" selection-end-line="213" selection-end-column="36" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/pyprob/graph.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-732">
+          <folding>
+            <element signature="e#0#16#0" expanded="true" />
           </folding>
         </state>
       </provider>
