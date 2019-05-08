@@ -367,31 +367,34 @@ class DistributedTraceBatchSampler(Sampler):
     def __iter__(self):
         self._epoch += 1
         bucket_ids = list(range(len(self._buckets)))
+        # For sampling without replacement, each bucket will be only visited (bucket_size/world_size) times, 
+        # If visiting requires a card, the total number of cards we can have equals the total number of iterations in one epoch
+        # e.g., bucket_0 has 6 minibatches, assuming 2 ranks, we will visit the bucket_0 3 times, therefore we have 3 cards for bucket_0
+        bucket_cards =list(np.concatenate( [np.repeat(bucket_id, math.floor(max([len(self._buckets[bucket_id])])/ self._world_size)) for bucket_id in bucket_ids ])
         if self._shuffle_buckets:
             # Shuffle the list of buckets (but not the order of minibatches inside each bucket) at the beginning of each epoch, deterministically based on the epoch number so that all nodes have the same bucket order
             # Idea from: https://github.com/pytorch/pytorch/blob/a3fb004b1829880547dd7b3e2cd9d16af657b869/torch/utils/data/distributed.py#L44
             st = np.random.get_state()
             np.random.seed(self._epoch)
-            np.random.shuffle(bucket_ids)
+            np.random.shuffle(bucket_cards)           
             np.random.set_state(st)
-        max_bucket_length = math.floor(max([len(self._buckets[bucket_id]) for bucket_id in bucket_ids])/ self._world_size)
-        while(max_bucket_length):
-            max_bucket_length = max_bucket_length -1
-            np.random.shuffle(bucket_ids)
-            for bucket_id in bucket_ids:
-                bucket = self._buckets[bucket_id]
-                self._current_bucket_id = bucket_id
-                # num_batches is needed to ensure that all nodes have the same number of minibatches (iterations) in each bucket, in cases where the bucket size is not divisible by world_size.
-                num_batches = math.floor(len(bucket) / self._world_size)
-                # Select a num_batches-sized subset of the current bucket for the current node
-                # The part not selected by the current node will be selected by other nodes
-                batches = bucket[self._rank:len(bucket):self._world_size][:num_batches]
-                if self._shuffle_batches:
-                   # Shuffle the list of minibatches (but not the order trace indices inside each minibatch) selected for the current node
-                   np.random.shuffle(batches)
-                #for batch in batches:
-                #    yield batch
-                batch_rid = random.randint(0,len(batches)-1)
-                yield batches[batch_rid] 
+        # Store each bucket's subset of minibatches for each rank
+        bucket_batches =[]
+        for bucket_id in bucket_ids:
+            bucket = self._buckets[bucket_id]
+            self._current_bucket_id = bucket_id
+            num_batches = math.floor(len(bucket) / self._world_size)
+            # Select a num_batches-sized subset of the current bucket for the current node
+            # The part not selected by the current node will be selected by other nodes
+            batches = bucket[self._rank:len(bucket):self._world_size][:num_batches]
+            if self._shuffle_batches:
+               # Shuffle the list of minibatches (but not the order trace indices inside each minibatch) selected for the current node
+               np.random.shuffle(batches)
+            bucket_batches.append(batches)
+        # Bucket switching
+        card_used=np.zeros(len(bucket_ids),dtype=int) # each rank has limited number of cards in each bucket, won't reuse in diff. iter.
+        for bcard in bucket_cards: 
+            card_used[bcard] += 1
+            yield bucket_batches[card_used[bcard]-1]
     def __len__(self):
         return len(self._batches)
