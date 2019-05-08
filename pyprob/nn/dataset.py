@@ -370,7 +370,7 @@ class DistributedTraceBatchSampler(Sampler):
         # For sampling without replacement, each bucket will be only visited (bucket_size/world_size) times, 
         # If visiting requires a card, the total number of cards we can have equals the total number of iterations in one epoch
         # e.g., bucket_0 has 6 minibatches, assuming 2 ranks, we will visit the bucket_0 3 times, therefore we have 3 cards for bucket_0
-        bucket_cards =list(np.concatenate( [np.repeat(bucket_id, math.floor(max([len(self._buckets[bucket_id])])/ self._world_size)) for bucket_id in bucket_ids ])
+        bucket_cards =list(np.concatenate( [np.repeat(bucket_id, math.floor(max([len(self._buckets[bucket_id])])/ self._world_size)) for bucket_id in bucket_ids ]))
         if self._shuffle_buckets:
             # Shuffle the list of buckets (but not the order of minibatches inside each bucket) at the beginning of each epoch, deterministically based on the epoch number so that all nodes have the same bucket order
             # Idea from: https://github.com/pytorch/pytorch/blob/a3fb004b1829880547dd7b3e2cd9d16af657b869/torch/utils/data/distributed.py#L44
