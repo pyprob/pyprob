@@ -63,6 +63,9 @@ class Model():
         traces.finalize()
         return traces
 
+    def get_trace(self, *args, **kwargs):
+        return next(self._trace_generator(*args, **kwargs))
+
     def prior_traces(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=None, file_name=None, likelihood_importance=1., *args, **kwargs):
         prior = self._traces(num_traces=num_traces, trace_mode=TraceMode.PRIOR, prior_inflation=prior_inflation, map_func=map_func, file_name=file_name, likelihood_importance=likelihood_importance, *args, **kwargs)
         prior.rename('Prior, traces: {:,}'.format(prior.length))
