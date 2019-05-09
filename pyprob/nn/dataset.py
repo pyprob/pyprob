@@ -344,12 +344,6 @@ class DistributedTraceBatchSampler(Sampler):
             raise RuntimeError('offline_dataset:{}, batch_size:{} and num_buckets:{} imply a bucket_size:{} smaller than world_size:{}'.format(len(offline_dataset), batch_size, num_buckets, self._bucket_size, self._world_size))
         # List of buckets, where each bucket is a list of minibatches
         self._buckets = list(util.chunks(self._batches, self._bucket_size))
-        # Unify last two buckets if the last bucket is smaller than other buckets
-        if len(self._buckets[-1]) < self._bucket_size:
-            if len(self._buckets) < 2:
-                raise RuntimeError('offline_dataset:{} too small for given batch_size:{} and num_buckets:{}'.format(len(offline_dataset), batch_size, num_buckets))
-            self._buckets[-2].extend(self._buckets[-1])
-            del(self._buckets[-1])
         self._shuffle_batches = shuffle_batches
         self._shuffle_buckets = shuffle_buckets
         self._epoch = 0
@@ -370,7 +364,7 @@ class DistributedTraceBatchSampler(Sampler):
         # For sampling without replacement, each bucket will be only visited (bucket_size/world_size) times, 
         # If visiting requires a card, the total number of cards we can have equals the total number of iterations in one epoch
         # e.g., bucket_0 has 6 minibatches, assuming 2 ranks, we will visit the bucket_0 3 times, therefore we have 3 cards for bucket_0
-        bucket_cards =list(np.concatenate( [np.repeat(bucket_id, math.floor(max([len(self._buckets[bucket_id])])/ self._world_size)) for bucket_id in bucket_ids ]))
+        bucket_cards =list(np.concatenate([np.repeat(bucket_id, math.floor(len(self._buckets[bucket_id])/ self._world_size)) for bucket_id in bucket_ids]))
         if self._shuffle_buckets:
             # Shuffle the list of buckets (but not the order of minibatches inside each bucket) at the beginning of each epoch, deterministically based on the epoch number so that all nodes have the same bucket order
             # Idea from: https://github.com/pytorch/pytorch/blob/a3fb004b1829880547dd7b3e2cd9d16af657b869/torch/utils/data/distributed.py#L44
@@ -380,6 +374,7 @@ class DistributedTraceBatchSampler(Sampler):
             np.random.set_state(st)
         # Store each bucket's subset of minibatches for each rank
         bucket_batches =[]
+        card_max = []
         for bucket_id in bucket_ids:
             bucket = self._buckets[bucket_id]
             self._current_bucket_id = bucket_id
@@ -391,10 +386,12 @@ class DistributedTraceBatchSampler(Sampler):
                # Shuffle the list of minibatches (but not the order trace indices inside each minibatch) selected for the current node
                np.random.shuffle(batches)
             bucket_batches.append(batches)
+            card_max.append(len(batches))
         # Bucket switching
         card_used=np.zeros(len(bucket_ids),dtype=int) # each rank has limited number of cards in each bucket, won't reuse in diff. iter.
         for bcard in bucket_cards: 
             card_used[bcard] += 1
-            yield bucket_batches[card_used[bcard]-1]
+            if(card_used[bcard]<=card_max[bcard]):
+               yield bucket_batches[card_used[bcard]-1]
     def __len__(self):
         return len(self._batches)
