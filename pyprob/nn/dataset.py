@@ -377,7 +377,6 @@ class DistributedTraceBatchSampler(Sampler):
         card_max = []
         for bucket_id in bucket_ids:
             bucket = self._buckets[bucket_id]
-            self._current_bucket_id = bucket_id
             num_batches = math.floor(len(bucket) / self._world_size)
             # Select a num_batches-sized subset of the current bucket for the current node
             # The part not selected by the current node will be selected by other nodes
@@ -390,6 +389,7 @@ class DistributedTraceBatchSampler(Sampler):
         # Bucket switching
         card_used=np.zeros(len(bucket_ids),dtype=int) # each rank has limited number of cards in each bucket, won't reuse in diff. iter.
         for bcard in bucket_cards: 
+            self._current_bucket_id = bcard
             card_used[bcard] += 1
             if(card_used[bcard]<=card_max[bcard]):
                yield bucket_batches[bcard][card_used[bcard]-1]
