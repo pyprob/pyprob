@@ -392,6 +392,6 @@ class DistributedTraceBatchSampler(Sampler):
         for bcard in bucket_cards: 
             card_used[bcard] += 1
             if(card_used[bcard]<=card_max[bcard]):
-               yield bucket_batches[card_used[bcard]-1]
+               yield bucket_batches[bcard][card_used[bcard]-1]
     def __len__(self):
         return len(self._batches)
