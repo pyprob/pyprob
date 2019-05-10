@@ -250,8 +250,6 @@ class HDFLogger():
 
 class TraceHash():
     """
-    Copyright 2019 by Christian Schroeder de Witt
-
     This storage class is designed for situations where the amount of trace data produced during a
     single forward() call is too large to be stored in RAM without compression.
 
