@@ -68,7 +68,7 @@ class LearningRateScheduler(enum.Enum):
     POLY2 = 2
 
 
-def set_random_seed(seed=123):
+def set_random_seed(seed=None):
     if seed is None:
         seed = int((time.time()*1e6) % 1e8)
     global _random_seed
