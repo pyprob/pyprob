@@ -11,6 +11,7 @@ from . import __version__, util
 from .distributions import Empirical
 from .graph import Graph
 from .trace import Trace
+from .mmd import learn_kernel
 
 
 def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_stats=None):
@@ -706,3 +707,196 @@ def gelman_rubin(trace_dists, names=None, iters=None, n_most_frequent=50, figsiz
             plt.show()
 
     return iters, variable_values
+
+
+def mmd(trace_dist_p, trace_dist_q, names=None, n_most_frequent=50,
+        test_set_portion=0.2, mmd_criterion='ratio', mmd_biased_est=False, mmd_streaming_est=False, mmd_linear_kernel=False, mmd_opt_log=True, mmd_sigma=1, mmd_init_sigma_median=False, mmd_opt_sigma=False,
+        mmd_net_version='nothing', mmd_num_epochs=200, mmd_batchsize=200, mmd_val_batchsize=1000, mmd_log_params=False, mmd_null_samples=1000, verbose=False, *args, **kwargs):
+    # This diagnostic uses the moethod proposed in:
+    # Sutherland et al. "Generative Models and Model Criticism via Optimized Maximum Mean Discrepancy", ICLR 2017.
+    # The implementation of the paper is here: https://github.com/dougalsutherland/opt-mmd
+
+    '''
+    Arguments
+    ---------
+    mmd_criterion {'ratio', 'mmd' , 'hotelling'}
+                            'ratio': Maximize the t-statistic estimator.
+                            'mmd': Maximize the MMD estimator.
+                            'hotelling': Maximize the Hotelling test statistics; only works with a linear kernel.
+    mmd_biased_est          Use the biased quadratic MMD estimator.
+    mmd_streaming_est       Use the streaming estimator for the MMD; faster but
+                            much less powerful.
+    mmd_linear_kernel       Use a linear kernel; if false, uses RBF kernel (default).
+    mmd_opt_log             Optimize the log of the criterion; true by default.
+    mmd_sigma               The initial bandwidth. default 1.
+    mmd_init_sigma_median   Initialize the bandwidth as the median of pairwise
+                            distances between representations of the training
+                            data.
+    mmd_opt_sigma           Optimize the bandwidth of an RBF kernel; default
+                            don't.
+    mmd_net_version {'basic', 'nothing', 'rbf', 'scaling', 'scaling-exp', 'scf'}
+                            How to represent the values before putting them in the
+                            kernel. Options defined in this file; default
+                            'nothing'.
+    mmd_num_epochs          Number of epochs for trainig learning kernel.
+                            default 200.
+    mmd_batchsize           Training batch size. default 200
+    mmd_val_batchsize       Balidation batch size. default 1000
+    mmd_log_params          Log the network parameters at every iteratio.
+                            default don't.
+    mmd_null_samples        How many times to sample from the null distribution
+                            to perform MMD test. default 1000.
+    verbose                 Will be forwarded to mmd training function. If
+                            true, some info (number of parameters to optimize,
+                            number of epochs passed, etc.) will be printed.
+
+    Returns
+    -------
+    variable_values         A dictionary of sample addresses to their analysis.
+                            The analysis itself is a dictronary with the
+                            following specifications: (key -> value)
+                            'variable' -> an object of type Variable containing
+                                          the random variable specifications.
+                            'values_p' -> numpy array of sampled values in P distribution
+                                          (shape: nxd, where n is the number of samples and d is the size of each sampled value)
+                            'values_q' -> numpy array of sampled values in Q distribution
+                                          (shape: nxd, as above)
+                            'mmd' -> The MMD test statistic.
+                            'p_val' -> The obtained p value of the MMD test.
+    '''
+
+    # TODO: support for multi-dimensinal samples.
+    # TODO: cleanup verbose for learn_kernel and mmd evaluation.
+    # TODO: Integrate this local _variable_values with the other main one.
+    def _variable_values(trace_dist, names=None, n_most_frequent=None, num_traces=None):
+        if num_traces is None:
+            num_traces = trace_dist.length
+        if names is None:
+            name_counts = defaultdict(int)
+            for i in range(num_traces):
+                trace = trace_dist._get_value(i)
+                for name in trace.named_variables.keys():
+                    name_counts[name] += 1
+            names = [name for name in name_counts if name_counts[name] == num_traces]  # Names of named variables that are found in all traces
+
+        variable_values = defaultdict(lambda: {'variable': None, 'values': np.ones(num_traces) * np.nan})
+        # Select named variables to process
+        for name in names:
+            variable = trace_dist[0].named_variables[name]
+            if variable.value.nelement() == 1:
+                variable_values[variable.address]['variable'] = variable
+
+        # Select most frequent variables to process (either named or not named)
+        if n_most_frequent is not None:
+            addresses = _n_most_frequent_addresses(trace_dist, n_most_frequent, num_traces)
+            for address in addresses:
+                variable = None
+                for trace_sample in trace_dist:
+                    if address in trace_sample.variables_dict_address:
+                        variable = trace_sample.variables_dict_address[address]
+                        break
+                if variable.value.nelement() == 1:
+                    variable_values[variable.address]['variable'] = variable
+
+        if len(variable_values) == 0:
+            raise RuntimeError('No variables with scalar value.')
+
+        util.progress_bar_init('Loading selected variables to memory', num_traces, 'Traces')
+        for i in range(num_traces):
+            trace = trace_dist._get_value(i)
+            util.progress_bar_update(i)
+            for address, v in variable_values.items():
+                if address in trace.variables_dict_address:
+                    v['values'][i] = float(trace.variables_dict_address[address].value)
+                else:
+                    v['values'][i] = float('nan')
+        util.progress_bar_end()
+        return variable_values
+
+    variable_values_p = _variable_values(trace_dist_p, names, n_most_frequent)
+    variable_values_q = _variable_values(trace_dist_q, names, n_most_frequent)
+
+    # Remove 'nan's from sampled values
+    for variable_values in [variable_values_p, variable_values_q]:
+        for address, v in variable_values.items():
+            values_np = v['values']
+            values_np = values_np[~np.isnan(values_np)]
+            v['values'] = values_np
+            variable_values[address] = v
+
+    variable_values = {}    # Will contain aggregated values and mmd.
+    for i, address in enumerate(variable_values_p):
+        if variable_values_p[address]['variable'].observed:
+            # Do not perform MMD test on observed variables
+            continue
+        variable_info_log = 'address: {}, name: {} ({} of {})'.format(v['variable'].address, v['variable'].name, i + 1, len(variable_values_p))
+        if address not in variable_values_q:
+            print('Variable not found in q distribution. It will be ignored. ({})'.format(variable_info_log))
+            continue
+        v_p = variable_values_p[address]['values']
+        v_q = variable_values_q[address]['values'] # Get the samples for the same address from the other distribution
+        # Reshape sampled values to nxd where n is the number of samples and d is samples' dimension
+        if v_p.ndim == 1:
+            v_p = v_p.reshape(-1, 1)
+        if v_q.ndim == 1:
+            v_q = v_q.reshape(-1, 1)
+        num_samples = min(len(v_p), len(v_q))
+        # Remove extra samples from the larger sample set.
+        if len(v_p) > len(v_q):
+            print('Q has less samples')
+            v_p = np.random.choice(v_p, num_samples, replace=False)
+        elif len(v_q) > len(v_p):
+            print('P has less samples')
+            v_q = np.random.choice(v_q, num_samples, replace=False)
+
+        n_test = int(num_samples * test_set_portion)
+        n_train = num_samples - n_test
+        if n_test == 0:
+            print('Too few samples ({}) exists. It will be ignored. ({})'.format(variable_info_log))
+            continue
+
+        X, Y = v_p, v_q
+        is_train = np.zeros(n_train + n_test, dtype=bool)
+        is_train[np.random.choice(n_train + n_test, n_train, replace=False)] = True
+        X_train = X[is_train]
+        Y_train = Y[is_train]
+        X_test = X[~is_train]
+        Y_test = Y[~is_train]
+        print('Optimizing MMD kernel for variable {}'.format(variable_info_log))
+        params, param_names, get_rep, value_log, sigma = learn_kernel.train(
+            X_train, Y_train, X_test, Y_test,
+            criterion=mmd_criterion,
+            biased=mmd_biased_est,
+            hotelling_reg=0,
+            streaming_est=mmd_streaming_est,
+            linear_kernel=mmd_linear_kernel,
+            opt_log=mmd_opt_log,
+            init_log_sigma=np.log(mmd_sigma),
+            init_sigma_median=mmd_init_sigma_median,
+            opt_sigma=mmd_opt_sigma,
+            net_version=mmd_net_version,
+            num_epochs=mmd_num_epochs,
+            batchsize=mmd_batchsize,
+            val_batchsize=mmd_val_batchsize,
+            opt_strat='adam',
+            log_params=mmd_log_params,
+            verbose=verbose,
+            **kwargs)
+        print('Computing MMD for variable {}'.format(variable_info_log))
+        p_val, stat, null_samps = learn_kernel.eval_rep(
+            get_rep, X_test, Y_test,
+            linear_kernel=mmd_linear_kernel, sigma=sigma,
+            hotelling=(mmd_criterion == 'hotelling'),
+            null_samples=mmd_null_samples)
+        # Aggregate info about P and Q in "variable values"
+        v = {}
+        v['mmd'] = stat
+        v['p_val'] = p_val
+        for vv_key in variable_values_p[address]:
+            if vv_key != 'values':
+                v[vv_key] = variable_values_p[address][vv_key]
+        v['values_p'] = X
+        v['values_q'] = Y
+        variable_values[address] = v
+
+    return variable_values
