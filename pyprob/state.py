@@ -310,7 +310,8 @@ def _init_traces(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflatio
     else:
         _current_trace_inference_network.eval()
         _current_trace_inference_network._infer_init(_current_trace_observed_variables)
-        _current_trace_inference_network_proposal_min_train_iterations = int(_current_trace_inference_network._total_train_iterations / 10)
+        # _current_trace_inference_network_proposal_min_train_iterations = int(_current_trace_inference_network._total_train_iterations / 10)
+        _current_trace_inference_network_proposal_min_train_iterations = None
 
     if _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
         global _metropolis_hastings_trace
