@@ -25,7 +25,7 @@ class EmpiricalType(enum.Enum):
 
 
 class Empirical(Distribution):
-    def __init__(self, values=None, log_weights=None, weights=None, file_name=None, file_read_only=False, file_sync_timeout=1000, file_writeback=False, concat_empiricals=None, concat_empirical_file_names=None, name='Empirical'):
+    def __init__(self, values=None, log_weights=None, weights=None, file_name=None, file_read_only=False, file_sync_timeout=25, file_writeback=False, concat_empiricals=None, concat_empirical_file_names=None, name='Empirical'):
         super().__init__(name)
         self._finalized = False
         self._read_only = file_read_only
