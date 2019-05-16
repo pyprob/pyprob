@@ -201,9 +201,10 @@ class Model():
 
 
 class RemoteModel(Model):
-    def __init__(self, server_address='tcp://127.0.0.1:5555', *args, **kwargs):
+    def __init__(self, server_address='tcp://127.0.0.1:5555', forward_after_func=None, *args, **kwargs):
         self._server_address = server_address
         self._model_server = None
+        self._forward_after_func = forward_after_func  # Any extra things to run in Python after each forward call of the remote model (simulator)
         super().__init__(*args, **kwargs)
 
     def close(self):
@@ -211,14 +212,12 @@ class RemoteModel(Model):
             self._model_server.close()
         super().close()
 
-    def forward_after(self):  # Any extra things to run in Python after each forward call of the remote model (simulator)
-        return
-
     def forward(self):
         if self._model_server is None:
             self._model_server = ModelServer(self._server_address)
             self.name = '{} running on {}'.format(self._model_server.model_name, self._model_server.system_name)
 
         ret = self._model_server.forward()
-        self.forward_after()
+        if self._forward_after_func is not None:
+            self._forward_after_func()
         return ret
