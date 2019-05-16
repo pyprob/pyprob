@@ -134,7 +134,7 @@ def observe(distribution, value=None, name=None, address=None):
     if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
         log_importance_weight = float(log_prob)
     else:
-        log_importance_weight = None
+        log_importance_weight = None  # TODO: Check the reason/behavior for this
 
     variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, observed=True, name=name)
     _current_trace.add(variable)
@@ -167,8 +167,11 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
     if name in _current_trace_observed_variables:
         # Variable is observed
         value = _current_trace_observed_variables[name]
-        log_prob = distribution.log_prob(value, sum=True)
-        log_importance_weight = float(log_prob)
+        log_prob = _likelihood_importance * distribution.log_prob(value, sum=True)
+        if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+            log_importance_weight = float(log_prob)
+        else:
+            log_importance_weight = None  # TODO: Check the reason/behavior for this
         variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, observed=True, name=name)
     else:
         reused = False
