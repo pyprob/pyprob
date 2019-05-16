@@ -14,7 +14,7 @@ from .remote import ModelServer
 
 
 class Model():
-    def __init__(self, name='Unnamed pyprob model', address_dict_file_name=None):
+    def __init__(self, name='Unnamed pyprob model', address_dict_file_name=None, use_trace_hash=None):
         super().__init__()
         self.name = name
         self._inference_network = None
@@ -22,21 +22,53 @@ class Model():
             self._address_dictionary = None
         else:
             self._address_dictionary = AddressDictionary(address_dict_file_name)
+        self.use_trace_hash = use_trace_hash
 
     def forward(self):
         raise NotImplementedError()
 
-    def _trace_generator(self, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None, likelihood_importance=1., *args, **kwargs):
+    def _trace_generator(self,
+                         trace_mode=TraceMode.PRIOR,
+                         prior_inflation=PriorInflation.DISABLED,
+                         inference_engine=InferenceEngine.IMPORTANCE_SAMPLING,
+                         inference_network=None,
+                         observe=None,
+                         metropolis_hastings_trace=None,
+                         likelihood_importance=1.,
+                         file_name=None,
+                         file_sync_timeout=100,
+                         *args,
+                         **kwargs):
         state._init_traces(func=self.forward, trace_mode=trace_mode, prior_inflation=prior_inflation, inference_engine=inference_engine, inference_network=inference_network, observe=observe, metropolis_hastings_trace=metropolis_hastings_trace, address_dictionary=self._address_dictionary, likelihood_importance=likelihood_importance)
         while True:
-            state._begin_trace()
+            state._begin_trace(file_name=file_name, file_sync_timeout=file_sync_timeout)
             result = self.forward(*args, **kwargs)
             trace = state._end_trace(result)
             yield trace
 
-    def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=None, silent=False, observe=None, file_name=None, likelihood_importance=1., *args, **kwargs):
-        generator = self._trace_generator(trace_mode=trace_mode, prior_inflation=prior_inflation, inference_engine=inference_engine, inference_network=inference_network, observe=observe, likelihood_importance=likelihood_importance, *args, **kwargs)
-        traces = Empirical(file_name=file_name)
+    def _traces(self,
+                num_traces=10,
+                trace_mode=TraceMode.PRIOR,
+                prior_inflation=PriorInflation.DISABLED,
+                inference_engine=InferenceEngine.IMPORTANCE_SAMPLING,
+                inference_network=None,
+                map_func=None,
+                silent=False,
+                observe=None,
+                file_name=None,
+                likelihood_importance=1.,
+                file_sync_timeout=1000,
+                *args, **kwargs):
+        generator = self._trace_generator(trace_mode=trace_mode,
+                                          prior_inflation=prior_inflation,
+                                          inference_engine=inference_engine,
+                                          inference_network=inference_network,
+                                          observe=observe,
+                                          likelihood_importance=likelihood_importance,
+                                          file_name="{}.traces".format(file_name) if self.use_trace_hash else None,
+                                          file_sync_timeout=file_sync_timeout,
+                                          *args, **kwargs)
+        traces = Empirical(file_name=file_name, file_sync_timeout=file_sync_timeout)
         if map_func is None:
             map_func = lambda trace: trace
         time_start = time.time()
@@ -198,9 +230,10 @@ class Model():
 
 
 class RemoteModel(Model):
-    def __init__(self, server_address='tcp://127.0.0.1:5555', *args, **kwargs):
+    def __init__(self, server_address='tcp://127.0.0.1:5555', forward_after_func=None, *args, **kwargs):
         self._server_address = server_address
         self._model_server = None
+        self._forward_after_func = forward_after_func  # Any extra things to run in Python after each forward call of the remote model (simulator)
         super().__init__(*args, **kwargs)
 
     def close(self):
@@ -213,4 +246,7 @@ class RemoteModel(Model):
             self._model_server = ModelServer(self._server_address)
             self.name = '{} running on {}'.format(self._model_server.model_name, self._model_server.system_name)
 
-        return self._model_server.forward()
+        ret = self._model_server.forward()
+        if self._forward_after_func is not None:
+            self._forward_after_func()
+        return ret
