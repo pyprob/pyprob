@@ -211,9 +211,14 @@ class RemoteModel(Model):
             self._model_server.close()
         super().close()
 
+    def forward_after(self):  # Any extra things to run in Python after each forward call of the remote model (simulator)
+        return
+
     def forward(self):
         if self._model_server is None:
             self._model_server = ModelServer(self._server_address)
             self.name = '{} running on {}'.format(self._model_server.model_name, self._model_server.system_name)
 
-        return self._model_server.forward()
+        ret = self._model_server.forward()
+        self.forward_after()
+        return ret
