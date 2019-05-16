@@ -86,7 +86,7 @@ class Trace():
             '{:,}'.format(len(self.variables_observable)) if hasattr(self, 'variables_observable') else 'Unknown',
             '{:,}'.format(len(self.variables_tagged)) if hasattr(self, 'variables_tagged') else 'Unknown',
             '{:,}'.format(len(self.variables_uncontrolled)) if hasattr(self, 'variables_uncontrolled') else 'Unknown',
-            str(self.log_prob) if hasattr(self, 'lob_prob') else 'Unknown',
+            str(self.log_prob) if hasattr(self, 'log_prob') else 'Unknown',
             str(self.log_importance_weight) if hasattr(self, 'log_importance_weight') else 'Unknown')
 
     def add(self, variable):
