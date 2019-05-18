@@ -30,6 +30,7 @@ _log_epsilon = math.log(_epsilon)  # log(1e-8) = -18.420680743952367
 class TraceMode(enum.Enum):
     PRIOR = 1
     POSTERIOR = 2
+    PRIOR_FOR_INFERENCE_NETWORK = 3
 
 
 class PriorInflation(enum.Enum):

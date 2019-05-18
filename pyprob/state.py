@@ -161,11 +161,10 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
         address_base = _address_dictionary.address_to_id(address_base)
 
     instance = _current_trace.last_instance(address_base) + 1
-    address = address_base + '__' + ('replaced' if replace else str(instance))
-    log_importance_weight = None
 
     if name in _current_trace_observed_variables:
         # Variable is observed
+        address = address_base + '__' + str(instance)
         value = _current_trace_observed_variables[name]
         log_prob = _likelihood_importance * distribution.log_prob(value, sum=True)
         if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
@@ -174,27 +173,26 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
             log_importance_weight = None  # TODO: Check the reason/behavior for this
         variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, observed=True, name=name)
     else:
+        # Variable is sampled
         reused = False
         observed = False
-        update_previous_variable = False
-
-        if _trace_mode == TraceMode.PRIOR:
-            inflated_distribution = _inflate(distribution)
-            if inflated_distribution is None:
-                value = distribution.sample()
-                log_prob = distribution.log_prob(value, sum=True)
-            else:
-                value = inflated_distribution.sample()
-                log_prob = distribution.log_prob(value, sum=True)
-                log_importance_weight = float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))
-        else:  # _trace_mode == TraceMode.POSTERIOR
+        if _trace_mode == TraceMode.POSTERIOR:
             if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
-                value = distribution.sample()
-                log_prob = distribution.log_prob(value, sum=True)
-                log_importance_weight = 0  # log_importance_weight is zero when running importance sampling with prior as proposal
+                address = address_base + '__' + str(instance)
+                inflated_distribution = _inflate(distribution)
+                if inflated_distribution is None:
+                    value = distribution.sample()
+                    log_prob = distribution.log_prob(value, sum=True)
+                    log_importance_weight = None
+                else:
+                    value = inflated_distribution.sample()
+                    log_prob = distribution.log_prob(value, sum=True)
+                    log_importance_weight = float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))  # To account for prior inflation
             elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+                address = address_base + '__' + ('replaced' if replace else str(instance))
                 if control:
                     variable = Variable(distribution=distribution, value=None, address_base=address_base, address=address, instance=instance, log_prob=0., control=control, replace=replace, name=name, observed=observed, reused=reused)
+                    update_previous_variable = False
                     if replace:
                         # TODO: address not in _current_trace_replaced_variable_proposal_distributions might not be sufficient to discover a new replace loop instance. Implement better.
                         if address not in _current_trace_replaced_variable_proposal_distributions:
@@ -204,7 +202,6 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                     else:
                         proposal_distribution = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
                         update_previous_variable = True
-
                     value = proposal_distribution.sample()
                     if value.dim() > 0:
                         value = value[0]
@@ -221,10 +218,18 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                         print('value', value)
                         print('log_prob', proposal_log_prob)
                     log_importance_weight = float(log_prob) - float(proposal_log_prob)
+                    if update_previous_variable:
+                        variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, replace=replace, name=name, observed=observed, reused=reused)
+                        _current_trace_previous_variable = variable
+                        # print('prev_var address {}'.format(variable.address))
                 else:
                     value = distribution.sample()
                     log_prob = distribution.log_prob(value, sum=True)
+                    log_importance_weight = None
+                address = address_base + '__' + str(instance)
             else:  # _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
+                address = address_base + '__' + str(instance)
+                log_importance_weight = None
                 if _metropolis_hastings_trace is None:
                     value = distribution.sample()
                     log_prob = distribution.log_prob(value, sum=True)
@@ -275,9 +280,22 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                             log_prob = distribution.log_prob(value, sum=True)
                             reused = False
 
+        else:  # _trace_mode == TraceMode.PRIOR or _trace_mode == TraceMode.PRIOR_FOR_INFERENCE_NETWORK:
+            if _trace_mode == TraceMode.PRIOR:
+                address = address_base + '__' + str(instance)
+            elif _trace_mode == TraceMode.PRIOR_FOR_INFERENCE_NETWORK:
+                address = address_base + '__' + ('replaced' if replace else str(instance))
+            inflated_distribution = _inflate(distribution)
+            if inflated_distribution is None:
+                value = distribution.sample()
+                log_prob = distribution.log_prob(value, sum=True)
+                log_importance_weight = None
+            else:
+                value = inflated_distribution.sample()
+                log_prob = distribution.log_prob(value, sum=True)
+                log_importance_weight = float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))  # To account for prior inflation
+
         variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, replace=replace, name=name, observed=observed, reused=reused)
-        if update_previous_variable:
-            _current_trace_previous_variable = variable
 
     _current_trace.add(variable)
     return variable.value
