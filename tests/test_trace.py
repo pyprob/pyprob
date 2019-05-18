@@ -1,54 +1,51 @@
 import unittest
-import math
-import torch
 
 import pyprob
 from pyprob import util, Model, InferenceEngine
 from pyprob.distributions import Uniform, Normal
 from pyprob.nn import OnlineDataset
 
-#
-#
-# class TraceTestCase(unittest.TestCase):
-#     def __init__(self, *args, **kwargs):
-#         class TestModel(Model):
-#             def __init__(self):
-#                 super().__init__('Test')
-#
-#             def forward(self):
-#                 uniform = Uniform(0, 1)
-#                 val = pyprob.sample(uniform)
-#                 val = pyprob.sample(uniform)
-#                 val = pyprob.sample(uniform, control=False)
-#                 val = pyprob.sample(uniform, control=False)
-#                 val = pyprob.sample(uniform, control=False)
-#                 pyprob.tag(value=val, name='val')
-#                 pyprob.observe(uniform, 0.5)
-#                 pyprob.observe(uniform, 0.5)
-#                 pyprob.observe(uniform, 0.5)
-#                 pyprob.observe(uniform, 0.5)
-#                 return val
-#
-#         self._model = TestModel()
-#         super().__init__(*args, **kwargs)
-#
-#     def test_trace_controlled_uncontrolled_observed(self):
-#         controlled_correct = 2
-#         uncontrolled_correct = 3
-#         observed_correct = 4
-#
-#         trace = self._model._traces(1)[0]
-#         controlled = len(trace.variables_controlled)
-#         uncontrolled = len(trace.variables_uncontrolled)
-#         observed = len(trace.variables_observed)
-#         tagged_val = 'val' in trace.named_variables
-#
-#         util.eval_print('controlled', 'controlled_correct', 'uncontrolled', 'uncontrolled_correct', 'observed', 'observed_correct', 'tagged_val')
-#
-#         self.assertEqual(controlled, controlled_correct)
-#         self.assertEqual(uncontrolled, uncontrolled_correct)
-#         self.assertEqual(observed, observed_correct)
-#         self.assertTrue(tagged_val)
+
+class TraceTestCase(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        class TestModel(Model):
+            def __init__(self):
+                super().__init__('Test')
+
+            def forward(self):
+                uniform = Uniform(0, 1)
+                val = pyprob.sample(uniform)
+                val = pyprob.sample(uniform)
+                val = pyprob.sample(uniform, control=False)
+                val = pyprob.sample(uniform, control=False)
+                val = pyprob.sample(uniform, control=False)
+                pyprob.tag(value=val, name='val')
+                pyprob.observe(uniform, 0.5)
+                pyprob.observe(uniform, 0.5)
+                pyprob.observe(uniform, 0.5)
+                pyprob.observe(uniform, 0.5)
+                return val
+
+        self._model = TestModel()
+        super().__init__(*args, **kwargs)
+
+    def test_trace_controlled_uncontrolled_observed(self):
+        controlled_correct = 2
+        uncontrolled_correct = 3
+        observed_correct = 4
+
+        trace = self._model._traces(1)[0]
+        controlled = len(trace.variables_controlled)
+        uncontrolled = len(trace.variables_uncontrolled)
+        observed = len(trace.variables_observed)
+        tagged_val = 'val' in trace.named_variables
+
+        util.eval_print('controlled', 'controlled_correct', 'uncontrolled', 'uncontrolled_correct', 'observed', 'observed_correct', 'tagged_val')
+
+        self.assertEqual(controlled, controlled_correct)
+        self.assertEqual(uncontrolled, uncontrolled_correct)
+        self.assertEqual(observed, observed_correct)
+        self.assertTrue(tagged_val)
 
 
 class RejectionSamplingTraceTestCase(unittest.TestCase):
@@ -100,7 +97,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
         self.assertEqual(trace_addresses, trace_addresses_correct)
 
-    def test_importance_sampling(self):
+    def test_posterior_importance_sampling(self):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
         posterior = self._model.posterior_traces(1, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
@@ -113,7 +110,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
         self.assertEqual(trace_addresses, trace_addresses_correct)
 
-    def test_importance_sampling_with_inference_network(self):
+    def test_posterior_importance_sampling_with_inference_network(self):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
         self._model.learn_inference_network(num_traces=10, observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}})
@@ -127,7 +124,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
         self.assertEqual(trace_addresses, trace_addresses_correct)
 
-    def test_lightweight_metropolis_hastings(self):
+    def test_posterior_lightweight_metropolis_hastings(self):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
 
@@ -141,7 +138,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
         self.assertEqual(trace_addresses, trace_addresses_correct)
 
-    def test_random_walk_metropolis_hastings(self):
+    def test_posterior_random_walk_metropolis_hastings(self):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
 
