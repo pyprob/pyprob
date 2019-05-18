@@ -43,12 +43,12 @@ def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_sta
                             address_id = 'A' + str(len(address_ids) + 1)
                     else:
                         if address_base.startswith('__A'):
-                            address_id = address_base[2:] + '__' + ('replaced' if variable.replace else str(variable.instance))
+                            address_id = address[2:]
                         else:
                             if address_base not in address_base_ids:
                                 address_base_id = 'A' + str(len(address_base_ids) + 1)
                                 address_base_ids[address_base] = address_base_id
-                            address_id = address_base_ids[address_base] + '__' + ('replaced' if variable.replace else str(variable.instance))
+                            address_id = address_base_ids[address_base] + '__' + str(variable.instance)
                     address_ids[key] = address_id
                 addresses[key] = {'count': 1, 'weight': trace_weight, 'address_id': address_id, 'variable': variable}
                 address_id_to_variable[address_id] = variable
