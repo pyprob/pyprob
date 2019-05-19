@@ -631,7 +631,7 @@ def autocorrelation(trace_dist, names=None, lags=None, n_most_frequent=None, fig
     return lags, variable_values
 
 
-def gelman_rubin(trace_dists, names=None, iters=None, n_most_frequent=50, figsize=(10, 5), xticks=None, yticks=None, log_xscale=False, log_yscale=True, plot=False, plot_show=True, file_name=None, *args, **kwargs):
+def gelman_rubin(trace_dists, names=None, iters=None, n_most_frequent=50, figsize=(10, 5), xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, file_name=None, *args, **kwargs):
     def _r_hat(values):
         m, n = values.shape[0], values.shape[1]  # m: number of chains, n: length of chains
         if m < 2:
