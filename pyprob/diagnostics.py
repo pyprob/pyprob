@@ -545,11 +545,13 @@ def _variable_values(trace_dist, names=None, n_most_frequent=None, num_traces=No
                 name_counts[name] += 1
         names = [name for name in name_counts if name_counts[name] == num_traces]  # Names of named variables that are found in all traces
 
-    variable_values = defaultdict(lambda: {'variable': None, 'values': np.ones(num_traces) * np.nan})
+    variable_values = {}
     # Select named variables to process
     for name in names:
         variable = trace_dist[0].named_variables[name]
         if variable.value.nelement() == 1:
+            if variable.address not in variable_values:
+                variable_values[variable.address] = {'variable': None, 'values': np.ones(num_traces) * np.nan}
             variable_values[variable.address]['variable'] = variable
 
     # Select most frequent variables to process (either named or not named)
@@ -558,6 +560,8 @@ def _variable_values(trace_dist, names=None, n_most_frequent=None, num_traces=No
         for address in addresses:
             variable = trace_dist[0].variables_dict_address[address]
             if variable.value.nelement() == 1:
+                if variable.address not in variable_values:
+                    variable_values[variable.address] = {'variable': None, 'values': np.ones(num_traces) * np.nan}
                 variable_values[variable.address]['variable'] = variable
 
     if len(variable_values) == 0:
