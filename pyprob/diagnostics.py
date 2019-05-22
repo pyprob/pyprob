@@ -945,6 +945,7 @@ def jensen_shannon(trace_dist_p, trace_dist_q, names=None, n_most_frequent=50,
 
         range_ = (min(np.min(v_p), np.min(v_q)), max(np.max(v_p), np.max(v_q)))
         bins_seq = np.linspace(*range_, bins)
+        bin_width = bins_seq[1] - bins_seq[0]
         p_probs = np.histogram(v_p, bins=bins, density=True)[0]
         q_probs = np.histogram(v_q, bins=bins, density=True)[0]
 
@@ -968,6 +969,7 @@ def jensen_shannon(trace_dist_p, trace_dist_q, names=None, n_most_frequent=50,
         v['values'] = {}
         v['values'][trace_dist_p.name] = v_p
         v['values'][trace_dist_q.name] = v_q
+        v['bin_width'] = bin_width
         variable_info[address_id] = v
 
     util.progress_bar_end()
@@ -980,7 +982,7 @@ def jensen_shannon(trace_dist_p, trace_dist_q, names=None, n_most_frequent=50,
         divergence_info_csv = file_name + '_info.csv'
         print('Saving Jensen–Shannon diagnostic info to CSV: {}'.format(divergence_info_csv))
         with open(divergence_info_csv, 'w') as csvfile:
-            csv_titles = ['Name', 'ID', 'Address', 'Divergence', 'sample-size']
+            csv_titles = ['Name', 'ID', 'Address', 'Divergence', 'sample-size', 'bin width']
             csv_writer = csv.DictWriter(csvfile, fieldnames=csv_titles)
             csv_writer.writeheader()
             for k, v in variable_info.items():
@@ -990,11 +992,13 @@ def jensen_shannon(trace_dist_p, trace_dist_q, names=None, n_most_frequent=50,
                 info['Address'] = v['variable'].address
                 info['Divergence'] = v['divergence']
                 info['sample-size'] = len(v['values'][next(iter(v['values']))])
+                info['bin width'] = v['bin_width']
                 csv_writer.writerow(info)
 
             divergence_values = [v['divergence'] for v in variable_info.values()]
             divergence_mean = np.mean(divergence_values)
             divergence_var = np.var(divergence_values)
+            csv_writer.writerow({csv_titles[0]: 'Number of bins', csv_titles[1]: bins})
             csv_writer.writerow({csv_titles[0]: 'Jensen–Shannon mean', csv_titles[1]: divergence_mean})
             csv_writer.writerow({csv_titles[0]: 'Jensen–Shannon variance', csv_titles[1]: divergence_var})
             print('Jensen–Shannon mean = {}, Jensen–Shannon variance = {}'.format(divergence_mean, divergence_var))
