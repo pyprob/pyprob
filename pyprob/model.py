@@ -95,6 +95,9 @@ class Model():
         traces.finalize()
         return traces
 
+    def get_trace(self, *args, **kwargs):
+        return next(self._trace_generator(*args, **kwargs))
+
     def prior_traces(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=None, file_name=None, likelihood_importance=1., *args, **kwargs):
         prior = self._traces(num_traces=num_traces, trace_mode=TraceMode.PRIOR, prior_inflation=prior_inflation, map_func=map_func, file_name=file_name, likelihood_importance=likelihood_importance, *args, **kwargs)
         prior.rename('Prior, traces: {:,}'.format(prior.length))
@@ -180,7 +183,7 @@ class Model():
     def reset_inference_network(self):
         self._inference_network = None
 
-    def learn_inference_network(self, num_traces, num_traces_end=1e9, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, dataset_valid_dir=None, observe_embeddings={}, batch_size=64, valid_size=None, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate_init=0.001, learning_rate_end=1e-6, learning_rate_scheduler_type=LearningRateScheduler.NONE, momentum=0.9, weight_decay=0., save_file_name_prefix=None, save_every_sec=600, pre_generate_layers=True, distributed_backend=None, distributed_params_sync_every_iter=10000, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=True, log_file_name=None, lstm_dim=512, lstm_depth=1, proposal_mixture_components=10):
+    def learn_inference_network(self, num_traces, num_traces_end=1e9, inference_network=InferenceNetwork.FEEDFORWARD, prior_inflation=PriorInflation.DISABLED, dataset_dir=None, dataset_valid_dir=None, observe_embeddings={}, batch_size=64, valid_size=None, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate_init=0.001, learning_rate_end=1e-6, learning_rate_scheduler_type=LearningRateScheduler.NONE, momentum=0.9, weight_decay=0., save_file_name_prefix=None, save_every_sec=600, pre_generate_layers=True, distributed_backend=None, distributed_params_sync_every_iter=10000, distributed_num_buckets=None, dataloader_offline_num_workers=0, stop_with_bad_loss=True, log_file_name=None, lstm_dim=512, lstm_depth=1, proposal_mixture_components=10):
         if dataset_dir is None:
             dataset = OnlineDataset(model=self, prior_inflation=prior_inflation)
         else:
@@ -230,10 +233,11 @@ class Model():
 
 
 class RemoteModel(Model):
-    def __init__(self, server_address='tcp://127.0.0.1:5555', forward_after_func=None, *args, **kwargs):
+    def __init__(self, server_address='tcp://127.0.0.1:5555', before_forward_func=None, after_forward_func=None, *args, **kwargs):
         self._server_address = server_address
         self._model_server = None
-        self._forward_after_func = forward_after_func  # Any extra things to run in Python after each forward call of the remote model (simulator)
+        self._before_forward_func = before_forward_func  # Optional mthod to run before each forward call of the remote model (simulator)
+        self._after_forward_func = after_forward_func  # Optional method to run after each forward call of the remote model (simulator)
         super().__init__(*args, **kwargs)
 
     def close(self):
@@ -245,8 +249,9 @@ class RemoteModel(Model):
         if self._model_server is None:
             self._model_server = ModelServer(self._server_address)
             self.name = '{} running on {}'.format(self._model_server.model_name, self._model_server.system_name)
-
-        ret = self._model_server.forward()
-        if self._forward_after_func is not None:
-            self._forward_after_func()
+        if self._before_forward_func is not None:
+            self._before_forward_func()
+        ret = self._model_server.forward()  # Calls the forward run of the remove model (simulator)
+        if self._after_forward_func is not None:
+            self._after_forward_func()
         return ret

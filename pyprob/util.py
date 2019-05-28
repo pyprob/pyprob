@@ -30,6 +30,7 @@ _log_epsilon = math.log(_epsilon)  # log(1e-8) = -18.420680743952367
 class TraceMode(enum.Enum):
     PRIOR = 1
     POSTERIOR = 2
+    PRIOR_FOR_INFERENCE_NETWORK = 3
 
 
 class PriorInflation(enum.Enum):
@@ -68,7 +69,7 @@ class LearningRateScheduler(enum.Enum):
     POLY2 = 2
 
 
-def set_random_seed(seed=123):
+def set_random_seed(seed=None):
     if seed is None:
         seed = int((time.time()*1e6) % 1e8)
     global _random_seed
@@ -83,17 +84,24 @@ def set_random_seed(seed=123):
 set_random_seed()
 
 
-def set_cuda(enabled, device=None):
+def set_device(device='cpu'):
     global _device
     global _cuda_enabled
-    if torch.cuda.is_available() and enabled:
-        _device = torch.device('cuda')
-        _cuda_enabled = True
+    if device.startswith('cuda'):
+        if torch.cuda.is_available():
+            _device = device
+            _cuda_enabled = True
+        else:
+            print(colored('Warning: cannot enable CUDA device: {}'.format(device), 'red', attrs=['bold']))
     else:
-        _device = torch.device('cpu')
+        _device = device
         _cuda_enabled = False
-        if enabled:
-            print(colored('Warning: cannot enable CUDA', 'red', attrs=['bold']))
+    try:
+        test = to_tensor(1.)
+        test.to('cpu')
+    except Exception as e:
+        print(e)
+        raise RuntimeError('Cannot set device: {}'.format(device))
 
 
 def set_verbosity(v=2):

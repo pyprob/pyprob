@@ -58,7 +58,7 @@ class OnlineDataset(Dataset):
         return self._length
 
     def __getitem__(self, idx):
-        return next(self._model._trace_generator(trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation))
+        return next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK, prior_inflation=self._prior_inflation))
 
     @staticmethod
     def _prune_trace(trace):
@@ -97,22 +97,28 @@ class OnlineDataset(Dataset):
             del(variable.reused)
             del(variable.tagged)
         for _, variable in trace.named_variables.items():
-            del(variable.distribution)
-            # if value is None:
-            #     variable.value = None
-            # else:
-            #     variable.value = util.to_tensor(value)
-            del(variable.address_base)
-            del(variable.address)
-            del(variable.instance)
-            del(variable.log_prob)
-            del(variable.control)
-            del(variable.replace)
-            del(variable.name)
-            del(variable.observable)
-            del(variable.observed)
-            del(variable.reused)
-            del(variable.tagged)
+            controlled = False
+            for v in trace.variables_controlled:
+                if variable is v:  # Needs to be implemented this way to compare object references instead of object hashes (which change as a result of potentially deleted fields)
+                    controlled = True
+                    break
+            if not controlled:
+                del(variable.distribution)
+                # if value is None:
+                #     variable.value = None
+                # else:
+                #     variable.value = util.to_tensor(value)
+                del(variable.address_base)
+                del(variable.address)
+                del(variable.instance)
+                del(variable.log_prob)
+                del(variable.control)
+                del(variable.replace)
+                del(variable.name)
+                del(variable.observable)
+                del(variable.observed)
+                del(variable.reused)
+                del(variable.tagged)
 
     def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, *args, **kwargs):
         num_files = math.ceil(num_traces / num_traces_per_file)
@@ -189,8 +195,8 @@ class OfflineDataset(ConcatDataset):
                 print(colored('Warning: dataset file potentially corrupt, omitting: {}'.format(file), 'red', attrs=['bold']))
         super().__init__(datasets)
         print('OfflineDataset at: {}'.format(self._dataset_dir))
-        print('Num. traces     : {:,}'.format(len(self)))
-        print('Sorted on disk  : {}'.format(self._sorted_on_disk))
+        print('Num. traces      : {:,}'.format(len(self)))
+        print('Sorted on disk   : {}'.format(self._sorted_on_disk))
         if self._sorted_on_disk:
             self._sorted_indices = list(range(len(self)))
         else:
@@ -220,7 +226,7 @@ class OfflineDataset(ConcatDataset):
                 hashes_file.close()
                 self._sorted_indices = sorted_indices
                 self._hashes = hashes
-            print('Num. trace types: {:,}'.format(len(set(self._hashes))))
+            print('Num. trace types : {:,}'.format(len(set(self._hashes))))
             hashes_and_counts = OrderedDict(sorted(Counter(self._hashes).items()))
             print('Trace hash\tCount')
             for hash, count in hashes_and_counts.items():
@@ -318,7 +324,7 @@ class TraceBatchSampler(Sampler):
 
 
 class DistributedTraceBatchSampler(Sampler):
-    def __init__(self, offline_dataset, batch_size, shuffle_batches=True, num_buckets=1, shuffle_buckets=True):
+    def __init__(self, offline_dataset, batch_size, shuffle_batches=True, num_buckets=None, shuffle_buckets=True):
         if not isinstance(offline_dataset, OfflineDataset):
             raise TypeError('Expecting an OfflineDataset instance.')
         if not dist.is_available():
@@ -328,11 +334,16 @@ class DistributedTraceBatchSampler(Sampler):
         # Randomly drop a number of traces so that the number of all minibatches in the whole dataset is an integer multiple of world size
         num_batches_to_drop = math.floor(len(offline_dataset._sorted_indices) / batch_size) % self._world_size
         num_traces_to_drop = num_batches_to_drop * batch_size
-        # List of all minibatches in the whole dataset, where each minibatch is a list of trace indices
-        self._batches = list(util.chunks(util.drop_items(list(offline_dataset._sorted_indices), num_traces_to_drop), batch_size))
+        # Ensure all ranks choose the same traces to drop
+        st = random.getstate()
+        random.seed(0)
+        self._batches = list(util.chunks(util.drop_items(list(offline_dataset._sorted_indices), num_traces_to_drop), batch_size)) # List of all minibatches, where each minibatch is a list of trace indices
+        random.setstate(st)
         # Discard last minibatch if it's smaller than batch_size
         if len(self._batches[-1]) < batch_size:
             del(self._batches[-1])
+        if num_buckets is None:
+            num_buckets = len(self._batches) / self._world_size
         self._num_buckets = num_buckets
         self._bucket_size = math.ceil(len(self._batches) / num_buckets)
         if self._bucket_size < self._world_size:
@@ -350,16 +361,27 @@ class DistributedTraceBatchSampler(Sampler):
         self._epoch = 0
         self._current_bucket_id = 0
 
+        print('DistributedTraceBatchSampler')
+        print('OfflineDataset size : {:,}'.format(len(offline_dataset)))
+        print('World size          : {:,}'.format(self._world_size))
+        print('Batch size          : {:,}'.format(batch_size))
+        print('Num. batches dropped: {:,}'.format(num_batches_to_drop))
+        print('Num. batches        : {:,}'.format(len(self._batches)))
+        print('Bucket size         : {:,}'.format(self._bucket_size))
+        print('Num. buckets        : {:,}'.format(self._num_buckets))
+
     def __iter__(self):
         self._epoch += 1
+        bucket_ids = list(range(len(self._buckets)))
         if self._shuffle_buckets:
             # Shuffle the list of buckets (but not the order of minibatches inside each bucket) at the beginning of each epoch, deterministically based on the epoch number so that all nodes have the same bucket order
             # Idea from: https://github.com/pytorch/pytorch/blob/a3fb004b1829880547dd7b3e2cd9d16af657b869/torch/utils/data/distributed.py#L44
             st = np.random.get_state()
             np.random.seed(self._epoch)
-            np.random.shuffle(self._buckets)
+            np.random.shuffle(bucket_ids)
             np.random.set_state(st)
-        for bucket_id, bucket in enumerate(self._buckets):
+        for bucket_id in bucket_ids:
+            bucket = self._buckets[bucket_id]
             self._current_bucket_id = bucket_id
             # num_batches is needed to ensure that all nodes have the same number of minibatches (iterations) in each bucket, in cases where the bucket size is not divisible by world_size.
             num_batches = math.floor(len(bucket) / self._world_size)

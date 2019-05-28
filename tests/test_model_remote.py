@@ -39,8 +39,8 @@ class RemoteModelSetDefaultsAndAddressesTestCase(unittest.TestCase):
         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
 
     def test_model_remote_set_defaults_and_addresses_addresses(self):
-        addresses_controlled_correct = ['[forward()+0x3a9]__Normal__1', '[forward()+0x3a9]__Normal__2', '[forward()+0xc88]__Normal__replaced']
-        addresses_all_correct = ['[forward()+0x3a9]__Normal__1', '[forward()+0x3a9]__Normal__2', '[forward()+0xc88]__Normal__replaced', '[forward()+0xc88]__Normal__replaced', '[forward()+0x1573]__Normal__1', '[forward()+0x1573]__Normal__2', '[forward()+0x1ee5]__Normal__1']
+        addresses_controlled_correct = ['[forward()+0x3a9]__Normal__1', '[forward()+0x3a9]__Normal__2', '[forward()+0xc88]__Normal__2']
+        addresses_all_correct = ['[forward()+0x3a9]__Normal__1', '[forward()+0x3a9]__Normal__2', '[forward()+0xc88]__Normal__1', '[forward()+0xc88]__Normal__2', '[forward()+0x1573]__Normal__1', '[forward()+0x1573]__Normal__2', '[forward()+0x1ee5]__Normal__1']
 
         trace = next(self._model._trace_generator())
         addresses_controlled = [s.address for s in trace.variables_controlled]

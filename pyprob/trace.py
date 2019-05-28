@@ -30,17 +30,18 @@ class Variable():
         self.tagged = tagged
 
     def __repr__(self):
+        # The 'Unknown' cases below are for handling pruned variables in offline training datasets
         return 'Variable(name:{}, control:{}, replace:{}, observable:{}, observed:{}, tagged:{}, address:{}, distribution:{}, value:{}: log_prob:{})'.format(
-            self.name,
-            self.control,
-            self.replace,
-            self.observable,
-            self.observed,
-            self.tagged,
-            self.address,
-            str(self.distribution),
-            str(self.value),
-            str(self.log_prob))
+            self.name if hasattr(self, 'name') else 'Unknown',
+            self.control if hasattr(self, 'control') else 'Unknown',
+            self.replace if hasattr(self, 'replace') else 'Unknown',
+            self.observable if hasattr(self, 'observable') else 'Unknown',
+            self.observed if hasattr(self, 'observed') else 'Unknown',
+            self.tagged if hasattr(self, 'tagged') else 'Unknown',
+            self.address if hasattr(self, 'address') else 'Unknown',
+            str(self.distribution) if hasattr(self, 'distribution') else 'Unknown',
+            str(self.value) if hasattr(self, 'value') else 'Unknown',
+            str(self.log_prob) if hasattr(self, 'log_prob') else 'Unknown')
 
     def to(self, device):
         if self.value is not None:
@@ -76,16 +77,17 @@ class Trace():
         self.execution_time_sec = None
 
     def __repr__(self):
-        return 'Trace(all:{:,}, controlled:{:,}, replaced:{:,}, observeable:{:,}, observed:{:,}, tagged:{:,}, uncontrolled:{:,}, log_prob:{}, log_importance_weight:{})'.format(
-            len(self.variables),
-            len(self.variables_controlled),
-            len(self.variables_replaced),
-            len(self.variables_observable),
-            len(self.variables_observed),
-            len(self.variables_tagged),
-            len(self.variables_uncontrolled),
-            str(self.log_prob),
-            str(self.log_importance_weight))
+        # The 'Unknown' cases below are for handling pruned traces in offline training datasets
+        return 'Trace(all:{:,}, controlled:{:,}, replaced:{}, observeable:{}, observed:{}, tagged:{}, uncontrolled:{}, log_prob:{}, log_importance_weight:{})'.format(
+            self.length,
+            self.length_controlled,
+            '{:,}'.format(len(self.variables_replaced)) if hasattr(self, 'variables_replaced') else 'Unknown',
+            '{:,}'.format(len(self.variables_observed)) if hasattr(self, 'variables_observed') else 'Unknown',
+            '{:,}'.format(len(self.variables_observable)) if hasattr(self, 'variables_observable') else 'Unknown',
+            '{:,}'.format(len(self.variables_tagged)) if hasattr(self, 'variables_tagged') else 'Unknown',
+            '{:,}'.format(len(self.variables_uncontrolled)) if hasattr(self, 'variables_uncontrolled') else 'Unknown',
+            str(self.log_prob) if hasattr(self, 'log_prob') else 'Unknown',
+            str(self.log_importance_weight) if hasattr(self, 'log_importance_weight') else 'Unknown')
 
     def add(self, variable):
         self.variables.append(variable)
