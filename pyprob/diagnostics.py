@@ -6,6 +6,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import time
 import sys
+import csv
+from torch.distributions.kl import kl_divergence
 
 from . import __version__, util
 from .distributions import Empirical
@@ -43,12 +45,12 @@ def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_sta
                             address_id = 'A' + str(len(address_ids) + 1)
                     else:
                         if address_base.startswith('__A'):
-                            address_id = address_base[2:] + '__' + ('replaced' if variable.replace else str(variable.instance))
+                            address_id = address[2:]
                         else:
                             if address_base not in address_base_ids:
                                 address_base_id = 'A' + str(len(address_base_ids) + 1)
                                 address_base_ids[address_base] = address_base_id
-                            address_id = address_base_ids[address_base] + '__' + ('replaced' if variable.replace else str(variable.instance))
+                            address_id = address_base_ids[address_base] + '__' + str(variable.instance)
                     address_ids[key] = address_id
                 addresses[key] = {'count': 1, 'weight': trace_weight, 'address_id': address_id, 'variable': variable}
                 address_id_to_variable[address_id] = variable
@@ -545,11 +547,13 @@ def _variable_values(trace_dist, names=None, n_most_frequent=None, num_traces=No
                 name_counts[name] += 1
         names = [name for name in name_counts if name_counts[name] == num_traces]  # Names of named variables that are found in all traces
 
-    variable_values = defaultdict(lambda: {'variable': None, 'values': np.ones(num_traces) * np.nan})
+    variable_values = {}
     # Select named variables to process
     for name in names:
         variable = trace_dist[0].named_variables[name]
         if variable.value.nelement() == 1:
+            if variable.address not in variable_values:
+                variable_values[variable.address] = {'variable': None, 'values': np.ones(num_traces) * np.nan}
             variable_values[variable.address]['variable'] = variable
 
     # Select most frequent variables to process (either named or not named)
@@ -558,6 +562,8 @@ def _variable_values(trace_dist, names=None, n_most_frequent=None, num_traces=No
         for address in addresses:
             variable = trace_dist[0].variables_dict_address[address]
             if variable.value.nelement() == 1:
+                if variable.address not in variable_values:
+                    variable_values[variable.address] = {'variable': None, 'values': np.ones(num_traces) * np.nan}
                 variable_values[variable.address]['variable'] = variable
 
     if len(variable_values) == 0:
@@ -631,7 +637,7 @@ def autocorrelation(trace_dist, names=None, lags=None, n_most_frequent=None, fig
     return lags, variable_values
 
 
-def gelman_rubin(trace_dists, names=None, iters=None, n_most_frequent=50, figsize=(10, 5), xticks=None, yticks=None, log_xscale=False, log_yscale=True, plot=False, plot_show=True, file_name=None, *args, **kwargs):
+def gelman_rubin(trace_dists, names=None, iters=None, n_most_frequent=50, figsize=(10, 5), xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, file_name=None, *args, **kwargs):
     def _r_hat(values):
         m, n = values.shape[0], values.shape[1]  # m: number of chains, n: length of chains
         if m < 2:
@@ -706,3 +712,295 @@ def gelman_rubin(trace_dists, names=None, iters=None, n_most_frequent=50, figsiz
             plt.show()
 
     return iters, variable_values
+
+
+def jensen_shannon(trace_dist_p, trace_dist_q, names=None, n_most_frequent=50,
+                   use_address_base=False,
+                   figsize=(10, 5), bins=30, xticks=None, yticks=None, log_xscale=False, log_yscale=True, plot=False, plot_show=True, file_name=None,
+                   posterior_flag=False):
+    def plot_func(variable_info, address_stats_combined,
+                  figsize, bins, xticks, yticks, log_xscale, log_yscale, plot_show, file_name):
+        if not plot_show:
+            mpl.rcParams['axes.unicode_minus'] = False
+            plt.switch_backend('agg')
+        mpl.rcParams['font.size'] = 4
+        hist_color_cycle = list(reversed(['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf', 'b', 'k']))
+
+        # Plot Jensen–Shannon histogram
+        fig, ax1 = plt.subplots(figsize=figsize)
+        ax1.set_ylabel('#')
+        ax1.set_xlabel('Jensen–Shannon')
+        ax1.hist([v['divergence'] for v in variable_info.values()], alpha=0.75, color=hist_color_cycle[-1])
+
+        plt.tight_layout()
+        if file_name is not None:
+            plot_file_name = file_name + '_divergence_hist.pdf'
+            print('Plotting to file: {}'.format(plot_file_name))
+            plt.savefig(plot_file_name)
+        if plot_show:
+            plt.show()
+
+        # Plot address histograms
+        hist_color_cycle = list(reversed(['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf', 'b', 'k']))
+        rows, cols = util.tile_rows_cols(len(variable_info))
+        fig, ax = plt.subplots(rows, cols, figsize=figsize)
+        ax = ax.flatten()
+        i = 0
+        hist_colors = {}
+        util.progress_bar_init('Plotting histograms', len(variable_info), 'Histograms')
+        for address_id, v in variable_info.items():
+            util.progress_bar_update(i)
+            for dist_label, values in v['values'].items():
+                # dist_label is the main trace distribution name
+                if dist_label in hist_colors:
+                    label = None
+                    color = hist_colors[dist_label]
+                else:
+                    label = dist_label
+                    color = hist_color_cycle.pop()
+                    hist_colors[dist_label] = color
+                range_ = (np.min(values), np.max(values))
+                ax[i].hist(values, density=1, bins=bins, color=color, label=label, alpha=0.75, range=range_)
+                ax[i].set_title('{} / {:.2f}'.format(variable_info[address_id]['dist'].name, v['divergence']), fontsize=4, y=0.95)
+                ax[i].tick_params(pad=0., length=2)
+                # ax[i].set_aspect(aspect='equal', adjustable='box-forced')
+            i += 1
+        util.progress_bar_end()
+        fig.legend()
+        # plt.tight_layout()
+        plt.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95, hspace=1.5, wspace=0.85)
+        if file_name is not None:
+            plot_file_name = file_name + '_address.pdf'
+            print('Plotting to file: {}'.format(plot_file_name))
+            plt.savefig(plot_file_name)
+        if plot_show:
+            plt.show()
+
+    def _shrink(empirical_dist, final_size, posterior_flag):
+        '''
+        Given an empirical distribution, shrinks it to final_size.
+        If final size is bigger than the current size, it will be unchanged
+        If it has unifrom weights, we assume it comes from some sort of MCMC, therefore it will be thinned.
+        Otherwise, it will be resampled.
+        '''
+        if empirical_dist._uniform_weights:
+            # Samples are supposedly from MCMC => should thin
+            if final_size != len(empirical_dist):
+                return empirical_dist.thin(final_size)
+            else:
+                # No need for thinning if the size is exactly the same
+                return empirical_dist
+        else:
+            # Weighted samples => should resample
+            # Even if the size is exactly the same as expected, resampling is needed to make weights uniform
+            if posterior_flag:
+                # Resample according to proposal sample weights, in order to get a posterior approximation.
+                return empirical_dist.resample(final_size)
+            else:
+                # Randomly choose from the proposal samples and remove the weights.
+                return Empirical(np.random.choice(empirical_dist, final_size, replace=False))
+
+    def generate_variable_empiricals(trace_dist, chosen_addresses, use_address_base):
+        '''
+        Arguments
+        ---------
+        trace_dist          Empirical distribution over traces
+        chosen_addresses    List of chosen addresses (could be address bases, depending on use_address_base)
+        num_traces          length of the empirical distribution to consider
+        use_address_base    If True, uses address base as variable identifier.
+
+        Returns
+        -------
+        A dictionary of the same addresses (could be a subset of addresses, if no sample exist for that variable)
+        to another dictionary:
+            'variable'  ->  variable information for the variable at the address
+            'dist'      ->  Empirical distribution over this single variable
+        '''
+        variable_info = defaultdict(lambda: {'variable': None, 'values': [], 'log_weights': []})
+        num_traces = trace_dist.length
+        util.progress_bar_init('Loading selected variables to memory', num_traces, 'Traces')
+        for i in range(num_traces):
+            trace = trace_dist._get_value(i)
+            util.progress_bar_update(i)
+            trace_weight = trace_dist._get_log_weight(i)
+            for address in chosen_addresses:
+                # Set the trace dictionary too look for address in. Depending on use_address_base, it could be variables_dict_address or variables_dict_address_base.
+                if use_address_base:
+                    trace_variables_dict = trace.variables_dict_address_base
+                else:
+                    trace_variables_dict = trace.variables_dict_address
+                if address in trace_variables_dict:
+                    if trace_variables_dict[address].value.nelement() == 1:
+                        if variable_info[address]['variable'] is None:
+                            variable_info[address]['variable'] = trace_variables_dict[address]
+                        variable_info[address]['values'].append(trace_variables_dict[address].value)
+                        variable_info[address]['log_weights'].append(trace_weight)
+
+        ret_val = {address: {'variable': info['variable'],
+                             'dist': Empirical(info['values'], log_weights=info['log_weights'])}
+                   for address, info in variable_info.items() if info['variable'] is not None and len(info['values']) > 0}
+        util.progress_bar_end()
+
+        return ret_val
+
+    def _n_most_frequent_from_stats(address_stats, n):
+        addresses = address_stats['addresses']
+        ordered_addresses = OrderedDict(sorted(addresses.items(), key=lambda x: x[1]['count'], reverse=True))
+        res = []
+        i = 0
+        for candidate_address, variable_info in ordered_addresses.items():
+            # variable_info is the value associated with 'addresses' key in address_stats (has ['count', 'weight', 'address_id', 'variable'] as keys)
+            if len(res) >= n:
+                break
+            if variable_info['variable'].value.nelement() == 1:
+                # Ignore multi-dimensional random variables
+                res.append(candidate_address)
+        return res
+
+    def get_renamed_variable_empiricals(trace_dists, names, n_most_frequent, use_address_base):
+        '''
+        Arguments
+        ---------
+        trace_dists         List of trace distributions
+        names               List of chosen variable names (if any)
+        n_most_frequent     Number of most frequent variables to include in the result
+        use_address_base    If True, uses address base as variable identifier.
+
+        Returns
+        -------
+        variable_empiricals A dictionary from variable address_id to:
+                            A dictionary with the keys ['dist', 'variable']
+                            The value associated with 'dist' is the distribution over
+                            the corresponding variable, renamed to be used as plot title
+        address_stats       Combined address_stats for trace distributions in the given trace_dists.
+
+        '''
+        variable_empiricals = []
+        address_stats = None
+        for trace_dist in trace_dists:
+            print('Computing address stats for {}'.format(trace_dist.name))
+            address_stats = _address_stats(trace_dist, use_address_base=use_address_base, reuse_ids_from_address_stats=address_stats)
+            chosen_addresses = _n_most_frequent_from_stats(address_stats, n_most_frequent)
+            variable_empirical = generate_variable_empiricals(trace_dist, chosen_addresses, use_address_base)
+            # Rename variable_empirical keys from address (or address_base) to address_id:
+            keys = list(variable_empirical.keys())
+            for k in keys:
+                new_key = address_stats['address_ids'][k]
+                variable_empirical[new_key] = variable_empirical.pop(k)
+
+            # Rename the distributions based on their assigned address_id:
+            for address_id, variable_info in variable_empirical.items():
+                # variable_info is a dictionary with ['variable', 'dist'] as keys
+                variable = variable_info['variable']
+                variable_info['dist'].rename(address_id + '' if variable.name is None else '{} ({})'.format(address_id, variable.name))
+
+            variable_empiricals.append(variable_empirical)
+        return variable_empiricals, address_stats
+
+
+    '''
+    Arguments
+    ---------
+    posterior_flag          If true, will calculate Jensen–Shannon divergence with the approximated posterior
+                            rather than the proposal. It is done by resampling proposal samples.
+
+    Returns
+    -------
+    variable_info           A dictionary of sample address_ids to their analysis.
+                            The analysis itself is a dictronary with the
+                            following specifications: (key -> value)
+                            'variable' -> an object of type Variable containing
+                                          the random variable specifications.
+                            'values' -> A dictionary from trace name (has input trace names as keys)
+                                        to numpy array of sampled values in P distribution
+                                        (shape: nxd, where n is the number of samples and d is the size of each sampled value)
+                            'divergence' -> The Jensen–Shannon divergence.
+    '''
+    assert isinstance(bins, int)
+    [variable_empirical_p, variable_empirical_q], address_stats_combined = get_renamed_variable_empiricals([trace_dist_p, trace_dist_q], names, n_most_frequent, use_address_base)
+
+    variable_info = {}      # Will contain the output  i.e. divergence and sample values for all addresses.
+    common_address_ids = set(variable_empirical_p.keys()) & set(variable_empirical_q.keys()) #address_id_to_variable
+    util.progress_bar_init('Computing Jensen-Shannon divergence', len(common_address_ids), 'Variables')
+    for i, address_id in enumerate(common_address_ids):
+        util.progress_bar_update(i)
+        variable_info_log = 'address: {}, name: {} ({} of {})'.format(variable_empirical_p[address_id]['variable'].address, variable_empirical_p[address_id]['variable'].name, i + 1, len(common_address_ids))
+        var_dist_p = variable_empirical_p[address_id]['dist']
+        var_dist_q = variable_empirical_q[address_id]['dist'] # Get the distribution for the same variable from the other distribution
+        num_samples = min(len(var_dist_p), len(var_dist_q))
+        if num_samples < 10:
+            print('\nToo few samples for {} ({}). Skipping...'.format(address_id, num_samples))
+            continue
+        '''
+        # There is no need for having the same number of samples to compute Jensen–Shannon.
+        var_dist_p = _shrink(var_dist_p, num_samples, posterior_flag)
+        var_dist_q = _shrink(var_dist_q, num_samples, posterior_flag)
+
+        assert var_dist_p._uniform_weights
+        assert var_dist_q._uniform_weights
+        '''
+
+        v_p = var_dist_p.values_numpy()
+        v_q = var_dist_q.values_numpy()
+
+        range_ = (min(np.min(v_p), np.min(v_q)), max(np.max(v_p), np.max(v_q)))
+        bins_seq = np.linspace(*range_, bins)
+        bin_width = bins_seq[1] - bins_seq[0]
+        p_probs = np.histogram(v_p, bins=bins, density=True)[0]
+        q_probs = np.histogram(v_q, bins=bins, density=True)[0]
+
+        # add a small amount to all porbs so that nothing is zero. It avoids problems in computing Jensen–Shannon.
+        p_probs += 1e-20 / bins
+        q_probs += 1e-20 / bins
+
+        p_categorical = torch.distributions.categorical.Categorical(probs=util.to_tensor(p_probs))
+        q_categorical = torch.distributions.categorical.Categorical(probs=util.to_tensor(q_probs))
+
+        kl_pq = kl_divergence(p_categorical, q_categorical).item()
+        kl_qp = kl_divergence(q_categorical, p_categorical).item()
+        divergence = (kl_pq + kl_qp) / 2
+
+        # Aggregate info about P and Q in "variable info"
+        v = {}
+        v['divergence'] = divergence
+        for vv_key in variable_empirical_p[address_id]:
+            if vv_key != 'values':
+                v[vv_key] = variable_empirical_p[address_id][vv_key]
+        v['values'] = {}
+        v['values'][trace_dist_p.name] = v_p
+        v['values'][trace_dist_q.name] = v_q
+        v['bin_width'] = bin_width
+        variable_info[address_id] = v
+
+    util.progress_bar_end()
+
+    if plot:
+        plot_func(variable_info, address_stats_combined,
+                 figsize, bins, xticks, yticks, log_xscale, log_yscale, plot_show, file_name)
+
+    if file_name is not None:
+        divergence_info_csv = file_name + '_info.csv'
+        print('Saving Jensen–Shannon diagnostic info to CSV: {}'.format(divergence_info_csv))
+        with open(divergence_info_csv, 'w') as csvfile:
+            csv_titles = ['Name', 'ID', 'Address', 'Divergence', 'sample-size', 'bin width']
+            csv_writer = csv.DictWriter(csvfile, fieldnames=csv_titles)
+            csv_writer.writeheader()
+            for k, v in variable_info.items():
+                info = {}
+                info['Name'] = v['variable'].name
+                info['ID'] = k
+                info['Address'] = v['variable'].address
+                info['Divergence'] = v['divergence']
+                info['sample-size'] = len(v['values'][next(iter(v['values']))])
+                info['bin width'] = v['bin_width']
+                csv_writer.writerow(info)
+
+            divergence_values = [v['divergence'] for v in variable_info.values()]
+            divergence_mean = np.mean(divergence_values)
+            divergence_var = np.var(divergence_values)
+            csv_writer.writerow({csv_titles[0]: 'Number of bins', csv_titles[1]: bins})
+            csv_writer.writerow({csv_titles[0]: 'Jensen–Shannon mean', csv_titles[1]: divergence_mean})
+            csv_writer.writerow({csv_titles[0]: 'Jensen–Shannon variance', csv_titles[1]: divergence_var})
+            print('Jensen–Shannon mean = {}, Jensen–Shannon variance = {}'.format(divergence_mean, divergence_var))
+
+    return variable_info

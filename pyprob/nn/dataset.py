@@ -58,7 +58,7 @@ class OnlineDataset(Dataset):
         return self._length
 
     def __getitem__(self, idx):
-        return next(self._model._trace_generator(trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation))
+        return next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK, prior_inflation=self._prior_inflation))
 
     @staticmethod
     def _prune_trace(trace):
@@ -97,22 +97,28 @@ class OnlineDataset(Dataset):
             del(variable.reused)
             del(variable.tagged)
         for _, variable in trace.named_variables.items():
-            del(variable.distribution)
-            # if value is None:
-            #     variable.value = None
-            # else:
-            #     variable.value = util.to_tensor(value)
-            del(variable.address_base)
-            del(variable.address)
-            del(variable.instance)
-            del(variable.log_prob)
-            del(variable.control)
-            del(variable.replace)
-            del(variable.name)
-            del(variable.observable)
-            del(variable.observed)
-            del(variable.reused)
-            del(variable.tagged)
+            controlled = False
+            for v in trace.variables_controlled:
+                if variable is v:  # Needs to be implemented this way to compare object references instead of object hashes (which change as a result of potentially deleted fields)
+                    controlled = True
+                    break
+            if not controlled:
+                del(variable.distribution)
+                # if value is None:
+                #     variable.value = None
+                # else:
+                #     variable.value = util.to_tensor(value)
+                del(variable.address_base)
+                del(variable.address)
+                del(variable.instance)
+                del(variable.log_prob)
+                del(variable.control)
+                del(variable.replace)
+                del(variable.name)
+                del(variable.observable)
+                del(variable.observed)
+                del(variable.reused)
+                del(variable.tagged)
 
     def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, *args, **kwargs):
         num_files = math.ceil(num_traces / num_traces_per_file)
