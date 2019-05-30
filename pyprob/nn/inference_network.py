@@ -123,7 +123,10 @@ class InferenceNetwork(nn.Module):
             observe_embedding_total_dim += util.prod(output_shape)
         self._observe_embedding_dim = observe_embedding_total_dim
         print('Observe embedding dimension: {}'.format(self._observe_embedding_dim))
-        self._layers_observe_embedding_final = EmbeddingFeedForward(input_shape=self._observe_embedding_dim, output_shape=self._observe_embedding_dim, num_layers=2)
+        self._layers_observe_embedding_final = EmbeddingFeedForward(input_shape=self._observe_embedding_dim,
+                                                                    output_shape=self._observe_embedding_dim,
+                                                                    num_layers=2)
+
         self._layers_observe_embedding_final.to(device=util._device)
 
     def _embed_observe(self, traces=None):
@@ -266,12 +269,15 @@ class InferenceNetwork(nn.Module):
 
     def _pre_generate_layers(self, dataset, batch_size=64, save_file_name_prefix=None):
         if not self._layers_initialized:
-            self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
+            self._init_layers_observe_embedding(self._observe_embeddings,
+                                                example_trace=dataset.__getitem__(0))
             self._init_layers()
             self._layers_initialized = True
 
         self._layers_pre_generated = True
-        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0, collate_fn=lambda x: Batch(x))
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False,
+                                num_workers=0,
+                                collate_fn=lambda x: Batch(x))
         util.progress_bar_init('Layer pre-generation...', len(dataset), 'Traces')
         i = 0
         for i_batch, batch in enumerate(dataloader):
@@ -375,7 +381,16 @@ class InferenceNetwork(nn.Module):
             # print('Setting learning rate scheduler state')
             self._learning_rate_scheduler.load_state_dict(state_dict)
 
-    def optimize(self, num_traces, dataset, dataset_valid=None, num_traces_end=1e9, batch_size=64, valid_every=None, optimizer_type=Optimizer.ADAM, learning_rate_init=0.0001, learning_rate_end=1e-6, learning_rate_scheduler_type=LearningRateScheduler.NONE, momentum=0.9, weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600, distributed_backend=None, distributed_params_sync_every_iter=10000, distributed_num_buckets=10, dataloader_offline_num_workers=0, stop_with_bad_loss=False, log_file_name=None):
+    def optimize(self, num_traces, dataset, dataset_valid=None,
+                 num_traces_end=1e9, batch_size=64, valid_every=None,
+                 optimizer_type=Optimizer.ADAM, learning_rate_init=0.0001,
+                 learning_rate_end=1e-6,
+                 learning_rate_scheduler_type=LearningRateScheduler.NONE, momentum=0.9,
+                 weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600,
+                 distributed_backend=None, distributed_params_sync_every_iter=10000,
+                 distributed_num_buckets=10, dataloader_offline_num_workers=0,
+                 stop_with_bad_loss=False, log_file_name=None, sacred_run=None):
+
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
             self._init_layers()
@@ -394,18 +409,39 @@ class InferenceNetwork(nn.Module):
         # Training data loader
         if isinstance(dataset, OfflineDataset):
             if distributed_world_size == 1:
-                dataloader = DataLoader(dataset, batch_sampler=TraceBatchSampler(dataset, batch_size=batch_size, shuffle_batches=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+                dataloader = DataLoader(dataset,
+                                        batch_sampler=TraceBatchSampler(dataset, batch_size=batch_size,
+                                                                        shuffle_batches=True),
+                                        num_workers=dataloader_offline_num_workers,
+                                        collate_fn=lambda x: Batch(x))
             else:
-                dataloader = DataLoader(dataset, batch_sampler=DistributedTraceBatchSampler(dataset, batch_size=batch_size, num_buckets=distributed_num_buckets, shuffle_batches=True, shuffle_buckets=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+                dataloader = DataLoader(dataset,
+                                        batch_sampler=DistributedTraceBatchSampler(dataset,
+                                                                                   batch_size=batch_size, num_buckets=distributed_num_buckets,
+                                                                                   shuffle_batches=True, shuffle_buckets=True),
+                                        num_workers=dataloader_offline_num_workers,
+                                        collate_fn=lambda x: Batch(x))
         else:
-            dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=lambda x: Batch(x))
+            dataloader = DataLoader(dataset, batch_size=batch_size,
+                                    num_workers=0,
+                                    collate_fn=lambda x: Batch(x))
 
         # Validation data loader
         if dataset_valid is not None:
             if distributed_world_size == 1:
-                dataloader_valid = DataLoader(dataset_valid, batch_sampler=TraceBatchSampler(dataset_valid, batch_size=batch_size, shuffle_batches=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+                dataloader_valid = DataLoader(dataset_valid,
+                                              batch_sampler=TraceBatchSampler(dataset_valid,
+                                                                              batch_size=batch_size, shuffle_batches=True),
+                                              num_workers=dataloader_offline_num_workers,
+                                              collate_fn=lambda x: Batch(x))
             else:
-                dataloader_valid = DataLoader(dataset_valid, batch_sampler=DistributedTraceBatchSampler(dataset_valid, batch_size=batch_size, num_buckets=distributed_num_buckets, shuffle_batches=True, shuffle_buckets=True), num_workers=dataloader_offline_num_workers, collate_fn=lambda x: Batch(x))
+                dataloader_valid = DataLoader(dataset_valid,
+                                              batch_sampler=DistributedTraceBatchSampler(dataset_valid,
+                                                                                         batch_size=batch_size, num_buckets=distributed_num_buckets,
+                                                                                         shuffle_batches=True, shuffle_buckets=True),
+                                              num_workers=dataloader_offline_num_workers,
+                                              collate_fn=lambda x: Batch(x))
+
             if not self._layers_pre_generated:
                 for i_batch, batch in enumerate(dataloader_valid):
                     self._polymorph(batch)
@@ -429,10 +465,13 @@ class InferenceNetwork(nn.Module):
         time_start = time.time()
         time_loss_min = time_start
         time_last_batch = time_start
+
         if valid_every is None:
             valid_every = max(100, num_traces / 1000)
+
         last_validation_trace = -valid_every + 1
         valid_loss = 0
+
         if self._optimizer_type is None:
             self._optimizer_type = optimizer_type
         if self._momentum is None:
@@ -447,10 +486,13 @@ class InferenceNetwork(nn.Module):
             self._learning_rate_end = learning_rate_end
         if self._total_train_traces_end is None:
             self._total_train_traces_end = num_traces_end
+
         epoch = 0
         trace = 0
         stop = False
+
         print('Train. time | Epoch| Trace     | Init. loss| Min. loss | Curr. loss| T.since min | Learn.rate| Traces/sec')
+
         max_print_line_len = 0
         loss_min_str = ''
         time_since_loss_min_str = ''
@@ -463,8 +505,11 @@ class InferenceNetwork(nn.Module):
             log_file.write('time, iteration, trace, loss, valid_loss, learning_rate, mean_trace_length_controlled, sub_mini_batches, distributed_bucket_id, traces_per_second\n')
 
         while not stop:
+
             epoch += 1
+
             for i_batch, batch in enumerate(dataloader):
+
                 time_batch = time.time()
                 # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
                 if (distributed_world_size > 1) and (self._total_train_iterations % distributed_params_sync_every_iter == 0):
@@ -479,19 +524,22 @@ class InferenceNetwork(nn.Module):
                     self._create_optimizer()
                     self._create_lr_scheduler()
 
-                # print(self._optimizer.state[self._optimizer.param_groups[0]['params'][0]])
                 self._optimizer.zero_grad()
                 success, loss = self._loss(batch)
+
                 if not success:
                     print(colored('Cannot compute loss, skipping batch. Loss: {}'.format(loss), 'red', attrs=['bold']))
                     if stop_with_bad_loss:
                         return
                 else:
                     loss.backward()
+
                     if distributed_world_size > 1:
                         self._distributed_sync_grad(distributed_world_size)
+
                     self._optimizer.step()
                     loss = float(loss)
+
                     if (distributed_world_size > 1):
                         loss = self._distributed_update_train_loss(loss, distributed_world_size)
 
@@ -499,13 +547,14 @@ class InferenceNetwork(nn.Module):
                         self._loss_init = loss
                         self._loss_max = loss
                         loss_init_str = '{:+.2e}'.format(self._loss_init)
-                    # loss_max_str = '{:+.3e}'.format(self._loss_max)
+
                     if loss < self._loss_min:
                         self._loss_min = loss
                         loss_str = colored('{:+.2e}'.format(loss), 'green', attrs=['bold'])
                         loss_min_str = colored('{:+.2e}'.format(self._loss_min), 'green', attrs=['bold'])
                         time_loss_min = time_batch
                         time_since_loss_min_str = colored(util.days_hours_mins_secs_str(0), 'green', attrs=['bold'])
+
                     elif loss > self._loss_max:
                         self._loss_max = loss
                         loss_str = colored('{:+.2e}'.format(loss), 'red', attrs=['bold'])
@@ -529,6 +578,13 @@ class InferenceNetwork(nn.Module):
                     self._history_train_loss.append(loss)
                     self._history_train_loss_trace.append(self._total_train_traces)
                     traces_per_second = batch.size * distributed_world_size / (time_batch - time_last_batch)
+
+                    if sacred_run:
+                        sacred_run.info['train_loss'] = self._history_train_loss
+                        sacred_run.info['traces'] = self._history_train_loss_trace
+                        sacred_run.info['train_time'] = self._total_train_time
+                        sacred_run.info['traces_per_sec'] = sacred_run.info['traces'] / sacred_run.info['train_time']
+
                     if dataset_valid is not None:
                         if trace - last_validation_trace > valid_every:
                             print('\nComputing validation loss')
@@ -543,6 +599,8 @@ class InferenceNetwork(nn.Module):
                             self._history_valid_loss.append(valid_loss)
                             self._history_valid_loss_trace.append(self._total_train_traces)
                             last_validation_trace = trace - 1
+                            if savcred_run:
+                                sacred_run.info['valid_loss'] = self._history_valid_loss
 
                     if (distributed_rank == 0) and (save_file_name_prefix is not None) and (save_every_sec is not None):
                         if time_batch - last_auto_save_time > save_every_sec:
@@ -552,6 +610,7 @@ class InferenceNetwork(nn.Module):
                             self._save(file_name)
 
                     time_last_batch = time_batch
+
                     if trace >= num_traces:
                         print('\nStop condition reached. num_traces: {}'.format(num_traces))
                         stop = True
@@ -563,6 +622,7 @@ class InferenceNetwork(nn.Module):
 
                     if self._learning_rate_scheduler is not None:
                         self._learning_rate_scheduler.step(self._total_train_traces)
+
                     learning_rate_current = self._optimizer.param_groups[0]['lr']
                     learning_rate_current_str = '{:+.2e}'.format(learning_rate_current)
 
@@ -583,7 +643,6 @@ class InferenceNetwork(nn.Module):
                         if isinstance(dataloader.batch_sampler, DistributedTraceBatchSampler):
                             bucket_id = dataloader.batch_sampler._current_bucket_id
                         log_file.write('{}, {}, {}, {}, {}, {}, {}, {}, {}, {}\n'.format(self._total_train_seconds, self._total_train_iterations, self._total_train_traces, loss, valid_loss, learning_rate_current, batch.mean_length_controlled, len(batch.sub_batches), bucket_id, traces_per_second))
-
                     if stop:
                         break
 
