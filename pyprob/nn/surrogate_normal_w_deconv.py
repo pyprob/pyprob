@@ -3,6 +3,7 @@ import torch.nn as nn
 from torchvision.transforms import Lambda, Compose
 
 from . import EmbeddingFeedForward
+from . import ConvTranspose2d
 from .. import util
 from ..distributions import Distribution, Normal
 
@@ -22,54 +23,11 @@ class SurrogateNormalConvTranspose2d(nn.Module):
                                         activation=torch.relu, activation_last=None)
         H = mean_shape[0]
         W = mean_shape[1]
-        output_channel1 = max(int(self._output_dim_mean*0.5),1)
-        output_channel2 = max(int(output_channel1*0.5),1)
-        output_channel3 = max(int(output_channel2*0.5),1)
-        output_channel4 = max(int(output_channel3*0.5),1)
-        output_channel5 = max(int(output_channel4*0.5),1)
-        output_channel6 = max(int(output_channel5*0.5),1)
-        output_channel7 = max(int(output_channel6*0.5),1)
-        self._ff_means = nn.Linear(self._output_dim_mean, output_channel1*25) # make a output_channel1 x 4 x 4 (by reshaping)
-        self._deconv = nn.Sequential(
 
-            nn.Upsample(size=(10+4,4+4), mode="nearest"),
-            nn.Conv2d(output_channel1, output_channel2, kernel_size=(3,3), padding=0),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(output_channel2, output_channel2, kernel_size=(3,3), padding=0),
-            nn.LeakyReLU(inplace=True),
+        self._deconv = ConvTranspose2d(self._output_dim_mean, W, H)
 
-            nn.Upsample(size=(20+4,6+4), mode="nearest"),
-            nn.Conv2d(output_channel2, output_channel3, kernel_size=(3,3), padding=0),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(output_channel3, output_channel3, kernel_size=(3,3), padding=0),
-            nn.LeakyReLU(inplace=True),
-
-            nn.Upsample(size=(40+4, 12+4), mode="nearest"),
-            nn.Conv2d(output_channel3, output_channel4, kernel_size=(3,3), padding=0),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(output_channel4, output_channel4, kernel_size=(3,3), padding=0),
-            nn.LeakyReLU(inplace=True),
-
-            nn.Upsample(size=(80+4, 20+4),mode="nearest"),
-            nn.Conv2d(output_channel4, output_channel5, kernel_size=(3,3), padding=0),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(output_channel5, output_channel5, kernel_size=(3,3), padding=0),
-            nn.LeakyReLU(inplace=True),
-
-            nn.Upsample(size=(160+4, 25+4),mode="nearest"),
-            nn.Conv2d(output_channel5, output_channel6, kernel_size=(3,3), padding=0),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(output_channel6, output_channel6, kernel_size=(3,3), padding=0),
-            nn.LeakyReLU(inplace=True),
-
-            nn.Upsample(size=(H+4, W+4), mode="nearest"),
-            nn.Conv2d(output_channel6, output_channel7, kernel_size=(3,3), padding=0),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv2d(output_channel7, 1, kernel_size=(3,3), padding=0), # output is 1 x H x W
-        )
         self._total_train_iterations = 0
-
-        self.dist_type = Normal(loc=0, scale=1)
+        self.dist_type = Normal(loc=torch.zeros(mean_shape), scale=torch.ones(var_shape))
 
     def _transform_mean(self, dists):
         return torch.stack([d.mean for d in dists])

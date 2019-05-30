@@ -80,10 +80,6 @@ def set_random_seed(seed=None):
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
 
-
-set_random_seed()
-
-
 def set_device(device='cpu'):
     global _device
     global _cuda_enabled
@@ -117,8 +113,8 @@ def to_tensor(value, dtype=_dtype):
             value = torch.tensor(float(value))
         else:
             value = torch.tensor(value)
+    value = value.squeeze()
     return value.to(device=_device, dtype=dtype)
-
 
 def to_numpy(value):
     if torch.is_tensor(value):
