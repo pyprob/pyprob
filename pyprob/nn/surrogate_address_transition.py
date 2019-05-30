@@ -4,7 +4,6 @@ import torch.nn as nn
 from torchvision.transforms import Lambda, Compose
 
 from . import EmbeddingFeedForward
-from . import Identity
 from .. import util
 from ..distributions import Categorical
 

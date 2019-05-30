@@ -39,11 +39,11 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 distribution = variable.distribution
 
                 if address not in self._layers_address_embedding:
-                    emb = nn.Parameter(util.to_tensor(torch.zeros(self._address_embedding_dim).normal_()))
+                    emb = nn.Parameter(torch.zeros(self._address_embedding_dim).normal_()).to(device=util._device)
                     self._layers_address_embedding[address] = emb
 
                 if distribution.name not in self._layers_distribution_type_embedding:
-                    emb = nn.Parameter(util.to_tensor(torch.zeros(self._distribution_type_embedding_dim).normal_()))
+                    emb = nn.Parameter(torch.zeros(self._distribution_type_embedding_dim).normal_()).to(device=util._device)
                     self._layers_distribution_type_embedding[distribution.name] = emb
 
                 if address not in self._layers_proposal:
@@ -79,11 +79,11 @@ class InferenceNetworkLSTM(InferenceNetwork):
         success = True
         if prev_variable is None:
             # First time step
-            prev_sample_embedding = util.to_tensor(torch.zeros(1, self._sample_embedding_dim))
-            prev_address_embedding = util.to_tensor(torch.zeros(self._address_embedding_dim))
-            prev_distribution_type_embedding = util.to_tensor(torch.zeros(self._distribution_type_embedding_dim))
-            h0 = util.to_tensor(torch.zeros(self._lstm_depth, 1, self._lstm_dim))
-            c0 = util.to_tensor(torch.zeros(self._lstm_depth, 1, self._lstm_dim))
+            prev_sample_embedding = torch.zeros(1, self._sample_embedding_dim).to(device=util._device)
+            prev_address_embedding = torch.zeros(self._address_embedding_dim).to(device=util._device)
+            prev_distribution_type_embedding = torch.zeros(self._distribution_type_embedding_dim).to(device=util._device)
+            h0 = torch.zeros(self._lstm_depth, 1, self._lstm_dim).to(device=util._device)
+            c0 = torch.zeros(self._lstm_depth, 1, self._lstm_dim).to(device=util._device)
             self._infer_lstm_state = (h0, c0)
         else:
             prev_address = prev_variable.address
@@ -151,9 +151,9 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution.name]
 
                 if time_step == 0:
-                    prev_sample_embedding = util.to_tensor(torch.zeros(sub_batch_length, self._sample_embedding_dim))
-                    prev_address_embedding = util.to_tensor(torch.zeros(self._address_embedding_dim))
-                    prev_distribution_type_embedding = util.to_tensor(torch.zeros(self._distribution_type_embedding_dim))
+                    prev_sample_embedding = torch.zeros(sub_batch_length, self._sample_embedding_dim).to(device=util._device)
+                    prev_address_embedding = torch.zeros(self._address_embedding_dim).to(device=util._device)
+                    prev_distribution_type_embedding = torch.zeros(self._distribution_type_embedding_dim).to(device=util._device)
                 else:
                     prev_variable = example_trace.variables_controlled[time_step - 1]
                     prev_address = prev_variable.address
@@ -161,7 +161,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                         print(colored('Address unknown by inference network: {}'.format(prev_address), 'red', attrs=['bold']))
                         return False, 0
                     prev_distribution = prev_variable.distribution
-                    smp = util.to_tensor(torch.stack([trace.variables_controlled[time_step - 1].value.float() for trace in sub_batch]))
+                    smp = torch.stack([trace.variables_controlled[time_step - 1].value.float() for trace in sub_batch])
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
                     prev_address_embedding = self._layers_address_embedding[prev_address]
                     prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution.name]
@@ -179,8 +179,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
 
             # Execute LSTM in a single operation on the whole input sequence
             lstm_input = torch.stack(lstm_input)
-            h0 = util.to_tensor(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
-            c0 = util.to_tensor(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
+            h0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=util._device)
+            c0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=util._device)
             lstm_output, _ = self._layers_lstm(lstm_input, (h0, c0))
 
             # Construct proposals for each time step in the LSTM output sequence of sub_batch

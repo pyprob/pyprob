@@ -54,5 +54,5 @@ class ConvTranspose2d(nn.Module):
 
         self._deconv = nn.Sequential(OrderedDict(modules))
 
-   def forward(self, x):
-       return self._deconv(x)
+    def forward(self, x):
+        return self._deconv(x)

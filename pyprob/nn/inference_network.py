@@ -579,11 +579,13 @@ class InferenceNetwork(nn.Module):
                     self._history_train_loss_trace.append(self._total_train_traces)
                     traces_per_second = batch.size * distributed_world_size / (time_batch - time_last_batch)
 
-                    if sacred_run:
-                        sacred_run.info['train_loss'] = self._history_train_loss
-                        sacred_run.info['traces'] = self._history_train_loss_trace
-                        sacred_run.info['train_time'] = self._total_train_time
+                    if sacred_run is not None:
+                        sacred_run.info['traces'] = self._total_train_traces
+                        sacred_run.info['train_time'] = self._total_train_seconds
                         sacred_run.info['traces_per_sec'] = sacred_run.info['traces'] / sacred_run.info['train_time']
+
+                        # for omniboard plotting (metrics)
+                        sacred_run.log_scalar('training.loss', loss, self._total_train_traces)
 
                     if dataset_valid is not None:
                         if trace - last_validation_trace > valid_every:
@@ -599,8 +601,10 @@ class InferenceNetwork(nn.Module):
                             self._history_valid_loss.append(valid_loss)
                             self._history_valid_loss_trace.append(self._total_train_traces)
                             last_validation_trace = trace - 1
-                            if savcred_run:
-                                sacred_run.info['valid_loss'] = self._history_valid_loss
+                            if sacred_run is not None:
+                                # for omniboard plotting (metrics)
+                                sacred_run.log_scalar('validation.loss',
+                                                      valid_loss, self._total_train_traces)
 
                     if (distributed_rank == 0) and (save_file_name_prefix is not None) and (save_every_sec is not None):
                         if time_batch - last_auto_save_time > save_every_sec:
