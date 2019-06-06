@@ -9,7 +9,9 @@ from ..distributions import Normal, Uniform, Categorical, Poisson
 
 class InferenceNetworkLSTM(InferenceNetwork):
     # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'reshape': [10, 10], 'dim': 32, 'depth': 2}}
-    def __init__(self, lstm_dim=512, lstm_depth=1, sample_embedding_dim=4, address_embedding_dim=64, distribution_type_embedding_dim=8, proposal_mixture_components=10, *args, **kwargs):
+    def __init__(self, lstm_dim=512, lstm_depth=1, sample_embedding_dim=4,
+                 address_embedding_dim=64, distribution_type_embedding_dim=8,
+                 proposal_mixture_components=10, variable_embeddings={}, *args, **kwargs):
         super().__init__(network_type='InferenceNetworkLSTM', *args, **kwargs)
         self._layers_proposal = nn.ModuleDict()
         self._layers_sample_embedding = nn.ModuleDict()
@@ -24,6 +26,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
         self._address_embedding_dim = address_embedding_dim
         self._distribution_type_embedding_dim = distribution_type_embedding_dim
         self._proposal_mixture_components = proposal_mixture_components
+        self._variable_embeddings = variable_embeddings
 
     def _init_layers(self):
         self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
@@ -35,6 +38,9 @@ class InferenceNetworkLSTM(InferenceNetwork):
         for sub_batch in batch.sub_batches:
             example_trace = sub_batch[0]
             for variable in example_trace.variables_controlled:
+                if variable.name in self._observe_embeddings:
+                    # do not create proposal layer for observed variables!
+                    continue
                 address = variable.address
                 distribution = variable.distribution
 
@@ -48,17 +54,35 @@ class InferenceNetworkLSTM(InferenceNetwork):
 
                 if address not in self._layers_proposal:
                     variable_shape = variable.value.shape
+                    if variable.name in self._variable_embeddings:
+                        var_embedding = self._variable_embeddings[variable.name]
+                    else:
+                        var_embedding = {'num_layers': 2,
+                                         'hidden_dim': None}
                     if isinstance(distribution, Normal):
-                        proposal_layer = ProposalNormalNormalMixture(self._lstm_dim, variable_shape, mixture_components=self._proposal_mixture_components)
-                        sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
+                        proposal_layer = ProposalNormalNormalMixture(self._lstm_dim,
+                                                                     variable_shape,
+                                                                     mixture_components=self._proposal_mixture_components,
+                                                                     **var_embedding)
+                        sample_embedding_layer = EmbeddingFeedForward(variable.value.shape,
+                                                                      self._sample_embedding_dim,
+                                                                      num_layers=1)
                     elif isinstance(distribution, Uniform):
-                        proposal_layer = ProposalUniformTruncatedNormalMixture(self._lstm_dim, variable_shape, mixture_components=self._proposal_mixture_components)
+                        proposal_layer = ProposalUniformTruncatedNormalMixture(self._lstm_dim,
+                                                                               variable_shape,
+                                                                               mixture_components=self._proposal_mixture_components,
+                                                                               **var_embedding)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     elif isinstance(distribution, Poisson):
-                        proposal_layer = ProposalPoissonTruncatedNormalMixture(self._lstm_dim, variable_shape, mixture_components=self._proposal_mixture_components)
+                        proposal_layer = ProposalPoissonTruncatedNormalMixture(self._lstm_dim,
+                                                                               variable_shape,
+                                                                               mixture_components=self._proposal_mixture_components,
+                                                                               **var_embedding)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     elif isinstance(distribution, Categorical):
-                        proposal_layer = ProposalCategoricalCategorical(self._lstm_dim, distribution.num_categories)
+                        proposal_layer = ProposalCategoricalCategorical(self._lstm_dim,
+                                                                        distribution.num_categories,
+                                                                        **var_embedding)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, input_is_one_hot_index=True, input_one_hot_dim=distribution.num_categories, num_layers=1)
                     else:
                         raise RuntimeError('Distribution currently unsupported: {}'.format(distribution.name))
@@ -139,10 +163,16 @@ class InferenceNetworkLSTM(InferenceNetwork):
             # print('sub_batch_length', sub_batch_length, 'example_trace_length_controlled', example_trace.length_controlled, '  ')
 
             # Construct LSTM input sequence for the whole trace length of sub_batch
+            # TODO in dataloader
             lstm_input = []
             for time_step in range(example_trace.length_controlled):
                 current_variable = example_trace.variables_controlled[time_step]
                 current_address = current_variable.address
+
+                if current_variable.name in self._observe_embeddings:
+                    # do not create proposal layer for observed variables!
+                    continue
+
                 if current_address not in self._layers_address_embedding:
                     print(colored('Address unknown by inference network: {}'.format(current_address), 'red', attrs=['bold']))
                     return False, 0
@@ -175,10 +205,11 @@ class InferenceNetworkLSTM(InferenceNetwork):
                                    current_distribution_type_embedding,
                                    current_address_embedding])
                     lstm_input_time_step.append(t)
-                lstm_input.append(torch.stack(lstm_input_time_step))
+                lstm_input.append(torch.stack(lstm_input_time_step, dim=0))
 
             # Execute LSTM in a single operation on the whole input sequence
-            lstm_input = torch.stack(lstm_input)
+            lstm_input = torch.stack(lstm_input, dim=0) # dim = seq_len x batch_size x *
+
             h0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=util._device)
             c0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=util._device)
             lstm_output, _ = self._layers_lstm(lstm_input, (h0, c0))
@@ -187,6 +218,9 @@ class InferenceNetworkLSTM(InferenceNetwork):
             for time_step in range(example_trace.length_controlled):
                 variable = example_trace.variables_controlled[time_step]
                 address = variable.address
+                if variable.name in self._observe_embeddings:
+                    # do not create proposal layer for observed variables!
+                    continue
                 proposal_input = lstm_output[time_step]
                 variables = [trace.variables_controlled[time_step] for trace in sub_batch]
                 values = torch.stack([v.value for v in variables])

@@ -34,10 +34,10 @@ class ConvTranspose2d(nn.Module):
             else:
                 modules.append(('upsample'+str(n), nn.Upsample(size=(h+4, w+4), mode='nearest')))
                 modules.append((f"conv2d_{n}_0", nn.Conv2d(in_channel, out_channel,
-                                                           kernel_size(3,3), padding=0)))
+                                                           kernel_size=(3,3), padding=0)))
                 modules.append((f"leaky_relu_{n}_0", nn.LeakyReLU(inplace=True)))
                 modules.append((f"conv2d_{n}_1", nn.Conv2d(out_channel, out_channel,
-                                                           kernel_size(3,3), padding=0)))
+                                                           kernel_size=(3,3), padding=0)))
                 modules.append((f"leaky_relu_{n}_1", nn.LeakyReLU(inplace=True)))
                 h *= 2
                 w *= 2
@@ -45,10 +45,10 @@ class ConvTranspose2d(nn.Module):
         out_channel = int(in_channel*0.6)
         modules.append(('upsample'+str(n+1), nn.Upsample(size=(H+4, W+4), mode='nearest')))
         modules.append((f"conv2d_{n+1}_0", nn.Conv2d(in_channel, out_channel,
-                                                     kernel_size(3,3), padding=0)))
+                                                     kernel_size=(3,3), padding=0)))
         modules.append((f"leaky_relu_{n+1}_0", nn.LeakyReLU(inplace=True)))
         modules.append((f"conv2d_{n+1}_1", nn.Conv2d(out_channel, 1,
-                                                     kernel_size(3,3), padding=0)))
+                                                     kernel_size=(3,3), padding=0)))
 
 
 

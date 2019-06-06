@@ -4,7 +4,10 @@ from . import util
 
 
 class Variable():
-    def __init__(self, distribution=None, value=None, address_base=None, address=None, instance=None, log_prob=None, log_importance_weight=None, control=False, replace=False, name=None, observed=False, reused=False, tagged=False):
+    def __init__(self, distribution=None, value=None, address_base=None,
+                 address=None, instance=None, log_prob=None, log_importance_weight=None,
+                 control=False, constants={}, replace=False, name=None, observed=False, reused=False,
+                 tagged=False):
         self.distribution = distribution
         if value is None:
             self.value = None
@@ -28,12 +31,14 @@ class Variable():
         self.observed = observed
         self.reused = reused
         self.tagged = tagged
+        self.constants = constants
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned variables in offline training datasets
-        return 'Variable(name:{}, control:{}, replace:{}, observable:{}, observed:{}, tagged:{}, address:{}, distribution:{}, value:{}: log_prob:{})'.format(
+        return 'Variable(name:{}, control:{}, constans:{}, replace:{}, observable:{}, observed:{}, tagged:{}, address:{}, distribution:{}, value:{}: log_prob:{})'.format(
             self.name if hasattr(self, 'name') else 'Unknown',
             self.control if hasattr(self, 'control') else 'Unknown',
+            self.constants if hasattr(self, 'constants') else 'Unknown',
             self.replace if hasattr(self, 'replace') else 'Unknown',
             self.observable if hasattr(self, 'observable') else 'Unknown',
             self.observed if hasattr(self, 'observed') else 'Unknown',

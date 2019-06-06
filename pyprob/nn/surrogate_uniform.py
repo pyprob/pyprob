@@ -23,8 +23,10 @@ class SurrogateUniform(nn.Module):
         #                                 activation=torch.relu, activation_last=None)
         # self._total_train_iterations = 0
 
-        self.dist_type = Uniform(low=torch.Tensor([constants['low']]),
-                                 high=torch.Tensor([constants['high']]))
+        self.dist_type = Uniform(low=[constants['low']],
+                                 high=[constants['high']])
+        self.low = util.to_tensor(constants['low'])
+        self.high = util.to_tensor(constants['high'])
 
     def _transform_low(self, dists):
         return torch.stack([d.low for d in dists])
@@ -33,12 +35,14 @@ class SurrogateUniform(nn.Module):
         return torch.stack([d.high for d in dists])
 
     def forward(self, x):
-        # batch_size = x.size(0)
+        batch_size = x.size(0)
         # x = self._ff(x)
         # self.low = x[:, :self._output_dim].view(self._output_shape)
         # self.high = torch.exp(x[:, self._output_dim:]).view(self._output_shape)
 
-        return self.dist_type
+        return Uniform(low=self.low.repeat(batch_size, 1),
+                       high=self.high.repeat(batch_size, 1))
+ype
 
     def loss(self, distributions):
         # simulator_lows = self._transform_low(distributions)

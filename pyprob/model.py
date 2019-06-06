@@ -7,9 +7,11 @@ import random
 from termcolor import colored
 
 from .distributions import Empirical
-from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, Optimizer, LearningRateScheduler, AddressDictionary
+from . import util, state, TraceMode, PriorInflation, InferenceEngine, \
+    InferenceNetwork, Optimizer, LearningRateScheduler, AddressDictionary
 from .nn import InferenceNetwork as InferenceNetworkBase
-from .nn import OnlineDataset, OfflineDataset, InferenceNetworkFeedForward, InferenceNetworkLSTM
+from .nn import OnlineDataset, OfflineDataset, InferenceNetworkFeedForward, \
+    InferenceNetworkLSTM, SurrogateNetworkLSTM
 from .remote import ModelServer
 
 
@@ -356,7 +358,7 @@ class Model():
                                           dataloader_offline_num_workers=0,
                                           stop_with_bad_loss=True,
                                           lstm_dim=512, lstm_depth=1,
-                                          deconv_list=[], variable_embeddings={},
+                                          variable_embeddings={},
                                           address_embedding_dim=64,
                                           sample_embedding_dim=4,
                                           distribution_type_embedding_dim=8,
@@ -380,7 +382,6 @@ class Model():
                                                            sample_embedding_dim=sample_embedding_dim,
                                                            address_embedding_dim=address_embedding_dim,
                                                            distribution_type_embedding_dim=distribution_type_embedding_dim,
-                                                           deconv_list=deconv_list,
                                                            variable_embeddings=variable_embeddings)
         else:
             print('Continuing to train existing surrogate network...')

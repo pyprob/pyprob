@@ -111,7 +111,7 @@ def tag(value, name=None, address=None):
     _current_trace.add(variable)
 
 
-def observe(distribution, value=None, name=None, address=None):
+def observe(distribution, value=None, constants={}, name=None, address=None):
     global _current_trace
     if address is None:
         address_base = _extract_address(_current_trace_root_function_name) + '__' + distribution._address_suffix
@@ -136,11 +136,15 @@ def observe(distribution, value=None, name=None, address=None):
     else:
         log_importance_weight = None  # TODO: Check the reason/behavior for this
 
-    variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, observed=True, name=name)
+    variable = Variable(distribution=distribution, value=value, constants=constants,
+                        address_base=address_base, address=address, instance=instance,
+                        log_prob=log_prob, log_importance_weight=log_importance_weight,
+                        observed=True, name=name)
     _current_trace.add(variable)
 
 
-def sample(distribution, control=True, replace=False, name=None, address=None):
+def sample(distribution, constants={}, control=True, replace=False, name=None,
+           address=None):
     global _current_trace
     global _current_trace_previous_variable
     global _current_trace_replaced_variable_proposal_distributions
@@ -171,7 +175,10 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
             log_importance_weight = float(log_prob)
         else:
             log_importance_weight = None  # TODO: Check the reason/behavior for this
-        variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, observed=True, name=name)
+        variable = Variable(distribution=distribution, value=value, constants=constants,
+                            address_base=address_base, address=address, instance=instance,
+                            log_prob=log_prob, log_importance_weight=log_importance_weight,
+                            observed=True, name=name)
     else:
         # Variable is sampled
         reused = False
@@ -191,7 +198,13 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
             elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
                 address = address_base + '__' + ('replaced' if replace else str(instance))
                 if control:
-                    variable = Variable(distribution=distribution, value=None, address_base=address_base, address=address, instance=instance, log_prob=0., control=control, replace=replace, name=name, observed=observed, reused=reused)
+                    variable = Variable(distribution=distribution, value=None,
+                                        constants=constants,
+                                        address_base=address_base,
+                                        address=address, instance=instance,
+                                        log_prob=0., control=control,
+                                        replace=replace, name=name,
+                                        observed=observed, reused=reused)
                     update_previous_variable = False
                     if replace:
                         # TODO: address not in _current_trace_replaced_variable_proposal_distributions might not be sufficient to discover a new replace loop instance. Implement better.
@@ -219,7 +232,15 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                         print('log_prob', proposal_log_prob)
                     log_importance_weight = float(log_prob) - float(proposal_log_prob)
                     if update_previous_variable:
-                        variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, replace=replace, name=name, observed=observed, reused=reused)
+                        variable = Variable(distribution=distribution,
+                                            value=value, constants=constants,
+                                            address_base=address_base,
+                                            address=address, instance=instance,
+                                            log_prob=log_prob,
+                                            log_importance_weight=log_importance_weight,
+                                            control=control, replace=replace,
+                                            name=name, observed=observed,
+                                            reused=reused)
                         _current_trace_previous_variable = variable
                         # print('prev_var address {}'.format(variable.address))
                 else:
@@ -295,13 +316,23 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                 log_prob = distribution.log_prob(value, sum=True)
                 log_importance_weight = float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))  # To account for prior inflation
 
-        variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, replace=replace, name=name, observed=observed, reused=reused)
+        variable = Variable(distribution=distribution, value=value,
+                            constants=constants, address_base=address_base,
+                            address=address, instance=instance,
+                            log_prob=log_prob,
+                            log_importance_weight=log_importance_weight,
+                            control=control, replace=replace, name=name,
+                            observed=observed, reused=reused)
 
     _current_trace.add(variable)
     return variable.value
 
 
-def _init_traces(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None, address_dictionary=None, likelihood_importance=1.):
+def _init_traces(func, trace_mode=TraceMode.PRIOR,
+                 prior_inflation=PriorInflation.DISABLED,
+                 inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None,
+                 observe=None, metropolis_hastings_trace=None, address_dictionary=None,
+                 likelihood_importance=1.):
     global _trace_mode
     global _inference_engine
     global _prior_inflation
