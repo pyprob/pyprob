@@ -81,7 +81,7 @@ class InferenceNetwork(nn.Module):
             raise ValueError('At least one observe embedding is needed to initialize inference network.')
         observe_embedding_total_dim = 0
         for name, value in observe_embeddings.items():
-            variable = example_trace.named_variables[name]
+            variable = example_trace.variables_observed[name]
             # distribution = variable.distribution
             # if distribution is None:
             #     raise ValueError('Observable {}: cannot use this observation as an input to the inference network, because there is no associated likelihood.'.format(name))
@@ -132,7 +132,7 @@ class InferenceNetwork(nn.Module):
     def _embed_observe(self, traces=None):
         embedding = []
         for name, layer in self._layers_observe_embedding.items():
-            values = torch.stack([util.to_tensor(trace.named_variables[name].value) for trace in traces]).view(len(traces), -1)
+            values = torch.stack([util.to_tensor(trace.variables_observed[name].value) for trace in traces]).view(len(traces), -1)
             embedding.append(layer(values))
         embedding = torch.cat(embedding, dim=1)
         embedding = self._layers_observe_embedding_final(embedding)

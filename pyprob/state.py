@@ -26,6 +26,7 @@ _metropolis_hastings_trace = None
 _metropolis_hastings_site_address = None
 _metropolis_hastings_site_transition_log_prob = 0
 _address_dictionary = None
+_variables_observed_inf_training = []
 
 
 # _extract_address and _extract_target_of_assignment code by Tobias Kohn (kohnt@tobiaskohn.ch)
@@ -182,7 +183,11 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
     else:
         # Variable is sampled
         reused = False
-        observed = False
+        if name in _variables_observed_inf_training:
+            observed = True
+        else:
+            observed = False
+
         if _trace_mode == TraceMode.POSTERIOR:
             if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
                 address = address_base + '__' + str(instance)
@@ -349,9 +354,18 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
 
 def _init_traces(func, trace_mode=TraceMode.PRIOR,
                  prior_inflation=PriorInflation.DISABLED,
-                 inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None,
-                 observe=None, metropolis_hastings_trace=None, address_dictionary=None,
+                 inference_engine=InferenceEngine.IMPORTANCE_SAMPLING,
+                 inference_network=None, observe=None,
+                 metropolis_hastings_trace=None, address_dictionary=None,
                  likelihood_importance=1.):
+
+    """ Initialize the trace object
+
+    Inputs:
+
+    observe -- (Key, Value) = (name, observed value)
+    """
+
     global _trace_mode
     global _inference_engine
     global _prior_inflation
@@ -365,12 +379,14 @@ def _init_traces(func, trace_mode=TraceMode.PRIOR,
     global _current_trace_inference_network_proposal_min_train_iterations
     global _current_trace_observed_variables
     global _address_dictionary
+
     _address_dictionary = address_dictionary
     _current_trace_root_function_name = func.__code__.co_name
     if observe is None:
         _current_trace_observed_variables = {}
     else:
         _current_trace_observed_variables = observe
+
     _current_trace_inference_network = inference_network
     if _current_trace_inference_network is None:
         if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:

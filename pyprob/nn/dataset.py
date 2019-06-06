@@ -22,18 +22,18 @@ class Batch():
         self.traces = traces
         self.size = len(traces)
         sub_batches = {}
-        total_length_controlled = 0
+        total_length = 0
         for trace in traces:
-            tl = trace.length_controlled
+            tl = trace.length
             if tl == 0:
                 raise ValueError('Trace of length zero.')
-            total_length_controlled += tl
-            trace_hash = ''.join([variable.address for variable in trace.variables_controlled])
+            total_length += tl
+            trace_hash = ''.join([variable.address for variable in trace.variables])
             if trace_hash not in sub_batches:
                 sub_batches[trace_hash] = []
             sub_batches[trace_hash].append(trace)
         self.sub_batches = list(sub_batches.values())
-        self.mean_length_controlled = total_length_controlled / self.size
+        self.mean_length = total_length / self.size
 
     def __len__(self):
         return len(self.traces)
@@ -58,7 +58,8 @@ class OnlineDataset(Dataset):
         return self._length
 
     def __getitem__(self, idx):
-        return next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK, prior_inflation=self._prior_inflation))
+        return next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK,
+                                                 prior_inflation=self._prior_inflation))
 
     @staticmethod
     def _prune_trace(trace):
@@ -235,8 +236,8 @@ class OfflineDataset(ConcatDataset):
 
     @staticmethod
     def _trace_hash(trace):
-        h = hash(''.join([variable.address for variable in trace.variables_controlled])) + sys.maxsize + 1
-        return float('{}.{}'.format(trace.length_controlled, h))
+        h = hash(''.join([variable.address for variable in trace.variables])) + sys.maxsize + 1
+        return float('{}.{}'.format(trace.length, h))
 
     def _compute_hashes(self):
         hashes = torch.zeros(len(self))

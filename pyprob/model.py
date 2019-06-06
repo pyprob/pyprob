@@ -52,8 +52,9 @@ class Model():
     def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR,
                 prior_inflation=PriorInflation.DISABLED,
                 inference_engine=InferenceEngine.IMPORTANCE_SAMPLING,
-                inference_network=None, map_func=None, silent=False, observe=None,
-                file_name=None, likelihood_importance=1., *args, **kwargs):
+                inference_network=None, map_func=None, silent=False,
+                observe=None, file_name=None, likelihood_importance=1., *args,
+                **kwargs):
 
         generator = self._trace_generator(trace_mode=trace_mode,
                                           prior_inflation=prior_inflation,
@@ -276,6 +277,8 @@ class Model():
                                 lstm_dim=512, lstm_depth=1,
                                 proposal_mixture_components=10, surrogate=False,
                                 sacred_run=None):
+
+        state._variables_observed_inf_training = list(observe_embeddings.keys())
 
         if surrogate and self._surrogate_forward:
             self._surrogate_network.eval()

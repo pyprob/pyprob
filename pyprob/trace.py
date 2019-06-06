@@ -62,7 +62,7 @@ class Variable():
 class Trace():
     def __init__(self):
         self.variables = []
-        self.variables_observed = []
+        self.variables_observed = {}
         self.variables_dict_address = {}
         self.variables_dict_address_base = {}
         self.result = None
@@ -74,18 +74,22 @@ class Trace():
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned traces in offline training datasets
-        return 'Trace(number of variables:{:,}, log_prob:{}, log_importance_weight:{})'.format(
+        return 'Trace(number of variables:{:,}, observed:{}, log_prob:{}, log_importance_weight:{})'.format(
             self.length,
-            self.length_controlled,
+            '{:,}'.format(len(self.variables_observed)) if hasattr(self, 'variables_observed') else 'Unknown',
             str(self.log_prob) if hasattr(self, 'log_prob') else 'Unknown',
             str(self.log_importance_weight) if hasattr(self, 'log_importance_weight') else 'Unknown')
 
     def add(self, variable):
         self.variables.append(variable)
+        if variable.observed:
+            # HAS TO HAVE A NAME
+            self.variables_observed[variable.name] = variable
         self.variables_dict_address[variable.address] = variable
         self.variables_dict_address_base[variable.address_base] = variable
         self.log_prob += torch.sum(variable.log_prob)
-        self.log_importance_weight += variable.log_importance_weight
+        if variable.log_importance_weight is not None:
+            self.log_importance_weight += variable.log_importance_weight
 
     def end(self, result, execution_time_sec):
         self.result = result

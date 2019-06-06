@@ -42,7 +42,6 @@ class SurrogateUniform(nn.Module):
 
         return Uniform(low=self.low.repeat(batch_size, 1),
                        high=self.high.repeat(batch_size, 1))
-ype
 
     def loss(self, distributions):
         # simulator_lows = self._transform_low(distributions)

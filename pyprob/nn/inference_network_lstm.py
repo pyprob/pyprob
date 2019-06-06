@@ -169,7 +169,6 @@ class InferenceNetworkLSTM(InferenceNetwork):
             observe_embedding = self._embed_observe(sub_batch)
             sub_batch_length = len(sub_batch)
             sub_batch_loss = 0.
-            # print('sub_batch_length', sub_batch_length, 'example_trace_length_controlled', example_trace.length_controlled, '  ')
 
             # Construct LSTM input sequence for the whole trace length of sub_batch
             # TODO in dataloader
@@ -232,20 +231,14 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     continue
                 else:
                     # only when the variable is controlled do we have a loss propagating through the distribution
-                    log_prob = proposal_distribution.log_prob(values)
                     proposal_input = lstm_output[time_step]
                     variables = [trace.variables[time_step] for trace in sub_batch]
                     values = torch.stack([v.value for v in variables])
                     proposal_layer = self._layers_proposal[address]
                     proposal_layer._total_train_iterations += 1
                     proposal_distribution = proposal_layer(proposal_input, variables)
+                    log_prob = proposal_distribution.log_prob(values)
 
-                # log_importance_weights = util.to_tensor([trace.log_importance_weight for trace in sub_batch], dtype=torch.float64)
-                # importance_weights = torch.exp(log_importance_weights)
-                # print('loss                  ', log_prob)
-                # print('log_importance_weights', log_importance_weights)
-                # print('importance_weights    ', importance_weights)
-                # print()
                 if util.has_nan_or_inf(log_prob):
                     print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))
                     print('proposal_distribution', proposal_distribution)
