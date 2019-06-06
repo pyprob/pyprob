@@ -244,9 +244,28 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
                         _current_trace_previous_variable = variable
                         # print('prev_var address {}'.format(variable.address))
                 else:
-                    value = distribution.sample()
+
+                    proposal_distribution = _current_trace_inference_network._infer_step(variable,
+                                                                                         prev_variable=_current_trace_previous_variable,
+                                                                                         proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
+
+                    value = proposal_distribution.sample()
                     log_prob = distribution.log_prob(value, sum=True)
-                    log_importance_weight = None
+                    log_importance_weight = 0
+
+                    if update_previous_variable:
+                        variable = Variable(distribution=distribution,
+                                            value=value, constants=constants,
+                                            address_base=address_base,
+                                            address=address, instance=instance,
+                                            log_prob=log_prob,
+                                            log_importance_weight=log_importance_weight,
+                                            control=control, replace=replace,
+                                            name=name, observed=observed,
+                                            reused=reused)
+
+                        _current_trace_previous_variable = variable
+
                 address = address_base + '__' + str(instance)
             else:  # _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
                 address = address_base + '__' + str(instance)

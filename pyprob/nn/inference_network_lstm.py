@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 from termcolor import colored
 
-from . import InferenceNetwork, EmbeddingFeedForward, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
+from . import InferenceNetwork, EmbeddingFeedForward, ProposalNormalNormalMixture, \
+    ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, \
+    ProposalPoissonTruncatedNormalMixture, PriorDist
 from .. import util
 from ..distributions import Normal, Uniform, Categorical, Poisson
 
@@ -37,8 +39,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
         layers_changed = False
         for sub_batch in batch.sub_batches:
             example_trace = sub_batch[0]
-            for variable in example_trace.variables_controlled:
-                if variable.name in self._observe_embeddings:
+            for variable in example_trace.variables:
+                if (variable.name in self._observe_embeddings):
                     # do not create proposal layer for observed variables!
                     continue
                 address = variable.address
@@ -59,7 +61,12 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     else:
                         var_embedding = {'num_layers': 2,
                                          'hidden_dim': None}
-                    if isinstance(distribution, Normal):
+                    if not variable.control:
+                        proposal_layer = PriorDist()
+                        sample_embedding_layer = EmbeddingFeedForward(variable.value.shape,
+                                                                      self._sample_embedding_dim,
+                                                                      num_layers=1)
+                    elif isinstance(distribution, Normal):
                         proposal_layer = ProposalNormalNormalMixture(self._lstm_dim,
                                                                      variable_shape,
                                                                      mixture_components=self._proposal_mixture_components,
@@ -147,6 +154,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 if proposal_layer._total_train_iterations < proposal_min_train_iterations:
                     print(colored('Warning: using prior, proposal not sufficiently trained ({}/{}) for address: {}'.format(proposal_layer._total_train_iterations, proposal_min_train_iterations, current_address), 'yellow', attrs=['bold']))
                     return current_distribution
+
+            # if variable is uncontrolled the returned distribution is the prior
             proposal_distribution = proposal_layer.forward(proposal_input, [variable])
             return proposal_distribution
         else:
@@ -165,8 +174,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
             # Construct LSTM input sequence for the whole trace length of sub_batch
             # TODO in dataloader
             lstm_input = []
-            for time_step in range(example_trace.length_controlled):
-                current_variable = example_trace.variables_controlled[time_step]
+            for time_step in range(example_trace.length):
+                current_variable = example_trace.variables[time_step]
                 current_address = current_variable.address
 
                 if current_variable.name in self._observe_embeddings:
@@ -185,13 +194,13 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     prev_address_embedding = torch.zeros(self._address_embedding_dim).to(device=util._device)
                     prev_distribution_type_embedding = torch.zeros(self._distribution_type_embedding_dim).to(device=util._device)
                 else:
-                    prev_variable = example_trace.variables_controlled[time_step - 1]
+                    prev_variable = example_trace.variables[time_step - 1]
                     prev_address = prev_variable.address
                     if prev_address not in self._layers_address_embedding:
                         print(colored('Address unknown by inference network: {}'.format(prev_address), 'red', attrs=['bold']))
                         return False, 0
                     prev_distribution = prev_variable.distribution
-                    smp = torch.stack([trace.variables_controlled[time_step - 1].value.float() for trace in sub_batch])
+                    smp = torch.stack([trace.variables[time_step - 1].value.float() for trace in sub_batch])
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
                     prev_address_embedding = self._layers_address_embedding[prev_address]
                     prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution.name]
@@ -215,21 +224,24 @@ class InferenceNetworkLSTM(InferenceNetwork):
             lstm_output, _ = self._layers_lstm(lstm_input, (h0, c0))
 
             # Construct proposals for each time step in the LSTM output sequence of sub_batch
-            for time_step in range(example_trace.length_controlled):
-                variable = example_trace.variables_controlled[time_step]
+            for time_step in range(example_trace.length):
+                variable = example_trace.variables[time_step]
                 address = variable.address
-                if variable.name in self._observe_embeddings:
+                if (variable.name in self._observe_embeddings) or (not variable.control):
                     # do not create proposal layer for observed variables!
                     continue
-                proposal_input = lstm_output[time_step]
-                variables = [trace.variables_controlled[time_step] for trace in sub_batch]
-                values = torch.stack([v.value for v in variables])
-                proposal_layer = self._layers_proposal[address]
-                proposal_layer._total_train_iterations += 1
-                proposal_distribution = proposal_layer.forward(proposal_input, variables)
+                else:
+                    # only when the variable is controlled do we have a loss propagating through the distribution
+                    log_prob = proposal_distribution.log_prob(values)
+                    proposal_input = lstm_output[time_step]
+                    variables = [trace.variables[time_step] for trace in sub_batch]
+                    values = torch.stack([v.value for v in variables])
+                    proposal_layer = self._layers_proposal[address]
+                    proposal_layer._total_train_iterations += 1
+                    proposal_distribution = proposal_layer(proposal_input, variables)
+
                 # log_importance_weights = util.to_tensor([trace.log_importance_weight for trace in sub_batch], dtype=torch.float64)
                 # importance_weights = torch.exp(log_importance_weights)
-                log_prob = proposal_distribution.log_prob(values)
                 # print('loss                  ', log_prob)
                 # print('log_importance_weights', log_importance_weights)
                 # print('importance_weights    ', importance_weights)
