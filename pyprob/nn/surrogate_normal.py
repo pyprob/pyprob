@@ -60,23 +60,41 @@ class SurrogateNormal(nn.Module):
                     raise ValueError('Only support independent variable - variance has to be vector')
             self.dist_type = Normal(loc=torch.zeros(mean_shape), scale=torch.ones(var_shape))
 
+    def _transform_mean(self, dists):
+        return torch.stack([d.mean for d in dists])
+
+    def _transform_stddev(self, dists):
+        return  torch.stack([d.stddev for d in dists])
+
+
     def forward(self, x):
         if self.train:
             batch_size = x.size(0)
             if self.em_type == 'ff':
                 x = self._em(x)
-                means = x[:, :self._mean_output_dim].view(batch_size, self._mean_shape)
-                stddevs = torch.exp(x[:, self._mean_output_dim:]).view(batch_size, self._var_shape)
+                self.means = x[:, :self._mean_output_dim].view(batch_size, *self._mean_shape)
+                self.stddevs = torch.exp(x[:, self._mean_output_dim:]).view(batch_size, *self._var_shape)
 
             elif self.em_type == 'devonv':
                 x = self._lin_embed(x)
                 mean_embeds = x[batch_size, :self.input_dim].view(batch_size,
                                                                 self._input_dim)
-                means = self._em(mean_embeds)
-                stddevs = torch.exp(x[batch_size, self.input_dim:]).view(batch_size,
+                self.means = self._em(mean_embeds)
+                self.stddevs = torch.exp(x[batch_size, self.input_dim:]).view(batch_size,
                                                                         self._var_output_dim)
-            return Normal(means, stddevs)
+            return Normal(self.means, self.stddevs)
         else:
             return Normal(self.loc.repeat(batch_size, 1,1).squeeze(),
                           self.scale.repeat(batch_size, 1, 1).squeeze())
 
+    def loss(self, distributions):
+        if self.train:
+            simulator_means = self._transform_mean(distributions)
+            simulator_stddevs = self._transform_stddev(distributions)
+            p_normal = Normal(simulator_means, simulator_stddevs)
+            q_normal = Normal(self.means, self.stddevs)
+
+            return Distribution.kl_divergence(p_normal, q_normal)
+        else:
+            batch_size = len(distributions)
+            return torch.zeros([batch_size,1])

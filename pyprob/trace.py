@@ -2,12 +2,11 @@ import torch
 
 from . import util
 
-
 class Variable():
     def __init__(self, distribution=None, value=None, address_base=None,
-                 address=None, instance=None, log_prob=None, log_importance_weight=None,
-                 control=False, constants={}, replace=False, name=None, observed=False, reused=False,
-                 tagged=False):
+                 address=None, instance=None, log_prob=None,
+                 log_importance_weight=None, control=False, constants={},
+                 name=None, observed=False, reused=False, tagged=False):
         self.distribution = distribution
         if value is None:
             self.value = None
@@ -25,7 +24,6 @@ class Variable():
         else:
             self.log_importance_weight = float(log_importance_weight)
         self.control = control
-        self.replace = replace
         self.name = name
         self.observed = observed
         self.reused = reused
@@ -34,11 +32,10 @@ class Variable():
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned variables in offline training datasets
-        return 'Variable(name:{}, control:{}, constans:{}, replace:{}, observed:{}, tagged:{}, address:{}, distribution:{}, value:{}: log_prob:{})'.format(
+        return 'Variable(name:{}, control:{}, constans:{}, observed:{}, tagged:{}, address:{}, distribution:{}, value:{}: log_prob:{})'.format(
             self.name if hasattr(self, 'name') else 'Unknown',
             self.control if hasattr(self, 'control') else 'Unknown',
             self.constants if hasattr(self, 'constants') else 'Unknown',
-            self.replace if hasattr(self, 'replace') else 'Unknown',
             self.observed if hasattr(self, 'observed') else 'Unknown',
             self.tagged if hasattr(self, 'tagged') else 'Unknown',
             self.address if hasattr(self, 'address') else 'Unknown',
@@ -49,11 +46,9 @@ class Variable():
     def to(self, device):
         if self.value is not None:
             self.value.to(device=device)
-        # if self.distribution is not None:
-        #     self.distribution.to(device=device)
 
     def __hash__(self):
-        return hash(self.address + str(self.value) + str(self.control) + str(self.replace) + str(self.observed) + str(self.tagged))
+        return hash(self.address + str(self.value) + str(self.control) + str(self.observed) + str(self.tagged))
 
     def __eq__(self, other):
         return hash(self) == hash(other)

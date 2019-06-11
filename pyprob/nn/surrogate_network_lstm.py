@@ -109,6 +109,8 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     if isinstance(distribution, Normal):
                         mean_shape, var_shape = distribution.mean.shape, distribution.variance.shape
                         surrogate_distribution = SurrogateNormal(self._lstm_dim,
+                                                                 mean_shape,
+                                                                 var_shape,
                                                                  variable.constants,
                                                                  **var_embedding)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape,
@@ -257,8 +259,8 @@ class SurrogateNetworkLSTM(InferenceNetwork):
 
             # Execute LSTM in a single operation on the whole input sequence
             lstm_input = torch.stack(lstm_input)
-            h0 = util.to_tensor(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
-            c0 = util.to_tensor(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
+            h0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim)
+            c0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim)
             lstm_output, _ = self._layers_lstm(lstm_input, (h0, c0))
 
             # surrogate loss
@@ -282,7 +284,6 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 surrogate_distribution_layer = self._layers_surrogate_distributions[address]
 
                 # only consider loss and training if we are not at the end of trace
-                # TODO MAKE SURE TRACE ENDS ARE UNIQUE!
                 if time_step < trace_length - 1:
                     smp = util.to_tensor(torch.stack([trace.variables[time_step].value.float() for trace in sub_batch]))
                     sample_embedding = self._layers_sample_embedding[address](smp)

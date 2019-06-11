@@ -5,6 +5,7 @@ import math
 import os
 import sys
 import shelve
+import h5py
 from glob import glob
 import numpy as np
 import uuid
@@ -47,7 +48,8 @@ class Batch():
 
 
 class OnlineDataset(Dataset):
-    def __init__(self, model, length=None, prior_inflation=PriorInflation.DISABLED):
+    def __init__(self, model, length=None,
+                 prior_inflation=PriorInflation.DISABLED):
         self._model = model
         if length is None:
             length = int(1e6)
@@ -61,66 +63,6 @@ class OnlineDataset(Dataset):
         return next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK,
                                                  prior_inflation=self._prior_inflation))
 
-    @staticmethod
-    def _prune_trace(trace):
-        del(trace.variables)
-        # trace.variables_controlled = []
-        del(trace.variables_uncontrolled)
-        del(trace.variables_replaced)
-        del(trace.variables_observed)
-        del(trace.variables_observable)
-        del(trace.variables_tagged)
-        del(trace.variables_dict_address)
-        del(trace.variables_dict_address_base)
-        # trace.named_variables = {}
-        del(trace.result)
-        del(trace.log_prob)
-        del(trace.log_prob_observed)
-        # del(trace.log_importance_weight)
-        # trace.length = 0
-        # trace.length_controlled = 0
-        del(trace.execution_time_sec)
-        for variable in trace.variables_controlled:
-            # variable.distribution = distribution
-            # if value is None:
-            #     variable.value = None
-            # else:
-            #     variable.value = util.to_tensor(value)
-            del(variable.address_base)
-            # variable.address = address
-            del(variable.instance)
-            del(variable.log_prob)
-            del(variable.control)
-            del(variable.replace)
-            del(variable.name)
-            del(variable.observable)
-            del(variable.observed)
-            del(variable.reused)
-            del(variable.tagged)
-        for _, variable in trace.named_variables.items():
-            controlled = False
-            for v in trace.variables_controlled:
-                if variable is v:  # Needs to be implemented this way to compare object references instead of object hashes (which change as a result of potentially deleted fields)
-                    controlled = True
-                    break
-            if not controlled:
-                del(variable.distribution)
-                # if value is None:
-                #     variable.value = None
-                # else:
-                #     variable.value = util.to_tensor(value)
-                del(variable.address_base)
-                del(variable.address)
-                del(variable.instance)
-                del(variable.log_prob)
-                del(variable.control)
-                del(variable.replace)
-                del(variable.name)
-                del(variable.observable)
-                del(variable.observed)
-                del(variable.reused)
-                del(variable.tagged)
-
     def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, *args, **kwargs):
         num_files = math.ceil(num_traces / num_traces_per_file)
         util.progress_bar_init('Saving offline dataset, traces:{}, traces per file:{}, files:{}'.format(num_traces, num_traces_per_file, num_files), num_traces, 'Traces')
@@ -130,8 +72,9 @@ class OnlineDataset(Dataset):
             file_name = os.path.join(dataset_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
             shelf = shelve.open(file_name, flag='c')
             for j in range(num_traces_per_file):
-                trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, *args, **kwargs))
-                self._prune_trace(trace)
+                trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR,
+                                                          prior_inflation=self._prior_inflation,
+                                                          *args, **kwargs))
                 shelf[str(j)] = trace
                 shelf['__length'] = j + 1
             shelf.close()
