@@ -4,8 +4,9 @@ import torch.distributed as dist
 import math
 import os
 import sys
-import shelve
 import h5py
+import json
+import time
 from glob import glob
 import numpy as np
 import uuid
@@ -55,6 +56,8 @@ class OnlineDataset(Dataset):
             length = int(1e6)
         self._length = length
         self._prior_inflation = prior_inflation
+        self.variable_attributes = ['value', 'address_base', 'address', 'instance', 'log_prob',
+                                    'control', 'tagged', 'constants', 'observed', 'name']
 
     def __len__(self):
         return self._length
@@ -67,19 +70,105 @@ class OnlineDataset(Dataset):
         num_files = math.ceil(num_traces / num_traces_per_file)
         util.progress_bar_init('Saving offline dataset, traces:{}, traces per file:{}, files:{}'.format(num_traces, num_traces_per_file, num_files), num_traces, 'Traces')
         i = 0
+        str_type = h5py.special_dtype(vlen=str)
         while i < num_traces:
             i += num_traces_per_file
             file_name = os.path.join(dataset_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
-            shelf = shelve.open(file_name, flag='c')
-            for j in range(num_traces_per_file):
-                trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR,
-                                                          prior_inflation=self._prior_inflation,
-                                                          *args, **kwargs))
-                shelf[str(j)] = trace
-                shelf['__length'] = j + 1
-            shelf.close()
+            with h5py.File(file_name+".hdf5", 'w') as f:
+                for j in range(num_traces_per_file):
+                    trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR,
+                                                              prior_inflation=self._prior_inflation,
+                                                              *args, **kwargs))
+                    address_list = [variable.address for variable in trace.variables]
+                    trace_hash = ''.join(address_list)
+                    trace_len = len(address_list)
+
+                    timer = time.time()
+                    if trace_hash not in f.keys():
+                        grp = f.create_group(trace_hash)
+                        grp.create_dataset('value', (1, trace_len),
+                                           maxshape=(num_traces_per_file, trace_len),
+                                           chunks=True, compression="gzip", dtype=str_type)
+
+                        grp.create_dataset('address', (1, trace_len),
+                                           maxshape=(num_traces_per_file, trace_len),
+                                           chunks=True, compression="gzip", dtype=str_type)
+
+                        grp.create_dataset('address_base', (1, trace_len),
+                                           maxshape=(num_traces_per_file, trace_len),
+                                           chunks=True, compression="gzip", dtype=str_type)
+
+                        grp.create_dataset('instance', (1, trace_len),
+                                           maxshape=(num_traces_per_file, trace_len),
+                                           chunks=True, compression="gzip")
+
+                        grp.create_dataset('name', (1, trace_len),
+                                           maxshape=(num_traces_per_file, trace_len),
+                                           chunks=True, compression="gzip", dtype=str_type)
+
+                        grp.create_dataset('log_prob', (1, trace_len),
+                                           maxshape=(num_traces_per_file, trace_len),
+                                           chunks=True, compression="gzip")
+
+                        grp.create_dataset('control', (1, trace_len),
+                                           maxshape=(num_traces_per_file, trace_len),
+                                           chunks=True, compression="gzip")
+
+                        grp.create_dataset('observed', (1, trace_len),
+                                           maxshape=(num_traces_per_file, trace_len),
+                                           chunks=True, compression="gzip")
+
+                        grp.create_dataset('tagged', (1, trace_len),
+                                           maxshape=(num_traces_per_file, trace_len),
+                                           chunks=True, compression="gzip")
+
+                        grp.create_dataset('constants', (1, trace_len),
+                                           maxshape=(num_traces_per_file, trace_len),
+                                           chunks=True, compression="gzip", dtype=str_type)
+
+                        grp.create_dataset('distribution', (1, trace_len),
+                                           maxshape=(num_traces_per_file, trace_len),
+                                           chunks=True, compression="gzip", dtype=str_type)
+
+                        grp.attrs['trace_len'] = trace_len
+                        grp.attrs['num_traces'] = 0
+
+                    grp = f[trace_hash]
+                    grp.attrs['num_traces'] += 1
+
+                    timer = time.time()
+                    for attr in self.variable_attributes:
+                        self._update_attribute(attr, trace, grp, grp.attrs['num_traces'], trace_len)
+                    print("loop over traces", time.time() - timer)
+                f.attrs['num_traces'] = num_traces_per_file
+
             util.progress_bar_update(i)
         util.progress_bar_end()
+
+    def _update_attribute(self, attr, trace, grp, num_traces, trace_len):
+        var_counter = 0
+        for variable in trace.variables:
+            grp[attr].resize((num_traces, trace_len))
+
+            if attr == 'value':
+                v = json.dumps(getattr(variable, attr).tolist())
+            elif attr in ['distribution']:
+                # extract the input arguments for initializing the distribution
+                v = json.dumps(variable.distribution.dist_arguments)
+            elif attr in ['constants']:
+                tmp = {}
+                for k, value in variable.constants.items():
+                    tmp[k] = value.tolist()
+                v = json.dumps(tmp)
+            else:
+                v = getattr(variable, attr)
+
+            timer = time.time()
+            grp[attr][num_traces-1, var_counter] = v
+            print("writing: " + attr, time.time() - timer)
+            var_counter += 1
+        return None
+
 
 
 class OfflineDatasetFile(Dataset):

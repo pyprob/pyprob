@@ -8,15 +8,20 @@ class Categorical(Distribution):
     def __init__(self, probs=None, logits=None):
         if probs is not None:
             probs = util.to_tensor(probs)
+            self.dist_argument = {'probs': probs.tolist(), 'scale': None}
             if probs.dim() == 0:
                 raise ValueError('probs cannot be a scalar.')
+
         if logits is not None:
             logits = util.to_tensor(logits)
+            self.dist_argument = {'probs': None, 'scale': logits.tolist()}
             if logits.dim() == 0:
                 raise ValueError('logits cannot be a scalar.')
         torch_dist = torch.distributions.Categorical(probs=probs, logits=logits)
+
         self._probs = torch_dist.probs
         self._logits = torch_dist.logits
+
         self._num_categories = self._probs.size(-1)
         super().__init__(name='Categorical', address_suffix='Categorical(len_probs:{})'.format(self._probs.size(-1)), torch_dist=torch_dist)
 

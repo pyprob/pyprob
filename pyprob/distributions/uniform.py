@@ -6,9 +6,11 @@ from .. import util
 
 class Uniform(Distribution):
     def __init__(self, low, high):
-        low = util.to_tensor(low)
-        high = util.to_tensor(high)
-        super().__init__(name='Uniform', address_suffix='Uniform', torch_dist=torch.distributions.Uniform(low, high))
+        self.low = util.to_tensor(low)
+        self.high = util.to_tensor(high)
+        super().__init__(name='Uniform', address_suffix='Uniform',
+                         torch_dist=torch.distributions.Uniform(self.low, self.high))
+        self.dist_argument = {'low': low.tolist(), 'high': high.tolist()}
 
     def __repr__(self):
         return 'Uniform(low: {}, high: {})'.format(self.low, self.high)

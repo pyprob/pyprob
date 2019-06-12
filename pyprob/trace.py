@@ -6,7 +6,7 @@ class Variable():
     def __init__(self, distribution=None, value=None, address_base=None,
                  address=None, instance=None, log_prob=None,
                  log_importance_weight=None, control=False, constants={},
-                 name=None, observed=False, reused=False, tagged=False):
+                 name=None, observed=False, reused=False, tagged=False, replace=False):
         self.distribution = distribution
         if value is None:
             self.value = None
@@ -29,6 +29,7 @@ class Variable():
         self.reused = reused
         self.tagged = tagged
         self.constants = constants
+        self.replace = replace
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned variables in offline training datasets
