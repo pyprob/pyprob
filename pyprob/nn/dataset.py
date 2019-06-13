@@ -7,35 +7,35 @@ import sys
 import h5py
 import json
 import time
+import hashlib
 from glob import glob
 import numpy as np
 import uuid
 from termcolor import colored
 from collections import Counter, OrderedDict
 import random
+from pathlib import Path
+from distutils.util import strtobool
 
 from .. import util
 from ..util import TraceMode, PriorInflation
 from ..concurrency import ConcurrentShelf
+from ..trace import Trace, Variable
 
+VARIABLE_ATTRIBUTES = ['value', 'address_base', 'address', 'instance', 'log_prob',
+                       'control', 'tagged', 'constants', 'observed', 'name',
+                       'distribution_name', 'distribution_args']
 
 class Batch():
-    def __init__(self, traces):
-        self.traces = traces
-        self.size = len(traces)
+    def __init__(self, traces_and_hashes):
+        self.traces, hashes = zip(*traces_and_hashes)
+        self.num_sub_traces = len(self.traces)
         sub_batches = {}
         total_length = 0
-        for trace in traces:
-            tl = trace.length
-            if tl == 0:
-                raise ValueError('Trace of length zero.')
-            total_length += tl
-            trace_hash = ''.join([variable.address for variable in trace.variables])
-            if trace_hash not in sub_batches:
-                sub_batches[trace_hash] = []
-            sub_batches[trace_hash].append(trace)
-        self.sub_batches = list(sub_batches.values())
-        self.mean_length = total_length / self.size
+        np_traces = np.asarray(self.traces)
+        np_hashes = np.asarray(hashes)
+
+        self.sub_batches = [np_traces[np_hashes==h] for h in np.unique(np_hashes)]
 
     def __len__(self):
         return len(self.traces)
@@ -56,15 +56,14 @@ class OnlineDataset(Dataset):
             length = int(1e6)
         self._length = length
         self._prior_inflation = prior_inflation
-        self.variable_attributes = ['value', 'address_base', 'address', 'instance', 'log_prob',
-                                    'control', 'tagged', 'constants', 'observed', 'name']
 
     def __len__(self):
         return self._length
 
     def __getitem__(self, idx):
-        return next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK,
+        trace =next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK,
                                                  prior_inflation=self._prior_inflation))
+        return trace, trace.hash()
 
     def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, *args, **kwargs):
         num_files = math.ceil(num_traces / num_traces_per_file)
@@ -74,148 +73,193 @@ class OnlineDataset(Dataset):
         while i < num_traces:
             i += num_traces_per_file
             file_name = os.path.join(dataset_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
+            dataset = {}
+            hashes = []
             with h5py.File(file_name+".hdf5", 'w') as f:
                 for j in range(num_traces_per_file):
                     trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR,
                                                               prior_inflation=self._prior_inflation,
                                                               *args, **kwargs))
-                    address_list = [variable.address for variable in trace.variables]
-                    trace_hash = ''.join(address_list)
-                    trace_len = len(address_list)
 
-                    timer = time.time()
+                    # call trace.__hash__ method for hashing
+                    trace_hash = trace.hash()
+
+                    trace_len = trace.length
+
                     if trace_hash not in f.keys():
+                        hashes.append(trace_hash)
                         grp = f.create_group(trace_hash)
-                        grp.create_dataset('value', (1, trace_len),
-                                           maxshape=(num_traces_per_file, trace_len),
-                                           chunks=True, compression="gzip", dtype=str_type)
+                        dataset[trace_hash] = {}
+                        dataset[trace_hash]['trace_len'] = trace_len
+                        dataset[trace_hash]['traces'] = []
 
-                        grp.create_dataset('address', (1, trace_len),
-                                           maxshape=(num_traces_per_file, trace_len),
-                                           chunks=True, compression="gzip", dtype=str_type)
+                    tmp = []
 
-                        grp.create_dataset('address_base', (1, trace_len),
-                                           maxshape=(num_traces_per_file, trace_len),
-                                           chunks=True, compression="gzip", dtype=str_type)
+                    for attr in VARIABLE_ATTRIBUTES:
+                        attr_list = self._update_sub_trace_data([], attr, trace)
+                        tmp.append(attr_list)
 
-                        grp.create_dataset('instance', (1, trace_len),
-                                           maxshape=(num_traces_per_file, trace_len),
-                                           chunks=True, compression="gzip")
+                    dataset[trace_hash]['traces'].append(tmp)
 
-                        grp.create_dataset('name', (1, trace_len),
-                                           maxshape=(num_traces_per_file, trace_len),
-                                           chunks=True, compression="gzip", dtype=str_type)
-
-                        grp.create_dataset('log_prob', (1, trace_len),
-                                           maxshape=(num_traces_per_file, trace_len),
-                                           chunks=True, compression="gzip")
-
-                        grp.create_dataset('control', (1, trace_len),
-                                           maxshape=(num_traces_per_file, trace_len),
-                                           chunks=True, compression="gzip")
-
-                        grp.create_dataset('observed', (1, trace_len),
-                                           maxshape=(num_traces_per_file, trace_len),
-                                           chunks=True, compression="gzip")
-
-                        grp.create_dataset('tagged', (1, trace_len),
-                                           maxshape=(num_traces_per_file, trace_len),
-                                           chunks=True, compression="gzip")
-
-                        grp.create_dataset('constants', (1, trace_len),
-                                           maxshape=(num_traces_per_file, trace_len),
-                                           chunks=True, compression="gzip", dtype=str_type)
-
-                        grp.create_dataset('distribution', (1, trace_len),
-                                           maxshape=(num_traces_per_file, trace_len),
-                                           chunks=True, compression="gzip", dtype=str_type)
-
-                        grp.attrs['trace_len'] = trace_len
-                        grp.attrs['num_traces'] = 0
-
+                for trace_hash, sub_trace_dataset in dataset.items():
                     grp = f[trace_hash]
-                    grp.attrs['num_traces'] += 1
+                    trace_len = sub_trace_dataset['trace_len']
+                    num_sub_traces = len(sub_trace_dataset['traces'])
+                    grp.attrs['num_sub_traces'] = num_sub_traces
+                    grp.create_dataset('traces', (num_sub_traces, len(VARIABLE_ATTRIBUTES), trace_len),
+                                       data=sub_trace_dataset['traces'],
+                                       chunks=(min(int(num_sub_traces), 100), len(VARIABLE_ATTRIBUTES),
+                                               trace_len),
+                                       compression="gzip", dtype=str_type)
 
-                    timer = time.time()
-                    for attr in self.variable_attributes:
-                        self._update_attribute(attr, trace, grp, grp.attrs['num_traces'], trace_len)
-                    print("loop over traces", time.time() - timer)
                 f.attrs['num_traces'] = num_traces_per_file
-
+                f.attrs['hashes'] = hashes
             util.progress_bar_update(i)
         util.progress_bar_end()
 
-    def _update_attribute(self, attr, trace, grp, num_traces, trace_len):
-        var_counter = 0
-        for variable in trace.variables:
-            grp[attr].resize((num_traces, trace_len))
+    def _update_sub_trace_data(self, sub_trace_data, attr, trace):
+        """ Update sub_trace_data dictionary
 
+        Inputs:
+
+        sub_trace_data -- list of list, so changes will be "by reference" and are done outside this function
+        attr           -- str - attribute
+        trace          -- trace object for which we loop over it variables
+
+        We further decode the json string into bytes (which has to be decoded once we load the data again)
+
+        """
+        for variable in trace.variables:
             if attr == 'value':
-                v = json.dumps(getattr(variable, attr).tolist())
-            elif attr in ['distribution']:
+                v = json.dumps(getattr(variable, attr).unsqueeze(0).tolist()).encode()
+            elif attr in ['distribution_name']:
                 # extract the input arguments for initializing the distribution
-                v = json.dumps(variable.distribution.dist_arguments)
+                v = json.dumps(variable.distribution_name).encode()
+            elif attr in ['distribution_args']:
+                v = json.dumps(variable.distribution_args).encode()
             elif attr in ['constants']:
                 tmp = {}
                 for k, value in variable.constants.items():
                     tmp[k] = value.tolist()
-                v = json.dumps(tmp)
+                v = json.dumps(tmp).encode()
+            elif attr in ['log_prob']:
+                v = json.dumps(getattr(variable, attr).item()).encode()
             else:
-                v = getattr(variable, attr)
+                v = json.dumps(getattr(variable, attr)).encode()
+            sub_trace_data.append(v)
 
-            timer = time.time()
-            grp[attr][num_traces-1, var_counter] = v
-            print("writing: " + attr, time.time() - timer)
-            var_counter += 1
-        return None
-
+        return sub_trace_data
 
 
 class OfflineDatasetFile(Dataset):
-    cache = OrderedDict()
-    cache_capacity = 8
+
+    data_cache = {}
+    # specifies the number of file we have open at a time
+    cache_size = 100
 
     def __init__(self, file_name):
+        from ..state import _variables_observed_inf_training
+        self._variables_observed_inf_training = _variables_observed_inf_training
         self._file_name = file_name
-        self._closed = False
-        shelf = self._open()
-        self._length = shelf['__length']
-
-    def _open(self):
-        # idea from https://www.kunxi.org/2014/05/lru-cache-in-python
-        try:
-            shelf = OfflineDatasetFile.cache.pop(self._file_name)
-            # it was in the cache, put it back on the front
-            OfflineDatasetFile.cache[self._file_name] = shelf
-            return shelf
-        except KeyError:
-            # not in the cache
-            if len(OfflineDatasetFile.cache) >= OfflineDatasetFile.cache_capacity:
-                # cache is full, delete the last entry
-                n, s = OfflineDatasetFile.cache.popitem(last=False)
-                s.close()
-            shelf = shelve.open(self._file_name, flag='r')
-            OfflineDatasetFile.cache[self._file_name] = shelf
-            return shelf
+        with h5py.File(file_name, 'r') as f:
+            self._length = f.attrs['num_traces']
+            self.hashes = f.attrs['hashes']
+            self.n_traces_per_trace = [f[h].attrs['num_sub_traces'] for h in self.hashes]
 
     def __len__(self):
-        return self._length
+        return int(self._length)
 
     def __getitem__(self, idx):
-        shelf = self._open()
-        return shelf[str(idx)]
+        trace_attributes, trace_hash = self.get_data(idx)
+
+        trace = Trace(trace_hash=trace_hash)
+        n_variables = len(trace_attributes[0])
+        var_args = []
+        for _ in range(n_variables):
+            var_args.append({})
+
+        for attr, variable_attributes in zip(VARIABLE_ATTRIBUTES, trace_attributes):
+            for t, variable_data in enumerate(variable_attributes):
+                if attr == 'value':
+                    v = util.to_tensor(json.loads(variable_data))
+                elif attr in ['distribution_name']:
+                    # extract the input arguments for initializing the distribution
+                    v = json.loads(variable_data)
+                elif attr in ['distribution_args']:
+                    v = json.loads(variable_data)
+                elif attr in ['constants']:
+                    tmp = {}
+                    constants = json.loads(variable_data)
+                    for k, value in constants.items():
+                        tmp[k] = util.to_tensor(value)
+                    v = tmp
+                elif attr in ['log_prob']:
+                    v = util.to_tensor(json.loads(variable_data))
+                elif attr in ['reused', 'tagged', 'control', 'observed']:
+                    v = json.loads(variable_data)
+                else:
+                    v = json.loads(variable_data)
+
+                var_args[t][attr] = v
+
+        for args in var_args:
+            args['observed'] = args['observed'] or args['name'] in self._variables_observed_inf_training
+            variable = Variable(**args)
+            trace.add(variable)
+
+        trace.end(None, None)
+
+        return trace, trace_hash
+
+    def _load_data(self):
+        """Load data to the cache given the file
+        path and update the cache index in the
+        data_info structure.
+        """
+        # remove an element from data cache if size will be exceeded
+        if len(self.data_cache) == self.cache_size:
+            # remove one item from the cache at random
+            removal_keys = list(self.data_cache)
+            self.data_cache.pop(removal_keys[0])
+
+        with h5py.File(self._file_name) as f:
+            cum_index = 0
+            for trace_hash in self.hashes:
+                sub_traces = f[trace_hash]
+                # add data to the data cache and retrieve
+                # the cache index
+                self._add_to_cache(sub_traces['traces'], trace_hash, self._file_name)
+
+    @classmethod
+    def _add_to_cache(cls, sub_traces, trace_hash, file_path):
+        """Adds data to the cache and returns its index. There is one cache
+        list for every file_path, containing all datasets in that file.
+        """
+        for data in sub_traces:
+            data_entry = [data, trace_hash]
+            if file_path not in cls.data_cache:
+                cls.data_cache[file_path] = [data_entry]
+            else:
+                cls.data_cache[file_path].append(data_entry)
+
+    def get_data(self, idx):
+        """Call this function anytime you want to access a chunk of data from the
+            dataset. This will make sure that the data is loaded in case it is
+            not part of the data cache.
+        """
+
+        if self._file_name not in self.data_cache:
+            self._load_data()
+
+        # extract data from cache
+        return self.data_cache[self._file_name][idx]
 
 
 class OfflineDataset(ConcatDataset):
     def __init__(self, dataset_dir):
-        self._dataset_dir = dataset_dir
-        # files = [name for name in os.listdir(self._dataset_dir)]
-        files = sorted(glob(os.path.join(self._dataset_dir, 'pyprob_traces_sorted_*')))
-        if len(files) > 0:
-            self._sorted_on_disk = True
-        else:
-            self._sorted_on_disk = False
-            files = sorted(glob(os.path.join(self._dataset_dir, 'pyprob_traces_*')))
+        p = Path(dataset_dir)
+        assert(p.is_dir())
+        files = sorted(p.glob('pyprob_traces*.hdf5'))
         if len(files) == 0:
             raise RuntimeError('Cannot find any data set files at {}'.format(dataset_dir))
         datasets = []
@@ -227,104 +271,14 @@ class OfflineDataset(ConcatDataset):
                 print(e)
                 print(colored('Warning: dataset file potentially corrupt, omitting: {}'.format(file), 'red', attrs=['bold']))
         super().__init__(datasets)
-        print('OfflineDataset at: {}'.format(self._dataset_dir))
+        print('OfflineDataset at: {}'.format(dataset_dir))
         print('Num. traces      : {:,}'.format(len(self)))
-        print('Sorted on disk   : {}'.format(self._sorted_on_disk))
-        if self._sorted_on_disk:
-            self._sorted_indices = list(range(len(self)))
-        else:
-            file_name = os.path.join(self._dataset_dir, 'pyprob_hashes')
-            try:
-                hashes_file = shelve.open(file_name, 'r')
-                hashes_exist = 'hashes' in hashes_file
-                hashes_file.close()
-            except:
-                hashes_exist = False
-            if hashes_exist:
-                print('Using pre-computed hashes in: {}'.format(file_name))
-                hashes_file = shelve.open(file_name, 'r')
-                self._hashes = hashes_file['hashes']
-                self._sorted_indices = hashes_file['sorted_indices']
-                hashes_file.close()
-                if torch.is_tensor(self._hashes):
-                    self._hashes = self._hashes.cpu().numpy()
-                if len(self._sorted_indices) != len(self):
-                    raise RuntimeError('Length of pre-computed hashes ({}) and length of offline dataset ({}) do not match. Dataset files have been altered. Delete and re-generate pre-computed hash file: {}'.format(len(self._sorted_indices), len(self), file_name))
-            else:
-                print('No pre-computed hashes found, generating: {}'.format(file_name))
-                hashes_file = shelve.open(file_name, 'c')
-                hashes, sorted_indices = self._compute_hashes()
-                hashes_file['hashes'] = hashes
-                hashes_file['sorted_indices'] = sorted_indices
-                hashes_file.close()
-                self._sorted_indices = sorted_indices
-                self._hashes = hashes
-            print('Num. trace types : {:,}'.format(len(set(self._hashes))))
-            hashes_and_counts = OrderedDict(sorted(Counter(self._hashes).items()))
-            print('Trace hash\tCount')
-            for hash, count in hashes_and_counts.items():
-                print('{:.8f}\t{}'.format(hash, count))
-        print()
-
-    @staticmethod
-    def _trace_hash(trace):
-        h = hash(''.join([variable.address for variable in trace.variables])) + sys.maxsize + 1
-        return float('{}.{}'.format(trace.length, h))
-
-    def _compute_hashes(self):
-        hashes = torch.zeros(len(self))
-        util.progress_bar_init('Hashing offline dataset for sorting', len(self), 'Traces')
-        for i in range(len(self)):
-            hashes[i] = self._trace_hash(self[i])
-            util.progress_bar_update(i)
-        util.progress_bar_end()
-        print('Sorting offline dataset')
-        _, sorted_indices = torch.sort(hashes)
-        print('Sorting done')
-        return hashes.cpu().numpy(), sorted_indices.cpu().numpy()
-
-    def save_sorted(self, sorted_dataset_dir, num_traces_per_file=None, num_files=None, begin_file_index=None, end_file_index=None):
-        if num_traces_per_file is not None:
-            if num_files is not None:
-                raise ValueError('Expecting either num_traces_per_file or num_files')
-        else:
-            if num_files is None:
-                raise ValueError('Expecting either num_traces_per_file or num_files')
-            else:
-                num_traces_per_file = math.ceil(len(self) / num_files)
-
-        if os.path.exists(sorted_dataset_dir):
-            if len(glob(os.path.join(sorted_dataset_dir, '*'))) > 0:
-                print(colored('Warning: target directory is not empty: {})'.format(sorted_dataset_dir), 'red', attrs=['bold']))
-        util.create_path(sorted_dataset_dir, directory=True)
-        file_indices = list(util.chunks(list(self._sorted_indices), num_traces_per_file))
-        num_traces = len(self)
-        num_files = len(file_indices)
-        num_files_digits = len(str(num_files))
-        file_name_template = 'pyprob_traces_sorted_{{:d}}_{{:0{}d}}'.format(num_files_digits)
-        file_names = list(map(lambda x: os.path.join(sorted_dataset_dir, file_name_template.format(num_traces_per_file, x)), range(num_files)))
-        if begin_file_index is None:
-            begin_file_index = 0
-        if end_file_index is None:
-            end_file_index = num_files
-        if begin_file_index < 0 or begin_file_index > end_file_index or end_file_index > num_files or end_file_index < begin_file_index:
-            raise ValueError('Invalid indexes begin_file_index:{} and end_file_index: {}'.format(begin_file_index, end_file_index))
-
-        print('Sorted offline dataset, traces: {}, traces per file: {}, files: {} (overall)'.format(num_traces, num_traces_per_file, num_files))
-        util.progress_bar_init('Saving sorted files with indices in range [{}, {}) ({} of {} files overall)'.format(begin_file_index, end_file_index, end_file_index - begin_file_index, num_files), end_file_index - begin_file_index + 1, 'Files')
-        j = 0
-        for i in range(begin_file_index, end_file_index):
-            j += 1
-            file_name = file_names[i]
-            print(file_name)
-            shelf = ConcurrentShelf(file_name)
-            shelf.lock(write=True)
-            for new_i, old_i in enumerate(file_indices[i]):
-                shelf[str(new_i)] = self[old_i]
-            shelf['__length'] = len(file_indices[i])
-            shelf.unlock()
-            util.progress_bar_update(j)
-        util.progress_bar_end()
+        hashes = [h*n_traces_per_hash for dataset in datasets
+                                      for h, n_traces_per_hash in zip(dataset.hashes,
+                                                                      dataset.n_traces_per_trace)]
+        print(colored('Sorting'))
+        self._sorted_indices = np.argsort(hashes)
+        print(colored('Finished sorting hashes'))
 
 
 class TraceSampler(Sampler):

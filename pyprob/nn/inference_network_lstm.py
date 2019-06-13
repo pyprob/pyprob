@@ -44,15 +44,15 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     # do not create proposal layer for observed variables!
                     continue
                 address = variable.address
-                distribution = variable.distribution
+                distribution_name = variable.distribution_name
 
                 if address not in self._layers_address_embedding:
                     emb = nn.Parameter(torch.zeros(self._address_embedding_dim).normal_()).to(device=util._device)
                     self._layers_address_embedding[address] = emb
 
-                if distribution.name not in self._layers_distribution_type_embedding:
+                if distribution_name not in self._layers_distribution_type_embedding:
                     emb = nn.Parameter(torch.zeros(self._distribution_type_embedding_dim).normal_()).to(device=util._device)
-                    self._layers_distribution_type_embedding[distribution.name] = emb
+                    self._layers_distribution_type_embedding[distribution_name] = emb
 
                 if address not in self._layers_proposal:
                     variable_shape = variable.value.shape
@@ -66,7 +66,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape,
                                                                       self._sample_embedding_dim,
                                                                       num_layers=1)
-                    elif isinstance(distribution, Normal):
+                    elif distribution_name == 'Normal':
                         proposal_layer = ProposalNormalNormalMixture(self._lstm_dim,
                                                                      variable_shape,
                                                                      mixture_components=self._proposal_mixture_components,
@@ -74,31 +74,31 @@ class InferenceNetworkLSTM(InferenceNetwork):
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape,
                                                                       self._sample_embedding_dim,
                                                                       num_layers=1)
-                    elif isinstance(distribution, Uniform):
+                    elif distribution_name == 'Uniform':
                         proposal_layer = ProposalUniformTruncatedNormalMixture(self._lstm_dim,
                                                                                variable_shape,
                                                                                mixture_components=self._proposal_mixture_components,
                                                                                **var_embedding)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
-                    elif isinstance(distribution, Poisson):
+                    elif distribution_name == 'Poisson':
                         proposal_layer = ProposalPoissonTruncatedNormalMixture(self._lstm_dim,
                                                                                variable_shape,
                                                                                mixture_components=self._proposal_mixture_components,
                                                                                **var_embedding)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
-                    elif isinstance(distribution, Categorical):
+                    elif distribution_name == 'Categorical':
                         proposal_layer = ProposalCategoricalCategorical(self._lstm_dim,
                                                                         distribution.num_categories,
                                                                         **var_embedding)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, input_is_one_hot_index=True, input_one_hot_dim=distribution.num_categories, num_layers=1)
                     else:
-                        raise RuntimeError('Distribution currently unsupported: {}'.format(distribution.name))
+                        raise RuntimeError('Distribution currently unsupported: {}'.format(distribution_name))
                     proposal_layer.to(device=util._device)
                     sample_embedding_layer.to(device=util._device)
                     self._layers_sample_embedding[address] = sample_embedding_layer
                     self._layers_proposal[address] = proposal_layer
                     layers_changed = True
-                    print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address), distribution.name))
+                    print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address), distribution_name))
         if layers_changed:
             num_params = sum(p.numel() for p in self.parameters())
             print('Total addresses: {:,}, distribution types: {:,}, parameters: {:,}'.format(len(self._layers_address_embedding), len(self._layers_distribution_type_embedding), num_params))
@@ -131,10 +131,10 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 success = False
 
         current_address = variable.address
-        current_distribution = variable.distribution
+        current_distribution_name = variable.distribution_name
         if current_address in self._layers_address_embedding:
             current_address_embedding = self._layers_address_embedding[current_address]
-            current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution.name]
+            current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution_name]
         else:
             print('Warning: address of current variable unknown by inference network: {}'.format(current_address))
             success = False
@@ -152,6 +152,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
             proposal_layer = self._layers_proposal[current_address]
             if proposal_min_train_iterations is not None:
                 if proposal_layer._total_train_iterations < proposal_min_train_iterations:
+                    current_distribution = self._get_prior_dist(current_distribution_name, variable.distribution_args)
                     print(colored('Warning: using prior, proposal not sufficiently trained ({}/{}) for address: {}'.format(proposal_layer._total_train_iterations, proposal_min_train_iterations, current_address), 'yellow', attrs=['bold']))
                     return current_distribution
 
@@ -159,8 +160,13 @@ class InferenceNetworkLSTM(InferenceNetwork):
             proposal_distribution = proposal_layer.forward(proposal_input, [variable])
             return proposal_distribution
         else:
+            current_distribution = self._get_prior_dist(current_distribution_name, variable.distribution_args)
             print(colored('Warning: using prior as proposal for address: {}'.format(current_address), 'yellow', attrs=['bold']))
             return current_distribution
+
+    @staticmethod
+    def _get_prior_dist(name, args):
+        raise NotImplementedError()
 
     def _loss(self, batch):
         batch_loss = 0
@@ -171,7 +177,6 @@ class InferenceNetworkLSTM(InferenceNetwork):
             sub_batch_loss = 0.
 
             # Construct LSTM input sequence for the whole trace length of sub_batch
-            # TODO in dataloader
             lstm_input = []
             for time_step in range(example_trace.length):
                 current_variable = example_trace.variables[time_step]
@@ -184,9 +189,9 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 if current_address not in self._layers_address_embedding:
                     print(colored('Address unknown by inference network: {}'.format(current_address), 'red', attrs=['bold']))
                     return False, 0
-                current_distribution = current_variable.distribution
+                current_distribution_name = current_variable.distribution_name
                 current_address_embedding = self._layers_address_embedding[current_address]
-                current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution.name]
+                current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution_name]
 
                 if time_step == 0:
                     prev_sample_embedding = torch.zeros(sub_batch_length, self._sample_embedding_dim).to(device=util._device)
@@ -198,11 +203,11 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     if prev_address not in self._layers_address_embedding:
                         print(colored('Address unknown by inference network: {}'.format(prev_address), 'red', attrs=['bold']))
                         return False, 0
-                    prev_distribution = prev_variable.distribution
+                    prev_distribution_name = prev_variable.distribution_name
                     smp = torch.stack([trace.variables[time_step - 1].value.float() for trace in sub_batch])
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
                     prev_address_embedding = self._layers_address_embedding[prev_address]
-                    prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution.name]
+                    prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution_name]
 
                 lstm_input_time_step = []
                 for b in range(sub_batch_length):

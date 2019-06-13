@@ -272,7 +272,7 @@ class Model():
                                 distributed_backend=None,
                                 distributed_params_sync_every_iter=10000,
                                 distributed_num_buckets=None,
-                                dataloader_offline_num_workers=0,
+                                num_workers=0,
                                 stop_with_bad_loss=True, log_file_name=None,
                                 lstm_dim=512, lstm_depth=1,
                                 proposal_mixture_components=10, surrogate=False,
@@ -337,7 +337,7 @@ class Model():
                                          distributed_backend=distributed_backend,
                                          distributed_params_sync_every_iter=distributed_params_sync_every_iter,
                                          distributed_num_buckets=distributed_num_buckets,
-                                         dataloader_offline_num_workers=dataloader_offline_num_workers,
+                                         num_workers=num_workers,
                                          stop_with_bad_loss=stop_with_bad_loss,
                                          log_file_name=log_file_name, sacred_run=sacred_run)
 
@@ -358,7 +358,7 @@ class Model():
                                           distributed_backend=None,
                                           distributed_params_sync_every_iter=10000,
                                           distributed_num_buckets=10,
-                                          dataloader_offline_num_workers=0,
+                                          num_workers=0,
                                           stop_with_bad_loss=True,
                                           lstm_dim=512, lstm_depth=1,
                                           variable_embeddings={},
@@ -407,7 +407,7 @@ class Model():
                                          distributed_backend=distributed_backend,
                                          distributed_params_sync_every_iter=distributed_params_sync_every_iter,
                                          distributed_num_buckets=distributed_num_buckets,
-                                         dataloader_offline_num_workers=dataloader_offline_num_workers,
+                                         num_workers=num_workers,
                                          stop_with_bad_loss=stop_with_bad_loss,
                                          log_file_name=log_file_name, sacred_run=sacred_run)
 

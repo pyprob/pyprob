@@ -12,7 +12,7 @@ class Normal(Distribution):
                          torch_dist=torch.distributions.Normal(self.loc, self.scale))
         self.loc_shape = self.loc.shape
         self.scale_shape = self.scale.shape
-        self.dist_argument = {'loc': self.loc.tolist(), 'scale': self.scale.tolist()}
+        self.args = {'loc': self.loc.tolist(), 'scale': self.scale.tolist()}
 
     def __repr__(self):
         return 'Normal(mean:{}, stddev:{})'.format(self.loc, self.scale)

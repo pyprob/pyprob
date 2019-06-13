@@ -270,7 +270,7 @@ class InferenceNetwork(nn.Module):
     def _pre_generate_layers(self, dataset, batch_size=64, save_file_name_prefix=None):
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings,
-                                                example_trace=dataset.__getitem__(0))
+                                                example_trace=dataset.__getitem__(0)[0])
             self._init_layers()
             self._layers_initialized = True
 
@@ -388,7 +388,7 @@ class InferenceNetwork(nn.Module):
                  learning_rate_scheduler_type=LearningRateScheduler.NONE, momentum=0.9,
                  weight_decay=1e-5, save_file_name_prefix=None, save_every_sec=600,
                  distributed_backend=None, distributed_params_sync_every_iter=10000,
-                 distributed_num_buckets=10, dataloader_offline_num_workers=0,
+                 distributed_num_buckets=10, num_workers=0,
                  stop_with_bad_loss=False, log_file_name=None, sacred_run=None):
 
         if not self._layers_initialized:
@@ -412,18 +412,18 @@ class InferenceNetwork(nn.Module):
                 dataloader = DataLoader(dataset,
                                         batch_sampler=TraceBatchSampler(dataset, batch_size=batch_size,
                                                                         shuffle_batches=True),
-                                        num_workers=dataloader_offline_num_workers,
+                                        num_workers=num_workers,
                                         collate_fn=lambda x: Batch(x))
             else:
                 dataloader = DataLoader(dataset,
                                         batch_sampler=DistributedTraceBatchSampler(dataset,
                                                                                    batch_size=batch_size, num_buckets=distributed_num_buckets,
                                                                                    shuffle_batches=True, shuffle_buckets=True),
-                                        num_workers=dataloader_offline_num_workers,
+                                        num_workers=num_workers,
                                         collate_fn=lambda x: Batch(x))
         else:
             dataloader = DataLoader(dataset, batch_size=batch_size,
-                                    num_workers=0,
+                                    num_workers=num_workers,
                                     collate_fn=lambda x: Batch(x))
 
         # Validation data loader
@@ -432,14 +432,14 @@ class InferenceNetwork(nn.Module):
                 dataloader_valid = DataLoader(dataset_valid,
                                               batch_sampler=TraceBatchSampler(dataset_valid,
                                                                               batch_size=batch_size, shuffle_batches=True),
-                                              num_workers=dataloader_offline_num_workers,
+                                              num_workers=num_workers,
                                               collate_fn=lambda x: Batch(x))
             else:
                 dataloader_valid = DataLoader(dataset_valid,
                                               batch_sampler=DistributedTraceBatchSampler(dataset_valid,
                                                                                          batch_size=batch_size, num_buckets=distributed_num_buckets,
                                                                                          shuffle_batches=True, shuffle_buckets=True),
-                                              num_workers=dataloader_offline_num_workers,
+                                              num_workers=num_workers,
                                               collate_fn=lambda x: Batch(x))
 
             if not self._layers_pre_generated:
