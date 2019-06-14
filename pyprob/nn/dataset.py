@@ -16,6 +16,7 @@ from collections import Counter, OrderedDict
 import random
 from pathlib import Path
 from distutils.util import strtobool
+import multiprocessing
 
 from .. import util
 from ..util import TraceMode, PriorInflation
@@ -25,6 +26,33 @@ from ..trace import Trace, Variable
 VARIABLE_ATTRIBUTES = ['value', 'address_base', 'address', 'instance', 'log_prob',
                        'control', 'tagged', 'constants', 'observed', 'name',
                        'distribution_name', 'distribution_args']
+class MyFile:
+    """ Makes h5py support multiprocessing (needed for num_workers > 1 used with pyprob dataloader)
+
+    See: https://github.com/h5py/h5py/issues/934
+
+    """
+
+    def __init__(self, path):
+        self.fd = os.open(path, os.O_RDONLY)
+        self.pos = 0
+
+    def seek(self, pos, whence=0):
+        if whence == 0:
+            self.pos = pos
+        elif whence == 1:
+            self.pos += pos
+        else:
+            self.pos = os.lseek(self.fd, pos, whence)
+        return self.pos
+
+    def tell(self):
+        return self.pos
+
+    def read(self, size):
+        b = os.pread(self.fd, size, self.pos)
+        self.pos += len(b)
+        return b
 
 class Batch():
     def __init__(self, traces_and_hashes):
@@ -107,10 +135,8 @@ class OnlineDataset(Dataset):
                     num_sub_traces = len(sub_trace_dataset['traces'])
                     grp.attrs['num_sub_traces'] = num_sub_traces
                     grp.create_dataset('traces', (num_sub_traces, len(VARIABLE_ATTRIBUTES), trace_len),
-                                       data=sub_trace_dataset['traces'],
-                                       chunks=(min(int(num_sub_traces), 100), len(VARIABLE_ATTRIBUTES),
-                                               trace_len),
-                                       compression="gzip", dtype=str_type)
+                                       data=sub_trace_dataset['traces'], chunks=True,
+                                       dtype=str_type)
 
                 f.attrs['num_traces'] = num_traces_per_file
                 f.attrs['hashes'] = hashes
@@ -161,16 +187,38 @@ class OfflineDatasetFile(Dataset):
         from ..state import _variables_observed_inf_training
         self._variables_observed_inf_training = _variables_observed_inf_training
         self._file_name = file_name
-        with h5py.File(file_name, 'r') as f:
+        with h5py.File(str(file_name.resolve()), 'r') as f:
             self._length = f.attrs['num_traces']
             self.hashes = f.attrs['hashes']
-            self.n_traces_per_trace = [f[h].attrs['num_sub_traces'] for h in self.hashes]
+            self.n_traces_per_hash = [f[h].attrs['num_sub_traces'] for h in self.hashes]
+        self.index_to_hash = {}
+        self.index_to_hash_index = {}
 
+        idx = 0
+        for h, num_per_h in zip(self.hashes, self.n_traces_per_hash):
+            self.index_to_hash_index[h] = {}
+            for i in range(num_per_h):
+                self.index_to_hash[idx] = h
+                self.index_to_hash_index[h][idx] = i
+                idx += 1
+
+        # # dictionary for opening a file for each worker
+        # self.f = {}
+        # for name in ['MainProcess'] + ['Process-'+str(num) for num in range(1,9)]:
+        #     self.f[name] = h5py.File(MyFile(str(self._file_name.resolve())), 'r')
+
+        self.f = h5py.File(MyFile(str(self._file_name.resolve())), 'r')
     def __len__(self):
         return int(self._length)
 
     def __getitem__(self, idx):
-        trace_attributes, trace_hash = self.get_data(idx)
+        #current_process = multiprocessing.current_process().name
+        # if current_process not in self.f:
+        #     self.f[current_process] = h5py.File(str(self._file_nhttps://github.com/h5py/h5py/issues/934ame.resolve()), 'r', libver='latest', swmr=True)
+
+        trace_hash = self.index_to_hash[idx]
+        trace_hash_index = self.index_to_hash_index[trace_hash][idx]
+        trace_attributes = self.f[trace_hash]['traces'][trace_hash_index]
 
         trace = Trace(trace_hash=trace_hash)
         n_variables = len(trace_attributes[0])
@@ -211,50 +259,6 @@ class OfflineDatasetFile(Dataset):
 
         return trace, trace_hash
 
-    def _load_data(self):
-        """Load data to the cache given the file
-        path and update the cache index in the
-        data_info structure.
-        """
-        # remove an element from data cache if size will be exceeded
-        if len(self.data_cache) == self.cache_size:
-            # remove one item from the cache at random
-            removal_keys = list(self.data_cache)
-            self.data_cache.pop(removal_keys[0])
-
-        with h5py.File(self._file_name) as f:
-            cum_index = 0
-            for trace_hash in self.hashes:
-                sub_traces = f[trace_hash]
-                # add data to the data cache and retrieve
-                # the cache index
-                self._add_to_cache(sub_traces['traces'], trace_hash, self._file_name)
-
-    @classmethod
-    def _add_to_cache(cls, sub_traces, trace_hash, file_path):
-        """Adds data to the cache and returns its index. There is one cache
-        list for every file_path, containing all datasets in that file.
-        """
-        for data in sub_traces:
-            data_entry = [data, trace_hash]
-            if file_path not in cls.data_cache:
-                cls.data_cache[file_path] = [data_entry]
-            else:
-                cls.data_cache[file_path].append(data_entry)
-
-    def get_data(self, idx):
-        """Call this function anytime you want to access a chunk of data from the
-            dataset. This will make sure that the data is loaded in case it is
-            not part of the data cache.
-        """
-
-        if self._file_name not in self.data_cache:
-            self._load_data()
-
-        # extract data from cache
-        return self.data_cache[self._file_name][idx]
-
-
 class OfflineDataset(ConcatDataset):
     def __init__(self, dataset_dir):
         p = Path(dataset_dir)
@@ -275,7 +279,7 @@ class OfflineDataset(ConcatDataset):
         print('Num. traces      : {:,}'.format(len(self)))
         hashes = [h*n_traces_per_hash for dataset in datasets
                                       for h, n_traces_per_hash in zip(dataset.hashes,
-                                                                      dataset.n_traces_per_trace)]
+                                                                      dataset.n_traces_per_hash)]
         print(colored('Sorting'))
         self._sorted_indices = np.argsort(hashes)
         print(colored('Finished sorting hashes'))
