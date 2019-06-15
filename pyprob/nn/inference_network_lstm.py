@@ -164,10 +164,6 @@ class InferenceNetworkLSTM(InferenceNetwork):
             print(colored('Warning: using prior as proposal for address: {}'.format(current_address), 'yellow', attrs=['bold']))
             return current_distribution
 
-    @staticmethod
-    def _get_prior_dist(name, args):
-        raise NotImplementedError()
-
     def _loss(self, batch):
         batch_loss = 0
         for sub_batch in batch.sub_batches:

@@ -19,6 +19,7 @@ from distutils.util import strtobool
 import multiprocessing
 
 from .. import util
+from .utils import MyFile, construct_distribution as construct_dist
 from ..util import TraceMode, PriorInflation
 from ..concurrency import ConcurrentShelf
 from ..trace import Trace, Variable
@@ -26,33 +27,6 @@ from ..trace import Trace, Variable
 VARIABLE_ATTRIBUTES = ['value', 'address_base', 'address', 'instance', 'log_prob',
                        'control', 'tagged', 'constants', 'observed', 'name',
                        'distribution_name', 'distribution_args']
-class MyFile:
-    """ Makes h5py support multiprocessing (needed for num_workers > 1 used with pyprob dataloader)
-
-    See: https://github.com/h5py/h5py/issues/934
-
-    """
-
-    def __init__(self, path):
-        self.fd = os.open(path, os.O_RDONLY)
-        self.pos = 0
-
-    def seek(self, pos, whence=0):
-        if whence == 0:
-            self.pos = pos
-        elif whence == 1:
-            self.pos += pos
-        else:
-            self.pos = os.lseek(self.fd, pos, whence)
-        return self.pos
-
-    def tell(self):
-        return self.pos
-
-    def read(self, size):
-        b = os.pread(self.fd, size, self.pos)
-        self.pos += len(b)
-        return b
 
 class Batch():
     def __init__(self, traces_and_hashes):
@@ -62,6 +36,7 @@ class Batch():
         total_length = 0
         np_traces = np.asarray(self.traces)
         np_hashes = np.asarray(hashes)
+        self.size = len(self.traces)
 
         self.sub_batches = [np_traces[np_hashes==h] for h in np.unique(np_hashes)]
 
@@ -101,80 +76,66 @@ class OnlineDataset(Dataset):
         while i < num_traces:
             i += num_traces_per_file
             file_name = os.path.join(dataset_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
-            dataset = {}
+            dataset = []
             hashes = []
             with h5py.File(file_name+".hdf5", 'w') as f:
                 for j in range(num_traces_per_file):
                     trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR,
                                                               prior_inflation=self._prior_inflation,
                                                               *args, **kwargs))
+                    trace_attr_dict = {}
+                    for attr in VARIABLE_ATTRIBUTES:
+                        trace_attr_dict = self._update_sub_trace_data(trace_attr_dict,
+                                                                      attr,
+                                                                      trace)
 
                     # call trace.__hash__ method for hashing
                     trace_hash = trace.hash()
+                    hashes.append(trace_hash)
+                    dataset.append(json.dumps([trace_attr_dict, trace_hash]).encode())
 
-                    trace_len = trace.length
-
-                    if trace_hash not in f.keys():
-                        hashes.append(trace_hash)
-                        grp = f.create_group(trace_hash)
-                        dataset[trace_hash] = {}
-                        dataset[trace_hash]['trace_len'] = trace_len
-                        dataset[trace_hash]['traces'] = []
-
-                    tmp = []
-
-                    for attr in VARIABLE_ATTRIBUTES:
-                        attr_list = self._update_sub_trace_data([], attr, trace)
-                        tmp.append(attr_list)
-
-                    dataset[trace_hash]['traces'].append(tmp)
-
-                for trace_hash, sub_trace_dataset in dataset.items():
-                    grp = f[trace_hash]
-                    trace_len = sub_trace_dataset['trace_len']
-                    num_sub_traces = len(sub_trace_dataset['traces'])
-                    grp.attrs['num_sub_traces'] = num_sub_traces
-                    grp.create_dataset('traces', (num_sub_traces, len(VARIABLE_ATTRIBUTES), trace_len),
-                                       data=sub_trace_dataset['traces'], chunks=True,
-                                       dtype=str_type)
+                f.create_dataset('traces', (num_traces_per_file,), data=dataset,
+                                 chunks=True, dtype=str_type)
 
                 f.attrs['num_traces'] = num_traces_per_file
                 f.attrs['hashes'] = hashes
             util.progress_bar_update(i)
         util.progress_bar_end()
 
-    def _update_sub_trace_data(self, sub_trace_data, attr, trace):
+    def _update_sub_trace_data(self, trace_attr_dict, attr, trace):
         """ Update sub_trace_data dictionary
 
         Inputs:
 
-        sub_trace_data -- list of list, so changes will be "by reference" and are done outside this function
-        attr           -- str - attribute
-        trace          -- trace object for which we loop over it variables
+        trace_attr_dict -- dictionary in which to store attributes
+        attr            -- str - attribute
+        trace           -- trace object for which we loop over it variables
 
         We further decode the json string into bytes (which has to be decoded once we load the data again)
 
         """
         for variable in trace.variables:
+            address = variable.address
+            if address not in trace_attr_dict:
+                trace_attr_dict[address] = {}
             if attr == 'value':
-                v = json.dumps(getattr(variable, attr).unsqueeze(0).tolist()).encode()
+                trace_attr_dict[address][attr] = getattr(variable, attr).tolist()
             elif attr in ['distribution_name']:
                 # extract the input arguments for initializing the distribution
-                v = json.dumps(variable.distribution_name).encode()
+                trace_attr_dict[address][attr] = variable.distribution_name
             elif attr in ['distribution_args']:
-                v = json.dumps(variable.distribution_args).encode()
+                trace_attr_dict[address][attr] = variable.distribution_args
             elif attr in ['constants']:
                 tmp = {}
                 for k, value in variable.constants.items():
                     tmp[k] = value.tolist()
-                v = json.dumps(tmp).encode()
+                trace_attr_dict[address][attr] = tmp
             elif attr in ['log_prob']:
-                v = json.dumps(getattr(variable, attr).item()).encode()
+                trace_attr_dict[address][attr] = getattr(variable, attr).item()
             else:
-                v = json.dumps(getattr(variable, attr)).encode()
-            sub_trace_data.append(v)
+                trace_attr_dict[address][attr] = getattr(variable, attr)
 
-        return sub_trace_data
+        return trace_attr_dict
 
 
 class OfflineDatasetFile(Dataset):
@@ -190,69 +151,44 @@ class OfflineDatasetFile(Dataset):
         with h5py.File(str(file_name.resolve()), 'r') as f:
             self._length = f.attrs['num_traces']
             self.hashes = f.attrs['hashes']
-            self.n_traces_per_hash = [f[h].attrs['num_sub_traces'] for h in self.hashes]
-        self.index_to_hash = {}
-        self.index_to_hash_index = {}
 
-        idx = 0
-        for h, num_per_h in zip(self.hashes, self.n_traces_per_hash):
-            self.index_to_hash_index[h] = {}
-            for i in range(num_per_h):
-                self.index_to_hash[idx] = h
-                self.index_to_hash_index[h][idx] = i
-                idx += 1
+        self.f = h5py.File(MyFile(str(self._file_name.resolve())), 'r')['traces']
 
-        # # dictionary for opening a file for each worker
-        # self.f = {}
-        # for name in ['MainProcess'] + ['Process-'+str(num) for num in range(1,9)]:
-        #     self.f[name] = h5py.File(MyFile(str(self._file_name.resolve())), 'r')
-
-        self.f = h5py.File(MyFile(str(self._file_name.resolve())), 'r')
     def __len__(self):
         return int(self._length)
 
     def __getitem__(self, idx):
-        #current_process = multiprocessing.current_process().name
-        # if current_process not in self.f:
-        #     self.f[current_process] = h5py.File(str(self._file_nhttps://github.com/h5py/h5py/issues/934ame.resolve()), 'r', libver='latest', swmr=True)
-
-        trace_hash = self.index_to_hash[idx]
-        trace_hash_index = self.index_to_hash_index[trace_hash][idx]
-        trace_attributes = self.f[trace_hash]['traces'][trace_hash_index]
+        trace_attr_dict, trace_hash = json.loads(self.f[idx])
 
         trace = Trace(trace_hash=trace_hash)
-        n_variables = len(trace_attributes[0])
-        var_args = []
-        for _ in range(n_variables):
-            var_args.append({})
 
-        for attr, variable_attributes in zip(VARIABLE_ATTRIBUTES, trace_attributes):
-            for t, variable_data in enumerate(variable_attributes):
+        for _, variable_attr_dict in trace_attr_dict.items():
+            var_args = {}
+            for attr, variable_data in variable_attr_dict.items():
                 if attr == 'value':
-                    v = util.to_tensor(json.loads(variable_data))
+                    var_args[attr] = util.to_tensor(variable_data)
                 elif attr in ['distribution_name']:
                     # extract the input arguments for initializing the distribution
-                    v = json.loads(variable_data)
+                    var_args[attr] = variable_data
                 elif attr in ['distribution_args']:
-                    v = json.loads(variable_data)
+                    var_args[attr] = variable_data
                 elif attr in ['constants']:
                     tmp = {}
-                    constants = json.loads(variable_data)
-                    for k, value in constants.items():
+                    for k, value in variable_data.items():
                         tmp[k] = util.to_tensor(value)
-                    v = tmp
+                    var_args[attr] = tmp
                 elif attr in ['log_prob']:
-                    v = util.to_tensor(json.loads(variable_data))
-                elif attr in ['reused', 'tagged', 'control', 'observed']:
-                    v = json.loads(variable_data)
+
+                    var_args[attr] = util.to_tensor(variable_data)
+                elif attr in ['reused', 'tagged', 'control']:
+                    var_args[attr] = variable_data
+                elif attr in ['observed']:
+                    var_args[attr] = variable_data or variable_attr_dict['name'] in self._variables_observed_inf_training
                 else:
-                    v = json.loads(variable_data)
+                    var_args[attr] = variable_data
 
-                var_args[t][attr] = v
-
-        for args in var_args:
-            args['observed'] = args['observed'] or args['name'] in self._variables_observed_inf_training
-            variable = Variable(**args)
+            distribution = construct_dist(var_args['distribution_name'], var_args['distribution_args'])
+            variable = Variable(distribution=distribution, **var_args)
             trace.add(variable)
 
         trace.end(None, None)
@@ -277,9 +213,8 @@ class OfflineDataset(ConcatDataset):
         super().__init__(datasets)
         print('OfflineDataset at: {}'.format(dataset_dir))
         print('Num. traces      : {:,}'.format(len(self)))
-        hashes = [h*n_traces_per_hash for dataset in datasets
-                                      for h, n_traces_per_hash in zip(dataset.hashes,
-                                                                      dataset.n_traces_per_hash)]
+        hashes = [h for dataset in datasets
+                    for h in dataset.hashes]
         print(colored('Sorting'))
         self._sorted_indices = np.argsort(hashes)
         print(colored('Finished sorting hashes'))

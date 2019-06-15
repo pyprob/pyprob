@@ -31,6 +31,7 @@ class Variable():
         self.tagged = tagged
         self.constants = constants
         self.replace = replace
+        self.distribution=distribution
         if distribution:
             self.distribution_name = distribution.name
             self.distribution_args = distribution.args
