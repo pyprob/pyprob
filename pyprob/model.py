@@ -249,10 +249,9 @@ class RemoteModel(Model):
         if self._model_server is None:
             self._model_server = ModelServer(self._server_address)
             self.name = '{} running on {}'.format(self._model_server.model_name, self._model_server.system_name)
-
         if self._before_forward_func is not None:
             self._before_forward_func()
-        ret = self._model_server.forward()
+        ret = self._model_server.forward()  # Calls the forward run of the remove model (simulator)
         if self._after_forward_func is not None:
             self._after_forward_func()
         return ret

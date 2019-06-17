@@ -58,7 +58,7 @@ class OnlineDataset(Dataset):
         return self._length
 
     def __getitem__(self, idx):
-        return next(self._model._trace_generator(trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation))
+        return next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK, prior_inflation=self._prior_inflation))
 
     @staticmethod
     def _prune_trace(trace):
