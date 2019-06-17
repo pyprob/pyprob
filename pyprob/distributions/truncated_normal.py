@@ -99,6 +99,11 @@ class TruncatedNormal(Distribution):
             attempt_count += 1
             if (attempt_count == 10000):
                 # Examples of better samplers: https://github.com/tensorflow/tensorflow/blob/502aad6f1934230911ed0d01515463c829bf845d/tensorflow/core/kernels/parameterized_truncated_normal_op.cc
+                # See also
+                # http://miv.u-strasbg.fr/mazet/rpnorm/index.html
+                # http://miv.u-strasbg.fr/mazet/rtnorm/
+                # https://github.com/olafmersmann/truncnorm/tree/master/src
+
                 print('Warning: trying to sample from the tail of a truncated normal distribution, which can take a long time. A more efficient implementation is pending.')
             rand = util.to_tensor(torch.zeros(shape).uniform_())
             ret = self._standard_normal_dist.icdf(self._standard_normal_cdf_alpha + rand * (self._standard_normal_cdf_beta - self._standard_normal_cdf_alpha)) * self._stddev_non_truncated + self._mean_non_truncated

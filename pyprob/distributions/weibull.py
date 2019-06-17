@@ -5,10 +5,10 @@ from .. import util
 
 
 class Weibull(Distribution):
-    def __init__(self, scale,concentration):
-        self._scale = util.to_tensor(scale)
-        self._concentration = util.to_tensor(concentration)
-        super().__init__(name='Weibull', address_suffix='Weibull', torch_dist=torch.distributions.Weibull(self._scale,self._concentration))
+    def __init__(self, scale, concentration):
+        scale = util.to_tensor(scale)
+        concentration = util.to_tensor(concentration)
+        super().__init__(name='Weibull', address_suffix='Weibull', torch_dist=torch.distributions.Weibull(scale,concentration))
 
     def __repr__(self):
         return 'Weibull(scale:{},concentration:{})'.format(self.scale, self.concentration)
@@ -21,10 +21,9 @@ class Weibull(Distribution):
 
     @property
     def scale(self):
-        print(" The scale is: {0} \n and has type: {1}".format(self.scale, type(self.scale)))
-        return self._scale
-    
+        return self._torch_dist.scale
+
     @property
     def concentration(self):
-        return self._concentration
-    
+        return self._torch_dist.concentration
+
