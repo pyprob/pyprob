@@ -367,17 +367,27 @@ class DistributedTraceBatchSampler(Sampler):
     def __iter__(self):
         self._epoch += 1
         bucket_ids = list(range(len(self._buckets)))
-        # For sampling without replacement, each bucket will be only visited (bucket_size/world_size) times, 
-        # If visiting requires a card, the total number of cards we can have equals the total number of iterations in one epoch
-        # e.g., bucket_0 has 6 minibatches, assuming 2 ranks, we will visit the bucket_0 3 times, therefore we have 3 cards for bucket_0
-        bucket_cards =list(np.concatenate([np.repeat(bucket_id, math.floor(len(self._buckets[bucket_id])/ self._world_size)) for bucket_id in bucket_ids]))
+        bucket_cards=[]
         if self._shuffle_buckets:
             # Shuffle the list of buckets (but not the order of minibatches inside each bucket) at the beginning of each epoch, deterministically based on the epoch number so that all nodes have the same bucket order
             # Idea from: https://github.com/pytorch/pytorch/blob/a3fb004b1829880547dd7b3e2cd9d16af657b869/torch/utils/data/distributed.py#L44
             st = np.random.get_state()
             np.random.seed(self._epoch)
-            np.random.shuffle(bucket_cards)           
+            bucket_ids_counts = [math.floor(len(self._buckets[bucket_id]) / self._world_size) for bucket_id in bucket_ids]
+            min_bucket_ids_count = min(bucket_ids_counts)
+            for i in bucket_ids_counts:
+                if (min_bucket_ids_count == bucket_ids_counts[i]):
+                    continue
+                else:
+                    bucket_cards.append(np.repeat(bucket_ids[i], bucket_ids_counts[i] - min_bucket_ids_count))
+            bucket_cards = [item for sublist in bucket_cards for item in sublist]
+            np.random.shuffle(bucket_cards)
+            for i in range(min_bucket_ids_count):
+                bucket_cards.append(np.random.shuffle(bucket_ids))
+            bucket_cards = [item for sublist in bucket_cards for item in sublist]
             np.random.set_state(st)
+        else:
+            bucket_cards = list(np.concatenate([np.repeat(bucket_id, math.floor(len(self._buckets[bucket_id])/ self._world_size)) for bucket_id in bucket_ids]))
         # Store each bucket's subset of minibatches for each rank
         bucket_batches =[]
         card_max = []
