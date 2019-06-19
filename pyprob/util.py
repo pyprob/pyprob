@@ -384,13 +384,8 @@ def drop_items(l, num_items_to_drop):
     if num_items_to_drop > len(l):
         raise ValueError('Cannot drop more items than the list length')
     ret = l.copy()
-    dropped_indices = []
     for _ in range(num_items_to_drop):
-        #del(ret[random.randrange(len(ret))])
-        tmp = random.randrange(len(ret))
-        dropped_indices.append(ret[tmp])
-        del(ret[tmp])
-    print('dropped_indices={}'.format(dropped_indices))
+        del(ret[random.randrange(len(ret))])
     return ret
 
 

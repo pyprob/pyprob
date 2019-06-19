@@ -375,15 +375,18 @@ class DistributedTraceBatchSampler(Sampler):
             np.random.seed(self._epoch)
             bucket_ids_counts = [math.floor(len(self._buckets[bucket_id]) / self._world_size) for bucket_id in bucket_ids]
             min_bucket_ids_count = min(bucket_ids_counts)
-            for i in bucket_ids_counts:
+            for i in range(len(bucket_ids_counts)):
                 if (min_bucket_ids_count == bucket_ids_counts[i]):
                     continue
                 else:
                     bucket_cards.append(np.repeat(bucket_ids[i], bucket_ids_counts[i] - min_bucket_ids_count))
             bucket_cards = [item for sublist in bucket_cards for item in sublist]
             np.random.shuffle(bucket_cards)
-            for i in range(min_bucket_ids_count):
-                bucket_cards.append(np.random.shuffle(bucket_ids))
+            bucket_cards=[list(bucket_cards)]
+            for _ in range(min_bucket_ids_count):
+                bucket_id_i = list(range(len(self._buckets)))
+                np.random.shuffle(bucket_id_i)
+                bucket_cards.append(bucket_id_i)
             bucket_cards = [item for sublist in bucket_cards for item in sublist]
             np.random.set_state(st)
         else:
