@@ -28,12 +28,6 @@ class SurrogateUniform(nn.Module):
         self.low = util.to_tensor(constants['low'])
         self.high = util.to_tensor(constants['high'])
 
-    def _transform_low(self, dists):
-        return torch.stack([d.low for d in dists])
-
-    def _transform_high(self, dists):
-        return torch.stack([d.high for d in dists])
-
     def forward(self, x):
         batch_size = x.size(0)
         # x = self._ff(x)
@@ -43,7 +37,7 @@ class SurrogateUniform(nn.Module):
         return Uniform(low=self.low.repeat(batch_size, 1),
                        high=self.high.repeat(batch_size, 1))
 
-    def loss(self, distributions):
+    def loss(self, p_normal):
         # simulator_lows = self._transform_low(distributions)
         # simulator_highs = self._transform_high(distributions)
         # p_normal = Uniform(simulator_lows, simulator_highs)

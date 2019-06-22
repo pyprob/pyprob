@@ -18,7 +18,12 @@ class ProposalNormalNormalMixture(nn.Module):
                                         activation_last=None)
         self._total_train_iterations = 0
 
-    def forward(self, x, prior_variables):
+    def forward(self, x, prior_distribution):
+        """ Proposal forward function
+
+        !! The parameters in prior_distribution are required to be batched !!
+
+        """
         batch_size = x.size(0)
         x = self._ff(x)
         means = x[:, :self._mixture_components].view(batch_size, -1)
@@ -26,10 +31,10 @@ class ProposalNormalNormalMixture(nn.Module):
         coeffs = x[:, 2*self._mixture_components:].view(batch_size, -1)
         stddevs = torch.exp(stddevs)
         coeffs = torch.softmax(coeffs, dim=1)
-        prior_means = torch.stack([v.distribution.mean for v in prior_variables]).view(batch_size, -1)
-        prior_stddevs = torch.stack([v.distribution.stddev for v in prior_variables]).view(batch_size, -1)
-        prior_means = prior_means.expand_as(means)
-        prior_stddevs = prior_stddevs.expand_as(stddevs)
+        prior_means = prior_distribution.loc.view(batch_size,-1)
+        prior_stddevs = prior_distribution.scale.view(batch_size,-1)
+        prior_means = prior_means.repeat(1, means.size(-1))
+        prior_stddevs = prior_stddevs.repeat(1, stddevs.size(-1))
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
         means = means.view(batch_size, -1)

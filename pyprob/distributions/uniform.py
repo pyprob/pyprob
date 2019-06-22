@@ -10,7 +10,9 @@ class Uniform(Distribution):
         self.high = util.to_tensor(high)
         super().__init__(name='Uniform', address_suffix='Uniform',
                          torch_dist=torch.distributions.Uniform(self.low, self.high))
-        self.args = {'low': low.tolist(), 'high': high.tolist()}
+
+    def get_input_parameters(self):
+        return {'low': self.low, 'high': self.high}
 
     def __repr__(self):
         return 'Uniform(low: {}, high: {})'.format(self.low, self.high)

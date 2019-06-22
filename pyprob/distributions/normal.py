@@ -10,9 +10,9 @@ class Normal(Distribution):
         self.scale = util.to_tensor(scale)
         super().__init__(name='Normal', address_suffix='Normal',
                          torch_dist=torch.distributions.Normal(self.loc, self.scale))
-        self.loc_shape = self.loc.shape
-        self.scale_shape = self.scale.shape
-        self.args = {'loc': self.loc.tolist(), 'scale': self.scale.tolist()}
+
+    def get_input_parameters(self):
+        return {'loc': self.loc, 'scale': self.scale}
 
     def __repr__(self):
         return 'Normal(mean:{}, stddev:{})'.format(self.loc, self.scale)

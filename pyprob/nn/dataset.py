@@ -30,26 +30,98 @@ VARIABLE_ATTRIBUTES = ['value', 'address_base', 'address', 'instance', 'log_prob
 
 class Batch():
     def __init__(self, traces_and_hashes):
-        self.traces, hashes = zip(*traces_and_hashes)
-        self.num_sub_traces = len(self.traces)
+        self.traces_lists, hashes = zip(*traces_and_hashes)
+
         sub_batches = {}
         total_length = 0
-        np_traces = np.asarray(self.traces)
+        np_traces = np.asarray(self.traces_lists)
         np_hashes = np.asarray(hashes)
-        self.size = len(self.traces)
+        uniques = np.unique(np_hashes)
+        self.size = len(self.traces_lists)
 
-        self.sub_batches = [np_traces[np_hashes==h] for h in np.unique(np_hashes)]
+        batch_splitting = [np_traces[np_hashes==h] for h in uniques]
+        self.sub_batches = [[]]*len(uniques)
+
+        for i, sub_batch_traces in enumerate(batch_splitting):
+
+            example_trace = sub_batch_traces[0]
+
+            trace_len = len(example_trace)
+
+            values = []
+            dist_parameters = []
+            torch_data = []
+
+            for _ in range(trace_len):
+                values.append([])
+                dist_parameters.append({})
+                torch_data.append({})
+
+            names = []
+            controls = []
+            dist_names = []
+            observed_time_steps = []
+            latent_time_steps = []
+            addresses = []
+            constants = []
+
+            meta_data = {}
+            meta_data['trace_hash'] = uniques[i]
+
+            for time_step, var_args in enumerate(example_trace):
+                name = var_args['name']
+                names.append(name)
+                if var_args['observed']:
+                    observed_time_steps.append(time_step)
+                else:
+                    latent_time_steps.append(time_step)
+                dist_names.append(var_args['distribution_name'])
+                addresses.append(var_args['address'])
+                controls.append(var_args['control'])
+                constants.append(var_args['constants'])
+
+            meta_data['names'] = names
+            meta_data['observed_time_steps'] = observed_time_steps
+            meta_data['latent_time_steps'] = latent_time_steps
+            meta_data['distribution_names'] = dist_names
+            meta_data['addresses'] = addresses
+            meta_data['controls'] = controls
+            meta_data['distribution_constants'] = constants
+
+            for time_step in range(trace_len):
+                for trace_list in sub_batch_traces:
+                    var_args = trace_list[time_step]
+                    value = var_args['value']
+                    values[time_step].append(value)
+
+                    for k, v in var_args['distribution_args'].items():
+                        d = dist_parameters[time_step]
+                        if v.dim() == 0:
+                            v = v.unsqueeze(0)
+                        if k not in d:
+                            d[k] = v
+                        else:
+                            d[k] = torch.cat([d[k], v], dim=0)
+
+                torch_data[time_step]['values'] = torch.stack(values[time_step], dim=0)
+                torch_data[time_step]['distribution'] = construct_dist(dist_names[time_step], dist_parameters[time_step])
+
+            self.sub_batches[i] = [meta_data, torch_data]
 
     def __len__(self):
-        return len(self.traces)
-
-    def __getitem__(self, key):
-        return self.traces[key]
+        return len(self.traces_lists)
 
     def to(self, device):
-        for trace in self.traces:
-            trace.to(device=device)
+        """ Sends data onto the desired device
 
+        ** Most likely not needed as we push the data onto the device using "util.to_tensor" everywhere **
+
+        """
+        for sub_batch in self.sub_batches:
+            data = sub_batch[1]
+            for d_time_step in data:
+                for k, v in d_time_step.items():
+                    v.to(device=device)
 
 class OnlineDataset(Dataset):
     def __init__(self, model, length=None,
@@ -66,7 +138,13 @@ class OnlineDataset(Dataset):
     def __getitem__(self, idx):
         trace =next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK,
                                                  prior_inflation=self._prior_inflation))
-        return trace, trace.hash()
+
+        trace_attr_list = []
+        for variable in trace.variables:
+            trace_attr_list = self._update_sub_trace_data(trace_attr_list,
+                                                            variable,
+                                                            trace, to_list=False)
+        return trace_attr_list, trace.hash()
 
     def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, *args, **kwargs):
         num_files = math.ceil(num_traces / num_traces_per_file)
@@ -83,16 +161,16 @@ class OnlineDataset(Dataset):
                     trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR,
                                                               prior_inflation=self._prior_inflation,
                                                               *args, **kwargs))
-                    trace_attr_dict = {}
-                    for attr in VARIABLE_ATTRIBUTES:
-                        trace_attr_dict = self._update_sub_trace_data(trace_attr_dict,
-                                                                      attr,
+                    trace_attr_list = []
+                    for variable in trace.variables:
+                        trace_attr_list = self._update_sub_trace_data(trace_attr_list,
+                                                                      variable,
                                                                       trace)
 
                     # call trace.__hash__ method for hashing
                     trace_hash = trace.hash()
                     hashes.append(trace_hash)
-                    dataset.append(json.dumps([trace_attr_dict, trace_hash]).encode())
+                    dataset.append(json.dumps([trace_attr_list, trace_hash]).encode())
 
                 f.create_dataset('traces', (num_traces_per_file,), data=dataset,
                                  chunks=True, dtype=str_type)
@@ -102,7 +180,16 @@ class OnlineDataset(Dataset):
             util.progress_bar_update(i)
         util.progress_bar_end()
 
-    def _update_sub_trace_data(self, trace_attr_dict, attr, trace):
+    def get_example_trace(self):
+        trace_list, trace_hash = self[0]
+        trace = Trace(trace_hash=trace_hash)
+        for var_args in trace_list:
+            distribution = construct_dist(var_args['distribution_name'], var_args['distribution_args'])
+            variable = Variable(distribution=distribution, **var_args)
+            trace.add(variable)
+        return trace
+
+    def _update_sub_trace_data(self, trace_attr_list, variable, trace, to_list=True):
         """ Update sub_trace_data dictionary
 
         Inputs:
@@ -114,28 +201,32 @@ class OnlineDataset(Dataset):
         We further decode the json string into bytes (which has to be decoded once we load the data again)
 
         """
-        for variable in trace.variables:
-            address = variable.address
-            if address not in trace_attr_dict:
-                trace_attr_dict[address] = {}
+        var_dict = {}
+        for attr in VARIABLE_ATTRIBUTES:
             if attr == 'value':
-                trace_attr_dict[address][attr] = getattr(variable, attr).tolist()
+                v = getattr(variable, attr)
+                var_dict[attr] = v.tolist() if to_list else v
             elif attr in ['distribution_name']:
                 # extract the input arguments for initializing the distribution
-                trace_attr_dict[address][attr] = variable.distribution_name
+                var_dict[attr] = variable.distribution_name
             elif attr in ['distribution_args']:
-                trace_attr_dict[address][attr] = variable.distribution_args
+                tmp = {}
+                for k, v in variable.distribution_args.items():
+                    tmp[k] = v.tolist() if to_list else v
+                var_dict[attr] = tmp
             elif attr in ['constants']:
                 tmp = {}
                 for k, value in variable.constants.items():
-                    tmp[k] = value.tolist()
-                trace_attr_dict[address][attr] = tmp
+                    tmp[k] = value.tolist() if to_list else value
+                var_dict[attr] = tmp
             elif attr in ['log_prob']:
-                trace_attr_dict[address][attr] = getattr(variable, attr).item()
+                v = getattr(variable, attr)
+                var_dict[attr] = v.item() if to_list else v
             else:
-                trace_attr_dict[address][attr] = getattr(variable, attr)
+                var_dict[attr] = getattr(variable, attr)
 
-        return trace_attr_dict
+        trace_attr_list.append(var_dict)
+        return trace_attr_list
 
 
 class OfflineDatasetFile(Dataset):
@@ -158,11 +249,11 @@ class OfflineDatasetFile(Dataset):
         return int(self._length)
 
     def __getitem__(self, idx):
-        trace_attr_dict, trace_hash = json.loads(self.f[idx])
+        trace_attr_list, trace_hash = json.loads(self.f[idx])
 
-        trace = Trace(trace_hash=trace_hash)
+        trace_list = []
 
-        for _, variable_attr_dict in trace_attr_dict.items():
+        for variable_attr_dict in trace_attr_list:
             var_args = {}
             for attr, variable_data in variable_attr_dict.items():
                 if attr == 'value':
@@ -171,7 +262,10 @@ class OfflineDatasetFile(Dataset):
                     # extract the input arguments for initializing the distribution
                     var_args[attr] = variable_data
                 elif attr in ['distribution_args']:
-                    var_args[attr] = variable_data
+                    tmp = {}
+                    for k, value in variable_data.items():
+                        tmp[k] = util.to_tensor(value)
+                    var_args[attr] = tmp
                 elif attr in ['constants']:
                     tmp = {}
                     for k, value in variable_data.items():
@@ -187,13 +281,18 @@ class OfflineDatasetFile(Dataset):
                 else:
                     var_args[attr] = variable_data
 
+            trace_list.append(var_args)
+
+        return trace_list, trace_hash
+
+    def get_example_trace(self):
+        trace_list, trace_hash = self[0]
+        trace = Trace(trace_hash=trace_hash)
+        for var_args in trace_list:
             distribution = construct_dist(var_args['distribution_name'], var_args['distribution_args'])
             variable = Variable(distribution=distribution, **var_args)
             trace.add(variable)
-
-        trace.end(None, None)
-
-        return trace, trace_hash
+        return trace
 
 class OfflineDataset(ConcatDataset):
     def __init__(self, dataset_dir):
@@ -202,22 +301,25 @@ class OfflineDataset(ConcatDataset):
         files = sorted(p.glob('pyprob_traces*.hdf5'))
         if len(files) == 0:
             raise RuntimeError('Cannot find any data set files at {}'.format(dataset_dir))
-        datasets = []
+        self.datasets = []
         for file in files:
             try:
                 dataset = OfflineDatasetFile(file)
-                datasets.append(dataset)
+                self.datasets.append(dataset)
             except Exception as e:
                 print(e)
                 print(colored('Warning: dataset file potentially corrupt, omitting: {}'.format(file), 'red', attrs=['bold']))
-        super().__init__(datasets)
+        super().__init__(self.datasets)
         print('OfflineDataset at: {}'.format(dataset_dir))
         print('Num. traces      : {:,}'.format(len(self)))
-        hashes = [h for dataset in datasets
+        hashes = [h for dataset in self.datasets
                     for h in dataset.hashes]
         print(colored('Sorting'))
         self._sorted_indices = np.argsort(hashes)
         print(colored('Finished sorting hashes'))
+
+    def get_example_trace(self):
+        return self.datasets[0].get_example_trace()
 
 
 class TraceSampler(Sampler):

@@ -18,9 +18,6 @@ class SurrogateCategorical(nn.Module):
 
         self.dist_type = Categorical(probs=torch.Tensor([1]))
 
-    def _transform_probs(self, dists):
-        return torch.stack([d.probs for d in dists])
-
     def forward(self, x):
         batch_size = x.size(0)
         x = self._ff(x)
@@ -28,9 +25,7 @@ class SurrogateCategorical(nn.Module):
 
         return Categorical(self.probs)
 
-    def loss(self, distributions):
-        simulator_probs = self._transform_probs(distributions)
-        p_normal = Categorical(simulator_probs)
+    def loss(self, p_normal):
         q_normal = Categorical(self.probs)
 
         return Distribution.kl_divergence(p_normal, q_normal)

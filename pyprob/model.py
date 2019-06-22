@@ -272,12 +272,11 @@ class Model():
                                 distributed_backend=None,
                                 distributed_params_sync_every_iter=10000,
                                 distributed_num_buckets=None,
-                                num_workers=4,
+                                num_workers=0,
                                 stop_with_bad_loss=True, log_file_name=None,
                                 lstm_dim=512, lstm_depth=1,
                                 proposal_mixture_components=10, surrogate=False,
                                 sacred_run=None):
-        torch.set_num_threads(1)
 
         state._variables_observed_inf_training = list(observe_embeddings.keys())
 

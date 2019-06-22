@@ -129,11 +129,14 @@ class InferenceNetwork(nn.Module):
 
         self._layers_observe_embedding_final.to(device=util._device)
 
-    def _embed_observe(self, traces=None):
+    def _embed_observe(self, meta_data, torch_data):
         embedding = []
-        for name, layer in self._layers_observe_embedding.items():
-            values = torch.stack([util.to_tensor(trace.variables_observed[name].value) for trace in traces]).view(len(traces), -1)
-            embedding.append(layer(values))
+        for time_step in meta_data['observed_time_steps']:
+            values = torch_data[time_step]['values']
+            name = meta_data['names'][time_step]
+            batch_size = values.size(0)
+            values = values.view(batch_size, -1)
+            embedding.append(self._layers_observe_embedding[name](values))
         embedding = torch.cat(embedding, dim=1)
         embedding = self._layers_observe_embedding_final(embedding)
         return embedding
@@ -270,7 +273,7 @@ class InferenceNetwork(nn.Module):
     def _pre_generate_layers(self, dataset, batch_size=64, save_file_name_prefix=None):
         if not self._layers_initialized:
             self._init_layers_observe_embedding(self._observe_embeddings,
-                                                example_trace=dataset.__getitem__(0)[0])
+                                                example_trace=dataset.get_example_trace())
             self._init_layers()
             self._layers_initialized = True
 
@@ -392,7 +395,7 @@ class InferenceNetwork(nn.Module):
                  stop_with_bad_loss=False, log_file_name=None, sacred_run=None):
 
         if not self._layers_initialized:
-            self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.__getitem__(0))
+            self._init_layers_observe_embedding(self._observe_embeddings, example_trace=dataset.get_example_trace())
             self._init_layers()
             self._layers_initialized = True
 

@@ -34,7 +34,7 @@ class Variable():
         self.distribution=distribution
         if distribution:
             self.distribution_name = distribution.name
-            self.distribution_args = distribution.args
+            self.distribution_args = distribution.get_input_parameters()
         else:
             self.distribution_name = distribution_name
             self.distribution_args = distribution_args

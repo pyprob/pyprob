@@ -60,12 +60,6 @@ class SurrogateNormal(nn.Module):
                     raise ValueError('Only support independent variable - variance has to be vector')
             self.dist_type = Normal(loc=torch.zeros(mean_shape), scale=torch.ones(var_shape))
 
-    def _transform_mean(self, dists):
-        return torch.stack([d.mean for d in dists])
-
-    def _transform_stddev(self, dists):
-        return  torch.stack([d.stddev for d in dists])
-
 
     def forward(self, x):
         if self.train:
@@ -87,11 +81,8 @@ class SurrogateNormal(nn.Module):
             return Normal(self.loc.repeat(batch_size, 1,1).squeeze(),
                           self.scale.repeat(batch_size, 1, 1).squeeze())
 
-    def loss(self, distributions):
+    def loss(self, p_normal):
         if self.train:
-            simulator_means = self._transform_mean(distributions)
-            simulator_stddevs = self._transform_stddev(distributions)
-            p_normal = Normal(simulator_means, simulator_stddevs)
             q_normal = Normal(self.means, self.stddevs)
 
             return Distribution.kl_divergence(p_normal, q_normal)
