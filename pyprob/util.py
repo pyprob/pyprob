@@ -69,6 +69,11 @@ class LearningRateScheduler(enum.Enum):
     POLY2 = 2
 
 
+class ImportanceWeighting(enum.Enum):
+    IW0 = 0  # use prior as proposal for all replace=True addresses
+    IW1 = 1
+
+
 def set_random_seed(seed=None):
     if seed is None:
         seed = int((time.time()*1e6) % 1e8)

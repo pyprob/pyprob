@@ -7,13 +7,14 @@ from termcolor import colored
 
 from .distributions import Normal, Categorical, Uniform, TruncatedNormal
 from .trace import Variable, Trace
-from . import util, TraceMode, PriorInflation, InferenceEngine
+from . import util, TraceMode, PriorInflation, InferenceEngine, ImportanceWeighting
 
 
 _trace_mode = TraceMode.PRIOR
 _inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
 _prior_inflation = PriorInflation.DISABLED
 _likelihood_importance = 1.
+_importance_weighting = ImportanceWeighting.IW0
 _current_trace = None
 _current_trace_root_function_name = None
 _current_trace_inference_network = None
@@ -189,44 +190,84 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                     log_prob = distribution.log_prob(value, sum=True)
                     log_importance_weight = float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))  # To account for prior inflation
             elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-                address = address_base + '__' + ('replaced' if replace else str(instance))
-                if control:
-                    variable = Variable(distribution=distribution, value=None, address_base=address_base, address=address, instance=instance, log_prob=0., control=control, replace=replace, name=name, observed=observed, reused=reused)
-                    update_previous_variable = False
-                    if replace:
-                        # TODO: address not in _current_trace_replaced_variable_proposal_distributions might not be sufficient to discover a new replace loop instance. Implement better.
-                        if address not in _current_trace_replaced_variable_proposal_distributions:
-                            _current_trace_replaced_variable_proposal_distributions[address] = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
+                if _importance_weighting == ImportanceWeighting.IW0:  # use prior as proposal for all replace=True addresses
+                    address = address_base + '__' + ('replaced' if replace else str(instance))  # Address seen by inference network
+                    if control:
+                        variable = Variable(distribution=distribution, value=None, address_base=address_base, address=address, instance=instance, log_prob=0., control=control, replace=replace, name=name, observed=observed, reused=reused)
+                        update_previous_variable = False
+                        if replace:
+                            # TODO: address not in _current_trace_replaced_variable_proposal_distributions might not be sufficient to discover a new replace loop instance. Implement better.
+                            if address not in _current_trace_replaced_variable_proposal_distributions:
+                                _current_trace_replaced_variable_proposal_distributions[address] = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
+                                update_previous_variable = True
+                            proposal_distribution = distribution
+                        else:
+                            proposal_distribution = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
                             update_previous_variable = True
-                        proposal_distribution = _current_trace_replaced_variable_proposal_distributions[address]
+                        value = proposal_distribution.sample()
+                        if value.dim() > 0:
+                            value = value[0]
+                        log_prob = distribution.log_prob(value, sum=True)
+                        proposal_log_prob = proposal_distribution.log_prob(value, sum=True)
+                        if util.has_nan_or_inf(log_prob):
+                            print(colored('Warning: prior log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
+                            print('distribution', distribution)
+                            print('value', value)
+                            print('log_prob', log_prob)
+                        if util.has_nan_or_inf(proposal_log_prob):
+                            print(colored('Warning: proposal log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
+                            print('distribution', proposal_distribution)
+                            print('value', value)
+                            print('log_prob', proposal_log_prob)
+                        log_importance_weight = float(log_prob) - float(proposal_log_prob)
+                        if update_previous_variable:
+                            variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, replace=replace, name=name, observed=observed, reused=reused)
+                            _current_trace_previous_variable = variable
+                            # print('prev_var address {}'.format(variable.address))
                     else:
-                        proposal_distribution = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
-                        update_previous_variable = True
-                    value = proposal_distribution.sample()
-                    if value.dim() > 0:
-                        value = value[0]
-                    log_prob = distribution.log_prob(value, sum=True)
-                    proposal_log_prob = proposal_distribution.log_prob(value, sum=True)
-                    if util.has_nan_or_inf(log_prob):
-                        print(colored('Warning: prior log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
-                        print('distribution', distribution)
-                        print('value', value)
-                        print('log_prob', log_prob)
-                    if util.has_nan_or_inf(proposal_log_prob):
-                        print(colored('Warning: proposal log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
-                        print('distribution', proposal_distribution)
-                        print('value', value)
-                        print('log_prob', proposal_log_prob)
-                    log_importance_weight = float(log_prob) - float(proposal_log_prob)
-                    if update_previous_variable:
-                        variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, replace=replace, name=name, observed=observed, reused=reused)
-                        _current_trace_previous_variable = variable
-                        # print('prev_var address {}'.format(variable.address))
-                else:
-                    value = distribution.sample()
-                    log_prob = distribution.log_prob(value, sum=True)
-                    log_importance_weight = None
-                address = address_base + '__' + str(instance)
+                        value = distribution.sample()
+                        log_prob = distribution.log_prob(value, sum=True)
+                        log_importance_weight = None
+                    address = address_base + '__' + str(instance)  # Address seen by everyone except the inference network
+                else:  # _importance_weighting == ImportanceWeighting.IW1
+                    address = address_base + '__' + ('replaced' if replace else str(instance))  # Address seen by inference network
+                    if control:
+                        variable = Variable(distribution=distribution, value=None, address_base=address_base, address=address, instance=instance, log_prob=0., control=control, replace=replace, name=name, observed=observed, reused=reused)
+                        update_previous_variable = False
+                        if replace:
+                            # TODO: address not in _current_trace_replaced_variable_proposal_distributions might not be sufficient to discover a new replace loop instance. Implement better.
+                            if address not in _current_trace_replaced_variable_proposal_distributions:
+                                _current_trace_replaced_variable_proposal_distributions[address] = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
+                                update_previous_variable = True
+                            proposal_distribution = _current_trace_replaced_variable_proposal_distributions[address]
+                        else:
+                            proposal_distribution = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
+                            update_previous_variable = True
+                        value = proposal_distribution.sample()
+                        if value.dim() > 0:
+                            value = value[0]
+                        log_prob = distribution.log_prob(value, sum=True)
+                        proposal_log_prob = proposal_distribution.log_prob(value, sum=True)
+                        if util.has_nan_or_inf(log_prob):
+                            print(colored('Warning: prior log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
+                            print('distribution', distribution)
+                            print('value', value)
+                            print('log_prob', log_prob)
+                        if util.has_nan_or_inf(proposal_log_prob):
+                            print(colored('Warning: proposal log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
+                            print('distribution', proposal_distribution)
+                            print('value', value)
+                            print('log_prob', proposal_log_prob)
+                        log_importance_weight = float(log_prob) - float(proposal_log_prob)
+                        if update_previous_variable:
+                            variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, replace=replace, name=name, observed=observed, reused=reused)
+                            _current_trace_previous_variable = variable
+                            # print('prev_var address {}'.format(variable.address))
+                    else:
+                        value = distribution.sample()
+                        log_prob = distribution.log_prob(value, sum=True)
+                        log_importance_weight = None
+                    address = address_base + '__' + str(instance)  # Address seen by everyone except the inference network
             else:  # _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
                 address = address_base + '__' + str(instance)
                 log_importance_weight = None
@@ -301,15 +342,17 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
     return variable.value
 
 
-def _init_traces(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None, address_dictionary=None, likelihood_importance=1.):
+def _init_traces(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, observe=None, metropolis_hastings_trace=None, address_dictionary=None, likelihood_importance=1., importance_weighting=ImportanceWeighting.IW0):
     global _trace_mode
     global _inference_engine
     global _prior_inflation
     global _likelihood_importance
+    global _importance_weighting
     _trace_mode = trace_mode
     _inference_engine = inference_engine
     _prior_inflation = prior_inflation
     _likelihood_importance = likelihood_importance
+    _importance_weighting = importance_weighting
     global _current_trace_root_function_name
     global _current_trace_inference_network
     global _current_trace_inference_network_proposal_min_train_iterations
