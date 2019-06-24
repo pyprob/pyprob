@@ -94,7 +94,7 @@ def set_device(device='cpu'):
         _cuda_enabled = False
     try:
         test = to_tensor(1.)
-        test.to('cpu')
+        test.to(device=_device)
     except Exception as e:
         print(e)
         raise RuntimeError('Cannot set device: {}'.format(device))
