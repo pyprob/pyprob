@@ -49,11 +49,11 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     continue
 
                 if address not in self._layers_address_embedding:
-                    emb = nn.Parameter(torch.zeros(self._address_embedding_dim).normal_()).to(device=util._device)
+                    emb = nn.Parameter(torch.zeros(self._address_embedding_dim).normal_().to(device=util._device))
                     self._layers_address_embedding[address] = emb
 
                 if distribution_name not in self._layers_distribution_type_embedding:
-                    emb = nn.Parameter(torch.zeros(self._distribution_type_embedding_dim).normal_()).to(device=util._device)
+                    emb = nn.Parameter(torch.zeros(self._distribution_type_embedding_dim).normal_().to(device=util._device))
                     self._layers_distribution_type_embedding[distribution_name] = emb
 
                 if address not in self._layers_proposal:
