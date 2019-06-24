@@ -49,7 +49,7 @@ class Categorical(Distribution):
 
     def to(self, device):
         if self.use_probs:
-            self._probs.to(device=util._device)
+            self._probs.to(device=device)
         else:
-            self._logits.to(device=util._device)
+            self._logits.to(device=device)
         return self

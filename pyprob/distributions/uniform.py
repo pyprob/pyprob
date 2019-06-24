@@ -25,6 +25,7 @@ class Uniform(Distribution):
     def high(self):
         return self._torch_dist.high
 
-    def to(self):
-        self.low.to(device=util._device)
-        self.high.to(device=util._device)
+    def to(self, device):
+        self.low.to(device=device)
+        self.high.to(device=device)
+        return self

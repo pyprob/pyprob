@@ -17,4 +17,5 @@ class Poisson(Distribution):
         return self._torch_dist.mean
 
     def to(self, device):
-        self.rate.to(device=util._device)
+        self.rate.to(device=device)
+        return self

@@ -51,5 +51,6 @@ class Beta(Distribution):
         return super().variance * self._range * self._range
 
     def to(self, device):
-        self.concentration0.to(device=util._device)
-        self.concentration1.to(device=util._device)
+        self.concentration0.to(device=device)
+        self.concentration1.to(device=device)
+        return self
