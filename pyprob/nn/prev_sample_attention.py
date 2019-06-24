@@ -59,13 +59,11 @@ class PrevSamplesEmbedder(nn.Module):
         self._key_layers = nn.ModuleDict()
         self._value_layers = nn.ModuleDict()
 
-    def _add_address(self, variable, *embedder_args, **embedder_kwargs):
+    def _add_address(self, address, value_shape, *embedder_args, **embedder_kwargs):
         """
         Add a new query layer and key layer for a previously unseen address.
         Should only be used in `polymorph`
         """
-        address = variable.address
-
         if self.input_dim > 0:
             self._query_layers[address] = nn.Linear(
                 self.input_dim,
@@ -76,10 +74,10 @@ class PrevSamplesEmbedder(nn.Module):
                 self.key_dim*self.n_queries
             )
         self._key_layers[address] = \
-            EmbeddingFeedForward(variable.value.shape, self.key_dim,
+            EmbeddingFeedForward(value_shape, self.key_dim,
                                  *embedder_args, **embedder_kwargs)
         self._value_layers[address] = \
-            EmbeddingFeedForward(variable.value.shape,
+            EmbeddingFeedForward(value_shape,
                                  self.sample_embedding_dim,
                                  *embedder_args, **embedder_kwargs)
         self._query_layers[address].to(device=util._device)
@@ -108,30 +106,22 @@ class PrevSamplesEmbedder(nn.Module):
             else:
                 self.attention_weights.append(OrderedDict())
 
-    def add_value(self, variable_batch):
+    def add_value(self, address, values):
         """
         Add an embedding of a sampled value. This will be stored and can be
         accessed later when __forward__ is run.
         """
         self.empty = False
-        keys = torch.cat([self._key_layers[var.address](
-                              var.value.view(1, -1)
-                          ).view(1, 1, -1)
-                          for var in variable_batch],
-                         dim=0)
-        values = torch.cat([self._value_layers[var.address](
-                                var.value.view(1, -1)
-                            ).view(1, 1, -1)
-                            for var in variable_batch],
-                           dim=0)
+        batch_size = values.size(0)
+        keys = self._key_layers[address](values.view(batch_size, 1, -1))
+        values = self._value_layers[address](values.view(batch_size,1, -1))
         self.keys = torch.cat((self.keys, keys), dim=1)
         self.values = torch.cat((self.values, values), dim=1)
 
-    def store_attention_weights(self, variable, attn):
-        address = variable[0].address
+    def store_attention_weights(self, address, attn):
         self.attention_weights[-1][address] = attn
 
-    def forward(self, variables, queries, batch_size=None):
+    def forward(self, address, queries, batch_size=None):
         """
         Returns weighted sum of sample embeddings in `Attention Is All You
         Need` style (https://arxiv.org/pdf/1706.03762.pdf).
@@ -144,21 +134,15 @@ class PrevSamplesEmbedder(nn.Module):
                      - n_keys x sample_embedding_dim
         """
         if self.empty:
-            return util.to_tensor(torch.zeros(
-                batch_size,
-                self.n_queries*self.sample_embedding_dim
-            ))
+            return util.to_tensor(torch.zeros(batch_size,
+                                              self.n_queries*self.sample_embedding_dim))
         if len(queries) == 0:
             queries = [torch.Tensor([0])] * self.n_queries
-        queries = torch.cat([self._query_layers[var.address](
-                                 query
-                             ).view(1, self.n_queries, self.key_dim)
-                             for var, query in zip(variables, queries)],
-                            dim=0)
+        queries = self._query_layers[address](queries).view(-1, self.n_queries, self.key_dim)
         output, attn = self.dpa(queries, self.keys, self.values)
 
         if self.store_att_weights:
-            self.store_attention_weights(variables, attn)
+            self.store_attention_weights(address, attn)
 
         return output.view(-1, self.n_queries*self.sample_embedding_dim)
 

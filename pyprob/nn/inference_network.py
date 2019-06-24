@@ -16,7 +16,8 @@ import math
 from threading import Thread
 from termcolor import colored
 
-from . import Batch, OfflineDataset, TraceBatchSampler, DistributedTraceBatchSampler, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
+from . import Batch, OfflineDataset, TraceBatchSampler, DistributedTraceBatchSampler,\
+    EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C, PrevSamplesEmbedder
 from .optimizer_larc import LARC
 from .. import __version__, util, Optimizer, LearningRateScheduler, ObserveEmbedding
 
@@ -160,17 +161,12 @@ class InferenceNetwork(nn.Module):
         embedding = torch.cat(embedding, dim=1)
         self._infer_observe_embedding = self._layers_observe_embedding_final(embedding)
 
-    def _polymorph_attention(self, variable):
+    def _polymorph_attention(self, address, value_shape, kwargs):
         """
         To be called inside `_polymorph` to add layers for attention on previously sampled values
         """
         if self.prev_sample_attention:
-            if isinstance(variable.distribution, Categorical):
-                kwargs = {"input_is_one_hot_index": True,
-                          "input_one_hot_dim": variable.distribution.num_categories}
-            else:
-                kwargs = {}
-            self.prev_samples_embedder._add_address(variable, **kwargs)
+            self.prev_samples_embedder._add_address(address, value_shape, **kwargs)
 
     def _init_layers(self):
         raise NotImplementedError()

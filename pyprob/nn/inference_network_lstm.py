@@ -104,8 +104,16 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     sample_embedding_layer.to(device=util._device)
                     self._layers_sample_embedding[address] = sample_embedding_layer
                     self._layers_proposal[address] = proposal_layer
+
                     if self.prev_sample_attention:
-                        super()._polymorph_attention(variable)
+                        if distribution_name == 'Categorical':
+                            num_categories = torch_data[time_step]['distribution'].num_categories
+                            kwargs = {"input_is_one_hot_index": True,
+                                      "input_one_hot_dim": num_categories}
+                        else:
+                            kwargs = {}
+                        super()._polymorph_attention(address, variable_shape, kwargs)
+
                     layers_changed = True
                     print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address), distribution_name))
         if layers_changed:
@@ -145,7 +153,9 @@ class InferenceNetworkLSTM(InferenceNetwork):
             current_address_embedding = self._layers_address_embedding[current_address]
             current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution_name]
             if self.prev_sample_attention:
-                prev_sample_embedding_attention = self.prev_samples_embedder([variable], [self._infer_observe_embedding], batch_size=1)
+                prev_sample_embedding_attention = self.prev_samples_embedder(current_address,
+                                                                             self._infer_observe_embedding,
+                                                                             batch_size=1)
             else:
                 prev_sample_embedding_attention = torch.Tensor([[]])
         else:
@@ -223,11 +233,10 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     prev_address_embedding = self._layers_address_embedding[prev_address]
                     prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution_name]
                     if self.prev_sample_attention:
-                        self.prev_samples_embedder.add_value([t.variables_controlled[time_step - 1] for t in sub_batch])
+                        self.prev_samples_embedder.add_value(prev_address, smp)
 
                 if self.prev_sample_attention:
-                    prev_sample_embedding_attention = self.prev_samples_embedder([trace.variables_controlled[time_step]
-                                                                                  for trace in sub_batch],
+                    prev_sample_embedding_attention = self.prev_samples_embedder(current_address,
                                                                                  observe_embedding,
                                                                                  batch_size=sub_batch_length)
                 else:

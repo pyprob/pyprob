@@ -19,27 +19,47 @@ class InferenceNetworkFeedForward(InferenceNetwork):
 
     def _polymorph(self, batch):
         layers_changed = False
-        for sub_batch in batch.sub_batches:
-            example_trace = sub_batch[0]
-            for variable in example_trace.variables_controlled:
-                address = variable.address
-                distribution = variable.distribution
-                variable_shape = variable.value.shape
+        for meta_data, torch_data in batch.sub_batches:
+            for time_step in meta_data['latent_time_steps']:
+                address = meta_data['addresses'][time_step]
+                distribution_name = meta_data['distribution_names'][time_step]
+                current_controlled = meta_data['controls'][time_step]
+                current_name = meta_data['names'][time_step]
+                variable_shape = torch_data[time_step]['values'][0].shape
+                # do not create proposal layer for observed variables!
+                if (current_name in self._observe_embeddings) or (not current_controlled):
+                    continue
+
                 if address not in self._layers_proposal:
-                    print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address), distribution.name))
-                    if isinstance(distribution, Normal):
-                        layer = ProposalNormalNormalMixture(self._observe_embedding_dim+self._sample_attention_embedding_dim, variable_shape)
-                    elif isinstance(distribution, Uniform):
-                        layer = ProposalUniformTruncatedNormalMixture(self._observe_embedding_dim+self._sample_attention_embedding_dim, variable_shape)
-                    elif isinstance(distribution, Poisson):
-                        layer = ProposalPoissonTruncatedNormalMixture(self._observe_embedding_dim+self._sample_attention_embedding_dim, variable_shape)
-                    elif isinstance(distribution, Categorical):
-                        layer = ProposalCategoricalCategorical(self._observe_embedding_dim+self._sample_attention_embedding_dim, distribution.num_categories)
+                    print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address),
+                                                                             distribution_name))
+                    if distribution_name == 'Normal':
+                        layer = ProposalNormalNormalMixture(self._observe_embedding_dim+self._sample_attention_embedding_dim,
+                                                            variable_shape)
+                    elif distribution_name == 'Uniform':
+                        layer = ProposalUniformTruncatedNormalMixture(self._observe_embedding_dim+self._sample_attention_embedding_dim,
+                                                                      variable_shape)
+                    elif distribution_name == 'Poisson':
+                        layer = ProposalPoissonTruncatedNormalMixture(self._observe_embedding_dim+self._sample_attention_embedding_dim,
+                                                                      variable_shape)
+                    elif distribution_name == 'Categorical':
+                        num_categories = torch_data[time_step]['distribution'].num_categories
+                        layer = ProposalCategoricalCategorical(self._observe_embedding_dim+self._sample_attention_embedding_dim,
+                                                               num_categories)
                     else:
                         raise RuntimeError('Distribution currently unsupported: {}'.format(distribution.name))
                     layer.to(device=util._device)
                     self._layers_proposal[address] = layer
-                    super()._polymorph_attention(variable)
+
+                    if self.prev_sample_attention:
+                        if distribution_name == 'Categorical':
+                            num_categories = torch_data[time_step]['distribution'].num_categories
+                            kwargs = {"input_is_one_hot_index": True,
+                                      "input_one_hot_dim": num_categories}
+                        else:
+                            kwargs = {}
+                        super()._polymorph_attention(address, variable_shape, kwargs)
+
                     layers_changed = True
         if layers_changed:
             num_params = sum(p.numel() for p in self.parameters())
@@ -63,42 +83,54 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                     print(colored('Warning: using prior, proposal not sufficiently trained ({}/{}) for address: {}'.format(proposal_layer._total_train_iterations, proposal_min_train_iterations, address), 'yellow', attrs=['bold']))
                     return distribution
             if self.prev_sample_attention:
-                prev_samples_embedding = self.prev_samples_embedder([variable], self._infer_observe_embedding, batch_size=1)
-                proposal_layer_input = torch.cat([prev_samples_embedding, self._infer_observe_embedding], dim=1)
+                prev_samples_embedding = self.prev_samples_embedder(address,
+                                                                    self._infer_observe_embedding, batch_size=1)
+                proposal_layer_input = torch.cat([prev_samples_embedding,
+                                                  self._infer_observe_embedding], dim=1)
             else:
                 proposal_layer_input = self._infer_observe_embedding
-            proposal_distribution = proposal_layer.forward(self._infer_observe_embedding, [variable])
+            proposal_distribution = proposal_layer.forward(self._infer_observe_embedding,
+                                                           [variable])
             return proposal_distribution
         else:
             print(colored('Warning: using prior, no proposal layer for address: {}'.format(address), 'yellow', attrs=['bold']))
             return distribution
 
     def _loss(self, batch):
-        batch_loss = 0
-        for sub_batch in batch.sub_batches:
-            example_trace = sub_batch[0]
-            observe_embedding = self._embed_observe(sub_batch)
+        batch_loss = 0.
+        for meta_data, torch_data in batch.sub_batches:
+            observe_embedding = self._embed_observe(meta_data, torch_data)
+            sub_batch_length = torch_data[0]['values'].size(0)
             sub_batch_loss = 0.
-            for time_step in range(example_trace.length_controlled):
+            for time_step in meta_data['latent_time_steps']:
+                address = meta_data['addresses'][time_step]
+                current_controlled = meta_data['controls'][time_step]
+                current_name = meta_data['names'][time_step]
+
+                if (current_name in self._observe_embeddings) or (not current_controlled):
+                    continue
+
                 if self.prev_sample_attention:
                     if time_step == 0:
                         self.prev_samples_embedder.init_for_trace()
                     else:
-                        self.prev_samples_embedder.add_value([t.variables_controlled[time_step - 1] for t in sub_batch])
-                address = example_trace.variables_controlled[time_step].address
+                        prev_address = meta_data['addresses'][time_step-1]
+                        smp = torch_data[time_step-1]['values']
+                        self.prev_samples_embedder.add_value(prev_address, smp)
                 if address not in self._layers_proposal:
                     print(colored('Address unknown by inference network: {}'.format(address), 'red', attrs=['bold']))
                     return False, 0
-                variables = [trace.variables_controlled[time_step] for trace in sub_batch]
-                values = torch.stack([v.value for v in variables])
+                values = torch_data[time_step]['values']
                 proposal_layer = self._layers_proposal[address]
                 proposal_layer._total_train_iterations += 1
                 if self.prev_sample_attention:
-                    prev_samples_embedding = self.prev_samples_embedder(variables, observe_embedding, batch_size=len(sub_batch))
-                    proposal_layer_input = torch.cat([prev_samples_embedding, observe_embedding], dim=1)
+                    prev_samples_embedding = self.prev_samples_embedder(address,
+                                                                        observe_embedding,
+                                                                        batch_size=sub_batch_length)
+                    proposal_input = torch.cat([prev_samples_embedding, observe_embedding], dim=1)
                 else:
-                    proposal_layer_input = observe_embedding
-                proposal_distribution = proposal_layer.forward(observe_embedding, variables)
+                    proposal_input = observe_embedding
+                proposal_distribution = proposal_layer.forward(proposal_input, torch_data[time_step]['distribution'])
                 log_prob = proposal_distribution.log_prob(values)
                 if util.has_nan_or_inf(log_prob):
                     print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))
