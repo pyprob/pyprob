@@ -143,7 +143,7 @@ class InferenceNetwork(nn.Module):
     def _embed_observe(self, meta_data, torch_data):
         embedding = []
         for time_step in meta_data['observed_time_steps']:
-            values = torch_data[time_step]['values']
+            values = torch_data[time_step]['values'].to(device=util._device)
             name = meta_data['names'][time_step]
             batch_size = values.size(0)
             values = values.view(batch_size, -1)
@@ -156,7 +156,7 @@ class InferenceNetwork(nn.Module):
         self._infer_observe = observe
         embedding = []
         for name, layer in self._layers_observe_embedding.items():
-            value = util.to_tensor(observe[name]).view(1, -1)
+            value = util.to_tensor(observe[name]).view(1, -1).to(device=util._device)
             embedding.append(layer(value))
         embedding = torch.cat(embedding, dim=1)
         self._infer_observe_embedding = self._layers_observe_embedding_final(embedding)

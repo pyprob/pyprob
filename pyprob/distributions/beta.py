@@ -6,15 +6,18 @@ from .. import util
 
 class Beta(Distribution):
     def __init__(self, concentration1, concentration0, low=0, high=1):
-        concentration1 = util.to_tensor(concentration1)
-        concentration0 = util.to_tensor(concentration0)
-        super().__init__(name='Beta', address_suffix='Beta', torch_dist=torch.distributions.Beta(concentration1, concentration0))
+        self.concentration1 = util.to_tensor(concentration1)
+        self.concentration0 = util.to_tensor(concentration0)
+        super().__init__(name='Beta', address_suffix='Beta', torch_dist=torch.distributions.Beta(self.concentration1, self.concentration0))
         self._low = util.to_tensor(low)
         self._high = util.to_tensor(high)
         self._range = self._high - self._low
 
     def __repr__(self):
-        return 'Beta(concentration1:{}, concentration0:{}, low:{}, high:{})'.format(self.concentration1, self.concentration0, self.low, self.high)
+        return 'Beta(concentration1:{}, concentration0:{}, low:{}, high:{})'.format(self.concentration1,
+                                                                                    self.concentration0,
+                                                                                    self._low,
+                                                                                    self._high)
 
     @property
     def concentration1(self):
@@ -46,3 +49,7 @@ class Beta(Distribution):
     @property
     def variance(self):
         return super().variance * self._range * self._range
+
+    def to(self, device):
+        self.concentration0.to(device=util._device)
+        self.concentration1.to(device=util._device)

@@ -177,7 +177,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
         else:
             prev_address = prev_variable.address
             prev_distribution = prev_variable.distribution
-            prev_value = prev_variable.value
+            prev_value = prev_variable.value.to(device=util._device)
             if prev_value.dim() == 0:
                 prev_value = prev_value.unsqueeze(0)
             if prev_address in self._layers_address_embedding:
@@ -243,7 +243,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     if prev_address not in self._layers_address_embedding:
                         print(colored('Address unknown by surrogate network: {}'.format(prev_address), 'red', attrs=['bold']))
                         return False, 0
-                    smp = torch_data[time_step-1]['values']
+                    smp = torch_data[time_step-1]['values'].to(device=util._device)
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
                     prev_address_embedding = self._layers_address_embedding[prev_address]
                     prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution_name]
@@ -278,13 +278,13 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     next_addresses = [meta_data['addresses'][time_step+1]]*sub_batch_length
                 else:
                     next_addresses = ["__end"]*sub_batch_length
-                variable_dist = torch_data[time_step]['distribution']
+                variable_dist = torch_data[time_step]['distribution'].to(device=util._device)
                 address_transition_layer = self._layers_address_transitions[address]
                 surrogate_distribution_layer = self._layers_surrogate_distributions[address]
 
                 # only consider loss and training if we are not at the end of trace
                 if time_step < trace_length - 1:
-                    values = torch_data[time_step]['values']
+                    values = torch_data[time_step]['values'].to(device=util._device)
                     sample_embedding = self._layers_sample_embedding[address](values)
                     address_transition_input = torch.cat([proposal_input, sample_embedding], dim=1)
                     _ = address_transition_layer(address_transition_input)
@@ -345,7 +345,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
             prev_variable = Variable(distribution=surrogate_dist.dist_type,
                                      address=address, value=value)
 
-            smp = util.to_tensor(value)
+            smp = util.to_tensor(value).to(device=util._device)
             sample_embedding = self._layers_sample_embedding[address](smp)
             address_transition_input = torch.cat([lstm_output, sample_embedding], dim=1)
             a_dist = address_dist(address_transition_input)

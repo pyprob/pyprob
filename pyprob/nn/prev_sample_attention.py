@@ -98,8 +98,8 @@ class PrevSamplesEmbedder(nn.Module):
          - removes all sampled values
         """
         self.empty = True
-        self.keys = util.to_tensor([])    # -1 x n_keys x key_dim
-        self.values = util.to_tensor([])  # -1 x n_keys x sample_embedding_dim
+        self.keys = util.to_tensor([]).to(device=util._device)    # -1 x n_keys x key_dim
+        self.values = util.to_tensor([]).to(device=util._device)  # -1 x n_keys x sample_embedding_dim
         if self.store_att_weights:
             if not self.attention_weights:
                 self.attention_weights = [OrderedDict()]
@@ -135,7 +135,7 @@ class PrevSamplesEmbedder(nn.Module):
         """
         if self.empty:
             return util.to_tensor(torch.zeros(batch_size,
-                                              self.n_queries*self.sample_embedding_dim))
+                                              self.n_queries*self.sample_embedding_dim)).to(device=util._device)
         if len(queries) == 0:
             queries = [torch.Tensor([0])] * self.n_queries
         queries = self._query_layers[address](queries).view(-1, self.n_queries, self.key_dim)

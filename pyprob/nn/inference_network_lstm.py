@@ -136,7 +136,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
         else:
             prev_address = prev_variable.address
             prev_distribution = prev_variable.distribution
-            prev_value = prev_variable.value
+            prev_value = prev_variable.value.to(device=util._device)
             if prev_value.dim() == 0:
                 prev_value = prev_value.unsqueeze(0)
             if prev_address in self._layers_address_embedding:
@@ -176,15 +176,15 @@ class InferenceNetworkLSTM(InferenceNetwork):
             proposal_layer = self._layers_proposal[current_address]
             if proposal_min_train_iterations is not None:
                 if proposal_layer._total_train_iterations < proposal_min_train_iterations:
-                    current_distribution = self._get_prior_dist(current_distribution_name, variable.distribution_args)
+                    current_distribution = variable.distribution
                     print(colored('Warning: using prior, proposal not sufficiently trained ({}/{}) for address: {}'.format(proposal_layer._total_train_iterations, proposal_min_train_iterations, current_address), 'yellow', attrs=['bold']))
                     return current_distribution
 
             # if variable is uncontrolled the returned distribution is the prior
-            proposal_distribution = proposal_layer.forward(proposal_input, [variable])
+            proposal_distribution = proposal_layer.forward(proposal_input, variable.distribution.to(device=util._device))
             return proposal_distribution
         else:
-            current_distribution = self._get_prior_dist(current_distribution_name, variable.distribution_args)
+            current_distribution = variable.distribution
             print(colored('Warning: using prior as proposal for address: {}'.format(current_address), 'yellow', attrs=['bold']))
             return current_distribution
 
@@ -228,7 +228,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     if prev_address not in self._layers_address_embedding:
                         print(colored('Address unknown by inference network: {}'.format(prev_address), 'red', attrs=['bold']))
                         return False, 0
-                    smp = torch_data[time_step-1]['values']
+                    smp = torch_data[time_step-1]['values'].to(device=util._device)
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
                     prev_address_embedding = self._layers_address_embedding[prev_address]
                     prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution_name]
@@ -240,7 +240,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                                                                                  observe_embedding,
                                                                                  batch_size=sub_batch_length)
                 else:
-                    prev_sample_embedding_attention = util.to_tensor([[]]*sub_batch_length)
+                    prev_sample_embedding_attention = util.to_tensor([[]]*sub_batch_length).to(device=util._device)
                 # concat to size batch_size x *
                 t = torch.cat([observe_embedding,
                                prev_sample_embedding,
@@ -269,10 +269,11 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 else:
                     # only when the variable is controlled do we have a loss propagating through the distribution
                     proposal_input = lstm_output[time_step]
-                    values = torch_data[time_step]['values']
+                    values = torch_data[time_step]['values'].to(device=util._device)
                     proposal_layer = self._layers_proposal[current_address]
                     proposal_layer._total_train_iterations += 1
-                    proposal_distribution = proposal_layer(proposal_input, torch_data[time_step]['distribution'])
+                    proposal_distribution = proposal_layer(proposal_input,
+                                                           torch_data[time_step]['distribution'].to(device=util._device))
                     log_prob = proposal_distribution.log_prob(values)
 
                 if util.has_nan_or_inf(log_prob):

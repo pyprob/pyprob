@@ -90,7 +90,7 @@ class InferenceNetworkFeedForward(InferenceNetwork):
             else:
                 proposal_layer_input = self._infer_observe_embedding
             proposal_distribution = proposal_layer.forward(self._infer_observe_embedding,
-                                                           [variable])
+                                                           variable.distribution.to(device=util._device))
             return proposal_distribution
         else:
             print(colored('Warning: using prior, no proposal layer for address: {}'.format(address), 'yellow', attrs=['bold']))
@@ -115,12 +115,12 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                         self.prev_samples_embedder.init_for_trace()
                     else:
                         prev_address = meta_data['addresses'][time_step-1]
-                        smp = torch_data[time_step-1]['values']
+                        smp = torch_data[time_step-1]['values'].to(device=util._device)
                         self.prev_samples_embedder.add_value(prev_address, smp)
                 if address not in self._layers_proposal:
                     print(colored('Address unknown by inference network: {}'.format(address), 'red', attrs=['bold']))
                     return False, 0
-                values = torch_data[time_step]['values']
+                values = torch_data[time_step]['values'].to(device=util._device)
                 proposal_layer = self._layers_proposal[address]
                 proposal_layer._total_train_iterations += 1
                 if self.prev_sample_attention:
@@ -130,7 +130,7 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                     proposal_input = torch.cat([prev_samples_embedding, observe_embedding], dim=1)
                 else:
                     proposal_input = observe_embedding
-                proposal_distribution = proposal_layer.forward(proposal_input, torch_data[time_step]['distribution'])
+                proposal_distribution = proposal_layer.forward(proposal_input, torch_data[time_step]['distribution'].to(device=util._device))
                 log_prob = proposal_distribution.log_prob(values)
                 if util.has_nan_or_inf(log_prob):
                     print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))

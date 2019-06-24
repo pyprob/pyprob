@@ -16,10 +16,11 @@ class Categorical(Distribution):
             logits = util.to_tensor(logits)
             if logits.dim() == 0:
                 raise ValueError('logits cannot be a scalar.')
-        torch_dist = torch.distributions.Categorical(probs=probs, logits=logits)
 
+        torch_dist = torch.distributions.Categorical(probs=probs, logits=logits)
         self._probs = torch_dist.probs
         self._logits = torch_dist.logits
+
 
         self._num_categories = self._probs.size(-1)
         super().__init__(name='Categorical', address_suffix='Categorical(len_probs:{})'.format(self._probs.size(-1)),
@@ -45,3 +46,9 @@ class Categorical(Distribution):
     @property
     def logits(self):
         return self._logits
+
+    def to(self, device):
+        if self.use_probs:
+            self._probs.to(device=util._device)
+        else:
+            self._logits.to(device=util._device)

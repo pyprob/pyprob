@@ -114,7 +114,7 @@ def to_tensor(value, dtype=_dtype):
         else:
             value = torch.tensor(value)
     value = value.squeeze()
-    return value.to(device=_device, dtype=dtype)
+    return value
 
 def to_numpy(value):
     if torch.is_tensor(value):
