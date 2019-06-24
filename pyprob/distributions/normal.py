@@ -26,3 +26,4 @@ class Normal(Distribution):
     def to(self, device):
         self.loc.to(device=util._device)
         self.scale.to(device=util._device)
+        return self

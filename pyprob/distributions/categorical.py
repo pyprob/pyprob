@@ -52,3 +52,4 @@ class Categorical(Distribution):
             self._probs.to(device=util._device)
         else:
             self._logits.to(device=util._device)
+        return self
