@@ -23,9 +23,11 @@ from .. import __version__, util, Optimizer, LearningRateScheduler, ObserveEmbed
 
 class InferenceNetwork(nn.Module):
     # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'reshape': [10, 10], 'dim': 32, 'depth': 2}}
-    def __init__(self, model, observe_embeddings={}, network_type=''):
+    def __init__(self, model, observe_embeddings={}, prev_sample_attention=False, prev_sample_attention_kwargs={}, network_type=''):
         super().__init__()
         self._model = model
+        self.prev_sample_attention = prev_sample_attention
+        self.prev_sample_attention_kwargs = prev_sample_attention_kwargs
         self._layers_observe_embedding = nn.ModuleDict()
         self._layers_observe_embedding_final = None
         self._layers_pre_generated = False
@@ -128,6 +130,14 @@ class InferenceNetwork(nn.Module):
                                                                     num_layers=2)
 
         self._layers_observe_embedding_final.to(device=util._device)
+        if self.prev_sample_attention:
+            if self.prev_samples_embedder is None:
+                self.prev_samples_embedder = PrevSamplesEmbedder(self._observe_embedding_dim,
+                                                                 **self.prev_sample_attention_kwargs)
+                self.prev_samples_embedder.to(device=util._device)
+                self._sample_attention_embedding_dim = self.prev_samples_embedder.get_output_dim()
+        else:
+            self._sample_attention_embedding_dim = 0
 
     def _embed_observe(self, meta_data, torch_data):
         embedding = []
@@ -149,6 +159,18 @@ class InferenceNetwork(nn.Module):
             embedding.append(layer(value))
         embedding = torch.cat(embedding, dim=1)
         self._infer_observe_embedding = self._layers_observe_embedding_final(embedding)
+
+    def _polymorph_attention(self, variable):
+        """
+        To be called inside `_polymorph` to add layers for attention on previously sampled values
+        """
+        if self.prev_sample_attention:
+            if isinstance(variable.distribution, Categorical):
+                kwargs = {"input_is_one_hot_index": True,
+                          "input_one_hot_dim": variable.distribution.num_categories}
+            else:
+                kwargs = {}
+            self.prev_samples_embedder._add_address(variable, **kwargs)
 
     def _init_layers(self):
         raise NotImplementedError()

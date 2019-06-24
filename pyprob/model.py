@@ -259,6 +259,8 @@ class Model():
     def learn_inference_network(self, num_traces, num_traces_end=1e9,
                                 inference_network=InferenceNetwork.FEEDFORWARD,
                                 prior_inflation=PriorInflation.DISABLED,
+                                prev_sample_attention=False,
+                                prev_sample_attention_kwargs={},
                                 dataset_dir=None, dataset_valid_dir=None,
                                 observe_embeddings={}, batch_size=64,
                                 valid_size=None, valid_every=None,
@@ -271,10 +273,13 @@ class Model():
                                 pre_generate_layers=True,
                                 distributed_backend=None,
                                 distributed_params_sync_every_iter=10000,
-                                distributed_num_buckets=None,
-                                num_workers=0,
+                                distributed_num_buckets=None, num_workers=0,
                                 stop_with_bad_loss=True, log_file_name=None,
                                 lstm_dim=512, lstm_depth=1,
+                                address_embedding_dim=64,
+                                sample_embedding_dim=4,
+                                variable_embeddings={},
+                                distribution_type_embedding_dim=8,
                                 proposal_mixture_components=10, surrogate=False,
                                 sacred_run=None):
 
@@ -302,12 +307,19 @@ class Model():
             print('Creating new inference network...')
             if inference_network == InferenceNetwork.FEEDFORWARD:
                 self._inference_network = InferenceNetworkFeedForward(model=self,
-                                            observe_embeddings=observe_embeddings,
-                                            proposal_mixture_components=proposal_mixture_components)
+                                                                      observe_embeddings=observe_embeddings,
+                                                                      prev_sample_attention=prev_sample_attention,
+                                                                      prev_sample_attention_kwargs=prev_sample_attention_kwargs,
+                                                                      proposal_mixture_components=proposal_mixture_components)
             elif inference_network == InferenceNetwork.LSTM:
                 self._inference_network = InferenceNetworkLSTM(model=self,
+                                                               prev_sample_attention=prev_sample_attention,
+                                                               prev_sample_attention_kwargs=prev_sample_attention_kwargs,
                                                                observe_embeddings=observe_embeddings, lstm_dim=lstm_dim,
-                                                               lstm_depth=lstm_depth,
+                                                               sample_embedding_dim=sample_embedding_dim,
+                                                               address_embedding_dim=address_embedding_dim,
+                                                               distribution_type_embedding_dim=distribution_type_embedding_dim,
+                                                               lstm_depth=lstm_depth, variable_embeddings=variable_embeddings,
                                                                proposal_mixture_components=proposal_mixture_components)
             else:
                 raise ValueError('Unknown inference_network: {}'.format(inference_network))

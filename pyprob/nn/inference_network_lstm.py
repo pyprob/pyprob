@@ -31,7 +31,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
         self._variable_embeddings = variable_embeddings
 
     def _init_layers(self):
-        self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
+        self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + self._sample_attention_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
         self._layers_lstm = nn.LSTM(self._lstm_input_dim, self._lstm_dim, self._lstm_depth)
         self._layers_lstm.to(device=util._device)
 
@@ -104,6 +104,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     sample_embedding_layer.to(device=util._device)
                     self._layers_sample_embedding[address] = sample_embedding_layer
                     self._layers_proposal[address] = proposal_layer
+                    if self.prev_sample_attention:
+                        super()._polymorph_attention(variable)
                     layers_changed = True
                     print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address), distribution_name))
         if layers_changed:
@@ -142,6 +144,10 @@ class InferenceNetworkLSTM(InferenceNetwork):
         if current_address in self._layers_address_embedding:
             current_address_embedding = self._layers_address_embedding[current_address]
             current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution_name]
+            if self.prev_sample_attention:
+                prev_sample_embedding_attention = self.prev_samples_embedder([variable], [self._infer_observe_embedding], batch_size=1)
+            else:
+                prev_sample_embedding_attention = torch.Tensor([[]])
         else:
             print('Warning: address of current variable unknown by inference network: {}'.format(current_address))
             success = False
@@ -152,7 +158,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
                            prev_distribution_type_embedding,
                            prev_address_embedding,
                            current_distribution_type_embedding,
-                           current_address_embedding]).unsqueeze(0)
+                           current_address_embedding,
+                           prev_sample_embedding_attention[0]]).unsqueeze(0)
             lstm_input = t.unsqueeze(0)
             lstm_output, self._infer_lstm_state = self._layers_lstm(lstm_input, self._infer_lstm_state)
             proposal_input = lstm_output[0]
@@ -199,6 +206,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution_name]
 
                 if time_step == 0:
+                    if self.prev_sample_attention:
+                        self.prev_samples_embedder.init_for_trace()
                     prev_sample_embedding = torch.zeros(sub_batch_length,
                                                         self._sample_embedding_dim).to(device=util._device)
                     prev_address_embedding = torch.zeros(1, self._address_embedding_dim).to(device=util._device)
@@ -213,14 +222,24 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
                     prev_address_embedding = self._layers_address_embedding[prev_address]
                     prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution_name]
+                    if self.prev_sample_attention:
+                        self.prev_samples_embedder.add_value([t.variables_controlled[time_step - 1] for t in sub_batch])
 
+                if self.prev_sample_attention:
+                    prev_sample_embedding_attention = self.prev_samples_embedder([trace.variables_controlled[time_step]
+                                                                                  for trace in sub_batch],
+                                                                                 observe_embedding,
+                                                                                 batch_size=sub_batch_length)
+                else:
+                    prev_sample_embedding_attention = util.to_tensor([[]]*sub_batch_length)
                 # concat to size batch_size x *
                 t = torch.cat([observe_embedding,
                                prev_sample_embedding,
                                prev_distribution_type_embedding.repeat(sub_batch_length, 1),
                                prev_address_embedding.repeat(sub_batch_length, 1),
                                current_distribution_type_embedding.repeat(sub_batch_length, 1),
-                               current_address_embedding.repeat(sub_batch_length, 1)], dim=1)
+                               current_address_embedding.repeat(sub_batch_length, 1),
+                               prev_sample_embedding_attention], dim=1)
                 lstm_input.append(t)
 
             # Execute LSTM in a single operation on the whole input sequence

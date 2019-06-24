@@ -7,6 +7,7 @@ class ConvTranspose2d(nn.Module):
     def __init__(self, linear_dim, W, H):
         super.__init__()
 
+        self.linear_dim = linear_dim
         # reduce the number of channels by 40 % at each deconv until < 10 are left
         # assume linear_dim >> W, H > 10
         n_deconv = int(torch.ceil((torch.log(10.0) - torch.log(linear_dim))/torch.log(0.6)))
@@ -14,7 +15,7 @@ class ConvTranspose2d(nn.Module):
 
         n_deconv = int(n_deconv)
 
-        output_channel1 = max(int(self._linear_dim_*0.6),1)
+        output_channel1 = max(int(linear_dim_*0.6),1)
         output_channel2 = max(int(output_channel1*0.6),1)
         output_channel3 = max(int(output_channel2*0.6),1)
         output_channel4 = max(int(output_channel3*0.6),1)
@@ -50,9 +51,11 @@ class ConvTranspose2d(nn.Module):
         modules.append((f"conv2d_{n+1}_1", nn.Conv2d(out_channel, 1,
                                                      kernel_size=(3,3), padding=0)))
 
-
-
         self._deconv = nn.Sequential(OrderedDict(modules))
 
     def forward(self, x):
         return self._deconv(x)
+
+    def visualize_deconv(self):
+        random_input = torch.randn(self.linar_dim).view(1,-1)
+        return self.forward(random_input).squeeze().numpy()
