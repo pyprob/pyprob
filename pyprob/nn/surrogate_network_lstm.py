@@ -258,8 +258,8 @@ class SurrogateNetworkLSTM(InferenceNetwork):
 
             # Execute LSTM in a single operation on the whole input sequence
             lstm_input = torch.stack(lstm_input)
-            h0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim)
-            c0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim)
+            h0 = util.to_tensor(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
+            c0 = util.to_tensor(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
             lstm_output, _ = self._layers_lstm(lstm_input, (h0, c0))
 
             # surrogate loss
