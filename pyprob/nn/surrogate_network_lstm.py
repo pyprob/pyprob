@@ -82,11 +82,11 @@ class SurrogateNetworkLSTM(InferenceNetwork):
 
 
                 if address not in self._layers_address_embedding:
-                    emb = nn.Parameter(util.to_tensor(torch.zeros(self._address_embedding_dim).normal_()))
+                    emb = nn.Parameter(torch.zeros(self._address_embedding_dim.normal_())).to(device=util._device)
                     self._layers_address_embedding[address] = emb
 
                 if distribution_name not in self._layers_distribution_type_embedding:
-                    emb = nn.Parameter(util.to_tensor(torch.zeros(self._distribution_type_embedding_dim).normal_()))
+                    emb = nn.Parameter(torch.zeros(self._distribution_type_embedding_dim.normal_())).to(device=util._device)
                     self._layers_distribution_type_embedding[distribution_name] = emb
 
                 if old_address not in self._layers_address_transitions:
@@ -168,11 +168,11 @@ class SurrogateNetworkLSTM(InferenceNetwork):
         success = True
         if prev_variable is None:
             # First time step
-            prev_sample_embedding = util.to_tensor(torch.zeros(1, self._sample_embedding_dim))
-            prev_address_embedding = util.to_tensor(torch.zeros(self._address_embedding_dim))
-            prev_distribution_type_embedding = util.to_tensor(torch.zeros(self._distribution_type_embedding_dim))
-            h0 = util.to_tensor(torch.zeros(self._lstm_depth, 1, self._lstm_dim))
-            c0 = util.to_tensor(torch.zeros(self._lstm_depth, 1, self._lstm_dim))
+            prev_sample_embedding = torch.zeros(1, self._sample_embedding_dim).to(device=util._device)
+            prev_address_embedding = torch.zeros(self._address_embedding_dim).to(device=util._device)
+            prev_distribution_type_embedding = torch.zeros(self._distribution_type_embedding_dim).to(device=util._device)
+            h0 = torch.zeros(self._lstm_depth, 1, self._lstm_dim).to(device=util._device)
+            c0 = torch.zeros(self._lstm_depth, 1, self._lstm_dim).to(device=util._device)
             self._lstm_state = (h0, c0)
         else:
             prev_address = prev_variable.address
@@ -234,9 +234,9 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution_name]
 
                 if time_step == 0:
-                    prev_sample_embedding = util.to_tensor(torch.zeros(sub_batch_length, self._sample_embedding_dim))
-                    prev_address_embedding = util.to_tensor(torch.zeros(1, self._address_embedding_dim))
-                    prev_distribution_type_embedding = util.to_tensor(torch.zeros(1, self._distribution_type_embedding_dim))
+                    prev_sample_embedding = torch.zeros(sub_batch_length, self._sample_embedding_dim).to(device=util._device)
+                    prev_address_embedding = torch.zeros(1, self._address_embedding_dim).to(device=util._device)
+                    prev_distribution_type_embedding = torch.zeros(1, self._distribution_type_embedding_dim).to(device=util._device)
                 else:
                     prev_address = meta_data['addresses'][time_step-1]
                     prev_distribution_name = meta_data['distribution_names'][time_step-1]
@@ -258,8 +258,8 @@ class SurrogateNetworkLSTM(InferenceNetwork):
 
             # Execute LSTM in a single operation on the whole input sequence
             lstm_input = torch.stack(lstm_input)
-            h0 = util.to_tensor(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
-            c0 = util.to_tensor(torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim))
+            h0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=util._device)
+            c0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=util._device)
             lstm_output, _ = self._layers_lstm(lstm_input, (h0, c0))
 
             # surrogate loss
