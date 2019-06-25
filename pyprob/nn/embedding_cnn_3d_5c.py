@@ -22,7 +22,7 @@ class EmbeddingCNN3D5C(nn.Module):
         print(input_shape)
         print(cnn_output_dim)
         print(output_shape)
-        
+
     def _forward_cnn(self, x):
         x = torch.relu(self._conv1(x))
         x = torch.relu(self._conv2(x))

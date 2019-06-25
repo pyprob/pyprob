@@ -21,9 +21,12 @@ class Categorical(Distribution):
         self._probs = torch_dist.probs
         self._logits = torch_dist.logits
 
+        if use_probs:
+            self._num_categories = self._probs.size(-1)
+        else:
+            self._num_categories = self._logits.size(-1)
 
-        self._num_categories = self._probs.size(-1)
-        super().__init__(name='Categorical', address_suffix='Categorical(len_probs:{})'.format(self._probs.size(-1)),
+        super().__init__(name='Categorical', address_suffix='Categorical(len_probs:{})'.format(self._num_categories),
                          torch_dist=torch_dist)
 
     def get_input_parameters(self):
@@ -49,7 +52,10 @@ class Categorical(Distribution):
 
     def to(self, device):
         if self.use_probs:
-            self._probs.to(device=device)
+            self._probs = self._probs.to(device=device)
         else:
-            self._logits.to(device=device)
+            self._logits = self._logits.to(device=device)
+        torch_dist = torch.distributions.Categorical(probs=self._probs, logits=self._logits)
+        super().__init__(name='Categorical', address_suffix='Categorical(len_probs:{})'.format(self._num_categories),
+                         torch_dist=torch_dist)
         return self
