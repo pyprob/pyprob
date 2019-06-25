@@ -26,4 +26,6 @@ class Normal(Distribution):
     def to(self, device):
         self.loc = self.loc.to(device=device)
         self.scale = self.scale.to(device=device)
+        super().__init__(name='Normal', address_suffix='Normal',
+                         torch_dist=torch.distributions.Normal(self.loc, self.scale))
         return self
