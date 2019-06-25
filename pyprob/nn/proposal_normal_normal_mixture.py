@@ -35,7 +35,6 @@ class ProposalNormalNormalMixture(nn.Module):
         prior_stddevs = prior_distribution.scale.view(batch_size,-1)
         prior_means = prior_means.repeat(1, means.size(-1))
         prior_stddevs = prior_stddevs.repeat(1, stddevs.size(-1))
-        print(prior_means, prior_stddevs, means, stddevs)
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
         means = means.view(batch_size, -1)

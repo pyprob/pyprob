@@ -24,7 +24,6 @@ class Normal(Distribution):
         return self._torch_dist.icdf(value)
 
     def to(self, device):
-        print(device)
-        self.loc.to(device=device)
-        self.scale.to(device=device)
+        self.loc = self.loc.to(device=device)
+        self.scale = self.scale.to(device=device)
         return self
