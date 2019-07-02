@@ -12,8 +12,9 @@ class ProposalNormalNormalMixture(nn.Module):
         # Currently only supports event_shape=torch.Size([]) for the mixture components
         self._mixture_components = mixture_components
         input_shape = util.to_size(input_shape)
+        self.output_dim = util.prod(output_shape)
         self._ff = EmbeddingFeedForward(input_shape=input_shape,
-                                        output_shape=torch.Size([3 * self._mixture_components]),
+                                        output_shape=torch.Size([(2*self.output_dim + 1) * self._mixture_components]),
                                         num_layers=num_layers, activation=torch.relu, hidden_dim=hidden_dim,
                                         activation_last=None)
         self._total_train_iterations = 0
@@ -26,18 +27,28 @@ class ProposalNormalNormalMixture(nn.Module):
         """
         batch_size = x.size(0)
         x = self._ff(x)
-        means = x[:, :self._mixture_components].view(batch_size, -1)
-        stddevs = x[:, self._mixture_components:2*self._mixture_components].view(batch_size, -1)
-        coeffs = x[:, 2*self._mixture_components:].view(batch_size, -1)
+        slice_size = self.output_dim*self._mixture_components
+        means = x[:, :slice_size].view(batch_size, -1)
+        stddevs = x[:, slice_size:2*slice_size].view(batch_size, -1)
+        coeffs = x[:, 2*slice_size:].view(batch_size, -1)
         stddevs = torch.exp(stddevs)
         coeffs = torch.softmax(coeffs, dim=1)
-        prior_means = prior_distribution.loc.view(batch_size,-1)
-        prior_stddevs = prior_distribution.scale.view(batch_size,-1)
-        prior_means = prior_means.repeat(1, means.size(-1))
-        prior_stddevs = prior_stddevs.repeat(1, stddevs.size(-1))
+
+
+        prior_means = prior_distribution.loc.view(batch_size, -1)
+        prior_means = prior_means.repeat(1, self._mixture_components)
+
+        prior_stddevs = prior_distribution.scale.view(batch_size, -1)
+        prior_stddevs = prior_stddevs.expand_as(prior_means)
+
         means = prior_means + (means * prior_stddevs)
         stddevs = stddevs * prior_stddevs
         means = means.view(batch_size, -1)
         stddevs = stddevs.view(batch_size, -1)
-        distributions = [Normal(means[:, i:i+1].view(batch_size), stddevs[:, i:i+1].view(batch_size)) for i in range(self._mixture_components)]
+
+        distributions = [Normal(means[:, i*self.output_dim:(i+1)*self.output_dim].view(batch_size,
+                                                                                       self.output_dim),
+                                stddevs[:, i*self.output_dim:(i+1)*self.output_dim].view(batch_size,
+                                                       self.output_dim)) for i in range(self._mixture_components)]
+
         return Mixture(distributions, coeffs)

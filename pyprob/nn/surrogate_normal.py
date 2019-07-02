@@ -78,7 +78,7 @@ class SurrogateNormal(nn.Module):
                                                                         self._var_output_dim)
             return Normal(self.means, self.stddevs)
         else:
-            return Normal(self.loc.repeat(batch_size, 1,1).squeeze(),
+            return Normal(self.loc.repeat(batch_size, 1, 1).squeeze(),
                           self.scale.repeat(batch_size, 1, 1).squeeze())
 
     def loss(self, p_normal):

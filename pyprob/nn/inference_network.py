@@ -29,6 +29,7 @@ class InferenceNetwork(nn.Module):
         self._model = model
         self.prev_sample_attention = prev_sample_attention
         self.prev_sample_attention_kwargs = prev_sample_attention_kwargs
+        self.prev_samples_embedder = None
         self._layers_observe_embedding = nn.ModuleDict()
         self._layers_observe_embedding_final = None
         self._layers_pre_generated = False

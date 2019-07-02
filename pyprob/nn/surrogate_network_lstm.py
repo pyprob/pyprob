@@ -335,18 +335,12 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                                  name=self._address_to_name[address],
                                  control=self._control_addresses[address])
 
-            if value.numel() == 1:
-                value=value.item()
-            else:
-                value = value.squeeze(0)
-
             if address in self._tagged_addresses:
                 state.tag(value, address=self._address_base[address])
             prev_variable = Variable(distribution=surrogate_dist.dist_type,
                                      address=address, value=value)
 
-            smp = util.to_tensor(value).to(device=util._device)
-            sample_embedding = self._layers_sample_embedding[address](smp)
+            sample_embedding = self._layers_sample_embedding[address](value)
             address_transition_input = torch.cat([lstm_output, sample_embedding], dim=1)
             a_dist = address_dist(address_transition_input)
             if not self._address_path:
