@@ -106,12 +106,13 @@ def set_verbosity(v=2):
 
 
 def to_tensor(value, dtype=_dtype):
-    if type(value) == np.int64:
-        value = torch.Tensor([float(value)])
-    elif type(value) == np.float32:
-        value = torch.Tensor([float(value)])
-    else:
-        value = torch.Tensor([value])
+    if not torch.is_tensor(value):
+        if type(value) == np.int64:
+            value = torch.Tensor([float(value)])
+        elif type(value) == np.float32:
+            value = torch.Tensor([float(value)])
+        else:
+            value = torch.Tensor([value])
     value = value.squeeze()
     return value
 
