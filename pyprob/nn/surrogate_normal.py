@@ -7,7 +7,8 @@ from .. import util
 from ..distributions import Distribution, Normal
 
 class SurrogateNormal(nn.Module):
-    def __init__(self, input_shape, mean_shape, var_shape, constants={}, em_type='ff', num_layers=2, hidden_dim= None):
+    def __init__(self, input_shape, mean_shape, var_shape, constants={},
+                 em_type='ff', num_layers=2, hidden_dim=None):
         super().__init__()
         input_shape = util.to_size(input_shape)
         self._mean_output_dim = util.prod(mean_shape)
