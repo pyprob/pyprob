@@ -21,7 +21,7 @@ class Categorical(Distribution):
         self._probs = torch_dist.probs
         self._logits = torch_dist.logits
 
-        if use_probs:
+        if self.use_probs:
             self._num_categories = self._probs.size(-1)
         else:
             self._num_categories = self._logits.size(-1)
