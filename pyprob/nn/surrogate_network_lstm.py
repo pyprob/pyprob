@@ -134,6 +134,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                                                                       self._sample_embedding_dim,
                                                                       num_layers=1)
                     elif distribution_name == 'Categorical':
+                        distribution = torch_data[time_step]['distribution']
                         surrogate_distribution = SurrogateCategorical(self._lstm_dim,
                                                                       distribution.num_categories,
                                                                       dist_constants,
