@@ -6,16 +6,16 @@ from .. import util
 
 class Uniform(Distribution):
     def __init__(self, low, high):
-        self.low = util.to_tensor(low)
-        self.high = util.to_tensor(high)
+        self._low = util.to_tensor(low)
+        self._high = util.to_tensor(high)
         super().__init__(name='Uniform', address_suffix='Uniform',
-                         torch_dist=torch.distributions.Uniform(self.low, self.high))
+                         torch_dist=torch.distributions.Uniform(self._low, self._high))
 
     def get_input_parameters(self):
-        return {'low': self.low, 'high': self.high}
+        return {'low': self._low, 'high': self._high}
 
     def __repr__(self):
-        return 'Uniform(low: {}, high: {})'.format(self.low, self.high)
+        return 'Uniform(low: {}, high: {})'.format(self._low, self._high)
 
     @property
     def low(self):
@@ -26,8 +26,8 @@ class Uniform(Distribution):
         return self._torch_dist.high
 
     def to(self, device):
-        self.low = self.low.to(device=device)
-        self.high = self.high.to(device=device)
+        self._low = self._low.to(device=device)
+        self._high = self._high.to(device=device)
         super().__init__(name='Uniform', address_suffix='Uniform',
-                         torch_dist=torch.distributions.Uniform(self.low, self.high))
+                         torch_dist=torch.distributions.Uniform(self._low, self._high))
         return self
