@@ -99,7 +99,6 @@ class Batch():
 
                         # add batch dimension
                         v = v.unsqueeze(0)
-                        print(v)
                         if k not in d:
                             d[k] = v
                         else:

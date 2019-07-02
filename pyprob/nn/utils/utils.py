@@ -35,7 +35,6 @@ class MyFile:
 def construct_distribution(name, dist_args):
 
     if name == 'Normal':
-        print(dist_args)
         return Normal(**dist_args)
     elif name == 'Uniform':
         return Uniform(**dist_args)
