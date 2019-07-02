@@ -100,7 +100,7 @@ class Batch():
                         # add batch dimension
                         v = v.unsqueeze(0)
                         if k not in d:
-                            d[k] = [v]
+                            d[k] = v
                         else:
                             d[k] = torch.cat([d[k], v], dim=0)
 
