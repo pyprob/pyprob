@@ -99,6 +99,7 @@ class Batch():
 
                         # add batch dimension
                         v = v.unsqueeze(0)
+                        print(v)
                         if k not in d:
                             d[k] = v
                         else:
@@ -114,8 +115,6 @@ class Batch():
 
     def to(self, device):
         """ Sends data onto the desired device
-
-        ** Most likely not needed as we push the data onto the device using "util.to_tensor" everywhere **
 
         """
         for sub_batch in self.sub_batches:

@@ -12,7 +12,6 @@ class Normal(Distribution):
                          torch_dist=torch.distributions.Normal(self.loc, self.scale))
 
     def get_input_parameters(self):
-        print(self.loc, self.scale)
         return {'loc': self.loc, 'scale': self.scale}
 
     def __repr__(self):
