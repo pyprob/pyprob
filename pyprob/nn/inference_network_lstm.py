@@ -240,7 +240,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
                                                                                  observe_embedding,
                                                                                  batch_size=sub_batch_length)
                 else:
-                    prev_sample_embedding_attention = util.to_tensor([[]]*sub_batch_length).to(device=util._device)
+                    prev_sample_embedding_attention = torch.Tensor([[]]).expand([sub_batch_length,
+                                                                                 0]).to(device=util._device)
                 # concat to size batch_size x *
                 t = torch.cat([observe_embedding,
                                prev_sample_embedding,

@@ -113,7 +113,6 @@ def to_tensor(value, dtype=_dtype):
             value = torch.Tensor([float(value)])
         else:
             value = torch.Tensor([value])
-    value = value.squeeze()
     # ensure any scalars is converted to at least dim=1
     if value.dim() == 0:
         value = value.unsqueeze(0)
