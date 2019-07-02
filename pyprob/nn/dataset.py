@@ -103,6 +103,7 @@ class Batch():
                         else:
                             d[k] = torch.cat([d[k], v], dim=0)
 
+                print(example_trace[time_step]['name'])
                 torch_data[time_step]['values'] = torch.stack(values[time_step], dim=0)
                 torch_data[time_step]['distribution'] = construct_dist(dist_names[time_step], dist_parameters[time_step])
 
