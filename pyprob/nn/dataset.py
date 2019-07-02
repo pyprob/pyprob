@@ -96,8 +96,8 @@ class Batch():
 
                     for k, v in var_args['distribution_args'].items():
                         d = dist_parameters[time_step]
-                        if v.dim() == 0:
-                            v = v.unsqueeze(0)
+                        # add batch dimension (when distribution are created we squeeze -> user cannot explicitly provide batch size)
+                        v = v.unsqueeze(0)
                         if k not in d:
                             d[k] = v
                         else:
