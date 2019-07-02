@@ -8,7 +8,7 @@ from ..distributions import Distribution, Categorical
 
 class SurrogateCategorical(nn.Module):
     # only support 1 d distributions
-    def __init__(self, input_shape, num_categories, num_layers=2,
+    def __init__(self, input_shape, num_categories, constants={}, num_layers=2,
                  hidden_dim=None):
         super().__init__()
         input_shape = util.to_size(input_shape)
