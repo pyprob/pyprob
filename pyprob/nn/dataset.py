@@ -96,14 +96,14 @@ class Batch():
 
                     for k, v in var_args['distribution_args'].items():
                         d = dist_parameters[time_step]
-                        # add batch dimension (when distribution are created we squeeze -> user cannot explicitly provide batch size)
+
+                        # add batch dimension
                         v = v.unsqueeze(0)
                         if k not in d:
-                            d[k] = v
+                            d[k] = [v]
                         else:
                             d[k] = torch.cat([d[k], v], dim=0)
 
-                print(example_trace[time_step]['name'])
                 torch_data[time_step]['values'] = torch.stack(values[time_step], dim=0)
                 torch_data[time_step]['distribution'] = construct_dist(dist_names[time_step], dist_parameters[time_step])
 

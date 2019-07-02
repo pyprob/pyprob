@@ -114,6 +114,9 @@ def to_tensor(value, dtype=_dtype):
         else:
             value = torch.Tensor([value])
     value = value.squeeze()
+    # ensure any scalars is converted to at least dim=0
+    if value.dim() == 0:
+        value = value.unsqueeze(0)
     return value.to(dtype=dtype)
 
 def to_numpy(value):
