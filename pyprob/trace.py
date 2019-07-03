@@ -75,6 +75,7 @@ class Trace():
         self.length = 0
         self.length_controlled = 0
         self.execution_time_sec = None
+        self.ignore_replace = True
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned traces in offline training datasets
@@ -121,7 +122,7 @@ class Trace():
         replaced_log_importance_weights = {}
         for variable in self.variables:
             if variable.log_importance_weight is not None:
-                if variable.replace:
+                if variable.replace and self.ignore_replace:
                     replaced_log_importance_weights[variable.address_base] = variable.log_importance_weight
                 else:
                     self.log_importance_weight += variable.log_importance_weight
