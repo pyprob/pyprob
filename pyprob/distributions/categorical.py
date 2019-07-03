@@ -53,8 +53,11 @@ class Categorical(Distribution):
     def to(self, device):
         if self.use_probs:
             self._probs = self._probs.to(device=device)
+            self._logits = None
         else:
+            self._probs = None
             self._logits = self._logits.to(device=device)
+        print(self._probs, self._logits)
         torch_dist = torch.distributions.Categorical(probs=self._probs, logits=self._logits)
         super().__init__(name='Categorical', address_suffix='Categorical(len_probs:{})'.format(self._num_categories),
                          torch_dist=torch_dist)
