@@ -122,7 +122,7 @@ class Trace():
         replaced_log_importance_weights = {}
         for variable in self.variables:
             if variable.log_importance_weight is not None:
-                if variable.replace and self.ignore_replace:
+                if variable.replace and not self.ignore_replace:
                     replaced_log_importance_weights[variable.address_base] = variable.log_importance_weight
                 else:
                     self.log_importance_weight += variable.log_importance_weight
