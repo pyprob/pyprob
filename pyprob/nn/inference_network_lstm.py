@@ -137,12 +137,18 @@ class InferenceNetworkLSTM(InferenceNetwork):
             prev_address = prev_variable.address
             prev_distribution = prev_variable.distribution
             prev_value = prev_variable.value.to(device=util._device)
-            if prev_value.dim() == 0:
+            if prev_value.dim() == 1:
                 prev_value = prev_value.unsqueeze(0)
             if prev_address in self._layers_address_embedding:
-                prev_sample_embedding = self._layers_sample_embedding[prev_address](prev_value.float())
+                prev_sample_embedding = self._layers_sample_embedding[prev_address](prev_value)
+
                 prev_address_embedding = self._layers_address_embedding[prev_address]
+                if prev_address_embedding.dim() == 1:
+                    prev_address_embedding = prev_address_embedding.unsqueeze(0)
+
                 prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution.name]
+                if prev_distribution_type_embedding.dim() == 1:
+                    prev_distribution_type_embedding = prev_distribution_type_embedding.unsqueeze(0)
             else:
                 print('Warning: address of previous variable unknown by inference network: {}'.format(prev_address))
                 success = False
@@ -151,7 +157,13 @@ class InferenceNetworkLSTM(InferenceNetwork):
         current_distribution_name = variable.distribution_name
         if current_address in self._layers_address_embedding:
             current_address_embedding = self._layers_address_embedding[current_address]
+            if current_address_embedding.dim() == 1:
+                current_address_embedding = current_address_embedding.unsqueeze(0)
+
             current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution_name]
+            if current_distribution_type_embedding.dim() == 1:
+                current_distribution_type_embedding = current_distribution_type_embedding.unsqueeze(0)
+
             if self.prev_sample_attention:
                 prev_sample_embedding_attention = self.prev_samples_embedder(current_address,
                                                                              self._infer_observe_embedding,
@@ -169,7 +181,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                            prev_address_embedding,
                            current_distribution_type_embedding,
                            current_address_embedding,
-                           prev_sample_embedding_attention[0]]).unsqueeze(0)
+                           prev_sample_embedding_attention], dim=1)
             lstm_input = t.unsqueeze(0)
             lstm_output, self._infer_lstm_state = self._layers_lstm(lstm_input, self._infer_lstm_state)
             proposal_input = lstm_output[0]

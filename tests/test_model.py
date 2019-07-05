@@ -163,7 +163,7 @@ class ModelTestCase(unittest.TestCase):
     def test_model_rmh_posterior_with_online_thinning(self):
         thinning_steps = 10
         posterior_num_traces = 50000
-        posterior_with_thinning_num_traces_correct = 200
+        posterior_with_thinning_num_traces_correct = 5000
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
@@ -199,7 +199,7 @@ class ModelTestCase(unittest.TestCase):
     def test_model_lmh_posterior_with_online_thinning(self):
         thinning_steps = 10
         posterior_num_traces = 50000
-        posterior_with_thinning_num_traces_correct = 200
+        posterior_with_thinning_num_traces_correct = 5000
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)

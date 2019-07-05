@@ -65,8 +65,7 @@ class Empirical(Distribution):
             self._length = self._concat_cum_sizes[-1]
             self._log_weights = torch.cat([util.to_tensor(emp._log_weights).squeeze()
                                            for emp in self._concat_empiricals])
-            self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights,
-                                                                                      dtype=torch.float64).squeeze())
+            self._categorical = torch.distributions.Categorical(logits=self._log_weights)
             weights = self._categorical.probs
             self._effective_sample_size = 1. / weights.pow(2).sum()
             name = 'Concatenated empirical, length: {:,}, ESS: {:,.2f}'.format(self._length, self._effective_sample_size)
@@ -214,7 +213,17 @@ class Empirical(Distribution):
 
     def finalize(self):
         self._length = len(self._log_weights)
-        self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64).squeeze())
+        logits = util.to_tensor(self._log_weights, dtype=torch.float64)
+        print(logits)
+        if logits.dim() > 1:
+            # remove redundant size
+            logits = logits.squeeze()
+
+            # make sure logits has at least dim=1
+        if logits.dim() == 0:
+            logits = logits.unsqueeze()
+
+        self._categorical = torch.distributions.Categorical(logits=logits)
         self.add_metadata(op='finalize', length=self._length)
         if self._length > 0:
             self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
