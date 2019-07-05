@@ -48,7 +48,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 current_name = meta_data['names'][time_step]
 
                 # do not create proposal layer for observed variables!
-                if (current_name in self._observe_embeddings) or (not current_controlled):
+                if (current_name in self._observe_embeddings):
                     continue
 
                 if address not in self._layers_address_embedding:
@@ -209,7 +209,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 current_name = meta_data['names'][time_step]
 
                 # do not create proposal layer for observed variables!
-                if (current_name in self._observe_embeddings) or (not current_controlled):
+                if (current_name in self._observe_embeddings):
                     continue
 
                 if current_address not in self._layers_address_embedding:
@@ -269,7 +269,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 current_name = meta_data['names'][time_step]
 
                 # do not create proposal layer for observed variables!
-                if (current_name in self._observe_embeddings) or (not current_controlled):
+                if (current_name in self._observe_embeddings):
                     continue
                 else:
                     # only when the variable is controlled do we have a loss propagating through the distribution

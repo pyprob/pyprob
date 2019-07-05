@@ -27,6 +27,20 @@ class Normal(Distribution):
     def __repr__(self):
         return 'Normal(mean:{}, stddev:{})'.format(self.loc, self.scale)
 
+    def log_prob(self, value, sum=False):
+        if self._torch_dist is not None:
+            lp = self._torch_dist.log_prob(util.to_tensor(value).flatten(start_dim=self.flatten_dim_loc))
+            return torch.sum(lp) if sum else lp
+        else:
+            raise NotImplementedError()
+
+    def sample(self):
+        if self._torch_dist is not None:
+            s = self._torch_dist.sample()
+            return s.view(self.loc_shape)
+        else:
+            raise NotImplementedError()
+
     def cdf(self, value):
         return self._torch_dist.cdf(value)
 
