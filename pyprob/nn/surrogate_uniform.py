@@ -40,11 +40,11 @@ class SurrogateUniform(nn.Module):
         return Uniform(low=self.low.repeat(batch_size, 1),
                        high=self.high.repeat(batch_size, 1))
 
-    def loss(self, p_normal):
+    def loss(self, p_uniform):
         # simulator_lows = self._transform_low(distributions)
         # simulator_highs = self._transform_high(distributions)
         # p_normal = Uniform(simulator_lows, simulator_highs)
         # q_normal = Uniform(self.low, self.high)
 
-        batch_size = p_normal.low.size(0)
+        batch_size = p_uniform.low.size(0)
         return torch.zeros([batch_size,1])

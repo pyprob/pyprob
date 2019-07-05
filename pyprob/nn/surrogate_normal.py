@@ -19,19 +19,29 @@ class SurrogateNormal(nn.Module):
         constant_loc = False
         constant_scale = False
         self.train = True
+        self._loc = None
+        self._scale = None
 
+        # check if either loc or scale are constant
         if 'loc' in constants:
-            loc = constants['loc']
+            self._loc = constants['loc']
             constant_loc = True
         if 'scale' in constants:
-            scales = constants['scale']
+            self._scale = constants['scale']
             constant_scale = True
+
+
         if constant_scale and constant_loc:
             self.train = False
-            self.dist_type = Normal(loc=loc, scale=scales)
-        elif constant_scale or constant_loc:
-            raise NotImplementedError("Only supports both loc and scale being constants or neither!")
         else:
+            if constant_loc and not constant_scale:
+                # only loc needs learned
+                self._scale_output_dim = 0
+                self._loc = constants['loc']
+            elif constant_scale and not constant_loc:
+                # only scale need learned
+                self._loc_output_dim = 0
+                self._scale = constants['scale']
             if self.em_type == 'ff':
                 self._em = EmbeddingFeedForward(input_shape=input_shape,
                                                 output_shape=torch.Size([self._loc_output_dim
@@ -43,42 +53,61 @@ class SurrogateNormal(nn.Module):
 
             elif self.em_type == 'deconv':
                 # ONLY SUPPORTS DECONV ON THE MEAN
-                if loc_shape.numel() != 1:
+                if (loc_shape.numel() != 1) and not (self._loc_output_dim==0):
                     input_dim = input_shape.numel()
-                    self._lin_embed = nn.Sequential(nn.Linear(input_dim,
-                                                            2*(input_dim + self._scale_shape.numel())),
-                                                    nn.LeakyReLU(inplace=True),
-                                                    nn.Linear(2*(input_dim + self._scale_shape.numel()),
-                                                            input_dim + self._scale_shape.numel()),
-                    )
+                    self._lin_embed = EmbeddingFeedForward(input_shape=input_shape,
+                                                output_shape=torch.Size([input_dim + self._scale_output_dim]),
+                                                num_layers=num_layers,
+                                                activation=torch.relu,
+                                                hidden_dim=hidden_dim,
+                                                activation_last=None)
+
                     W, H = loc_shape[1], loc_shape[0]
-                    self._em = ConvTranspose2d(input_shape.numel(), W, H)
-                    self._input_dim = input_shape.numel()
+                    self._em = ConvTranspose2d(input_dim, W, H)
+                    self._input_dim = input_dim
                 else:
-                    raise ValueError('Cannot deconv to a scalar mean')
-            self.dist_type = Normal(loc=torch.zeros(loc_shape), scale=torch.ones(scale_shape))
+                    raise ValueError('Cannot deconv to a scalar mean, or the mean has not be non-constant')
+
+
+        self.dist_type = Normal(loc=torch.zeros(loc_shape), scale=torch.ones(scale_shape))
 
     def forward(self, x):
         if self.train:
             batch_size = x.size(0)
             if self.em_type == 'ff':
                 x = self._em(x)
-                self.loc = x[:, :self._loc_output_dim].view(batch_size, *self._loc_shape)
-                self.scales = torch.exp(x[:, self._loc_output_dim:]).view(batch_size, *self._scale_shape)
+
+                if not self._loc:
+                    self._loc = x[:, :self._loc_output_dim].view(batch_size, *self._loc_shape)
+                else:
+                    self._loc = self._loc.repeat(batch_size, 1, 1).squeeze()
+
+                if not self._scale:
+                    self._scale = torch.exp(x[:, self._loc_output_dim:]).view(batch_size, *self._scale_shape)
+                else:
+                    self._scale = self._scale.repeat(batch_size, 1, 1).squeeze()
 
             elif self.em_type == 'deconv':
                 x = self._lin_embed(x)
                 loc_embeds = x[:, :self._input_dim].view(batch_size, self._input_dim)
-                self.loc = self._em(loc_embeds).view(batch_size, *self._loc_shape)
-                self.scales = torch.exp(x[:, self._input_dim:]).view(batch_size, *self._scale_shape)
-            return Normal(self.loc, self.scales)
+                if not self._loc:
+                    self._loc = self._em(loc_embeds).view(batch_size, *self._loc_shape)
+                else:
+                    self._loc = self._loc.repeat(batch_size, 1, 1).squeeze()
+
+                if not self._scale:
+                    self._scale = torch.exp(x[:, self._input_dim:]).view(batch_size, *self._scale_shape)
+                else:
+                    self._scale = self._scale.repeat(batch_size, 1, 1).squeeze()
+
+            return Normal(self._loc, self._scale)
         else:
-            return Normal(self.loc.repeat(batch_size, 1, 1).squeeze(),
-                          self.scale.repeat(batch_size, 1, 1).squeeze())
+            return Normal(self._loc.repeat(batch_size, 1, 1).squeeze(),
+                          self._scale.repeat(batch_size, 1, 1).squeeze())
 
     def loss(self, p_normal):
         if self.train:
-            q_normal = Normal(self.loc, self.scales)
+            q_normal = Normal(self._loc, self._scale)
 
             return Distribution.kl_divergence(p_normal, q_normal)
         else:

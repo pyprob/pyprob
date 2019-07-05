@@ -29,7 +29,7 @@ class SurrogateCategorical(nn.Module):
 
         return Categorical(self.probs)
 
-    def loss(self, p_normal):
-        q_normal = Categorical(self.probs)
+    def loss(self, p_categorical):
+        q_categorical = Categorical(self.probs)
 
-        return Distribution.kl_divergence(p_normal, q_normal)
+        return Distribution.kl_divergence(p_categorical, q_categorical)
