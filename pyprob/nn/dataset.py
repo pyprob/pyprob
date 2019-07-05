@@ -38,6 +38,7 @@ class Batch():
         np_hashes = np.asarray(hashes)
         uniques = np.unique(np_hashes)
         self.size = len(self.traces_lists)
+        total_length_controlled = 0
 
         batch_splitting = [np_traces[np_hashes==h] for h in uniques]
         self.sub_batches = [[]]*len(uniques)
@@ -45,7 +46,6 @@ class Batch():
         for i, sub_batch_traces in enumerate(batch_splitting):
 
             example_trace = sub_batch_traces[0]
-
             trace_len = len(example_trace)
 
             values = []
@@ -68,6 +68,7 @@ class Batch():
             meta_data = {}
             meta_data['trace_hash'] = uniques[i]
 
+            tl = 0
             for time_step, var_args in enumerate(example_trace):
                 name = var_args['name']
                 names.append(name)
@@ -79,6 +80,11 @@ class Batch():
                 addresses.append(var_args['address'])
                 controls.append(var_args['control'])
                 constants.append(var_args['constants'])
+
+                if var_args['control']:
+                    tl += 1
+
+            total_length_controlled += tl
 
             meta_data['names'] = names
             meta_data['observed_time_steps'] = observed_time_steps
@@ -108,6 +114,7 @@ class Batch():
                 torch_data[time_step]['distribution'] = construct_dist(dist_names[time_step], dist_parameters[time_step])
 
             self.sub_batches[i] = [meta_data, torch_data]
+        self.mean_length_controlled = total_length_controlled / self.size
 
     def __len__(self):
         return len(self.traces_lists)
@@ -196,27 +203,30 @@ class OnlineDataset(Dataset):
         trace_attr_dict -- dictionary in which to store attributes
         attr            -- str - attribute
         trace           -- trace object for which we loop over it variables
+        to_list         -- boolean specifying converting to a list for json serialization
 
         We further decode the json string into bytes (which has to be decoded once we load the data again)
+
+        If to_list==True, squeeze the batch_dim
 
         """
         var_dict = {}
         for attr in VARIABLE_ATTRIBUTES:
             if attr == 'value':
                 v = getattr(variable, attr)
-                var_dict[attr] = v.tolist() if to_list else v
+                var_dict[attr] = v.squeeze(0).tolist() if to_list else v
             elif attr in ['distribution_name']:
                 # extract the input arguments for initializing the distribution
                 var_dict[attr] = variable.distribution_name
             elif attr in ['distribution_args']:
                 tmp = {}
                 for k, v in variable.distribution_args.items():
-                    tmp[k] = v.tolist() if to_list else v
+                    tmp[k] = v.squeeze(0).tolist() if to_list else v
                 var_dict[attr] = tmp
             elif attr in ['constants']:
                 tmp = {}
                 for k, value in variable.constants.items():
-                    tmp[k] = value.tolist() if to_list else value
+                    tmp[k] = value.squeeze(0).tolist() if to_list else value
                 var_dict[attr] = tmp
             elif attr in ['log_prob']:
                 v = getattr(variable, attr)

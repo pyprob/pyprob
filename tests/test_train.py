@@ -45,15 +45,18 @@ class ModelTestCase(unittest.TestCase):
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
 
         self._model.reset_inference_network()
-        self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
+        self._model.learn_inference_network(num_traces=training_traces,
+                                            observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
         self._model.save_inference_network(file_name)
         self._model.load_inference_network(file_name)
         os.remove(file_name)
-        self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
+        self._model.learn_inference_network(num_traces=training_traces,
+                                            observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
         self._model.save_inference_network(file_name)
         self._model.load_inference_network(file_name)
         os.remove(file_name)
-        self._model.learn_inference_network(num_traces=training_traces, observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
+        self._model.learn_inference_network(num_traces=training_traces,
+                                            observe_embeddings={'obs0': {'dim': 64}, 'obs1': {'dim': 64}})
 
         util.eval_print('training_traces', 'file_name')
 
@@ -65,9 +68,12 @@ class ModelTestCase(unittest.TestCase):
         num_traces_per_file = 32
         training_traces = 128
 
-        self._model.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces, num_traces_per_file=num_traces_per_file)
+        self._model.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces,
+                                 num_traces_per_file=num_traces_per_file)
         self._model.reset_inference_network()
-        self._model.learn_inference_network(num_traces=training_traces, dataset_dir=dataset_dir, batch_size=16, valid_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
+        self._model.learn_inference_network(num_traces=training_traces,
+                                            dataset_dir=dataset_dir, batch_size=16, valid_size=16,
+                                            observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
         shutil.rmtree(dataset_dir)
 
         util.eval_print('dataset_dir', 'num_traces', 'num_traces_per_file', 'training_traces')
@@ -78,7 +84,8 @@ class ModelTestCase(unittest.TestCase):
         num_traces = 256
 
         self._model.reset_inference_network()
-        self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
+        self._model.learn_inference_network(num_traces=num_traces, batch_size=16,
+                                            observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}})
 
         util.eval_print('num_traces')
 
@@ -89,7 +96,9 @@ class ModelTestCase(unittest.TestCase):
         num_traces = 256
 
         self._model.reset_inference_network()
-        self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, learning_rate_scheduler_type=LearningRateScheduler.POLY1)
+        self._model.learn_inference_network(num_traces=num_traces,
+                                            batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}},
+                                            learning_rate_scheduler_type=LearningRateScheduler.POLY1)
 
         util.eval_print('num_traces')
 
@@ -99,7 +108,9 @@ class ModelTestCase(unittest.TestCase):
         num_traces = 256
 
         self._model.reset_inference_network()
-        self._model.learn_inference_network(num_traces=num_traces, batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, learning_rate_scheduler_type=LearningRateScheduler.POLY2)
+        self._model.learn_inference_network(num_traces=num_traces,
+                                            batch_size=16, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}},
+                                            learning_rate_scheduler_type=LearningRateScheduler.POLY2)
 
         util.eval_print('num_traces')
 
@@ -116,7 +127,13 @@ class ModelTestCase(unittest.TestCase):
 
         self._model.reset_inference_network()
         print('Training\n')
-        self._model.learn_inference_network(num_traces=num_traces_end/2, num_traces_end=num_traces_end, batch_size=batch_size, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, optimizer_type=Optimizer.ADAM_LARC, learning_rate_scheduler_type=LearningRateScheduler.POLY2, learning_rate_init=learning_rate_init_correct, learning_rate_end=learning_rate_end_correct, log_file_name=file_name_2)
+        self._model.learn_inference_network(num_traces=num_traces_end/2,
+                                            num_traces_end=num_traces_end, batch_size=batch_size,
+                                            observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}},
+                                            optimizer_type=Optimizer.ADAM_LARC,
+                                            learning_rate_scheduler_type=LearningRateScheduler.POLY2,
+                                            learning_rate_init=learning_rate_init_correct,
+                                            learning_rate_end=learning_rate_end_correct, log_file_name=file_name_2)
         print('Saving\n')
         # print(self._model._inference_network._optimizer)
         optimizer_state_step_before_save = list(self._model._inference_network._optimizer.state_dict()['state'].values())[0]['step']
@@ -133,7 +150,13 @@ class ModelTestCase(unittest.TestCase):
         # print(self._model._inference_network._optimizer)
         optimizer_state_step_after_load = list(self._model._inference_network._optimizer.state_dict()['state'].values())[0]['step']
         print('Training\n')
-        self._model.learn_inference_network(num_traces=num_traces_end/2, num_traces_end=num_traces_end, batch_size=batch_size, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, optimizer_type=Optimizer.ADAM_LARC, learning_rate_scheduler_type=LearningRateScheduler.POLY2, learning_rate_init=learning_rate_init_correct, learning_rate_end=learning_rate_end_correct, log_file_name=file_name_3)
+        self._model.learn_inference_network(num_traces=num_traces_end/2,
+                                            num_traces_end=num_traces_end, batch_size=batch_size,
+                                            observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}},
+                                            optimizer_type=Optimizer.ADAM_LARC,
+                                            learning_rate_scheduler_type=LearningRateScheduler.POLY2,
+                                            learning_rate_init=learning_rate_init_correct,
+                                            learning_rate_end=learning_rate_end_correct, log_file_name=file_name_3)
         learning_rate_end = self._model._inference_network._optimizer.param_groups[0]['lr']
 
         print('\nlog_file_name contents')
@@ -164,11 +187,19 @@ class ModelTestCase(unittest.TestCase):
         learning_rate_end_correct = 0.0025
 
         print('Saving dataset\n')
-        self._model.save_dataset(dataset_dir=dataset_dir, num_traces=dataset_num_traces, num_traces_per_file=dataset_num_traces_per_file)
+        self._model.save_dataset(dataset_dir=dataset_dir,
+                                 num_traces=dataset_num_traces,
+                                 num_traces_per_file=dataset_num_traces_per_file)
 
         self._model.reset_inference_network()
         print('Training\n')
-        self._model.learn_inference_network(dataset_dir=dataset_dir, num_traces=num_traces_end/2, num_traces_end=num_traces_end, batch_size=batch_size, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, optimizer_type=Optimizer.ADAM_LARC, learning_rate_scheduler_type=LearningRateScheduler.POLY2, learning_rate_init=learning_rate_init_correct, learning_rate_end=learning_rate_end_correct, log_file_name=file_name_2)
+        self._model.learn_inference_network(dataset_dir=dataset_dir,
+                                            num_traces=num_traces_end/2, num_traces_end=num_traces_end,
+                                            batch_size=batch_size, observe_embeddings={'obs0': {'dim': 16}, 'obs1':
+                                                                                       {'dim': 16}}, optimizer_type=Optimizer.ADAM_LARC,
+                                            learning_rate_scheduler_type=LearningRateScheduler.POLY2,
+                                            learning_rate_init=learning_rate_init_correct,
+                                            learning_rate_end=learning_rate_end_correct, log_file_name=file_name_2)
         print('Saving\n')
         # print(self._model._inference_network._optimizer)
         optimizer_state_step_before_save = list(self._model._inference_network._optimizer.state_dict()['state'].values())[0]['step']
@@ -185,7 +216,13 @@ class ModelTestCase(unittest.TestCase):
         # print(self._model._inference_network._optimizer)
         optimizer_state_step_after_load = list(self._model._inference_network._optimizer.state_dict()['state'].values())[0]['step']
         print('Training\n')
-        self._model.learn_inference_network(dataset_dir=dataset_dir, num_traces=num_traces_end/2, num_traces_end=num_traces_end, batch_size=batch_size, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, optimizer_type=Optimizer.ADAM_LARC, learning_rate_scheduler_type=LearningRateScheduler.POLY2, learning_rate_init=learning_rate_init_correct, learning_rate_end=learning_rate_end_correct, log_file_name=file_name_3)
+        self._model.learn_inference_network(dataset_dir=dataset_dir,
+                                            num_traces=num_traces_end/2, num_traces_end=num_traces_end,
+                                            batch_size=batch_size, observe_embeddings={'obs0': {'dim': 16}, 'obs1':
+                                                                                       {'dim': 16}}, optimizer_type=Optimizer.ADAM_LARC,
+                                            learning_rate_scheduler_type=LearningRateScheduler.POLY2,
+                                            learning_rate_init=learning_rate_init_correct,
+                                            learning_rate_end=learning_rate_end_correct, log_file_name=file_name_3)
         learning_rate_end = self._model._inference_network._optimizer.param_groups[0]['lr']
 
         print('\nlog_file_name contents')

@@ -47,7 +47,9 @@ class PriorInflationTestCase(unittest.TestCase):
         normal_prior_inflated_mean_correct = 5
         normal_prior_inflated_stddev_correct = normal_prior_stddev_correct * 3
 
-        prior = self._model.prior_distribution(samples, prior_inflation=pyprob.PriorInflation.DISABLED)
+        prior = self._model.model_traces(samples,
+                                         prior_inflation=pyprob.PriorInflation.DISABLED,
+                                         map_func=lambda x: x.result)
         categorical_prior = prior.map(lambda x: x[0])
         categorical_prior_mean = float(categorical_prior.mean)
         categorical_prior_stddev = float(categorical_prior.stddev)
@@ -55,7 +57,9 @@ class PriorInflationTestCase(unittest.TestCase):
         normal_prior_mean = float(normal_prior.mean)
         normal_prior_stddev = float(normal_prior.stddev)
 
-        prior_inflated = self._model.prior_distribution(samples, prior_inflation=pyprob.PriorInflation.ENABLED)
+        prior_inflated = self._model.model_traces(samples,
+                                                  prior_inflation=pyprob.PriorInflation.ENABLED,
+                                                  map_func=lambda x: x.result)
         categorical_prior_inflated = prior_inflated.map(lambda x: x[0])
         categorical_prior_inflated_mean = float(categorical_prior_inflated.mean)
         categorical_prior_inflated_stddev = float(categorical_prior_inflated.stddev)

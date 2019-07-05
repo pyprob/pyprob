@@ -81,7 +81,11 @@ class Model():
                 if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
                     prev_duration = duration
                     traces_per_second = (i + 1) / duration
-                    print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
+                    print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration),
+                                                                         util.days_hours_mins_secs_str((num_traces - i) / traces_per_second),
+                                                                         util.progress_bar(i+1, num_traces),
+                                                                         str(i+1).rjust(len_str_num_traces),
+                                                                         num_traces, traces_per_second), end='\r')
                     sys.stdout.flush()
 
             trace = next(generator)
@@ -149,7 +153,10 @@ class Model():
 
             posterior.rename('Posterior, IS, traces: {:,}, ESS: {:,.2f}'.format(posterior.length, posterior.effective_sample_size))
 
-            posterior.add_metadata(op='posterior', num_traces=num_traces, inference_engine=str(inference_engine), effective_sample_size=posterior.effective_sample_size, likelihood_importance=likelihood_importance)
+            posterior.add_metadata(op='posterior', num_traces=num_traces,
+                                   inference_engine=str(inference_engine),
+                                   effective_sample_size=posterior.effective_sample_size,
+                                   likelihood_importance=likelihood_importance)
 
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             if self._inference_network is None:
@@ -209,18 +216,21 @@ class Model():
                                            observe=observe,
                                            *args, **kwargs))
 
-                log_acceptance_ratio = (math.log(current_trace.length_controlled)
-                                        - math.log(candidate_trace.length_controlled)
+                current_controlled_len = len([v for v in current_trace.variables if v.control])
+                candidate_controlled = [v for v in candidate_trace.variables if v.control]
+
+                log_acceptance_ratio = (math.log(current_controlled_len)
+                                        - math.log(len(candidate_controlled))
                                         + candidate_trace.log_prob_observed
                                         - current_trace.log_prob_observed)
 
-                for variable in candidate_trace.variables_controlled:
+                for variable in candidate_controlled:
                     if variable.reused:
                         log_acceptance_ratio += torch.sum(variable.log_prob)
                         log_acceptance_ratio -= torch.sum(current_trace.variables_dict_address[variable.address].log_prob)
                         samples_reused += 1
 
-                samples_all += candidate_trace.length_controlled
+                samples_all += len(candidate_controlled)
 
                 if state._metropolis_hastings_site_transition_log_prob is None:
                     print(colored('Warning: trace did not hit the Metropolis Hastings site, ensure that the model is deterministic except pyprob.sample calls', 'red', attrs=['bold']))

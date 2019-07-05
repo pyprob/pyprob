@@ -108,7 +108,9 @@ def tag(value, name=None, address=None):
 
     value = util.to_tensor(value)
 
-    variable = Variable(distribution=None, value=value, address_base=address_base, address=address, instance=instance, log_prob=0., tagged=True, name=name)
+    variable = Variable(distribution=None, value=value,
+                        address_base=address_base, address=address, instance=instance, log_prob=0.,
+                        tagged=True, name=name)
     _current_trace.add(variable)
 
 
@@ -387,7 +389,7 @@ def _init_traces(func, trace_mode=TraceMode.PRIOR,
         _metropolis_hastings_site_transition_log_prob = None
         if _metropolis_hastings_trace is not None:
             global _metropolis_hastings_site_address
-            variable = random.choice(_metropolis_hastings_trace.variables_controlled)
+            variable = random.choice([v for v in _metropolis_hastings_trace.variables if v.control])
             _metropolis_hastings_site_address = variable.address
 
 

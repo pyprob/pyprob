@@ -69,7 +69,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
 
         for meta_data, torch_data in batch.sub_batches:
             old_address = "__init"
-            for time_step in meta_data['latent_time_steps']:
+            for time_step in np.sort(meta_data['latent_time_steps']+meta_data['observed_time_steps']):
                 address = meta_data['addresses'][time_step]
                 distribution_name = meta_data['distribution_names'][time_step]
                 current_controlled = meta_data['controls'][time_step]

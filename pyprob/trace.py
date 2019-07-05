@@ -88,11 +88,15 @@ class Trace():
     def add(self, variable):
         self.variables.append(variable)
         if variable.observed:
-            # HAS TO HAVE A NAME
-            self.variables_observed[variable.name] = variable
+            self.log_prob_observed += torch.sum(variable.log_prob)
+            if variable.name:
+                self.variables_observed[variable.name] = variable
+            else:
+                self.variables_observed[variable.address] = variable
         self.variables_dict_address[variable.address] = variable
         self.variables_dict_address_base[variable.address_base] = variable
-        self.log_prob += torch.sum(variable.log_prob)
+        if variable.observed or variable.control:
+            self.log_prob += torch.sum(variable.log_prob)
         if variable.log_importance_weight is not None:
             self.log_importance_weight += variable.log_importance_weight
 
