@@ -151,7 +151,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     self._layers_sample_embedding[address] = sample_embedding_layer
                     self._layers_surrogate_distributions[address] = surrogate_distribution
                     layers_changed = True
-                    print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address), distribution.name))
+                    print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address), distribution_name))
 
                 old_address = address
             # add final address transition that ends the trace

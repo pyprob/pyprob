@@ -8,7 +8,7 @@ from ..distributions import Distribution, Uniform
 
 class SurrogateUniform(nn.Module):
     # only support 1 d distributions
-    def __init__(self, input_shape, output_shape, constants, num_layers=2, hidden_dim=None):
+    def __init__(self, input_shape, output_shape, constants={}, num_layers=2, hidden_dim=None):
         """
         Surrogate uniform
 
@@ -23,10 +23,13 @@ class SurrogateUniform(nn.Module):
         #                                 activation=torch.relu, activation_last=None)
         # self._total_train_iterations = 0
 
-        self.dist_type = Uniform(low=[constants['low']],
-                                 high=[constants['high']])
-        self.low = util.to_tensor(constants['low'])
-        self.high = util.to_tensor(constants['high'])
+        if ('low' not in constants) or ('high' not in constants):
+            raise NotImplementedError("Uniform distibutions mush CURRENTLY have constants range")
+        else:
+            self.dist_type = Uniform(low=[constants['low']],
+                                    high=[constants['high']])
+            self.low = util.to_tensor(constants['low'])
+            self.high = util.to_tensor(constants['high'])
 
     def forward(self, x):
         batch_size = x.size(0)
@@ -43,5 +46,5 @@ class SurrogateUniform(nn.Module):
         # p_normal = Uniform(simulator_lows, simulator_highs)
         # q_normal = Uniform(self.low, self.high)
 
-        batch_size = len(distributions)
+        batch_size = p_normal.low.size(0)
         return torch.zeros([batch_size,1])

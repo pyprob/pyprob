@@ -25,8 +25,8 @@ from ..concurrency import ConcurrentShelf
 from ..trace import Trace, Variable
 
 VARIABLE_ATTRIBUTES = ['value', 'address_base', 'address', 'instance', 'log_prob',
-                       'control', 'tagged', 'constants', 'observed', 'name',
-                       'distribution_name', 'distribution_args']
+                       'log_importance_weight', 'control', 'name', 'observed',
+                       'tagged', 'constants', 'distribution_name', 'distribution_args']
 
 class Batch():
     def __init__(self, traces_and_hashes):
