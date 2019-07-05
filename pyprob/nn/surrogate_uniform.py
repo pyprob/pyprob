@@ -8,7 +8,7 @@ from ..distributions import Distribution, Uniform
 
 class SurrogateUniform(nn.Module):
     # only support 1 d distributions
-    def __init__(self, input_shape, output_shape, constants, num_layers=2):
+    def __init__(self, input_shape, output_shape, constants, num_layers=2, hidden_dim=None):
         """
         Surrogate uniform
 

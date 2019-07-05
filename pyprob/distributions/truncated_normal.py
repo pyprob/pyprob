@@ -115,4 +115,6 @@ class TruncatedNormal(Distribution):
         self._stddev_non_truncated.to(device=device)
         self._low.to(device=device)
         self._high.to(device=device)
+        self.__init__(self._mean_non_truncated, self._stddev_non_truncated,
+                      self._low, self._high)
         return self

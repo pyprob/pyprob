@@ -109,10 +109,11 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                                          'hidden_dim': None}
                     if distribution_name == 'Normal':
                         distribution = torch_data[time_step]['distribution']
-                        mean_shape, var_shape = distribution.loc[0].shape, distribution.scale[0].shape
+                        # ignore batch dim for the shapes
+                        loc_shape, scale_shape = distribution.loc_shape[1:], distribution.scale_shape[1:]
                         surrogate_distribution = SurrogateNormal(self._lstm_dim,
-                                                                 mean_shape,
-                                                                 var_shape,
+                                                                 loc_shape,
+                                                                 scale_shape,
                                                                  dist_constants,
                                                                  **var_embedding)
                         sample_embedding_layer = EmbeddingFeedForward(variable_shape,

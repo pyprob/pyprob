@@ -27,13 +27,13 @@ class ProposalNormalNormalMixture(nn.Module):
         """
         batch_size = x.size(0)
         x = self._ff(x)
+
         slice_size = self.output_dim*self._mixture_components
         means = x[:, :slice_size].view(batch_size, -1)
         stddevs = x[:, slice_size:2*slice_size].view(batch_size, -1)
         coeffs = x[:, 2*slice_size:].view(batch_size, -1)
         stddevs = torch.exp(stddevs)
         coeffs = torch.softmax(coeffs, dim=1)
-
 
         prior_means = prior_distribution.loc.view(batch_size, -1)
         prior_means = prior_means.repeat(1, self._mixture_components)
@@ -49,6 +49,7 @@ class ProposalNormalNormalMixture(nn.Module):
         distributions = [Normal(means[:, i*self.output_dim:(i+1)*self.output_dim].view(batch_size,
                                                                                        self.output_dim),
                                 stddevs[:, i*self.output_dim:(i+1)*self.output_dim].view(batch_size,
-                                                       self.output_dim)) for i in range(self._mixture_components)]
+                                                                                         self.output_dim))
+                         for i in range(self._mixture_components)]
 
         return Mixture(distributions, coeffs)
