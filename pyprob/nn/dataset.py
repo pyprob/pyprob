@@ -323,6 +323,7 @@ class OfflineDataset(ConcatDataset):
         print('Num. traces      : {:,}'.format(len(self)))
         hashes = [h for dataset in self.datasets
                     for h in dataset.hashes]
+        self._hashes = hashes
         print(colored('Sorting'))
         self._sorted_indices = np.argsort(hashes)
         print(colored('Finished sorting hashes'))

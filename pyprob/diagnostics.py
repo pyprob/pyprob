@@ -62,7 +62,7 @@ def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_sta
     addresses_extra['addresses'] = len(addresses)
     addresses_extra['addresses_controlled'] = len([1 for value in list(addresses.values()) if value['variable'].control])
     addresses_extra['addresses_replaced'] = len([1 for value in list(addresses.values()) if value['variable'].replace])
-    addresses_extra['addresses_observable'] = len([1 for value in list(addresses.values()) if value['variable'].observable])
+    #addresses_extra['addresses_observable'] = len([1 for value in list(addresses.values()) if value['variable'].observable])
     addresses_extra['addresses_observed'] = len([1 for value in list(addresses.values()) if value['variable'].observed])
     addresses_extra['addresses_tagged'] = len([1 for value in list(addresses.values()) if value['variable'].tagged])
     return {'addresses': addresses, 'addresses_extra': addresses_extra, 'address_base_ids': address_base_ids, 'address_ids': address_ids, 'address_id_to_variable': address_id_to_variable}
@@ -103,7 +103,7 @@ def _trace_stats(trace_dist, use_address_base=True, reuse_ids_from_address_stats
         trace_weights.append(value['count'])
     trace_id_dist = Empirical(unique_trace_ids, weights=unique_trace_ids, name='Unique trace ID')
     trace_length_dist = trace_dist.map(lambda trace: trace.length).unweighted().rename('Trace length (all)')
-    trace_length_controlled_dist = trace_dist.map(lambda trace: trace.length_controlled).unweighted().rename('Trace length (controlled)')
+    trace_length_controlled_dist = trace_dist.map(lambda trace: len([v for v in trace.variables if v.control])).unweighted().rename('Trace length (controlled)')
     trace_execution_time_dist = trace_dist.map(lambda trace: trace.execution_time_sec).unweighted().rename('Trace execution time (s)')
     traces_extra = OrderedDict()
     traces_extra['trace_types'] = len(traces)

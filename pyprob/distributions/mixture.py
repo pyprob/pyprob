@@ -9,17 +9,19 @@ class Mixture(Distribution):
         self._distributions = distributions
         self.length = len(distributions)
         if probs is None:
-            self._probs = util.to_tensor(torch.zeros(self.length)).fill_(1./self.length)
+            self._probs = torch.zeros(self.length).fill_(1./self.length).unsqueeze(0)
         else:
             self._probs = util.to_tensor(probs)
             self._probs = self._probs / self._probs.sum(-1, keepdim=True)
+            if self._probs.dim() == 1:
+                self._probs = self._probs.unsqueeze(0)
         self._log_probs = torch.log(util.clamp_probs(self._probs))
 
         event_shape = torch.Size()
-        if self._probs.dim() == 1:
+        if self._probs.dim() == 0:
             batch_shape = torch.Size()
             self._batch_length = 0
-        elif self._probs.dim() == 2:
+        elif self._probs.dim() > 0 and self._probs.dim() <= 2 :
             batch_shape = torch.Size([self._probs.size(0)])
             self._batch_length = self._probs.size(0)
         else:
@@ -41,7 +43,8 @@ class Mixture(Distribution):
             lp = torch.logsumexp(self._log_probs + util.to_tensor([d.log_prob(value) for d in self._distributions]), dim=0)
         else:
             value = util.to_tensor(value).view(self._batch_length, -1)
-            tmp = torch.stack([d.log_prob(value).sum(-1).squeeze(-1) for d in self._distributions]).view(-1, self._batch_length).t()
+            bs = value.size(0)
+            tmp = torch.stack([d.log_prob(value) for d in self._distributions]).view(len(self._distributions), bs, -1).sum(-1).t()
             lp = torch.logsumexp(self._log_probs + tmp , dim=1)
         return torch.sum(lp) if sum else lp
 

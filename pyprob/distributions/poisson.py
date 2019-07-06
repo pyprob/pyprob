@@ -6,8 +6,8 @@ from .. import util
 
 class Poisson(Distribution):
     def __init__(self, rate):
-        self.rate = util.to_tensor(rate)
-        super().__init__(name='Poisson', address_suffix='Poisson', torch_dist=torch.distributions.Poisson(self.rate))
+        self._rate = util.to_tensor(rate)
+        super().__init__(name='Poisson', address_suffix='Poisson', torch_dist=torch.distributions.Poisson(self._rate))
 
     def __repr__(self):
         return 'Poisson(rate: {})'.format(self.rate)
@@ -17,5 +17,6 @@ class Poisson(Distribution):
         return self._torch_dist.mean
 
     def to(self, device):
-        self.rate.to(device=device)
+        self._rate = self._rate.to(device=device)
+        super().__init__(name='Poisson', address_suffix='Poisson', torch_dist=torch.distributions.Poisson(self._rate))
         return self

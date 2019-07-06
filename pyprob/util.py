@@ -111,8 +111,11 @@ def to_tensor(value, dtype=_dtype):
             value = torch.Tensor([float(value)])
         elif type(value) == np.float32:
             value = torch.Tensor([float(value)])
+        elif type(value) == list:
+            value = torch.Tensor(value)
         else:
             value = torch.Tensor([value])
+
     # ensure any scalars is converted to at least dim=1
     if value.dim() == 0:
         value = value.unsqueeze(0)

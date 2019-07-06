@@ -42,8 +42,6 @@ class TruncatedNormal(Distribution):
         lb = value.ge(self._low).type_as(self._low)
         ub = value.le(self._high).type_as(self._low)
         lp = torch.log(lb.mul(ub)) + self._standard_normal_dist.log_prob((value - self._mean_non_truncated) / self._stddev_non_truncated) - self._log_stddev_Z
-        if self._batch_length == 1:
-            lp = lp.squeeze(0)
         if util.has_nan_or_inf(lp):
             print(colored('Warning: NaN, -Inf, or Inf encountered in TruncatedNormal log_prob.', 'red', attrs=['bold']))
             print('distribution', self)
@@ -76,8 +74,6 @@ class TruncatedNormal(Distribution):
     def mean(self):
         if self._mean is None:
             self._mean = self._mean_non_truncated + self._stddev_non_truncated * (self._standard_normal_dist.prob(self._alpha) - self._standard_normal_dist.prob(self._beta)) / self._Z
-            if self._batch_length == 1:
-                self._mean = self._mean.squeeze(0)
         return self._mean
 
     @property
@@ -86,8 +82,6 @@ class TruncatedNormal(Distribution):
             standard_normal_prob_alpha = self._standard_normal_dist.prob(self._alpha)
             standard_normal_prob_beta = self._standard_normal_dist.prob(self._beta)
             self._variance = self._stddev_non_truncated.pow(2) * (1 + ((self._alpha * standard_normal_prob_alpha - self._beta * standard_normal_prob_beta)/self._Z) - ((standard_normal_prob_alpha - standard_normal_prob_beta)/self._Z).pow(2))
-            if self._batch_length == 1:
-                self._variance = self._variance.squeeze(0)
         return self._variance
 
     def sample(self):
@@ -106,8 +100,6 @@ class TruncatedNormal(Distribution):
             ub = ret.lt(self._high).type_as(self._low)
             outside_domain = (int(torch.sum(lb.mul(ub))) == 0)
 
-        if self._batch_length == 1:
-            ret = ret.squeeze(0)
         return ret
 
     def to(self, device):
