@@ -62,7 +62,7 @@ def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_sta
     addresses_extra['addresses'] = len(addresses)
     addresses_extra['addresses_controlled'] = len([1 for value in list(addresses.values()) if value['variable'].control])
     addresses_extra['addresses_replaced'] = len([1 for value in list(addresses.values()) if value['variable'].replace])
-    #addresses_extra['addresses_observable'] = len([1 for value in list(addresses.values()) if value['variable'].observable])
+    addresses_extra['addresses_observable'] = len([1 for value in list(addresses.values()) if value['variable'].observable])
     addresses_extra['addresses_observed'] = len([1 for value in list(addresses.values()) if value['variable'].observed])
     addresses_extra['addresses_tagged'] = len([1 for value in list(addresses.values()) if value['variable'].tagged])
     return {'addresses': addresses, 'addresses_extra': addresses_extra, 'address_base_ids': address_base_ids, 'address_ids': address_ids, 'address_id_to_variable': address_id_to_variable}
