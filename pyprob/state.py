@@ -116,6 +116,17 @@ def tag(value, name=None, address=None):
 
 def observe(distribution, value=None, constants={}, name=None, address=None):
     global _current_trace
+
+    # make values in constants tensors
+    tmp = {}
+    if constants:
+        for k, v in constants.items():
+            try:
+                tmp[k] = util.to_tensor(v)
+            except Exception as e:
+                raise ValueError("Values in constant for distribution {} cannot be made a tensor".format(distribution.name))
+    constants = tmp
+
     if address is None:
         address_base = _extract_address(_current_trace_root_function_name) + '__' + distribution._address_suffix
     else:
@@ -151,6 +162,16 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
     global _current_trace
     global _current_trace_previous_variable
     global _current_trace_replaced_variable_proposal_distributions
+
+    # make values in constants tensors
+    tmp = {}
+    if constants:
+        for k, v in constants.items():
+            try:
+                tmp[k] = util.to_tensor(v)
+            except Exception as e:
+                raise ValueError("Values in constant for distribution {} cannot be made a tensor".format(distribution.name))
+    constants = tmp
 
     # Only replace if controlled
     if not control:
