@@ -387,7 +387,7 @@ class Model():
                                           address_embedding_dim=64,
                                           sample_embedding_dim=4,
                                           distribution_type_embedding_dim=8,
-                                          log_file_name=None, ic=False, sacred_run=False):
+                                          log_file_name=None, ic=False, sacred_run=None):
 
         if dataset_dir is None:
             dataset = OnlineDataset(model=self, prior_inflation=prior_inflation)
