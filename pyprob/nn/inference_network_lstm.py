@@ -277,7 +277,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 proposal_layer = self._layers_proposal[current_address]
                 proposal_layer._total_train_iterations += 1
                 proposal_distribution = proposal_layer(proposal_input,
-                                                        torch_data[time_step]['distribution'].to(device=util._device))
+                                                       torch_data[time_step]['distribution'].to(device=util._device))
                 log_prob = proposal_distribution.log_prob(values)
 
                 if util.has_nan_or_inf(log_prob):

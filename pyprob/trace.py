@@ -41,12 +41,14 @@ class Variable():
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned variables in offline training datasets
-        return 'Variable(name:{}, control:{}, constans:{}, observed:{}, tagged:{}, address:{}, distribution_name:{}, value:{}: log_prob:{})'.format(
+        return 'Variable(name:{}, control:{}, constants:{}, observed:{}, tagged:{}, replace:{}, reused:{}, address:{}, distribution_name:{}, value:{}: log_prob:{})'.format(
             self.name if hasattr(self, 'name') else 'Unknown',
             self.control if hasattr(self, 'control') else 'Unknown',
             self.constants if hasattr(self, 'constants') else 'Unknown',
             self.observed if hasattr(self, 'observed') else 'Unknown',
             self.tagged if hasattr(self, 'tagged') else 'Unknown',
+            self.replace if hasattr(self, 'replace') else 'Unknown',
+            self.reused if hasattr(self, 'reused') else 'Unknown',
             self.address if hasattr(self, 'address') else 'Unknown',
             str(self.distribution_name) if hasattr(self, 'distribution_name') else 'Unknown',
             str(self.value) if hasattr(self, 'value') else 'Unknown',
@@ -57,6 +59,7 @@ class Variable():
             self.value.to(device=device)
 
     def __hash__(self):
+        # WHAT ABOUT HERE?
         return hash(self.address + str(self.value) + str(self.control) + str(self.observed) + str(self.tagged))
 
     def __eq__(self, other):

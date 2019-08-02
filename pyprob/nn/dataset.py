@@ -26,7 +26,7 @@ from ..trace import Trace, Variable
 
 VARIABLE_ATTRIBUTES = ['value', 'address_base', 'address', 'instance', 'log_prob',
                        'log_importance_weight', 'control', 'name', 'observed',
-                       'tagged', 'constants', 'distribution_name', 'distribution_args']
+                       'tagged', 'constants', 'replace', 'reused', 'distribution_name', 'distribution_args']
 
 class Batch():
     def __init__(self, traces_and_hashes):
@@ -64,6 +64,9 @@ class Batch():
             latent_time_steps = []
             addresses = []
             constants = []
+            replace = []
+            reused = []
+            tagged = []
 
             meta_data = {}
             meta_data['trace_hash'] = uniques[i]
@@ -80,6 +83,9 @@ class Batch():
                 addresses.append(var_args['address'])
                 controls.append(var_args['control'])
                 constants.append(var_args['constants'])
+                replace.append(var_args['replace'])
+                resused.append(var_args['reused'])
+                tagged.append(var_args['tagged'])
 
                 if var_args['control']:
                     tl += 1
@@ -93,6 +99,9 @@ class Batch():
             meta_data['addresses'] = addresses
             meta_data['controls'] = controls
             meta_data['distribution_constants'] = constants
+            meta_data['replace'] = replace
+            meta_data['reused'] = reused
+            meta_data['tagged'] = tagged
 
             for time_step in range(trace_len):
                 for trace_list in sub_batch_traces:
@@ -110,8 +119,10 @@ class Batch():
                         else:
                             d[k] = torch.cat([d[k], v], dim=0)
 
-                torch_data[time_step]['values'] = torch.stack(values[time_step], dim=0)
-                torch_data[time_step]['distribution'] = construct_dist(dist_names[time_step], dist_parameters[time_step])
+                torch_data[time_step]['values'] = torch.stack(values[time_step],
+                                                              dim=0)
+                torch_data[time_step]['distribution'] = construct_dist(dist_names[time_step],
+                                                                       dist_parameters[time_step])
 
             self.sub_batches[i] = [meta_data, torch_data]
         self.mean_length_controlled = total_length_controlled / self.size
@@ -148,8 +159,8 @@ class OnlineDataset(Dataset):
         trace_attr_list = []
         for variable in trace.variables:
             trace_attr_list = self._update_sub_trace_data(trace_attr_list,
-                                                            variable,
-                                                            trace, to_list=False)
+                                                          variable,
+                                                          trace, to_list=False)
         return trace_attr_list, trace.hash()
 
     def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, *args, **kwargs):
@@ -281,10 +292,7 @@ class OfflineDatasetFile(Dataset):
                         tmp[k] = util.to_tensor(value)
                     var_args[attr] = tmp
                 elif attr in ['log_prob']:
-
                     var_args[attr] = util.to_tensor(variable_data)
-                elif attr in ['reused', 'tagged', 'control']:
-                    var_args[attr] = variable_data
                 elif attr in ['observed']:
                     var_args[attr] = variable_data or variable_attr_dict['name'] in self._variables_observed_inf_training
                 else:
