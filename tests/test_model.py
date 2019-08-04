@@ -47,7 +47,7 @@ class ModelTestCase(unittest.TestCase):
         prior_mean_correct = 1
         prior_stddev_correct = math.sqrt(5)
 
-        prior = self._model.prior_distribution(num_traces)
+        prior = self._model.prior_results(num_traces)
         prior_mean = float(prior.mean)
         prior_stddev = float(prior.stddev)
         util.eval_print('num_traces', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
@@ -62,9 +62,9 @@ class ModelTestCase(unittest.TestCase):
         prior_stddev_correct = math.sqrt(5)
         prior_length_correct = 2 * num_traces
 
-        prior = self._model.prior_distribution(num_traces, file_name=file_name)
+        prior = self._model.prior_results(num_traces, file_name=file_name)
         prior.close()
-        prior = self._model.prior_distribution(num_traces, file_name=file_name)
+        prior = self._model.prior_results(num_traces, file_name=file_name)
         # prior.close()
         prior_length = prior.length
         prior_mean = float(prior.mean)
@@ -81,7 +81,7 @@ class ModelTestCase(unittest.TestCase):
         trace_length_stddev_correct = 1.2081329822540283
         trace_length_min_correct = 2
 
-        trace_lengths = self._model.prior_traces(num_traces, map_func=lambda trace: trace.length_controlled)
+        trace_lengths = self._model.prior(num_traces, map_func=lambda trace: trace.length_controlled)
         trace_length_dist = Empirical(trace_lengths)
         trace_length_mean = float(trace_length_dist.mean)
         trace_length_stddev = float(trace_length_dist.stddev)
@@ -107,7 +107,7 @@ class ModelTestCase(unittest.TestCase):
         posteriors = []
         initial_trace = None
         for i in range(posterior_num_runs):
-            posterior = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace)
+            posterior = self._model.posterior(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace)
             initial_trace = posterior[-1]
             posteriors.append(posterior)
         posterior = Empirical(concat_empiricals=posteriors).map(lambda trace: trace.result)
@@ -138,7 +138,7 @@ class ModelTestCase(unittest.TestCase):
         posteriors = []
         initial_trace = None
         for i in range(posterior_num_runs):
-            posterior = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace)
+            posterior = self._model.posterior(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace)
             initial_trace = posterior[-1]
             posteriors.append(posterior)
         posterior = Empirical(concat_empiricals=posteriors).map(lambda trace: trace.result)
@@ -164,13 +164,13 @@ class ModelTestCase(unittest.TestCase):
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
 
-        posterior = self._model.posterior_distribution(num_traces=posterior_num_traces, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior_results(num_traces=posterior_num_traces, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})
         posterior_num_traces = posterior.length
         posterior_mean = float(posterior.mean)
         posterior_stddev = float(posterior.stddev)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        posterior_with_thinning = self._model.posterior_distribution(num_traces=posterior_num_traces, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, thinning_steps=thinning_steps)
+        posterior_with_thinning = self._model.posterior_results(num_traces=posterior_num_traces, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, thinning_steps=thinning_steps)
         posterior_with_thinning_num_traces = posterior_with_thinning.length
         posterior_with_thinning_mean = float(posterior_with_thinning.mean)
         posterior_with_thinning_stddev = float(posterior_with_thinning.stddev)
@@ -194,13 +194,13 @@ class ModelTestCase(unittest.TestCase):
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
 
-        posterior = self._model.posterior_distribution(num_traces=posterior_num_traces, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior_results(num_traces=posterior_num_traces, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})
         posterior_num_traces = posterior.length
         posterior_mean = float(posterior.mean)
         posterior_stddev = float(posterior.stddev)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        posterior_with_thinning = self._model.posterior_distribution(num_traces=posterior_num_traces, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, thinning_steps=thinning_steps)
+        posterior_with_thinning = self._model.posterior_results(num_traces=posterior_num_traces, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, thinning_steps=thinning_steps)
         posterior_with_thinning_num_traces = posterior_with_thinning.length
         posterior_with_thinning_mean = float(posterior_with_thinning.mean)
         posterior_with_thinning_stddev = float(posterior_with_thinning.stddev)
@@ -229,7 +229,7 @@ class ModelTestCase(unittest.TestCase):
 
         initial_trace = None
         for i in range(posterior_num_runs):
-            posterior_traces = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace, file_name=file_name)
+            posterior_traces = self._model.posterior(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace, file_name=file_name)
             initial_trace = posterior_traces[-1]
             posterior_traces.close()
         posterior = Empirical(file_name=file_name)
@@ -262,7 +262,7 @@ class ModelTestCase(unittest.TestCase):
 
         initial_trace = None
         for i in range(posterior_num_runs):
-            posterior_traces = self._model.posterior_traces(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace, file_name=file_name)
+            posterior_traces = self._model.posterior(num_traces=posterior_num_traces_each_run, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace, file_name=file_name)
             initial_trace = posterior_traces[-1]
             posterior_traces.close()
         posterior = Empirical(file_name=file_name)
@@ -319,7 +319,7 @@ class ModelWithReplacementTestCase(unittest.TestCase):
         trace_length_min_correct = 2
         trace_length_max_correct = 2
 
-        trace_lengths = self._model.prior_traces(num_traces, map_func=lambda trace: trace.length_controlled)
+        trace_lengths = self._model.prior(num_traces, map_func=lambda trace: trace.length_controlled)
         trace_length_dist = Empirical(trace_lengths)
         trace_length_mean = float(trace_length_dist.mean)
         trace_length_stddev = float(trace_length_dist.stddev)
@@ -363,7 +363,7 @@ class ModelObservationStyle1TestCase(unittest.TestCase):
         prior_mean_correct = 1.
         prior_stddev_correct = math.sqrt(5)
 
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
 
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.unweighted().mean)
@@ -409,7 +409,7 @@ class ModelObservationStyle2TestCase(unittest.TestCase):
         prior_mean_correct = 1.
         prior_stddev_correct = math.sqrt(5)
 
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
 
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.unweighted().mean)

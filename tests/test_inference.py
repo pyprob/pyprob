@@ -121,7 +121,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_effective_sample_size_min = samples * 0.005
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
         add_importance_sampling_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -152,7 +152,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_ff_training_traces, observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}}, prior_inflation=importance_sampling_with_inference_network_ff_prior_inflation, inference_network=InferenceNetwork.FEEDFORWARD)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs0': 8, 'obs1': 9})
         add_importance_sampling_with_inference_network_ff_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -183,7 +183,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         # pyprob.diagnostics.network_statistics(self._model._inference_network, './report_tmp')
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs0': 8, 'obs1': 9})
         add_importance_sampling_with_inference_network_lstm_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -209,7 +209,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})[burn_in:]
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})[burn_in:]
         add_lightweight_metropolis_hastings_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -231,7 +231,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})[burn_in:]
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})[burn_in:]
         add_random_walk_metropolis_hastings_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -285,7 +285,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_effective_sample_size_min = samples * 0.002
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
         add_importance_sampling_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -316,7 +316,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_ff_training_traces, observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}}, prior_inflation=importance_sampling_with_inference_network_ff_prior_inflation, inference_network=InferenceNetwork.FEEDFORWARD)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs0': 8, 'obs1': 9})
         add_importance_sampling_with_inference_network_ff_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -345,7 +345,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_ff_training_traces, observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}}, prior_inflation=importance_sampling_with_inference_network_lstm_prior_inflation, inference_network=InferenceNetwork.LSTM)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs0': 8, 'obs1': 9})
         add_importance_sampling_with_inference_network_lstm_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -371,7 +371,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})[burn_in:]
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})[burn_in:]
         add_lightweight_metropolis_hastings_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -393,7 +393,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_stddev_correct = float(true_posterior.stddev)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})[burn_in:]
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})[burn_in:]
         add_random_walk_metropolis_hastings_duration(time.time() - start)
 
         posterior_mean = float(posterior.mean)
@@ -463,7 +463,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         posterior_effective_sample_size_min = samples * 0.001
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, observe=observation)
+        posterior = self._model.posterior_results(samples, observe=observation)
         add_importance_sampling_duration(time.time() - start)
         posterior_mean_unweighted = posterior.unweighted().mean
         posterior_mean = posterior.mean
@@ -489,7 +489,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_ff_training_traces, observe_embeddings={'obs{}'.format(i): {'depth': 2, 'dim': 32} for i in range(len(observation))}, prior_inflation=importance_sampling_with_inference_network_ff_prior_inflation, inference_network=InferenceNetwork.FEEDFORWARD)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe=observation)
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe=observation)
         add_importance_sampling_with_inference_network_ff_duration(time.time() - start)
         posterior_mean_unweighted = posterior.unweighted().mean
         posterior_mean = posterior.mean
@@ -515,7 +515,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_lstm_training_traces, observe_embeddings={'obs{}'.format(i): {'depth': 2, 'dim': 32} for i in range(len(observation))}, prior_inflation=importance_sampling_with_inference_network_lstm_prior_inflation, inference_network=InferenceNetwork.LSTM)
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe=observation)
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe=observation)
         add_importance_sampling_with_inference_network_lstm_duration(time.time() - start)
         posterior_mean_unweighted = posterior.unweighted().mean
         posterior_mean = posterior.mean
@@ -538,7 +538,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         posterior_mean_correct = self._posterior_mean_correct
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe=observation)[burn_in:]
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe=observation)[burn_in:]
         add_lightweight_metropolis_hastings_duration(time.time() - start)
         posterior_mean = posterior.mean
 
@@ -558,7 +558,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         posterior_mean_correct = self._posterior_mean_correct
 
         start = time.time()
-        posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe=observation)[burn_in:]
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe=observation)[burn_in:]
         add_random_walk_metropolis_hastings_duration(time.time() - start)
         posterior_mean = posterior.mean
 
@@ -623,7 +623,7 @@ class BranchingTestCase(unittest.TestCase):
         posterior_correct = util.empirical_to_categorical(self._model.true_posterior(), max_val=40)
 
         start = time.time()
-        posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, observe={'obs': 6}), max_val=40)
+        posterior = util.empirical_to_categorical(self._model.posterior_results(samples, observe={'obs': 6}), max_val=40)
         add_importance_sampling_duration(time.time() - start)
 
         posterior_probs = util.to_numpy(posterior._probs)
@@ -643,7 +643,7 @@ class BranchingTestCase(unittest.TestCase):
     #     self._model.learn_inference_network(num_traces=2000, observe_embeddings={'obs': {'depth': 2, 'dim': 32}})
     #
     #     start = time.time()
-    #     posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs': 6}), max_val=40)
+    #     posterior = util.empirical_to_categorical(self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs': 6}), max_val=40)
     #     add_importance_sampling_with_inference_network_ff_duration(time.time() - start)
     #
     #     posterior_probs = util.to_numpy(posterior._probs)
@@ -660,7 +660,7 @@ class BranchingTestCase(unittest.TestCase):
         posterior_correct = util.empirical_to_categorical(self._model.true_posterior(), max_val=40)
 
         start = time.time()
-        posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs': 6}), max_val=40)
+        posterior = util.empirical_to_categorical(self._model.posterior_results(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs': 6}), max_val=40)
         add_lightweight_metropolis_hastings_duration(time.time() - start)
 
         posterior_probs = util.to_numpy(posterior._probs)
@@ -677,7 +677,7 @@ class BranchingTestCase(unittest.TestCase):
         posterior_correct = util.empirical_to_categorical(self._model.true_posterior(), max_val=40)
 
         start = time.time()
-        posterior = util.empirical_to_categorical(self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs': 6}), max_val=40)
+        posterior = util.empirical_to_categorical(self._model.posterior_results(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs': 6}), max_val=40)
         add_random_walk_metropolis_hastings_duration(time.time() - start)
 
         posterior_probs = util.to_numpy(posterior._probs)
@@ -729,7 +729,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         map_estimates = []
         effective_sample_sizes = []
         for i in range(len(self._model._alphabet)):
-            posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'query_image': self._test_images[i]})
+            posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'query_image': self._test_images[i]})
             posteriors.append(posterior)
             map_estimates.append(self._model._alphabet[int(posterior.mode)])
             effective_sample_sizes.append(float(posterior.effective_sample_size))
@@ -759,7 +759,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         map_estimates = []
         effective_sample_sizes = []
         for i in range(len(self._model._alphabet)):
-            posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'query_image': self._test_images[i]})
+            posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'query_image': self._test_images[i]})
             posteriors.append(posterior)
             map_estimates.append(self._model._alphabet[int(posterior.mode)])
             effective_sample_sizes.append(float(posterior.effective_sample_size))
@@ -789,7 +789,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         map_estimates = []
         effective_sample_sizes = []
         for i in range(len(self._model._alphabet)):
-            posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'query_image': self._test_images[i]})
+            posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'query_image': self._test_images[i]})
             posteriors.append(posterior)
             map_estimates.append(self._model._alphabet[int(posterior.mode)])
             effective_sample_sizes.append(float(posterior.effective_sample_size))
@@ -814,7 +814,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         posteriors = []
         map_estimates = []
         for i in range(len(self._model._alphabet)):
-            posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'query_image': self._test_images[i]})[burn_in:]
+            posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'query_image': self._test_images[i]})[burn_in:]
             posteriors.append(posterior)
             map_estimates.append(self._model._alphabet[int(posterior.combine_duplicates().mode)])
         add_lightweight_metropolis_hastings_duration(time.time() - start)
@@ -837,7 +837,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         posteriors = []
         map_estimates = []
         for i in range(len(self._model._alphabet)):
-            posterior = self._model.posterior_distribution(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'query_image': self._test_images[i]})[burn_in:]
+            posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'query_image': self._test_images[i]})[burn_in:]
             posteriors.append(posterior)
             map_estimates.append(self._model._alphabet[int(posterior.combine_duplicates().mode)])
         add_random_walk_metropolis_hastings_duration(time.time() - start)

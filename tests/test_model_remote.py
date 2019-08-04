@@ -30,7 +30,7 @@ class RemoteModelSetDefaultsAndAddressesTestCase(unittest.TestCase):
         prior_mean_correct = 1
         prior_stddev_correct = 3.882074  # Estimate from 100k samples
 
-        prior = self._model.prior_distribution(samples)
+        prior = self._model.prior_results(samples)
         prior_mean = float(prior.mean)
         prior_stddev = float(prior.stddev)
         util.eval_print('samples', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')

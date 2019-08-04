@@ -74,7 +74,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
 
-        prior = self._model.prior_traces(1, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
+        prior = self._model.prior(1, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
         trace = prior[0]
         trace_addresses_controlled = [v.address for v in trace.variables_controlled]
         trace_addresses = [v.address for v in trace.variables]
@@ -100,7 +100,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
     def test_posterior_importance_sampling(self):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
-        posterior = self._model.posterior_traces(1, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior(1, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
         trace = posterior[0]
         trace_addresses_controlled = [v.address for v in trace.variables_controlled]
         trace_addresses = [v.address for v in trace.variables]
@@ -114,7 +114,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
         self._model.learn_inference_network(num_traces=10, observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}})
-        posterior = self._model.posterior_traces(1, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior(1, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs0': 8, 'obs1': 9})
         trace = posterior[0]
         trace_addresses_controlled = [v.address for v in trace.variables_controlled]
         trace_addresses = [v.address for v in trace.variables]
@@ -128,7 +128,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
 
-        posterior = self._model.posterior_traces(1, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior(1, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})
         trace = posterior[0]
         trace_addresses_controlled = [v.address for v in trace.variables_controlled]
         trace_addresses = [v.address for v in trace.variables]
@@ -142,7 +142,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
 
-        posterior = self._model.posterior_traces(1, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})
+        posterior = self._model.posterior(1, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})
         trace = posterior[0]
         trace_addresses_controlled = [v.address for v in trace.variables_controlled]
         trace_addresses = [v.address for v in trace.variables]

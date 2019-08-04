@@ -600,11 +600,13 @@ class Empirical(Distribution):
         self._check_finalized()
         return util.to_numpy(self._categorical.logits)
 
-    def plot_histogram(self, figsize=(10, 5), xlabel=None, ylabel='Frequency', xticks=None, yticks=None, log_xscale=False, log_yscale=False, file_name=None, show=True, density=1, *args, **kwargs):
-        if not show:
-            mpl.rcParams['axes.unicode_minus'] = False
-            plt.switch_backend('agg')
-        fig = plt.figure(figsize=figsize)
+    def plot_histogram(self, figsize=(10, 5), xlabel=None, ylabel='Frequency', xticks=None, yticks=None, log_xscale=False, log_yscale=False, file_name=None, show=True, density=1, fig=None, *args, **kwargs):
+        if fig is None:
+            if not show:
+                mpl.rcParams['axes.unicode_minus'] = False
+                plt.switch_backend('agg')
+            fig = plt.figure(figsize=figsize)
+            fig.tight_layout()
         values = self.values_numpy()
         weights = self.weights_numpy()
         plt.hist(values, weights=weights, density=density, *args, **kwargs)
@@ -620,7 +622,6 @@ class Empirical(Distribution):
             xlabel = self.name
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
-        fig.tight_layout()
         if file_name is not None:
             plt.savefig(file_name)
         if show:

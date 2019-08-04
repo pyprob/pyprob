@@ -153,7 +153,7 @@ In order to perform inference about the `model` (i.e. infer the posterior of
 
 ```python
 # sample from posterior (5000 samples)
-posterior = model.posterior_distribution(
+posterior = model.posterior_results(
                                          num_traces=5000, # the number of samples estimating the posterior
                                          inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING, # specify which inference engine to use
                                          observe={'obs0': 8, 'obs1': 9} # assign values to the observed values
@@ -190,7 +190,7 @@ class SomeGenerativeModel(Model):
         return (var_0, var_1, var_2, ...) # return the desired number of latent variables to be inferred
 
 model = SomeGenerativeModel()
-posterior = model.posterior_distribution(...)
+posterior = model.posterior_results(...)
 
 posterior_first = posterior.map(lambda v: v[0]) # extract var_0
 var_0_mean = posterior_first.mean
@@ -290,7 +290,7 @@ Once the network is trained, you can set `IMPORTANCE_SAMPLING_WITH_INFERENCE_NET
 
 ```python
 # sample from posterior using importance sampling and inference network (100 samples)
-posterior = model.posterior_distribution(
+posterior = model.posterior_results(
                                          num_traces=100, # the number of samples estimating the posterior
                                          inference_engine=pyprob.InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, # specify which inference engine to use
                                          observe={'obs0': 8, 'obs1': 9} # assign values to the observed values
