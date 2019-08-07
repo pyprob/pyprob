@@ -84,7 +84,7 @@ class Batch():
                 controls.append(var_args['control'])
                 constants.append(var_args['constants'])
                 replace.append(var_args['replace'])
-                resused.append(var_args['reused'])
+                reused.append(var_args['reused'])
                 tagged.append(var_args['tagged'])
 
                 if var_args['control']:

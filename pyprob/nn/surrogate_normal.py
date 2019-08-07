@@ -30,17 +30,16 @@ class SurrogateNormal(nn.Module):
             self._scale = constants['scale']
             constant_scale = True
 
-
         if constant_scale and constant_loc:
             self.train = False
         else:
             if constant_loc and not constant_scale:
                 # only loc needs learned
-                self._scale_output_dim = 0
+                self._loc_output_dim = 0
                 self._loc = constants['loc']
             elif constant_scale and not constant_loc:
                 # only scale need learned
-                self._loc_output_dim = 0
+                self._scale_output_dim = 0
                 self._scale = constants['scale']
             if self.em_type == 'ff':
                 self._em = EmbeddingFeedForward(input_shape=input_shape,
@@ -80,30 +79,29 @@ class SurrogateNormal(nn.Module):
                 if not self._loc:
                     self._loc = x[:, :self._loc_output_dim].view(batch_size, *self._loc_shape)
                 else:
-                    self._loc = self._loc.repeat(batch_size, 1, 1).squeeze()
+                    self._loc = self._loc.repeat(batch_size, 1, 1)
 
                 if not self._scale:
                     self._scale = torch.exp(x[:, self._loc_output_dim:]).view(batch_size, *self._scale_shape)
                 else:
-                    self._scale = self._scale.repeat(batch_size, 1, 1).squeeze()
-
+                    self._scale = self._scale.repeat(batch_size, 1, 1)
             elif self.em_type == 'deconv':
                 x = self._lin_embed(x)
                 loc_embeds = x[:, :self._input_dim].view(batch_size, self._input_dim)
                 if not self._loc:
                     self._loc = self._em(loc_embeds).view(batch_size, *self._loc_shape)
                 else:
-                    self._loc = self._loc.repeat(batch_size, 1, 1).squeeze()
+                    self._loc = self._loc.repeat(batch_size, 1, 1)
 
                 if not self._scale:
                     self._scale = torch.exp(x[:, self._input_dim:]).view(batch_size, *self._scale_shape)
                 else:
-                    self._scale = self._scale.repeat(batch_size, 1, 1).squeeze()
+                    self._scale = self._scale.repeat(batch_size, 1, 1)
 
             return Normal(self._loc, self._scale)
         else:
-            return Normal(self._loc.repeat(batch_size, 1, 1).squeeze(),
-                          self._scale.repeat(batch_size, 1, 1).squeeze())
+            return Normal(self._loc.repeat(batch_size, 1, 1),
+                          self._scale.repeat(batch_size, 1, 1))
 
     def loss(self, p_normal):
         if self.train:
