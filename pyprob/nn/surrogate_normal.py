@@ -69,8 +69,8 @@ class SurrogateNormal(nn.Module):
         self.dist_type = Normal(loc=torch.zeros(loc_shape), scale=torch.ones(scale_shape))
 
     def forward(self, x):
+        batch_size = x.size(0)
         if self.do_train:
-            batch_size = x.size(0)
             if self.em_type == 'ff':
                 x = self._em(x)
 
