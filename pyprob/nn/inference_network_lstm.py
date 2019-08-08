@@ -210,6 +210,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
 
             # Construct LSTM input sequence for the whole trace length of sub_batch
             lstm_input = []
+            prev_time_step = None
             for time_step in meta_data['latent_time_steps']:
                 current_address = meta_data['addresses'][time_step]
                 current_distribution_name = meta_data['distribution_names'][time_step]
@@ -231,12 +232,12 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     prev_address_embedding = torch.zeros(1, self._address_embedding_dim).to(device=util._device)
                     prev_distribution_type_embedding = torch.zeros(1, self._distribution_type_embedding_dim).to(device=util._device)
                 else:
-                    prev_address = meta_data['addresses'][time_step-1]
-                    prev_distribution_name = meta_data['distribution_names'][time_step-1]
+                    prev_address = meta_data['addresses'][prev_time_step]
+                    prev_distribution_name = meta_data['distribution_names'][prev_time_step]
                     if prev_address not in self._layers_address_embedding:
                         print(colored('Previous address unknown by inference network: {}'.format(prev_address), 'red', attrs=['bold']))
                         return False, 0
-                    smp = torch_data[time_step-1]['values'].to(device=util._device)
+                    smp = torch_data[prev_time_step]['values'].to(device=util._device)
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
                     prev_address_embedding = self._layers_address_embedding[prev_address]
                     prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution_name]
@@ -259,6 +260,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                                current_address_embedding.repeat(sub_batch_length, 1),
                                prev_sample_embedding_attention], dim=1)
                 lstm_input.append(t)
+                prev_time_step = time_step
 
             # Execute LSTM in a single operation on the whole input sequence
             lstm_input = torch.stack(lstm_input, dim=0) # dim = seq_len x batch_size x *
@@ -268,11 +270,11 @@ class InferenceNetworkLSTM(InferenceNetwork):
             lstm_output, _ = self._layers_lstm(lstm_input, (h0, c0))
 
             # Construct proposals for each time step in the LSTM output sequence of sub_batch
-            for time_step in meta_data['latent_time_steps']:
+            for seq_number, time_step in enumerate(meta_data['latent_time_steps']):
                 current_address = meta_data['addresses'][time_step]
                 current_name = meta_data['names'][time_step]
 
-                proposal_input = lstm_output[time_step]
+                proposal_input = lstm_output[seq_number]
                 values = torch_data[time_step]['values'].to(device=util._device)
                 proposal_layer = self._layers_proposal[current_address]
                 proposal_layer._total_train_iterations += 1
