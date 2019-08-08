@@ -23,7 +23,6 @@ from .utils import MyFile, construct_distribution as construct_dist
 from ..util import TraceMode, PriorInflation
 from ..concurrency import ConcurrentShelf
 from ..trace import Trace, Variable
-from ..state import _variables_observed_inf_training as var_obs
 
 VARIABLE_ATTRIBUTES = ['value', 'address_base', 'address', 'instance', 'log_prob',
                        'log_importance_weight', 'control', 'name', 'observed',
@@ -76,7 +75,7 @@ class Batch():
             for time_step, var_args in enumerate(example_trace):
                 name = var_args['name']
                 names.append(name)
-                if var_args['observed'] or name in var_obs:
+                if var_args['observed']:
                     observed_time_steps.append(time_step)
                 else:
                     latent_time_steps.append(time_step)
