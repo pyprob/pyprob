@@ -217,7 +217,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 current_name = meta_data['names'][time_step]
 
                 if current_address not in self._layers_address_embedding:
-                    print(colored('Address unknown by inference network: {}'.format(current_address), 'red', attrs=['bold']))
+                    print(colored('Current address unknown by inference network: {}'.format(current_address), 'red', attrs=['bold']))
                     return False, 0
 
                 current_address_embedding = self._layers_address_embedding[current_address]
@@ -234,7 +234,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     prev_address = meta_data['addresses'][time_step-1]
                     prev_distribution_name = meta_data['distribution_names'][time_step-1]
                     if prev_address not in self._layers_address_embedding:
-                        print(colored('Address unknown by inference network: {}'.format(prev_address), 'red', attrs=['bold']))
+                        print(colored('Previous address unknown by inference network: {}'.format(prev_address), 'red', attrs=['bold']))
                         return False, 0
                     smp = torch_data[time_step-1]['values'].to(device=util._device)
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
