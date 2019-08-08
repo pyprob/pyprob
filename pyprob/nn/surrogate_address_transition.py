@@ -89,7 +89,7 @@ class SurrogateAddressTransition(nn.Module):
 
         self._ff["class_layer"] = nn.Linear(self._class_layer_input, self._output_dim).apply(init_new_params).to(device=util._device)
 
-    def loss(self, next_addresses):
+    def _loss(self, next_addresses):
         classes = self._transform_to_class(next_addresses).to(device=util._device)
         loss = -self._categorical.log_prob(classes)
         return loss

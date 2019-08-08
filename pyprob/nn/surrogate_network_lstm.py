@@ -80,7 +80,6 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     self._address_base[address] = "__".join(address.split("__")[:-2])
                     self._address_to_name[address] = name
 
-
                 if address not in self._layers_address_embedding:
                     emb = nn.Parameter(torch.zeros(self._address_embedding_dim).normal_().to(device=util._device))
                     self._layers_address_embedding[address] = emb
@@ -91,13 +90,15 @@ class SurrogateNetworkLSTM(InferenceNetwork):
 
                 if old_address not in self._layers_address_transitions:
                     if not old_address == "__init":
-                        self._layers_address_transitions[old_address] = SurrogateAddressTransition(self._lstm_dim + self._sample_embedding_dim, address).to(device=util._device)
+                        self._layers_address_transitions[old_address] = SurrogateAddressTransition(self._lstm_dim + self._sample_embedding_dim,
+                                                                                                   address).to(device=util._device)
                     else:
-                        self._layers_address_transitions[old_address] = SurrogateAddressTransition(self._lstm_dim + self._sample_embedding_dim, address, first_address=True).to(device=util._device)
+                        self._layers_address_transitions[old_address] = SurrogateAddressTransition(self._lstm_dim + self._sample_embedding_dim,
+                                                                                                   address,
+                                                                                                   first_address=True).to(device=util._device)
                         layers_changed = True
                 else:
                     if address not in self._layers_address_transitions[old_address]._address_to_class:
-                        print("NEW ADDRESS", old_address, address)
                         self._layers_address_transitions[old_address].add_address_transition(address)
                         layers_changed = True
                 if address not in self._layers_surrogate_distributions:
@@ -290,10 +291,10 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     sample_embedding = self._layers_sample_embedding[address](values)
                     address_transition_input = torch.cat([proposal_input, sample_embedding], dim=1)
                     _ = address_transition_layer(address_transition_input)
-                    surrogate_loss += torch.sum(address_transition_layer.loss(next_addresses))
+                    surrogate_loss += torch.sum(address_transition_layer._loss(next_addresses))
 
                 _ = surrogate_distribution_layer(proposal_input)
-                surrogate_loss += torch.sum(surrogate_distribution_layer.loss(variable_dist))
+                surrogate_loss += torch.sum(surrogate_distribution_layer._loss(variable_dist))
 
             batch_loss += sub_batch_loss + surrogate_loss
         return True, batch_loss / batch.size

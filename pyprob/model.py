@@ -376,7 +376,7 @@ class Model():
                                           momentum=0.9, weight_decay=0.,
                                           save_file_name_prefix=None,
                                           save_every_sec=600,
-                                          pre_generate_layers=True,
+                                          pre_generate_layers=False,
                                           distributed_backend=None,
                                           distributed_params_sync_every_iter=10000,
                                           distributed_num_buckets=10,

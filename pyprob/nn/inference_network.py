@@ -439,7 +439,8 @@ class InferenceNetwork(nn.Module):
             else:
                 dataloader = DataLoader(dataset,
                                         batch_sampler=DistributedTraceBatchSampler(dataset,
-                                                                                   batch_size=batch_size, num_buckets=distributed_num_buckets,
+                                                                                   batch_size=batch_size,
+                                                                                   num_buckets=distributed_num_buckets,
                                                                                    shuffle_batches=True, shuffle_buckets=True),
                                         num_workers=num_workers,
                                         collate_fn=lambda x: Batch(x))
@@ -459,7 +460,8 @@ class InferenceNetwork(nn.Module):
             else:
                 dataloader_valid = DataLoader(dataset_valid,
                                               batch_sampler=DistributedTraceBatchSampler(dataset_valid,
-                                                                                         batch_size=batch_size, num_buckets=distributed_num_buckets,
+                                                                                         batch_size=batch_size,
+                                                                                         num_buckets=distributed_num_buckets,
                                                                                          shuffle_batches=True, shuffle_buckets=True),
                                               num_workers=num_workers,
                                               collate_fn=lambda x: Batch(x))

@@ -16,31 +16,29 @@ class SurrogateNormal(nn.Module):
         self._loc_shape = loc_shape
         self._scale_shape = scale_shape
         self.em_type = em_type
-        constant_loc = False
-        constant_scale = False
-        self.train = True
+        self.constant_loc = False
+        self.constant_scale = False
+        self.do_train = True
         self._loc = None
         self._scale = None
 
         # check if either loc or scale are constant
         if 'loc' in constants:
             self._loc = constants['loc']
-            constant_loc = True
+            self.constant_loc = True
         if 'scale' in constants:
             self._scale = constants['scale']
-            constant_scale = True
+            self.constant_scale = True
 
-        if constant_scale and constant_loc:
-            self.train = False
+        if self.constant_scale and self.constant_loc:
+            self.do_train = False
         else:
-            if constant_loc and not constant_scale:
+            if self.constant_loc and not self.constant_scale:
                 # only loc needs learned
                 self._loc_output_dim = 0
-                self._loc = constants['loc']
-            elif constant_scale and not constant_loc:
+            elif self.constant_scale and not self.constant_loc:
                 # only scale need learned
                 self._scale_output_dim = 0
-                self._scale = constants['scale']
             if self.em_type == 'ff':
                 self._em = EmbeddingFeedForward(input_shape=input_shape,
                                                 output_shape=torch.Size([self._loc_output_dim
@@ -71,40 +69,40 @@ class SurrogateNormal(nn.Module):
         self.dist_type = Normal(loc=torch.zeros(loc_shape), scale=torch.ones(scale_shape))
 
     def forward(self, x):
-        if self.train:
+        if self.do_train:
             batch_size = x.size(0)
             if self.em_type == 'ff':
                 x = self._em(x)
 
-                if not self._loc:
+                if not self.constant_loc:
                     self._loc = x[:, :self._loc_output_dim].view(batch_size, *self._loc_shape)
                 else:
-                    self._loc = self._loc.repeat(batch_size, 1, 1)
+                    self._loc = self._loc.repeat(batch_size, 1, 1) if self._loc is None else self._loc
 
-                if not self._scale:
+                if not self.constant_scale:
                     self._scale = torch.exp(x[:, self._loc_output_dim:]).view(batch_size, *self._scale_shape)
                 else:
-                    self._scale = self._scale.repeat(batch_size, 1, 1)
+                    self._scale = self._scale.repeat(batch_size, 1, 1) if self._scale is None else self._scale
             elif self.em_type == 'deconv':
                 x = self._lin_embed(x)
                 loc_embeds = x[:, :self._input_dim].view(batch_size, self._input_dim)
-                if not self._loc:
+                if not self.constant_loc:
                     self._loc = self._em(loc_embeds).view(batch_size, *self._loc_shape)
                 else:
-                    self._loc = self._loc.repeat(batch_size, 1, 1)
+                    self._loc = self._loc.repeat(batch_size, 1, 1) if self._loc is None else self._loc
 
-                if not self._scale:
+                if not self.constant_scale:
                     self._scale = torch.exp(x[:, self._input_dim:]).view(batch_size, *self._scale_shape)
                 else:
-                    self._scale = self._scale.repeat(batch_size, 1, 1)
+                    self._scale = self._scale.repeat(batch_size, 1, 1) if self._scale is None else self._scale
 
             return Normal(self._loc, self._scale)
         else:
             return Normal(self._loc.repeat(batch_size, 1, 1),
                           self._scale.repeat(batch_size, 1, 1))
 
-    def loss(self, p_normal):
-        if self.train:
+    def _loss(self, p_normal):
+        if self.do_train:
             q_normal = Normal(self._loc, self._scale)
 
             return Distribution.kl_divergence(p_normal, q_normal)
