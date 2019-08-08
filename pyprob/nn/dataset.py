@@ -178,6 +178,7 @@ class OnlineDataset(Dataset):
                     trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR,
                                                               prior_inflation=self._prior_inflation,
                                                               *args, **kwargs))
+                    print(trace)
                     trace_attr_list = []
                     for variable in trace.variables:
                         trace_attr_list = self._update_sub_trace_data(trace_attr_list,
