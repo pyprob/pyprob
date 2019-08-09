@@ -26,19 +26,21 @@ class SurrogateUniform(nn.Module):
         if ('low' not in constants) or ('high' not in constants):
             raise NotImplementedError("Uniform distibutions mush CURRENTLY have constants range")
         else:
-            self.dist_type = Uniform(low=[constants['low']],
-                                    high=[constants['high']])
-            self.low = util.to_tensor(constants['low'])
-            self.high = util.to_tensor(constants['high'])
+            self.dist_type = Uniform(low=constants['low'].to(device=util._device),
+                                     high=constants['high'].to(device=util._device))
+            self.low = util.to_tensor(constants['low']).to(device=util._device)
+            self.high = util.to_tensor(constants['high']).to(device=util._device)
+
 
     def forward(self, x):
         batch_size = x.size(0)
+        expand_size = torch.Size([batch_size, 1, 1])
         # x = self._ff(x)
         # self.low = x[:, :self._output_dim].view(self._output_shape)
         # self.high = torch.exp(x[:, self._output_dim:]).view(self._output_shape)
 
-        return Uniform(low=self.low.repeat(batch_size, 1),
-                       high=self.high.repeat(batch_size, 1))
+        return Uniform(low=self.low.expand(expand_size),
+                       high=self.high.expand(expand_size))
 
     def _loss(self, p_uniform):
         # simulator_lows = self._transform_low(distributions)
@@ -47,4 +49,5 @@ class SurrogateUniform(nn.Module):
         # q_normal = Uniform(self.low, self.high)
 
         batch_size = p_uniform.low.size(0)
-        return torch.zeros([batch_size,1])
+        return torch.zeros([batch_size,1]).to(device=util._device)
+

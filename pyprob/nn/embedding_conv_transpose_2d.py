@@ -9,18 +9,26 @@ class ConvTranspose2d(nn.Module):
         super().__init__()
 
         self.linear_dim = linear_dim
-        # reduce the number of channels by 40 % at each deconv until < 10 are left
-        # assume linear_dim >> W, H > 10
-        n_deconv = int(np.ceil((np.log(10.0) - np.log(linear_dim))/np.log(0.6)))
+        rate = 0.4
+        final_channel_before_flatten = 3.0
+        # reduce the number of channels by 50 % at each deconv until < 10 are left
+        # assume linear_dim >> W, H
+        n_deconv = int(np.ceil((np.log(final_channel_before_flatten) \
+                                - np.log(linear_dim))/np.log(rate)))
         assert n_deconv > 0
 
         n_deconv = int(n_deconv)
 
-        out_channel = max(int(linear_dim*0.6),1)
+        out_channel = max(int(linear_dim*rate),1)
         modules = []
         in_channel = linear_dim
-        w = 5
-        h = 5
+        ratio = H/W # let initial height and width try and respect the ratio (at least somewhat)
+        if ratio > 1:
+            h = 10
+            w = int(np.ceil(h/ratio))
+        else:
+            w = 10
+            h = int(np.ceil(h/ratio))
 
         self.linear = nn.Linear(linear_dim, out_channel*w*h)
         self._start_w = w
@@ -29,7 +37,7 @@ class ConvTranspose2d(nn.Module):
 
         in_channel = out_channel
         for n in range(n_deconv - 2):
-            out_channel = max(int(in_channel*0.6),1)
+            out_channel = max(int(in_channel*rate),1)
             modules.append(('upsample'+str(n), nn.Upsample(size=(h+4, w+4), mode='nearest')))
             modules.append((f"conv2d_{n}_0", nn.Conv2d(in_channel, out_channel,
                                                         kernel_size=(3,3), padding=0)))
@@ -37,11 +45,11 @@ class ConvTranspose2d(nn.Module):
             modules.append((f"conv2d_{n}_1", nn.Conv2d(out_channel, out_channel,
                                                         kernel_size=(3,3), padding=0)))
             modules.append((f"leaky_relu_{n}_1", nn.LeakyReLU(inplace=True)))
-            h *= 2
-            w *= 2
+            h = h*2 if 2*h < H else H
+            w = w*2 if 2*w < W else W
             in_channel = out_channel
 
-        out_channel = int(in_channel*0.6)
+        out_channel = int(in_channel*rate)
         modules.append(('upsample'+str(n+1), nn.Upsample(size=(H+4, W+4), mode='nearest')))
         modules.append((f"conv2d_{n+1}_0", nn.Conv2d(in_channel, out_channel,
                                                      kernel_size=(3,3), padding=0)))
