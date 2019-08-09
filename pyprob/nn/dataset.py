@@ -5,7 +5,7 @@ import math
 import os
 import sys
 import h5py
-import json
+import ujson
 import time
 import hashlib
 from glob import glob
@@ -187,7 +187,7 @@ class OnlineDataset(Dataset):
                     # call trace.__hash__ method for hashing
                     trace_hash = trace.hash()
                     hashes.append(trace_hash)
-                    dataset.append(json.dumps([trace_attr_list, trace_hash]).encode())
+                    dataset.append(ujson.dumps([trace_attr_list, trace_hash]).encode())
 
                 f.create_dataset('traces', (num_traces_per_file,), data=dataset,
                                  chunks=True, dtype=str_type)
@@ -269,7 +269,7 @@ class OfflineDatasetFile(Dataset):
         return int(self._length)
 
     def __getitem__(self, idx):
-        trace_attr_list, trace_hash = json.loads(self.f[idx])
+        trace_attr_list, trace_hash = ujson.loads(self.f[idx])
 
         trace_list = []
 
