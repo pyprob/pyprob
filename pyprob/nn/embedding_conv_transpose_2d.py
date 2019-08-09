@@ -28,7 +28,7 @@ class ConvTranspose2d(nn.Module):
             w = int(np.ceil(h/ratio))
         else:
             w = 10
-            h = int(np.ceil(h/ratio))
+            h = int(np.ceil(w/ratio))
 
         self.linear = nn.Linear(linear_dim, out_channel*w*h)
         self._start_w = w
