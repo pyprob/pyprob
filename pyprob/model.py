@@ -10,6 +10,7 @@ from .distributions import Empirical
 from . import util, state, TraceMode, PriorInflation, InferenceEngine, \
     InferenceNetwork, Optimizer, LearningRateScheduler, AddressDictionary
 from .nn import InferenceNetwork as InferenceNetworkBase
+from .nn import SurrogateNetworkLSTM as SurrogateNetworkBase
 from .nn import OnlineDataset, OfflineDataset, InferenceNetworkFeedForward, \
     InferenceNetworkLSTM, SurrogateNetworkLSTM
 from .remote import ModelServer
