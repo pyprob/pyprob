@@ -317,63 +317,64 @@ class SurrogateNetworkLSTM(InferenceNetwork):
         """
         # sample initial address
 
-        if not self._address_path:
-            address = self._layers_address_transitions["__init"](None).sample()
-        else:
-            address = self._address_path[0]
-        prev_variable = None
-        time_step = 1
-        while address != "__end":
-            surrogate_dist = self._layers_surrogate_distributions[address]
-            current_variable = Variable(distribution=surrogate_dist.dist_type,
-                                        address=address,
-                                        value=None)
-            _, lstm_output = self.run_lstm_step(current_variable, prev_variable)
-            address_dist = self._layers_address_transitions[address]
-            lstm_output = lstm_output.squeeze(0) # remove sequence dim
-            dist = surrogate_dist(lstm_output, no_batch=True)
-
-            value = state.sample(distribution=dist,
-                                 address=self._address_base[address],
-                                 name=self._address_to_name[address],
-                                 control=self._control_addresses[address])
-
-            if address in self._tagged_addresses:
-                state.tag(value, address=self._address_base[address])
-
-            sample_embedding = self._layers_sample_embedding[address](value.unsqueeze(0)) # add batch again!
-
-            prev_variable = Variable(distribution=surrogate_dist.dist_type,
-                                     address=address, value=value)
-
-            # squeeze sequence dim
-            address_transition_input = torch.cat([lstm_output, sample_embedding], dim=1)
-            a_dist = address_dist(address_transition_input)
+        with torch.no_grad(): # DO NOT ADD THIS NETWORKS PARAMETERS TO GRADIENT COMPUTATION GRAPH
             if not self._address_path:
-                address = a_dist.sample()
+                address = self._layers_address_transitions["__init"](None).sample()
             else:
-                address = self._address_path[time_step]
+                address = self._address_path[0]
+            prev_variable = None
+            time_step = 1
+            while address != "__end":
+                surrogate_dist = self._layers_surrogate_distributions[address]
+                current_variable = Variable(distribution=surrogate_dist.dist_type,
+                                            address=address,
+                                            value=None)
+                _, lstm_output = self.run_lstm_step(current_variable, prev_variable)
+                address_dist = self._layers_address_transitions[address]
+                lstm_output = lstm_output.squeeze(0) # remove sequence dim
+                dist = surrogate_dist(lstm_output, no_batch=True)
 
-            time_step += 1
+                value = state.sample(distribution=dist,
+                                    address=self._address_base[address],
+                                    name=self._address_to_name[address],
+                                    control=self._control_addresses[address])
 
-            if address == "__unknown":
-                print("Warning: sampled unknown address")
-                # if an address is unknown default to the simulator
-                # by resetting the _current_trace
-                state._current_trace = Trace()
-                self._original_forward(*args, **kwargs)
-                break
+                if address in self._tagged_addresses:
+                    state.tag(value, address=self._address_base[address])
 
-        # TODO a better data structure than a set?
-        # Is this even necessary assuming we trust the model?
-        # Combinatorical issues...
-        #trace_hash = self._trace_hashing(state._current_trace)
-        #if trace_hash not in self._trace_hashes:
-            # if a trace was not seen during training default to simulator
-        #    state._current_trace = Trace()
-        #    self._original_forward(*args, **kwargs)
+                sample_embedding = self._layers_sample_embedding[address](value.unsqueeze(0)) # add batch again!
 
-        return None
+                prev_variable = Variable(distribution=surrogate_dist.dist_type,
+                                        address=address, value=value)
+
+                # squeeze sequence dim
+                address_transition_input = torch.cat([lstm_output, sample_embedding], dim=1)
+                a_dist = address_dist(address_transition_input)
+                if not self._address_path:
+                    address = a_dist.sample()
+                else:
+                    address = self._address_path[time_step]
+
+                time_step += 1
+
+                if address == "__unknown":
+                    print("Warning: sampled unknown address")
+                    # if an address is unknown default to the simulator
+                    # by resetting the _current_trace
+                    state._current_trace = Trace()
+                    self._original_forward(*args, **kwargs)
+                    break
+
+            # TODO a better data structure than a set?
+            # Is this even necessary assuming we trust the model?
+            # Combinatorical issues...
+            #trace_hash = self._trace_hashing(state._current_trace)
+            #if trace_hash not in self._trace_hashes:
+                # if a trace was not seen during training default to simulator
+            #    state._current_trace = Trace()
+            #    self._original_forward(*args, **kwargs)
+
+            return None
 
     def _save(self, file_name):
         self._modified = util.get_time_str()
