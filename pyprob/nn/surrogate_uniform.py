@@ -34,7 +34,7 @@ class SurrogateUniform(nn.Module):
 
     def forward(self, x):
         batch_size = x.size(0)
-        expand_size = torch.Size([batch_size, 1, 1])
+        expand_size = torch.Size([batch_size,1])
         # x = self._ff(x)
         # self.low = x[:, :self._output_dim].view(self._output_shape)
         # self.high = torch.exp(x[:, self._output_dim:]).view(self._output_shape)

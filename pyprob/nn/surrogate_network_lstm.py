@@ -336,7 +336,8 @@ class SurrogateNetworkLSTM(InferenceNetwork):
             value = state.sample(distribution=dist,
                                  address=self._address_base[address],
                                  name=self._address_to_name[address],
-                                 control=self._control_addresses[address])
+                                 control=self._control_addresses[address]) # squeeze batch dim!
+            print(value.shape, address)
 
             if address in self._tagged_addresses:
                 state.tag(value, address=self._address_base[address])

@@ -19,13 +19,14 @@ class SurrogateCategorical(nn.Module):
                                         activation_last=None,
                                         hidden_dim=hidden_dim)
         self._total_train_iterations = 0
+        self.num_categories = num_categories
 
         self.dist_type = Categorical(probs=torch.Tensor([1]))
 
     def forward(self, x):
         batch_size = x.size(0)
         x = self._ff(x)
-        self.probs = torch.softmax(x, dim=1).view(batch_size, -1) + util._epsilon
+        self.probs = torch.softmax(x, dim=1).view(batch_size, self.num_categories) + util._epsilon
 
         return Categorical(self.probs)
 

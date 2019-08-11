@@ -24,10 +24,10 @@ class SurrogateNormal(nn.Module):
 
         # check if either loc or scale are constant
         if 'loc' in constants:
-            self._loc = constants['loc'].to(device=util._device)
+            self._loc_const = constants['loc'].to(device=util._device)
             self.constant_loc = True
         if 'scale' in constants:
-            self._scale = constants['scale'].to(device=util._device)
+            self._scale_const = constants['scale'].to(device=util._device)
             self.constant_scale = True
 
         if self.constant_scale and self.constant_loc:
@@ -70,7 +70,6 @@ class SurrogateNormal(nn.Module):
 
     def forward(self, x):
         batch_size = x.size(0)
-        expand_size = torch.Size([batch_size, 1, 1])
         if self.do_train:
             if self.em_type == 'ff':
                 x = self._em(x)
@@ -78,29 +77,29 @@ class SurrogateNormal(nn.Module):
                 if not self.constant_loc:
                     self._loc = x[:, :self._loc_output_dim].view(batch_size, *self._loc_shape)
                 else:
-                    self._loc = self._loc.expand(expand_size)
+                    self._loc = self._loc_const.expand(batch_size, *self._scale_shape)
 
                 if not self.constant_scale:
                     self._scale = torch.exp(x[:, self._loc_output_dim:]).view(batch_size, *self._scale_shape)
                 else:
-                    self._scale = self._scale.expand(expand_size)
+                    self._scale= self._scale_const.expand(batch_size, *self._loc_shape)
             elif self.em_type == 'deconv':
                 x = self._lin_embed(x)
                 loc_embeds = x[:, :self._input_dim].view(batch_size, self._input_dim)
                 if not self.constant_loc:
                     self._loc = self._em(loc_embeds).view(batch_size, *self._loc_shape)
                 else:
-                    self._loc = self._loc.expand(expand_size)
+                    self._loc= self._loc_const.expand(batch_size, *self._scale_shape)
 
                 if not self.constant_scale:
                     self._scale = torch.exp(x[:, self._input_dim:]).view(batch_size, *self._scale_shape)
                 else:
-                    self._scale = self._scale.expand(expand_size)
+                    self._scale = self._scale_const.expand(batch_size, *self._loc_shape)
 
             return Normal(self._loc, self._scale)
         else:
-            return Normal(self._loc.expand(expand_size),
-                          self._scale.expand(expand_size))
+            return Normal(self._loc_const.expand(batch_size, *self._scale_shape),
+                          self._scale_const.expand(batch_size, *self._loc_shape))
 
     def _loss(self, p_normal):
         if self.do_train:
