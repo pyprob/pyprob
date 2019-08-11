@@ -68,7 +68,7 @@ class SurrogateNormal(nn.Module):
 
         self.dist_type = Normal(loc=torch.zeros(loc_shape), scale=torch.ones(scale_shape))
 
-    def forward(self, x):
+    def forward(self, x, no_batch=False):
         batch_size = x.size(0)
         if self.do_train:
             if self.em_type == 'ff':
@@ -77,29 +77,36 @@ class SurrogateNormal(nn.Module):
                 if not self.constant_loc:
                     self._loc = x[:, :self._loc_output_dim].view(batch_size, *self._loc_shape)
                 else:
-                    self._loc = self._loc_const.expand(batch_size, *self._scale_shape)
+                    self._loc = self._loc_const.expand(batch_size, 1)
 
                 if not self.constant_scale:
                     self._scale = torch.exp(x[:, self._loc_output_dim:]).view(batch_size, *self._scale_shape)
                 else:
-                    self._scale= self._scale_const.expand(batch_size, *self._loc_shape)
+                    self._scale= self._scale_const.expand(batch_size, 1)
             elif self.em_type == 'deconv':
                 x = self._lin_embed(x)
                 loc_embeds = x[:, :self._input_dim].view(batch_size, self._input_dim)
                 if not self.constant_loc:
                     self._loc = self._em(loc_embeds).view(batch_size, *self._loc_shape)
                 else:
-                    self._loc= self._loc_const.expand(batch_size, *self._scale_shape)
+                    self._loc= self._loc_const.expand(batch_size, 1)
 
                 if not self.constant_scale:
                     self._scale = torch.exp(x[:, self._input_dim:]).view(batch_size, *self._scale_shape)
                 else:
-                    self._scale = self._scale_const.expand(batch_size, *self._loc_shape)
+                    self._scale = self._scale_const.expand(batch_size, 1)
 
+            if no_batch:
+                self._loc = self._loc.squeeze(0)
+                self._scale = self._scale.squeeze(0)
             return Normal(self._loc, self._scale)
         else:
-            return Normal(self._loc_const.expand(batch_size, *self._scale_shape),
-                          self._scale_const.expand(batch_size, *self._loc_shape))
+            if no_batch:
+                return Normal(self._loc_const.expand(*self._scale_shape),
+                              self._scale_const.expand(*self._loc_shape))
+            else:
+                return Normal(self._loc_const.expand(batch_size, *self._scale_shape),
+                              self._scale_const.expand(batch_size, *self._loc_shape))
 
     def _loss(self, p_normal):
         if self.do_train:

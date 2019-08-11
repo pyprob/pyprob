@@ -218,26 +218,24 @@ class OnlineDataset(Dataset):
 
         We further decode the json string into bytes (which has to be decoded once we load the data again)
 
-        If to_list==True, squeeze the batch_dim
-
         """
         var_dict = {}
         for attr in VARIABLE_ATTRIBUTES:
             if attr == 'value':
                 v = getattr(variable, attr)
-                var_dict[attr] = v.squeeze(0).tolist() if to_list else v
+                var_dict[attr] = v.tolist() if to_list else v
             elif attr in ['distribution_name']:
                 # extract the input arguments for initializing the distribution
                 var_dict[attr] = variable.distribution_name
             elif attr in ['distribution_args']:
                 tmp = {}
                 for k, v in variable.distribution_args.items():
-                    tmp[k] = v.squeeze(0).tolist() if to_list else v
+                    tmp[k] = v.tolist() if to_list else v
                 var_dict[attr] = tmp
             elif attr in ['constants']:
                 tmp = {}
                 for k, value in variable.constants.items():
-                    tmp[k] = value.squeeze(0).tolist() if to_list else value
+                    tmp[k] = value.tolist() if to_list else value
                 var_dict[attr] = tmp
             elif attr in ['log_prob']:
                 v = getattr(variable, attr)

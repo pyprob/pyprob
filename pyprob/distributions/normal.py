@@ -10,6 +10,11 @@ class Normal(Distribution):
         self.loc = util.to_tensor(loc)
         self.scale = util.to_tensor(scale)
 
+        if self.loc.dim() == 0:
+            self.loc = self.loc.unsqueeze(0)
+        if self.scale.dim() == 0:
+            self.scale = self.scale.unsqueeze(0)
+
         self.loc_shape = self.loc.shape
         self.scale_shape = self.scale.shape
 

@@ -108,17 +108,14 @@ def set_verbosity(v=2):
 def to_tensor(value, dtype=_dtype):
     if not torch.is_tensor(value):
         if type(value) == np.int64:
-            value = torch.Tensor([float(value)])
+            value = torch.tensor(float(value))
         elif type(value) == np.float32:
-            value = torch.Tensor([float(value)])
+            value = torch.tensor(float(value))
         elif type(value) == list:
-            value = torch.Tensor(value)
+            value = torch.tensor(value)
         else:
-            value = torch.Tensor([value])
+            value = torch.tensor(value)
 
-    # ensure any scalars is converted to at least dim=1
-    if value.dim() == 0:
-        value = value.unsqueeze(0)
     return value.to(dtype=dtype)
 
 def to_numpy(value):

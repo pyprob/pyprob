@@ -10,14 +10,10 @@ class Categorical(Distribution):
         if probs is not None:
             self.use_probs = True
             probs = util.to_tensor(probs)
-            if probs.dim() == 1:
-                probs = probs.unsqueeze(0)
             if probs.dim() == 0:
                 raise ValueError('probs cannot be a scalar.')
         elif logits is not None:
             logits = util.to_tensor(logits)
-            if logits.dim() == 1:
-                logits = logits.unsqueeze(0)
             if logits.dim() == 0:
                 raise ValueError('logits cannot be a scalar.')
 

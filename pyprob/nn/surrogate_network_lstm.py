@@ -330,21 +330,23 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                                         value=None)
             _, lstm_output = self.run_lstm_step(current_variable, prev_variable)
             address_dist = self._layers_address_transitions[address]
-            lstm_output = lstm_output.squeeze(0) # squeeze the sequence dimension
-            dist = surrogate_dist(lstm_output)
+            lstm_output = lstm_output.squeeze(0) # remove sequence dim
+            dist = surrogate_dist(lstm_output, no_batch=True)
 
             value = state.sample(distribution=dist,
                                  address=self._address_base[address],
                                  name=self._address_to_name[address],
-                                 control=self._control_addresses[address]) # squeeze batch dim!
-            print(value.shape, address)
+                                 control=self._control_addresses[address])
 
             if address in self._tagged_addresses:
                 state.tag(value, address=self._address_base[address])
+
+            sample_embedding = self._layers_sample_embedding[address](value.unsqueeze(0)) # add batch again!
+
             prev_variable = Variable(distribution=surrogate_dist.dist_type,
                                      address=address, value=value)
 
-            sample_embedding = self._layers_sample_embedding[address](value)
+            # squeeze sequence dim
             address_transition_input = torch.cat([lstm_output, sample_embedding], dim=1)
             a_dist = address_dist(address_transition_input)
             if not self._address_path:

@@ -12,7 +12,8 @@ class Uniform(Distribution):
                          torch_dist=torch.distributions.Uniform(self._low, self._high))
 
     def get_input_parameters(self):
-        return {'low': self._low, 'high': self._high}
+        constants = {'low': self._low, 'high': self._high}
+        return constants
 
     def __repr__(self):
         return 'Uniform(low: {}, high: {})'.format(self._low, self._high)
