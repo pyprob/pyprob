@@ -17,6 +17,8 @@ class ConvTranspose2d(nn.Module):
                                 - np.log(linear_dim))/np.log(rate)))
         assert n_deconv > 0
 
+        print(H,W, n_deconv)
+
         n_deconv = int(n_deconv)
 
         out_channel = max(int(linear_dim*rate),1)
@@ -48,6 +50,7 @@ class ConvTranspose2d(nn.Module):
             h = h*2 if 2*h < H else H
             w = w*2 if 2*w < W else W
             in_channel = out_channel
+            print(h,w)
 
         out_channel = int(in_channel*rate)
         modules.append(('upsample'+str(n+1), nn.Upsample(size=(H+4, W+4), mode='nearest')))
