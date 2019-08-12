@@ -171,11 +171,11 @@ class SurrogateNetworkLSTM(InferenceNetwork):
         success = True
         if prev_variable is None:
             # First time step
-            prev_sample_embedding = torch.zeros(1, self._sample_embedding_dim).to(device=util._device)
-            prev_address_embedding = torch.zeros(self._address_embedding_dim).to(device=util._device)
-            prev_distribution_type_embedding = torch.zeros(self._distribution_type_embedding_dim).to(device=util._device)
-            h0 = torch.zeros(self._lstm_depth, 1, self._lstm_dim).to(device=util._device)
-            c0 = torch.zeros(self._lstm_depth, 1, self._lstm_dim).to(device=util._device)
+            prev_sample_embedding = torch.zeros(1, self._sample_embedding_dim).to(device=self._device)
+            prev_address_embedding = torch.zeros(self._address_embedding_dim).to(device=self._device)
+            prev_distribution_type_embedding = torch.zeros(self._distribution_type_embedding_dim).to(device=self._device)
+            h0 = torch.zeros(self._lstm_depth, 1, self._lstm_dim).to(device=self._device)
+            c0 = torch.zeros(self._lstm_depth, 1, self._lstm_dim).to(device=self._device)
             self._lstm_state = (h0, c0)
         else:
             prev_address = prev_variable.address
