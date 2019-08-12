@@ -180,7 +180,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
         else:
             prev_address = prev_variable.address
             prev_distribution = prev_variable.distribution
-            prev_value = prev_variable.value.to(device=util._device)
+            prev_value = prev_variable.value.to(device=self._device)
             if prev_value.dim() == 0:
                 prev_value = prev_value.unsqueeze(0)
             if prev_address in self._layers_address_embedding:
