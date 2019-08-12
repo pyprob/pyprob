@@ -118,16 +118,17 @@ class Model():
         else:
             self.forward = self._original_forward
 
-        prior = self._traces(num_traces=num_traces, trace_mode=TraceMode.PRIOR,
-                             prior_inflation=prior_inflation, map_func=map_func,
-                             file_name=file_name,
-                             likelihood_importance=likelihood_importance, *args, **kwargs)
+        with torch.no_grad():
+            prior = self._traces(num_traces=num_traces, trace_mode=TraceMode.PRIOR,
+                                prior_inflation=prior_inflation, map_func=map_func,
+                                file_name=file_name,
+                                likelihood_importance=likelihood_importance, *args, **kwargs)
 
-        prior.rename('Prior, traces: {:,}'.format(prior.length))
+            prior.rename('Prior, traces: {:,}'.format(prior.length))
 
-        prior.add_metadata(op='prior', num_traces=num_traces,
-                           prior_inflation=str(prior_inflation),
-                           likelihood_importance=likelihood_importance)
+            prior.add_metadata(op='prior', num_traces=num_traces,
+                            prior_inflation=str(prior_inflation),
+                            likelihood_importance=likelihood_importance)
         return prior
 
     def posterior_traces(self, num_traces=10,
@@ -143,121 +144,122 @@ class Model():
         else:
             self.forward = self._original_forward
 
-        if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
-            posterior = self._traces(num_traces=num_traces,
-                                     trace_mode=TraceMode.POSTERIOR,
-                                     inference_engine=inference_engine,
-                                     inference_network=None, map_func=map_func,
-                                     observe=observe, file_name=file_name,
-                                     likelihood_importance=likelihood_importance,
-                                     *args, **kwargs)
-
-            posterior.rename('Posterior, IS, traces: {:,}, ESS: {:,.2f}'.format(posterior.length, posterior.effective_sample_size))
-
-            posterior.add_metadata(op='posterior', num_traces=num_traces,
-                                   inference_engine=str(inference_engine),
-                                   effective_sample_size=posterior.effective_sample_size,
-                                   likelihood_importance=likelihood_importance)
-
-        elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-            if self._inference_network is None:
-                raise RuntimeError('Cannot run inference engine IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK because no inference network for this model is available. Use learn_inference_network or load_inference_network first.')
-
-            with torch.no_grad():
+        with torch.no_grad():
+            if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
                 posterior = self._traces(num_traces=num_traces,
-                                         trace_mode=TraceMode.POSTERIOR,
-                                         inference_engine=inference_engine,
-                                         inference_network=self._inference_network,
-                                         map_func=map_func,
-                                         observe=observe, file_name=file_name,
-                                         likelihood_importance=likelihood_importance,
-                                         *args, **kwargs)
+                                        trace_mode=TraceMode.POSTERIOR,
+                                        inference_engine=inference_engine,
+                                        inference_network=None, map_func=map_func,
+                                        observe=observe, file_name=file_name,
+                                        likelihood_importance=likelihood_importance,
+                                        *args, **kwargs)
 
-            posterior.rename('Posterior, IC, traces: {:,}, train. traces: {:,}, ESS: {:,.2f}'.format(posterior.length, self._inference_network._total_train_traces, posterior.effective_sample_size))
-            posterior.add_metadata(op='posterior', num_traces=num_traces,
-                                   inference_engine=str(inference_engine),
-                                   effective_sample_size=posterior.effective_sample_size,
-                                   likelihood_importance=likelihood_importance,
-                                   train_traces=self._inference_network._total_train_traces)
-        else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
+                posterior.rename('Posterior, IS, traces: {:,}, ESS: {:,.2f}'.format(posterior.length, posterior.effective_sample_size))
 
-            posterior = Empirical(file_name=file_name)
-            if map_func is None:
-                map_func = lambda trace: trace
-            if initial_trace is None:
-                current_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, observe=observe, *args, **kwargs))
-            else:
-                current_trace = initial_trace
+                posterior.add_metadata(op='posterior', num_traces=num_traces,
+                                    inference_engine=str(inference_engine),
+                                    effective_sample_size=posterior.effective_sample_size,
+                                    likelihood_importance=likelihood_importance)
 
-            time_start = time.time()
-            traces_accepted = 0
-            samples_reused = 0
-            samples_all = 0
-            if thinning_steps is None:
-                thinning_steps = 1
+            elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+                if self._inference_network is None:
+                    raise RuntimeError('Cannot run inference engine IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK because no inference network for this model is available. Use learn_inference_network or load_inference_network first.')
 
-            if util._verbosity > 1:
-                len_str_num_traces = len(str(num_traces))
-                print('Time spent  | Time remain.| Progress             | {} | Accepted|Smp reuse| Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
-                prev_duration = 0
+                with torch.no_grad():
+                    posterior = self._traces(num_traces=num_traces,
+                                            trace_mode=TraceMode.POSTERIOR,
+                                            inference_engine=inference_engine,
+                                            inference_network=self._inference_network,
+                                            map_func=map_func,
+                                            observe=observe, file_name=file_name,
+                                            likelihood_importance=likelihood_importance,
+                                            *args, **kwargs)
 
-            for i in range(num_traces):
-                if util._verbosity > 1:
-                    duration = time.time() - time_start
-                    if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
-                        prev_duration = duration
-                        traces_per_second = (i + 1) / duration
-                        print('{} | {} | {} | {}/{} | {} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:,.2f}%'.format(100 * (traces_accepted / (i + 1))).rjust(7), '{:,.2f}%'.format(100 * samples_reused / max(1, samples_all)).rjust(7), traces_per_second), end='\r')
+                posterior.rename('Posterior, IC, traces: {:,}, train. traces: {:,}, ESS: {:,.2f}'.format(posterior.length, self._inference_network._total_train_traces, posterior.effective_sample_size))
+                posterior.add_metadata(op='posterior', num_traces=num_traces,
+                                    inference_engine=str(inference_engine),
+                                    effective_sample_size=posterior.effective_sample_size,
+                                    likelihood_importance=likelihood_importance,
+                                    train_traces=self._inference_network._total_train_traces)
+            else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
 
-                        sys.stdout.flush()
-
-                candidate_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR,
-                                           inference_engine=inference_engine,
-                                           metropolis_hastings_trace=current_trace,
-                                           observe=observe,
-                                           *args, **kwargs))
-
-                current_controlled_len = len([v for v in current_trace.variables if v.control])
-                candidate_controlled = [v for v in candidate_trace.variables if v.control]
-
-                log_acceptance_ratio = (math.log(current_controlled_len)
-                                        - math.log(len(candidate_controlled))
-                                        + candidate_trace.log_prob_observed
-                                        - current_trace.log_prob_observed)
-
-                for variable in candidate_controlled:
-                    if variable.reused:
-                        log_acceptance_ratio += torch.sum(variable.log_prob)
-                        log_acceptance_ratio -= torch.sum(current_trace.variables_dict_address[variable.address].log_prob)
-                        samples_reused += 1
-
-                samples_all += len(candidate_controlled)
-
-                if state._metropolis_hastings_site_transition_log_prob is None:
-                    print(colored('Warning: trace did not hit the Metropolis Hastings site, ensure that the model is deterministic except pyprob.sample calls', 'red', attrs=['bold']))
+                posterior = Empirical(file_name=file_name)
+                if map_func is None:
+                    map_func = lambda trace: trace
+                if initial_trace is None:
+                    current_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, observe=observe, *args, **kwargs))
                 else:
-                    log_acceptance_ratio += torch.sum(state._metropolis_hastings_site_transition_log_prob)
+                    current_trace = initial_trace
 
-                # print(log_acceptance_ratio)
-                if math.log(random.random()) < float(log_acceptance_ratio):
-                    traces_accepted += 1
-                    current_trace = candidate_trace
-                # do thinning
-                if i % thinning_steps == 0:
-                    posterior.add(map_func(current_trace))
+                time_start = time.time()
+                traces_accepted = 0
+                samples_reused = 0
+                samples_all = 0
+                if thinning_steps is None:
+                    thinning_steps = 1
 
-            if util._verbosity > 1:
-                print()
+                if util._verbosity > 1:
+                    len_str_num_traces = len(str(num_traces))
+                    print('Time spent  | Time remain.| Progress             | {} | Accepted|Smp reuse| Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
+                    prev_duration = 0
 
-            posterior.finalize()
-            posterior.rename('Posterior, {}, traces: {:,}{}, accepted: {:,.2f}%, sample reuse: {:,.2f}%'.format('LMH' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'RMH', posterior.length, '' if thinning_steps == 1 else ' (thinning steps: {:,})'.format(thinning_steps), 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all))
-            posterior.add_metadata(op='posterior', num_traces=num_traces,
-                                   inference_engine=str(inference_engine),
-                                   likelihood_importance=likelihood_importance,
-                                   thinning_steps=thinning_steps,
-                                   num_traces_accepted=traces_accepted,
-                                   num_samples_reuised=samples_reused,
-                                   num_samples=samples_all)
+                for i in range(num_traces):
+                    if util._verbosity > 1:
+                        duration = time.time() - time_start
+                        if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
+                            prev_duration = duration
+                            traces_per_second = (i + 1) / duration
+                            print('{} | {} | {} | {}/{} | {} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:,.2f}%'.format(100 * (traces_accepted / (i + 1))).rjust(7), '{:,.2f}%'.format(100 * samples_reused / max(1, samples_all)).rjust(7), traces_per_second), end='\r')
+
+                            sys.stdout.flush()
+
+                    candidate_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR,
+                                            inference_engine=inference_engine,
+                                            metropolis_hastings_trace=current_trace,
+                                            observe=observe,
+                                            *args, **kwargs))
+
+                    current_controlled_len = len([v for v in current_trace.variables if v.control])
+                    candidate_controlled = [v for v in candidate_trace.variables if v.control]
+
+                    log_acceptance_ratio = (math.log(current_controlled_len)
+                                            - math.log(len(candidate_controlled))
+                                            + candidate_trace.log_prob_observed
+                                            - current_trace.log_prob_observed)
+
+                    for variable in candidate_controlled:
+                        if variable.reused:
+                            log_acceptance_ratio += torch.sum(variable.log_prob)
+                            log_acceptance_ratio -= torch.sum(current_trace.variables_dict_address[variable.address].log_prob)
+                            samples_reused += 1
+
+                    samples_all += len(candidate_controlled)
+
+                    if state._metropolis_hastings_site_transition_log_prob is None:
+                        print(colored('Warning: trace did not hit the Metropolis Hastings site, ensure that the model is deterministic except pyprob.sample calls', 'red', attrs=['bold']))
+                    else:
+                        log_acceptance_ratio += torch.sum(state._metropolis_hastings_site_transition_log_prob)
+
+                    # print(log_acceptance_ratio)
+                    if math.log(random.random()) < float(log_acceptance_ratio):
+                        traces_accepted += 1
+                        current_trace = candidate_trace
+                    # do thinning
+                    if i % thinning_steps == 0:
+                        posterior.add(map_func(current_trace))
+
+                if util._verbosity > 1:
+                    print()
+
+                posterior.finalize()
+                posterior.rename('Posterior, {}, traces: {:,}{}, accepted: {:,.2f}%, sample reuse: {:,.2f}%'.format('LMH' if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS else 'RMH', posterior.length, '' if thinning_steps == 1 else ' (thinning steps: {:,})'.format(thinning_steps), 100 * (traces_accepted / num_traces), 100 * samples_reused / samples_all))
+                posterior.add_metadata(op='posterior', num_traces=num_traces,
+                                    inference_engine=str(inference_engine),
+                                    likelihood_importance=likelihood_importance,
+                                    thinning_steps=thinning_steps,
+                                    num_traces_accepted=traces_accepted,
+                                    num_samples_reuised=samples_reused,
+                                    num_samples=samples_all)
         return posterior
 
     def reset_inference_network(self):
@@ -298,6 +300,8 @@ class Model():
 
         if surrogate and self._surrogate_forward:
             self._surrogate_network.eval()
+            # make surrogate run on CPU in order to train inference network with GPU
+            self._surrogate_network.to(device=torch.device('cpu'))
             self.forward = self._surrogate_forward
         elif surrogate and not self._surrogate_forward:
             raise RuntimeError('The model has no trained surrogate network.')
