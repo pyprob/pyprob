@@ -271,7 +271,7 @@ class OfflineDatasetFile(Dataset):
 
     def __getitem__(self, idx):
 
-        trace_attr_list, trace_hash = ujson.loads(self.f['traces'])
+        trace_attr_list, trace_hash = ujson.loads(self.f['traces'][idx])
 
         trace_list = []
 
