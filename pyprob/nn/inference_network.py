@@ -455,7 +455,6 @@ class InferenceNetwork(nn.Module):
                 dataloader_valid = DataLoader(dataset_valid,
                                               batch_sampler=TraceBatchSampler(dataset_valid,
                                                                               batch_size=batch_size, shuffle_batches=True),
-                                              num_workers=num_workers,
                                               collate_fn=lambda x: Batch(x))
             else:
                 dataloader_valid = DataLoader(dataset_valid,
@@ -463,7 +462,6 @@ class InferenceNetwork(nn.Module):
                                                                                          batch_size=batch_size,
                                                                                          num_buckets=distributed_num_buckets,
                                                                                          shuffle_batches=True, shuffle_buckets=True),
-                                              num_workers=num_workers,
                                               collate_fn=lambda x: Batch(x))
 
             if not self._layers_pre_generated:
