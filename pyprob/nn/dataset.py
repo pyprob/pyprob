@@ -23,6 +23,7 @@ from .utils import MyFile, construct_distribution as construct_dist
 from ..util import TraceMode, PriorInflation
 from ..concurrency import ConcurrentShelf
 from ..trace import Trace, Variable
+from ..state import _variables_observed_inf_training
 
 VARIABLE_ATTRIBUTES = ['value', 'address_base', 'address', 'instance', 'log_prob',
                        'log_importance_weight', 'control', 'name', 'observed',
@@ -130,8 +131,11 @@ class Batch():
     def __len__(self):
         return len(self.traces_lists)
 
+    # TODO!
     def to(self, device):
         """ Sends data onto the desired device
+
+        NOT DONE
 
         """
         for sub_batch in self.sub_batches:
@@ -253,21 +257,22 @@ class OfflineDatasetFile(Dataset):
     # specifies the number of file we have open at a time
     cache_size = 100
 
-    def __init__(self, file_name):
-        from ..state import _variables_observed_inf_training
+    def __init__(self, file_name, variables_observed_inf_training):
         self._variables_observed_inf_training = _variables_observed_inf_training
         self._file_name = file_name
         with h5py.File(str(file_name.resolve()), 'r') as f:
             self._length = f.attrs['num_traces']
             self.hashes = f.attrs['hashes']
 
-        self.f = h5py.File(MyFile(str(self._file_name.resolve())), 'r')['traces']
+        #self.f = h5py.File(MyFile(str(self._file_name.resolve())), 'r')['traces']
 
     def __len__(self):
         return int(self._length)
 
     def __getitem__(self, idx):
-        trace_attr_list, trace_hash = ujson.loads(self.f[idx])
+
+        with h5py.File(MyFile(str(self._file_name.resolve())), 'r') as f:
+            trace_attr_list, trace_hash = ujson.loads(f['traces'][idx])
 
         trace_list = []
 
@@ -317,13 +322,13 @@ class OfflineDataset(ConcatDataset):
         if len(files) == 0:
             raise RuntimeError('Cannot find any data set files at {}'.format(dataset_dir))
         self.datasets = []
-        for file in files:
+        for file_name in files:
             try:
-                dataset = OfflineDatasetFile(file)
+                dataset = OfflineDatasetFile(file_name, _variables_observed_inf_training)
                 self.datasets.append(dataset)
             except Exception as e:
                 print(e)
-                print(colored('Warning: dataset file potentially corrupt, omitting: {}'.format(file), 'red', attrs=['bold']))
+                print(colored('Warning: dataset file potentially corrupt, omitting: {}'.format(file_name), 'red', attrs=['bold']))
         super().__init__(self.datasets)
         print('OfflineDataset at: {}'.format(dataset_dir))
         print('Num. traces      : {:,}'.format(len(self)))
