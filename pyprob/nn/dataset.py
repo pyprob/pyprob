@@ -258,22 +258,20 @@ class OfflineDatasetFile(Dataset):
     cache_size = 100
 
     def __init__(self, file_name, variables_observed_inf_training):
-        print("IN DATASET, WORKDI:", torch.utils.data.get_worker_info())
         self._variables_observed_inf_training = _variables_observed_inf_training
         self._file_name = file_name
         with h5py.File(MyFile(str(self._file_name.resolve())), 'r') as f:
             self._length = f.attrs['num_traces']
             self.hashes = f.attrs['hashes']
 
-        #self.f = h5py.File(MyFile(str(self._file_name.resolve())), 'r')['traces']
+        self.f = h5py.File(MyFile(str(self._file_name.resolve())), 'r')
 
     def __len__(self):
         return int(self._length)
 
     def __getitem__(self, idx):
 
-        with h5py.File(MyFile(str(self._file_name.resolve())), 'r') as f:
-            trace_attr_list, trace_hash = ujson.loads(f['traces'][idx])
+        trace_attr_list, trace_hash = ujson.loads(self.f['traces'])
 
         trace_list = []
 
@@ -317,7 +315,6 @@ class OfflineDatasetFile(Dataset):
 
 class OfflineDataset(ConcatDataset):
     def __init__(self, dataset_dir):
-        print("IN CONCAT, WORKDI:", torch.utils.data.get_worker_info())
         p = Path(dataset_dir)
         assert(p.is_dir())
         files = sorted(p.glob('pyprob_traces*.hdf5'))
