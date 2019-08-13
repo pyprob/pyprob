@@ -31,7 +31,6 @@ class MyFile:
         self.pos += len(b)
         return b
 
-
 def construct_distribution(name, dist_args):
 
     if name == 'Normal':

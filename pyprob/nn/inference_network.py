@@ -298,7 +298,6 @@ class InferenceNetwork(nn.Module):
 
         self._layers_pre_generated = True
         dataloader = iter(DataLoader(dataset, batch_size=batch_size, shuffle=False,
-                                     num_workers=0,
                                      collate_fn=lambda x: Batch(x)))
         util.progress_bar_init('Layer pre-generation...', len(dataset), 'Traces')
         i = 0

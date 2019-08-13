@@ -311,12 +311,12 @@ class Model():
         if dataset_dir is None:
             dataset = OnlineDataset(model=self, prior_inflation=prior_inflation)
         else:
-            dataset = OfflineDataset(dataset_dir=dataset_dir)
+            dataset = OfflineDataset(dataset_dir, state._variables_observed_inf_training)
 
         if dataset_valid_dir is None:
             dataset_valid = None
         else:
-            dataset_valid = OfflineDataset(dataset_dir=dataset_valid_dir)
+            dataset_valid = OfflineDataset(dataset_valid_dir, state._variables_observed_inf_training)
 
         if self._inference_network is None:
             print('Creating new inference network...')
@@ -397,12 +397,12 @@ class Model():
         if dataset_dir is None:
             dataset = OnlineDataset(model=self, prior_inflation=prior_inflation)
         else:
-            dataset = OfflineDataset(dataset_dir=dataset_dir)
+            dataset = OfflineDataset(dataset_dir)
 
         if dataset_valid_dir is None:
             dataset_valid = None
         else:
-            dataset_valid = OfflineDataset(dataset_dir=dataset_valid_dir)
+            dataset_valid = OfflineDataset(dataset_valid_dir)
 
         if self._surrogate_network is  None:
             print('Creating new surrogate network...')
