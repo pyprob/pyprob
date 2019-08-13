@@ -258,6 +258,7 @@ class OfflineDatasetFile(Dataset):
     cache_size = 100
 
     def __init__(self, file_name, variables_observed_inf_training):
+        print("IN DATASET, WORKDI:", torch.utils.data.get_worker_info())
         self._variables_observed_inf_training = _variables_observed_inf_training
         self._file_name = file_name
         with h5py.File(MyFile(str(self._file_name.resolve())), 'r') as f:
@@ -316,6 +317,7 @@ class OfflineDatasetFile(Dataset):
 
 class OfflineDataset(ConcatDataset):
     def __init__(self, dataset_dir):
+        print("IN CONCAT, WORKDI:", torch.utils.data.get_worker_info())
         p = Path(dataset_dir)
         assert(p.is_dir())
         files = sorted(p.glob('pyprob_traces*.hdf5'))
