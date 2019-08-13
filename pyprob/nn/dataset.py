@@ -264,15 +264,14 @@ class OfflineDatasetFile(Dataset):
             self._length = f.attrs['num_traces']
             self.hashes = f.attrs['hashes']
 
-        #self.f = h5py.File(MyFile(str(self._file_name.resolve())), 'r')['traces']
+        self.f = h5py.File(MyFile(str(self._file_name.resolve())), 'r')['traces']
 
     def __len__(self):
         return int(self._length)
 
     def __getitem__(self, idx):
 
-        with h5py.File(MyFile(str(self._file_name.resolve())), 'r') as f:
-            trace_attr_list, trace_hash = ujson.loads(f['traces'][idx])
+        trace_attr_list, trace_hash = ujson.loads(self.f[idx])
 
         trace_list = []
 
