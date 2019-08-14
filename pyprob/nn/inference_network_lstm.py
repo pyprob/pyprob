@@ -215,7 +215,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 current_address = meta_data['addresses'][time_step]
                 current_distribution_name = meta_data['distribution_names'][time_step]
                 current_controlled = meta_data['controls'][time_step]
-                print(current_controlled, address, meta_data['names'][time_step])
+                print(current_controlled, current_address, meta_data['names'][time_step])
                 current_name = meta_data['names'][time_step]
 
                 if current_address not in self._layers_address_embedding:
