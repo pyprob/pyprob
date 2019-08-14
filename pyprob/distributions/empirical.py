@@ -25,7 +25,10 @@ class EmpiricalType(enum.Enum):
 
 
 class Empirical(Distribution):
-    def __init__(self, values=None, log_weights=None, weights=None, file_name=None, file_read_only=False, file_sync_timeout=25, file_writeback=False, concat_empiricals=None, concat_empirical_file_names=None, name='Empirical'):
+    def __init__(self, values=None, log_weights=None, weights=None,
+                 file_name=None, file_read_only=False, file_sync_timeout=25,
+                 file_writeback=False, concat_empiricals=None,
+                 concat_empirical_file_names=None, name='Empirical'):
         super().__init__(name)
         self._finalized = False
         self._read_only = file_read_only
@@ -65,9 +68,7 @@ class Empirical(Distribution):
             self._length = self._concat_cum_sizes[-1]
             self._log_weights = torch.cat([util.to_tensor(emp._log_weights)
                                            for emp in self._concat_empiricals])
-            if self._log_weights.dim() == 1:
-                # add batch dimension (should alwaus be dim=2 for categorical)
-                self._log_weights = self._log_weights.unsqueeze(0)
+
             self._categorical = torch.distributions.Categorical(logits=self._log_weights)
             weights = self._categorical.probs
             self._effective_sample_size = 1. / weights.pow(2).sum()
@@ -110,9 +111,7 @@ class Empirical(Distribution):
                     self._length = self._concat_cum_sizes[-1]
                     self._log_weights = torch.cat([util.to_tensor(emp._log_weights)
                                                    for emp in self._concat_empiricals])
-                    logits = util.to_tensor(self._log_weights, dtype=torch.float)
-                    if logits.dim() ==1:
-                        logits = logits.unsqueeze(0)
+                    logits = util.to_tensor(self._log_weights, dtype=torch.float64)
                     self._categorical = torch.distributions.Categorical(logits=logits)
                     self.name = self._shelf['name']
                     if 'metadata' in self._shelf:
@@ -220,14 +219,10 @@ class Empirical(Distribution):
         self._length = len(self._log_weights)
         logits = util.to_tensor(self._log_weights, dtype=torch.float)
 
-        if logits.dim() == 1:
-            logits = logits.unsqueeze(0)
-
         self._categorical = torch.distributions.Categorical(logits=logits)
         self.add_metadata(op='finalize', length=self._length)
         if self._length > 0:
-            # accounts for the weights being batched 1 x *
-            self._uniform_weights = torch.eq(self._categorical.logits[0,:], self._categorical.logits[0,0]).all()
+            self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
         else:
             self._uniform_weights = False
         if self._type == EmpiricalType.FILE and not self._read_only:
@@ -278,15 +273,11 @@ class Empirical(Distribution):
         if log_weights is not None:
             for i in range(len(values)):
                 log_weights = util.to_tensor(log_weights)
-                if log_weights.dim() == 1:
-                    log_weights = log_weights.unsqueeze(0)
-                self.add(values[i], log_weight=log_weights[0,i])
+                self.add(values[i], log_weight=log_weights[i])
         elif weights is not None:
             weights = util.to_tensor(weights)
-            if weights.dim() == 1:
-                weights = weights.unsqueeze(0)
             for i in range(len(values)):
-                self.add(values[i], weight=weights[0,i])
+                self.add(values[i], weight=weights[i])
         else:
             for i in range(len(values)):
                 self.add(values[i])
@@ -312,10 +303,10 @@ class Empirical(Distribution):
             return self._concat_empiricals[emp_index]._get_value(index)
 
     def _get_log_weight(self, index):
-        return self._categorical.logits[0,index]
+        return self._categorical.logits[index]
 
     def _get_weight(self, index):
-        return self._categorical.probs[0,index]
+        return self._categorical.probs[index]
 
     def get_values(self):
         self._check_finalized()
@@ -366,13 +357,13 @@ class Empirical(Distribution):
                 ret = sum(map(func, self._values)) / self._length
             else:
                 for i in range(self._length):
-                    ret += util.to_tensor(func(self._values[i]), dtype=torch.float) * self._categorical.probs[0,i]
+                    ret += util.to_tensor(func(self._values[i]), dtype=torch.float) * self._categorical.probs[i]
         elif self._type == EmpiricalType.FILE:
             for i in range(self._length):
-                ret += util.to_tensor(func(self._shelf[str(i)]), dtype=torch.float) * self._categorical.probs[0,i]
+                ret += util.to_tensor(func(self._shelf[str(i)]), dtype=torch.float) * self._categorical.probs[i]
         else:  # CONCAT_MEMORY or CONCAT_FILE
             for i in range(self._length):
-                ret += util.to_tensor(func(self._get_value(i)), dtype=torch.float) * self._categorical.probs[0,i]
+                ret += util.to_tensor(func(self._get_value(i)), dtype=torch.float) * self._categorical.probs[i]
         return util.to_tensor(ret)
 
     def map(self, func, *args, **kwargs):
