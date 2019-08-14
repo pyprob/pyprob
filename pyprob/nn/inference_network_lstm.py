@@ -215,7 +215,6 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 current_address = meta_data['addresses'][time_step]
                 current_distribution_name = meta_data['distribution_names'][time_step]
                 current_controlled = meta_data['controls'][time_step]
-                print(current_controlled, current_address, meta_data['names'][time_step])
                 current_name = meta_data['names'][time_step]
 
                 if current_address not in self._layers_address_embedding:
@@ -274,6 +273,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
             for seq_number, time_step in enumerate(meta_data['latent_time_steps']):
                 current_address = meta_data['addresses'][time_step]
                 current_name = meta_data['names'][time_step]
+                current_controlled = meta_data['controls'][time_step]
 
                 proposal_input = lstm_output[seq_number]
                 values = torch_data[time_step]['values'].to(device=util._device)
@@ -294,6 +294,9 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     if util.has_nan_or_inf(log_prob):
                         print(colored('Nan or Inf present in proposal log_prob.', 'red', attrs=['bold']))
                         return False, 0
-                sub_batch_loss += -torch.sum(log_prob)
+                # We do not inflate the loss if we do not control the proposal
+                # Only add loss if controlled
+                if current_controlled:
+                    sub_batch_loss += -torch.sum(log_prob)
             batch_loss += sub_batch_loss
         return True, batch_loss / batch.size
