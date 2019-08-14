@@ -9,8 +9,8 @@ class ConvTranspose2d(nn.Module):
         super().__init__()
 
         self.linear_dim = linear_dim
-        rate = 0.4
-        final_channel_before_flatten = 3.0
+        rate = 0.5
+        final_channel_before_flatten = 5.0
         # reduce the number of channels by 50 % at each deconv until < 10 are left
         # assume linear_dim >> W, H
         n_deconv = int(np.ceil((np.log(final_channel_before_flatten) \
@@ -26,9 +26,13 @@ class ConvTranspose2d(nn.Module):
         if ratio > 1:
             h = 10
             w = int(np.ceil(h/ratio))
+            if w < 4:
+                w = 4
         else:
             w = 10
             h = int(np.ceil(w/ratio))
+            if h < 4:
+                h = 4
 
         self.linear = nn.Linear(linear_dim, out_channel*w*h)
         self._start_w = w
@@ -63,6 +67,13 @@ class ConvTranspose2d(nn.Module):
         x = self.linear(x).view(-1, self._start_channel, self._start_h, self._start_w)
         return self._deconv(x)
 
-    def visualize_deconv(self):
-        random_input = torch.randn(self.linar_dim).view(1,-1)
-        return self.forward(random_input).squeeze().numpy()
+    def visualize_deconv(self, aspect=1):
+        import matplotlib.pyplot as plt
+        fig = plt.figure(figsize=(10,5))
+
+        random_input = torch.randn(self.linear_dim).view(1,-1)
+        viz = self.forward(random_input).detach().squeeze().numpy()
+
+        m = plt.imshow(viz, aspect=aspect)
+        plt.colorbar(m)
+        plt.show()
