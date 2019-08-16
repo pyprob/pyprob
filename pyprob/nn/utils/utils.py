@@ -41,3 +41,20 @@ def construct_distribution(name, dist_args):
         return Categorical(**dist_args)
     else:
         raise NotImplementedError("Distribution not supported to save on disk")
+
+def update_sacred_run(sacred_run, loss, total_train_traces,
+                      total_train_seconds=None, valid=False):
+
+    if sacred_run is not None:
+        if not valid:
+            sacred_run.info['traces'] = total_train_traces
+            sacred_run.info['train_time'] = total_train_seconds
+            sacred_run.info['traces_per_sec'] = total_train_traces / total_train_seconds
+
+            # for omniboard plotting (metrics)
+            sacred_run.log_scalar('training.loss', loss,
+                                  total_train_traces)
+        else:
+            # for omniboard plotting (metrics)
+            sacred_run.log_scalar('validation.loss', loss,
+                                  total_train_traces)

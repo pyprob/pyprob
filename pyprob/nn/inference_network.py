@@ -21,6 +21,8 @@ from . import Batch, OfflineDataset, TraceBatchSampler, DistributedTraceBatchSam
 from .optimizer_larc import LARC
 from .. import __version__, util, Optimizer, LearningRateScheduler, ObserveEmbedding
 
+from .utils import update_sacred_run
+
 
 class InferenceNetwork(nn.Module):
     # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'reshape': [10, 10], 'dim': 32, 'depth': 2}}
@@ -600,13 +602,10 @@ class InferenceNetwork(nn.Module):
                     self._history_train_loss_trace.append(self._total_train_traces)
                     traces_per_second = batch.size * distributed_world_size / (time_batch - time_last_batch)
 
-                    if sacred_run is not None:
-                        sacred_run.info['traces'] = self._total_train_traces
-                        sacred_run.info['train_time'] = self._total_train_seconds
-                        sacred_run.info['traces_per_sec'] = sacred_run.info['traces'] / sacred_run.info['train_time']
-
-                        # for omniboard plotting (metrics)
-                        sacred_run.log_scalar('training.loss', loss, self._total_train_traces)
+                    # update sacred (if used)
+                    update_sacred_run(sacred_run, loss,
+                                      self._total_train_traces,
+                                      total_train_seconds=self._total_train_seconds)
 
                     if dataset_valid is not None:
                         if trace - last_validation_trace > valid_every:
@@ -622,10 +621,11 @@ class InferenceNetwork(nn.Module):
                             self._history_valid_loss.append(valid_loss)
                             self._history_valid_loss_trace.append(self._total_train_traces)
                             last_validation_trace = trace - 1
-                            if sacred_run is not None:
-                                # for omniboard plotting (metrics)
-                                sacred_run.log_scalar('validation.loss',
-                                                      valid_loss, self._total_train_traces)
+
+                            # update sacred (if used)
+                            update_sacred_run(sacred_run, valid_loss,
+                                              self._total_train_traces,
+                                              valid=True)
 
                     if (distributed_rank == 0) and (save_file_name_prefix is not None) and (save_every_sec is not None):
                         if time_batch - last_auto_save_time > save_every_sec:

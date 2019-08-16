@@ -468,7 +468,7 @@ class Model():
         self._surrogate_network._model = self
 
     def get_inference_network(self):
-        if self._surrogate_network:
+        if self._inference_network:
             return self._inference_network
         else:
             raise RuntimeError("The model has no trained inference network.")
