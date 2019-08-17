@@ -117,7 +117,14 @@ class InferenceNetwork(nn.Module):
                 else:
                     print('Observable {}: embedding depth not specified, using the default 2.'.format(name))
                     depth = 2
-                layer = EmbeddingFeedForward(input_shape=input_shape, output_shape=output_shape, num_layers=depth)
+                if 'hidden_dim' in value:
+                    hidden_dim = value['hidden_dim']
+                    print('Observable {}: using embedding hidden_dim {}.'.format(name, hidden_dim))
+                else:
+                    print('Observable {}: embedding hidden_dim not specified, using the default hidden_dim strategy')
+                    hidden_dim=None
+                layer = EmbeddingFeedForward(input_shape=input_shape,
+                                             output_shape=output_shape, hidden_dim=hidden_dim, num_layers=depth)
             elif embedding == ObserveEmbedding.CNN2D5C:
                 layer = EmbeddingCNN2D5C(input_shape=input_shape, output_shape=output_shape)
             elif embedding == ObserveEmbedding.CNN3D5C:
