@@ -121,7 +121,7 @@ class InferenceNetwork(nn.Module):
                     hidden_dim = value['hidden_dim']
                     print('Observable {}: using embedding hidden_dim {}.'.format(name, hidden_dim))
                 else:
-                    print('Observable {}: embedding hidden_dim not specified, using the default hidden_dim strategy')
+                    print('Observable {}: embedding hidden_dim not specified, using the default hidden_dim strategy'.format(name))
                     hidden_dim=None
                 layer = EmbeddingFeedForward(input_shape=input_shape,
                                              output_shape=output_shape, hidden_dim=hidden_dim, num_layers=depth)
