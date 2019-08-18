@@ -145,7 +145,11 @@ class Batch():
 
 class OnlineDataset(Dataset):
     def __init__(self, model, length=None,
-                 prior_inflation=PriorInflation.DISABLED):
+                 prior_inflation=PriorInflation.DISABLED,
+                 variables_observed_inf_training=[]):
+
+        self._variables_observed_inf_training = variables_observed_inf_training
+
         self._model = model
         if length is None:
             length = int(1e6)
@@ -243,6 +247,8 @@ class OnlineDataset(Dataset):
             elif attr in ['log_prob']:
                 v = getattr(variable, attr)
                 var_dict[attr] = v.item() if to_list else v
+            elif attr in ['observed']:
+                var_dict[attr] = getattr(variable, attr) or (getattr(variable, 'name') in self._variables_observed_inf_training)
             else:
                 var_dict[attr] = getattr(variable, attr)
 

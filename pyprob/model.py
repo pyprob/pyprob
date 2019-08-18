@@ -296,7 +296,7 @@ class Model():
                                 proposal_mixture_components=10, surrogate=False,
                                 sacred_run=None):
 
-        state._variables_observed_inf_training = list(observe_embeddings.keys())
+        state._set_observed_from_inf(list(observe_embeddings.keys()))
 
         if surrogate and self._surrogate_forward:
             self._surrogate_network.eval()
@@ -309,7 +309,8 @@ class Model():
             self.forward = self._original_forward
 
         if dataset_dir is None:
-            dataset = OnlineDataset(model=self, prior_inflation=prior_inflation)
+            dataset = OnlineDataset(model=self, prior_inflation=prior_inflation,
+                                    variables_observed_inf_training=state._variables_observed_inf_training)
         else:
             dataset = OfflineDataset(dataset_dir, state._variables_observed_inf_training)
 

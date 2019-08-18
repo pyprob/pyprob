@@ -357,6 +357,9 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
     _current_trace.add(variable)
     return variable.value
 
+def _set_observed_from_inf(variables_observed_inf_training):
+    global _variables_observed_inf_training
+    _variables_observed_inf_training = variables_observed_inf_training
 
 def _init_traces(func, trace_mode=TraceMode.PRIOR,
                  prior_inflation=PriorInflation.DISABLED,
