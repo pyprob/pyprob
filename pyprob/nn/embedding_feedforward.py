@@ -37,7 +37,7 @@ class EmbeddingFeedForward(nn.Module):
 
     def forward(self, x):
         if self._input_is_one_hot_index:
-            x = torch.stack([util.one_hot(self._input_one_hot_dim, int(v)) for v in x])
+            x = torch.stack([util.one_hot(self._input_one_hot_dim, int(v)) for v in x]).to(device=util._device)
         else:
             x = x.view(-1, self._input_dim).float()
         for i in range(len(self._layers)):

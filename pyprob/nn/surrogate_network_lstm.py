@@ -147,8 +147,8 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                                                                       input_one_hot_dim=distribution.num_categories,
                                                                       num_layers=1)
 
-                    surrogate_distribution.to(device=util._device)
-                    sample_embedding_layer.to(device=util._device)
+                    surrogoate_distribution = surrogate_distribution.to(device=util._device)
+                    sample_embedding_layer = sample_embedding_layer.to(device=util._device)
                     self._layers_sample_embedding[address] = sample_embedding_layer
                     self._layers_surrogate_distributions[address] = surrogate_distribution
                     layers_changed = True

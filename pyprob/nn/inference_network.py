@@ -23,6 +23,8 @@ from .. import __version__, util, Optimizer, LearningRateScheduler, ObserveEmbed
 
 from .utils import update_sacred_run
 
+def worker_fn(x):
+    return Batch(x)
 
 class InferenceNetwork(nn.Module):
     # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'reshape': [10, 10], 'dim': 32, 'depth': 2}}
@@ -307,7 +309,7 @@ class InferenceNetwork(nn.Module):
 
         self._layers_pre_generated = True
         dataloader = iter(DataLoader(dataset, batch_size=batch_size, shuffle=False,
-                                     collate_fn=lambda x: Batch(x)))
+                                     collate_fn=lambda x: Batch(x)),)
         util.progress_bar_init('Layer pre-generation...', len(dataset), 'Traces')
         i = 0
         for i_batch, batch in enumerate(dataloader):
@@ -443,7 +445,8 @@ class InferenceNetwork(nn.Module):
                                         batch_sampler=TraceBatchSampler(dataset, batch_size=batch_size,
                                                                         shuffle_batches=True),
                                         num_workers=num_workers,
-                                        collate_fn=lambda x: Batch(x))
+                                        collate_fn=worker_fn,
+                                        multiprocessing_context='forkserver' if num_workers > 0 else None)
             else:
                 dataloader = DataLoader(dataset,
                                         batch_sampler=DistributedTraceBatchSampler(dataset,
@@ -451,11 +454,12 @@ class InferenceNetwork(nn.Module):
                                                                                    num_buckets=distributed_num_buckets,
                                                                                    shuffle_batches=True, shuffle_buckets=True),
                                         num_workers=num_workers,
-                                        collate_fn=lambda x: Batch(x))
+                                        collate_fn=worker_fn)
         else:
             dataloader = DataLoader(dataset, batch_size=batch_size,
                                     num_workers=num_workers,
-                                    collate_fn=lambda x: Batch(x))
+                                    collate_fn=worker_fn,
+                                    multiprocessing_context='forkserver' if num_workers > 0 else None)
 
         # Validation data loader
         if dataset_valid is not None:
