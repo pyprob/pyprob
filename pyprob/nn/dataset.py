@@ -264,8 +264,8 @@ class OfflineDatasetFile(Dataset):
 
     def __init__(self, file_name, variables_observed_inf_training):
         self._variables_observed_inf_training = variables_observed_inf_training
-        self._file_name = file_name
-        with h5py.File(str(self._file_name.resolve()), 'r') as f:
+        self._file_name = str(file_name.resolve())
+        with h5py.File(self._file_name, 'r') as f:
             self._length = f.attrs['num_traces']
             self.hashes = f.attrs['hashes']
 
@@ -279,7 +279,7 @@ class OfflineDatasetFile(Dataset):
 
     def __getitem__(self, idx):
 
-        with h5py.File(str(self._file_name.resolve()), 'r') as f:
+        with h5py.File(self._file_name, 'r') as f:
             trace_attr_list, trace_hash = ujson.loads(f['traces'][idx])
 
         trace_list = []

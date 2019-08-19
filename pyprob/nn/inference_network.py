@@ -442,11 +442,10 @@ class InferenceNetwork(nn.Module):
         if isinstance(dataset, OfflineDataset):
             if distributed_world_size == 1:
                 dataloader = DataLoader(dataset,
-                                        batch_sampler=TraceBatchSampler(dataset, batch_size=batch_size,
-                                                                        shuffle_batches=True),
+                                        batch_size=batch_size,
+                                        shuffle=True,
                                         num_workers=num_workers,
-                                        collate_fn=worker_fn,
-                                        multiprocessing_context='forkserver' if num_workers > 0 else None)
+                                        collate_fn=worker_fn)
             else:
                 dataloader = DataLoader(dataset,
                                         batch_sampler=DistributedTraceBatchSampler(dataset,
@@ -458,8 +457,7 @@ class InferenceNetwork(nn.Module):
         else:
             dataloader = DataLoader(dataset, batch_size=batch_size,
                                     num_workers=num_workers,
-                                    collate_fn=worker_fn,
-                                    multiprocessing_context='forkserver' if num_workers > 0 else None)
+                                    collate_fn=worker_fn)
 
         # Validation data loader
         if dataset_valid is not None:
@@ -542,7 +540,7 @@ class InferenceNetwork(nn.Module):
 
             epoch += 1
 
-            for i_batch, batch in enumerate(dataloader):
+            for i_batch, batch in enumerate(iter(dataloader)):
 
                 time_batch = time.time()
                 # Important, a self._distributed_sync_parameters() needs to happen at the very beginning of a training
