@@ -121,7 +121,7 @@ class Batch():
 
                 torch_data[time_step]['values'] = torch.stack(values[time_step],
                                                               dim=0)
-                torch_data[time_step]['distribution'] = construct_dist(dist_names[time_step],
+                # torch_data[time_step]['distribution'] = construct_dist(dist_names[time_step],
                                                                        dist_parameters[time_step])
 
             self.sub_batches[i] = [meta_data, torch_data]
