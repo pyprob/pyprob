@@ -444,7 +444,7 @@ class InferenceNetwork(nn.Module):
                 dataloader = DataLoader(dataset,
                                         batch_sampler=TraceBatchSampler(dataset,
                                                                         batch_size=batch_size,
-                                                                        shuffle_batches=True)
+                                                                        shuffle_batches=True),
                                         num_workers=num_workers,
                                         collate_fn=worker_fn)
             else:
