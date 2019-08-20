@@ -300,7 +300,7 @@ class OfflineDatasetFile(Dataset):
                 elif attr in ['log_prob']:
                     var_args[attr] = util.to_tensor(variable_data)
                 elif attr in ['observed']:
-                    var_args[attr] = variable_data #or variable_attr_dict['name'] in self._variables_observed_inf_training
+                    var_args[attr] = variable_data or variable_attr_dict['name'] in self._variables_observed_inf_training
                 else:
                     var_args[attr] = variable_data
 
