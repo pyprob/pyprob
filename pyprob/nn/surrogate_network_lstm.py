@@ -332,7 +332,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 _, lstm_output = self.run_lstm_step(current_variable, prev_variable)
                 address_dist = self._layers_address_transitions[address]
                 lstm_output = lstm_output.squeeze(0) # remove sequence dim
-                dist = surrogate_dist(lstm_output, no_batch=True)
+                dist = surrogate_dist(lstm_output, no_batch=True) # remove batch
 
                 value = state.sample(distribution=dist,
                                     address=self._address_base[address],
