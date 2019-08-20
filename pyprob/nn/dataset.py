@@ -180,7 +180,7 @@ class OnlineDataset(Dataset):
             file_name = os.path.join(dataset_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
             dataset = []
             hashes = []
-            with h5py.File(file_name+".hdf5", 'w', libvar='latest') as f:
+            with h5py.File(file_name+".hdf5", 'w', libver='latest') as f:
                 for j in range(num_traces_per_file):
                     trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR,
                                                               prior_inflation=self._prior_inflation,
@@ -261,7 +261,7 @@ class OfflineDatasetFile(Dataset):
     def __init__(self, file_name, variables_observed_inf_training):
         self._variables_observed_inf_training = variables_observed_inf_training
         self._file_name = str(file_name.resolve())
-        with h5py.File(self._file_name, 'r', libvar='latest') as f:
+        with h5py.File(self._file_name, 'r', libver='latest') as f:
             self._length = f.attrs['num_traces']
             self.hashes = f.attrs['hashes']
 
@@ -274,7 +274,7 @@ class OfflineDatasetFile(Dataset):
 
     def __getitem__(self, idx):
 
-        with h5py.File(self._file_name, 'r', libvar='latest') as f:
+        with h5py.File(self._file_name, 'r', libver='latest') as f:
             trace_attr_list, trace_hash = ujson.loads(f['traces'][idx])
 
         trace_list = []
