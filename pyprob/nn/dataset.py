@@ -131,17 +131,17 @@ class Batch():
         return len(self.traces_lists)
 
     # TODO!
-    def to(self, device):
-        """ Sends data onto the desired device
+    # def to(self, device):
+    #     """ Sends data onto the desired device
 
-        NOT DONE
+    #     NOT DONE
 
-        """
-        for sub_batch in self.sub_batches:
-            data = sub_batch[1]
-            for d_time_step in data:
-                for k, v in d_time_step.items():
-                    v.to(device=device)
+    #     """
+    #     for sub_batch in self.sub_batches:
+    #         data = sub_batch[1]
+    #         for d_time_step in data:
+    #             for k, v in d_time_step.items():
+    #                 v.to(device=device)
 
 class OnlineDataset(Dataset):
     def __init__(self, model, length=None,
@@ -180,7 +180,7 @@ class OnlineDataset(Dataset):
             file_name = os.path.join(dataset_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
             dataset = []
             hashes = []
-            with h5py.File(file_name+".hdf5", 'w') as f:
+            with h5py.File(file_name+".hdf5", 'w', libvar='latest') as f:
                 for j in range(num_traces_per_file):
                     trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR,
                                                               prior_inflation=self._prior_inflation,
@@ -258,17 +258,12 @@ class OnlineDataset(Dataset):
 
 class OfflineDatasetFile(Dataset):
 
-    data_cache = {}
-    # specifies the number of file we have open at a time
-    cache_size = 100
-
     def __init__(self, file_name, variables_observed_inf_training):
         self._variables_observed_inf_training = variables_observed_inf_training
         self._file_name = str(file_name.resolve())
-        with h5py.File(self._file_name, 'r') as f:
+        with h5py.File(self._file_name, 'r', libvar='latest') as f:
             self._length = f.attrs['num_traces']
             self.hashes = f.attrs['hashes']
-
 
         # BELOW WE OPEN FILE HANDLERS USING THE SPECIAL MyFile - this may be a better/faster option
 
@@ -279,7 +274,7 @@ class OfflineDatasetFile(Dataset):
 
     def __getitem__(self, idx):
 
-        with h5py.File(self._file_name, 'r') as f:
+        with h5py.File(self._file_name, 'r', libvar='latest') as f:
             trace_attr_list, trace_hash = ujson.loads(f['traces'][idx])
 
         trace_list = []
@@ -305,7 +300,7 @@ class OfflineDatasetFile(Dataset):
                 elif attr in ['log_prob']:
                     var_args[attr] = util.to_tensor(variable_data)
                 elif attr in ['observed']:
-                    var_args[attr] = variable_data or variable_attr_dict['name'] in self._variables_observed_inf_training
+                    var_args[attr] = variable_data #or variable_attr_dict['name'] in self._variables_observed_inf_training
                 else:
                     var_args[attr] = variable_data
 
