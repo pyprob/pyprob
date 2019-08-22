@@ -391,6 +391,7 @@ def _init_traces(func, trace_mode=TraceMode.PRIOR,
 
     _address_dictionary = address_dictionary
     _current_trace_root_function_name = func.__code__.co_name
+    print(observe)
     if observe is None:
         _current_trace_observed_variables = {}
     else:
