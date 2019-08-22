@@ -167,7 +167,6 @@ class InferenceNetwork(nn.Module):
     def _infer_init(self, observe=None):
         self._infer_observe = observe
         embedding = []
-        print(list(self._layers_observe_embedding.keys()), observe.keys())
         for name, layer in self._layers_observe_embedding.items():
             value = util.to_tensor(observe[name]).view(1, -1).to(device=util._device)
             embedding.append(layer(value))
