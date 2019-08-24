@@ -59,8 +59,8 @@ class SurrogateNormal(nn.Module):
                                                 hidden_dim=hidden_dim,
                                                 activation_last=None)
 
-                    W, H = loc_shape[1], loc_shape[0]
-                    self._em = ConvTranspose2d(input_dim, W, H)
+                    H, W = loc_shape[0], loc_shape[1]
+                    self._em = ConvTranspose2d(input_dim, H, W)
                     self._input_dim = input_dim
                 else:
                     raise ValueError('Cannot deconv to a scalar mean, or the mean has not be non-constant')
