@@ -229,6 +229,25 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.25))
 
+
+    def test_dist_empirical_resample_disk(self):
+        dist_means_correct = [2]
+        dist_stddevs_correct = [5]
+        file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+
+        dist = Normal(dist_means_correct, dist_stddevs_correct)
+        dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
+        dist_empirical = dist_empirical.resample(int(empirical_samples/8))
+        dist_empirical.copy(file_name=file_name)
+        dist_empirical_disk = Empirical(file_name=file_name)
+        dist_means_empirical = util.to_numpy(dist_empirical_disk.mean)
+        dist_stddevs_empirical = util.to_numpy(dist_empirical_disk.stddev)
+
+        util.eval_print('file_name', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs_empirical', 'dist_stddevs_correct')
+
+        self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.25))
+        self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.25))
+
     def test_dist_empirical_thin(self):
         values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
         dist_thinned_values_correct = [1, 4, 7, 10]
@@ -238,6 +257,21 @@ class DistributionsTestCase(unittest.TestCase):
         dist_thinned_values = list(dist_thinned.values_numpy())
 
         util.eval_print('dist_thinned_values', 'dist_thinned_values_correct')
+
+        self.assertEqual(dist_thinned_values, dist_thinned_values_correct)
+
+    def test_dist_empirical_thin_disk(self):
+        values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        dist_thinned_values_correct = [1, 4, 7, 10]
+        file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+
+        dist = Empirical(values)
+        dist_thinned = dist.thin(4)
+        dist_thinned.copy(file_name=file_name)
+        dist_thinned_disk = Empirical(file_name=file_name)
+        dist_thinned_values = list(dist_thinned_disk.values_numpy())
+
+        util.eval_print('file_name', 'dist_thinned_values', 'dist_thinned_values_correct')
 
         self.assertEqual(dist_thinned_values, dist_thinned_values_correct)
 
