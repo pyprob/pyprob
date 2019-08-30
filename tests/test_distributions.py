@@ -221,10 +221,11 @@ class DistributionsTestCase(unittest.TestCase):
         dist = Normal(dist_means_correct, dist_stddevs_correct)
         dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
         dist_empirical = dist_empirical.resample(int(empirical_samples/2))
+        dist_metadata = dist_empirical.metadata
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
 
-        util.eval_print('dist_means_empirical', 'dist_means_correct', 'dist_stddevs_empirical', 'dist_stddevs_correct')
+        util.eval_print('dist_means_empirical', 'dist_means_correct', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_metadata')
 
         self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.25))
@@ -240,10 +241,11 @@ class DistributionsTestCase(unittest.TestCase):
         dist_empirical = dist_empirical.resample(int(empirical_samples/8))
         dist_empirical.copy(file_name=file_name)
         dist_empirical_disk = Empirical(file_name=file_name)
+        dist_metadata = dist_empirical_disk.metadata
         dist_means_empirical = util.to_numpy(dist_empirical_disk.mean)
         dist_stddevs_empirical = util.to_numpy(dist_empirical_disk.stddev)
 
-        util.eval_print('file_name', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs_empirical', 'dist_stddevs_correct')
+        util.eval_print('file_name', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_metadata')
 
         self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.25))
