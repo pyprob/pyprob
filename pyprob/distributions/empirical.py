@@ -397,7 +397,7 @@ class Empirical(Distribution):
         util.progress_bar_end()
         ret = Empirical(values=values, name=self.name, *args, **kwargs)
         ret._metadata = copy.deepcopy(self._metadata)
-        ret.add_metadata(op='resample', length=len(self), num_samples=int(num_samples), min_index=int(min_index), max_index=int(max_index), ess_before_resample=ess_before_resample)
+        ret.add_metadata(op='resample', length=len(self), num_samples=int(num_samples), min_index=int(min_index), max_index=int(max_index), ess_before=ess_before_resample)
         return ret
 
     def thin(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):
