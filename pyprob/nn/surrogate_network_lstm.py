@@ -11,7 +11,8 @@ import torch.nn as nn
 from termcolor import colored
 
 from . import EmbeddingFeedForward, InferenceNetwork, SurrogateAddressTransition, \
-    SurrogateNormal, SurrogateCategorical, SurrogateUniform
+    SurrogateNormal, SurrogateCategorical, SurrogateUniform, \
+    SurrogateGamma
 from .. import util, state
 from ..distributions import Normal, Uniform, Categorical, Poisson
 from ..trace import Variable, Trace
@@ -124,6 +125,15 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                         surrogate_distribution = SurrogateUniform(self._lstm_dim, variable_shape,
                                                                   dist_constants,
                                                                   **var_embedding)
+                        sample_embedding_layer = EmbeddingFeedForward(variable_shape,
+                                                                      self._sample_embedding_dim,
+                                                                      num_layers=1)
+                    elif distribution_name == 'Gamma':
+                        distribution = torch_data[time_step]['distribution']
+                        shape_shape, rate_shape = distribution.shape_shape[1:], distribution.rate_shape[1:]
+                        surrogate_distribution = SurrogateGamma(self._lstm_dim, shape_shape, rate_shape,
+                                                                dist_constants,
+                                                                **var_embedding)
                         sample_embedding_layer = EmbeddingFeedForward(variable_shape,
                                                                       self._sample_embedding_dim,
                                                                       num_layers=1)

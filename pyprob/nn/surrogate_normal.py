@@ -102,11 +102,11 @@ class SurrogateNormal(nn.Module):
             return Normal(self._loc, self._scale)
         else:
             if no_batch:
-                return Normal(self._loc_const.expand(*self._scale_shape),
-                              self._scale_const.expand(*self._loc_shape))
+                return Normal(self._loc_const.expand(*self._loc_shape),
+                              self._scale_const.expand(*self._scale_shape))
             else:
-                return Normal(self._loc_const.expand(batch_size, *self._scale_shape),
-                              self._scale_const.expand(batch_size, *self._loc_shape))
+                return Normal(self._loc_const.expand(batch_size, *self._loc_shape),
+                              self._scale_const.expand(batch_size, *self._scale_shape))
 
     def _loss(self, p_normal):
         if self.do_train:

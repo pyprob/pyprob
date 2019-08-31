@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -5,8 +6,7 @@ from . import EmbeddingFeedForward
 from .. import util
 from ..distributions import TruncatedNormal, Mixture
 
-
-class ProposalUniformTruncatedNormalMixture(nn.Module):
+class ProposalGammaTruncatedNormalMixture(nn.Module):
     def __init__(self, input_shape, output_shape, num_layers=2, hidden_dim=None,
                  mixture_components=10):
         super().__init__()
@@ -38,20 +38,12 @@ class ProposalUniformTruncatedNormalMixture(nn.Module):
         stddevs = torch.sigmoid(stddevs)
         coeffs = torch.softmax(coeffs, dim=1)
 
-        prior_lows = prior_distribution.low.view(batch_size, -1).repeat(1,slice_size)
-        prior_highs = prior_distribution.high.view(batch_size, -1).repeat(1, slice_size)
-        prior_range = (prior_highs - prior_lows)
-
-        means = prior_lows + (means * prior_range)
-        # stddevs = stddevs * prior_stddevs
-        stddevs = (prior_range / 1000) + (stddevs * prior_range * 10)
-
         distributions = [TruncatedNormal(means[:, i*self.output_dim:(i+1)*self.output_dim].view(batch_size,
                                                                                        self.output_dim),
                                          stddevs[:, i*self.output_dim:(i+1)*self.output_dim].view(batch_size,
                                                                                          self.output_dim),
-                                         low=prior_distribution.low,
-                                         high=prior_distribution.high)
+                                         low=util.to_tensor(0).to(device=util._device),
+                                         high=util.to_tensor(np.inf).to(device=util._device))
                          for i in range(self._mixture_components)]
 
         return Mixture(distributions, coeffs)

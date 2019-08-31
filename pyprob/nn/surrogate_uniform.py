@@ -24,7 +24,7 @@ class SurrogateUniform(nn.Module):
         # self._total_train_iterations = 0
 
         if ('low' not in constants) or ('high' not in constants):
-            raise NotImplementedError("Uniform distibutions mush CURRENTLY have constants range")
+            raise NotImplementedError("Uniform distibutions must CURRENTLY have constants range")
         else:
             self._low = util.to_tensor(constants['low']).to(device=util._device)
             self._high = util.to_tensor(constants['high']).to(device=util._device)
