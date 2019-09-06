@@ -1,4 +1,4 @@
-# pyprob [![Build Status](https://travis-ci.org/probprog/pyprob.svg?branch=master)](https://travis-ci.org/probprog/pyprob)
+# pyprob [![Build Status](https://travis-ci.org/etalumis/pyprob.svg?branch=master)](https://travis-ci.org/etalumis/pyprob)
 
 `pyprob` is a [PyTorch](http://pytorch.org/)-based library for [probabilistic
 programming](http://probabilistic-programming.org) and inference compilation.
@@ -29,12 +29,12 @@ inference compilation network, whereas `pyprob` does.
 ### Support for multiple languages
 
 We support front ends in multiple languages through the
-[PPX](https://github.com/probprog/ppx) interface that allows execution of models
+[PPX](https://github.com/etalumis/ppx) interface that allows execution of models
 and inference engines in separate programming languages, processes, and machines
 connected over a network. The currently supported languages are Python and C++.
 
 * Python: `pyprob` is implemented and directly usable from Python
-* C++: A lightweight C++ front end is available through the [pyprob_cpp](https://github.com/probprog/pyprob_cpp) library
+* C++: A lightweight C++ front end is available through the [pyprob_cpp](https://github.com/etalumis/pyprob_cpp) library
 
 ### Inference engines
 
@@ -64,7 +64,7 @@ family.
 To use a cutting-edge version, clone this repository and install the `pyprob` package using:
 
 ```
-git clone git@github.com:probprog/pyprob.git
+git clone git@github.com:etalumis/pyprob.git
 cd pyprob
 pip install .
 ```
@@ -80,9 +80,9 @@ pip install pyprob
 ## Docker
 
 A CUDA + PyTorch + pyprob image with the latest passing commit is automatically
-pushed to `probprog/pyprob:latest`
+pushed to `etalumis/pyprob:latest`
 
-https://hub.docker.com/r/probprog/pyprob/
+https://hub.docker.com/r/etalumis/pyprob/
 
 ## Usage, documentation, and examples
 
@@ -106,7 +106,7 @@ from pyprob.distributions import Normal, Categorical # etc...
 ```
 
 For a complete list of supported distributions see
-[pyprob/distributions](https://github.com/probprog/pyprob/tree/master/pyprob/distributions).
+[pyprob/distributions](https://github.com/etalumis/pyprob/tree/master/pyprob/distributions).
 
 ### Example of a generative model
 
@@ -279,7 +279,7 @@ model.learn_inference_network(num_traces=10000,
     network. It currently supports `pyprob.ObserveEmbedding.FEEDFORWARD`,
     `pyprob.ObserveEmbedding.CNN2D5C` and `pyprob.ObserveEmbedding.CNN3D5C`. Please
     refer to
-    [pyprob/nn/emdebbing_*.py](https://github.com/probprog/pyprob/tree/master/pyprob/nn/)
+    [pyprob/nn/emdebbing_*.py](https://github.com/etalumis/pyprob/tree/master/pyprob/nn/)
     for a list of supported network types and their definition.
   - `depth`: Specifies depth of the network. Default value is 2.
   - `reshape`: Specifies shape of the network input. By default, embedding
@@ -299,12 +299,12 @@ posterior = model.posterior_results(
 
 ### More examples
 
-The [examples](https://github.com/probprog/pyprob/tree/master/examples) folder
+The [examples](https://github.com/etalumis/pyprob/tree/master/examples) folder
 in this repository provides some working models and inference workflows
 as Jupyter notebooks.
 
 A set of continuous integration
-[tests](https://github.com/probprog/pyprob/tree/master/tests) are available in
+[tests](https://github.com/etalumis/pyprob/tree/master/tests) are available in
 this repository, including those checking for correctness of inference over a
 range of reference models and inference engines.
 
@@ -343,4 +343,4 @@ Oxford and University of British Columbia.
 
 For the full list of contributors, see:
 
-https://github.com/probprog/pyprob/graphs/contributors
+https://github.com/etalumis/pyprob/graphs/contributors

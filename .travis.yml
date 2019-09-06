@@ -34,8 +34,8 @@ after_success:
 - if [[ [[ "$TRAVIS_BRANCH" == "master" ]] || [[ -n "$TRAVIS_TAG" ]] ]] && [[-n "$DOCKER_PASSWORD" ]]; then GIT_COMMIT="$(git
   rev-parse HEAD)" ; echo "GIT_COMMIT=$GIT_COMMIT" ; PYPROB_VERSION="$(python setup.py
   --version)" ; echo "PYPROB_VERSION=$PYPROB_VERSION" ; docker login -u $DOCKER_USERNAME
-  -p $DOCKER_PASSWORD ; docker build -t probprog/pyprob --build-arg PYPROB_VERSION=$PYPROB_VERSION
-  --build-arg GIT_COMMIT=$GIT_COMMIT . ; docker tag probprog/pyprob probprog/pyprob:latest
-  ; docker push probprog/pyprob:latest ; if [[ -n "$TRAVIS_TAG" ]]; then docker tag
-  probprog/pyprob probprog/pyprob:$TRAVIS_TAG ; docker push probprog/pyprob:$TRAVIS_TAG
+  -p $DOCKER_PASSWORD ; docker build -t etalumis/pyprob --build-arg PYPROB_VERSION=$PYPROB_VERSION
+  --build-arg GIT_COMMIT=$GIT_COMMIT . ; docker tag etalumis/pyprob etalumis/pyprob:latest
+  ; docker push etalumis/pyprob:latest ; if [[ -n "$TRAVIS_TAG" ]]; then docker tag
+  etalumis/pyprob etalumis/pyprob:$TRAVIS_TAG ; docker push etalumis/pyprob:$TRAVIS_TAG
   ; fi fi

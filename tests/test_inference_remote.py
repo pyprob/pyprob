@@ -73,21 +73,21 @@ def add_random_walk_metropolis_hastings_duration(val):
 
 
 docker_client = docker.from_env()
-print('Pulling latest Docker image: probprog/pyprob_cpp')
-docker_client.images.pull('probprog/pyprob_cpp')
+print('Pulling latest Docker image: etalumis/pyprob_cpp')
+docker_client.images.pull('etalumis/pyprob_cpp')
 print('Docker image pulled.')
 
 docker_containers = []
-docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum ipc://@GaussianWithUnknownMeanCPP', network='host', detach=True))
+docker_containers.append(docker_client.containers.run('etalumis/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum ipc://@GaussianWithUnknownMeanCPP', network='host', detach=True))
 GaussianWithUnknownMeanCPP = RemoteModel('ipc://@GaussianWithUnknownMeanCPP')
 
-docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia_replacement ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP', network='host', detach=True))
+docker_containers.append(docker_client.containers.run('etalumis/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia_replacement ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP', network='host', detach=True))
 GaussianWithUnknownMeanMarsagliaWithReplacementCPP = RemoteModel('ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP')
 
-docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_hmm ipc://@HiddenMarkovModelCPP', network='host', detach=True))
+docker_containers.append(docker_client.containers.run('etalumis/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_hmm ipc://@HiddenMarkovModelCPP', network='host', detach=True))
 HiddenMarkovModelCPP = RemoteModel('ipc://@HiddenMarkovModelCPP')
 
-docker_containers.append(docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_branching ipc://@BranchingCPP', network='host', detach=True))
+docker_containers.append(docker_client.containers.run('etalumis/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_branching ipc://@BranchingCPP', network='host', detach=True))
 BranchingCPP = RemoteModel('ipc://@BranchingCPP')
 
 
