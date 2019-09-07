@@ -295,7 +295,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 address_transition_layer = self._layers_address_transitions[address]
                 surrogate_distribution_layer = self._layers_surrogate_distributions[address]
 
-                # only consider loss and training if we are not at the end of trace
+                # only consider loss and training of the address transition if we are not at the end of trace
                 if time_step < trace_length - 1:
                     values = torch_data[time_step]['values'].to(device=util._device)
                     sample_embedding = self._layers_sample_embedding[address](values)
@@ -368,7 +368,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 time_step += 1
 
                 if address == "__unknown":
-                    print("Warning: sampled unknown address")
+                    print(colored("Warning: sampled unknown address", 'red', attr=['bold']))
                     # if an address is unknown default to the simulator
                     # by resetting the _current_trace
                     state._current_trace = Trace()

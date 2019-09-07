@@ -442,9 +442,8 @@ class InferenceNetwork(nn.Module):
         if isinstance(dataset, OfflineDataset):
             if distributed_world_size == 1:
                 dataloader = DataLoader(dataset,
-                                        batch_sampler=TraceBatchSampler(dataset,
-                                                                        batch_size=batch_size,
-                                                                        shuffle_batches=True),
+                                        batch_size=batch_size,
+                                        shuffle=True,
                                         num_workers=num_workers,
                                         collate_fn=worker_fn)
             else:

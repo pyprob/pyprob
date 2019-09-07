@@ -232,7 +232,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 current_address_embedding = self._layers_address_embedding[current_address]
                 current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution_name]
 
-                if time_step == 0:
+                if prev_time_step is None:
                     if self.prev_sample_attention:
                         self.prev_samples_embedder.init_for_trace()
                     prev_sample_embedding = torch.zeros(sub_batch_length,

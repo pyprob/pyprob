@@ -45,28 +45,33 @@ class SurrogateAddressTransition(nn.Module):
 
         self._ff["class_layer"] = nn.Linear(self._class_layer_input, self._output_dim)
 
-        self._softmax = nn.Softmax(dim=1)
+        self._logsoftmax = nn.LogSoftmax(dim=1)
+        self.nllloss = nn.NLLLoss(reduction='sum') # sum instead of the default "mean"
 
         self._total_train_iterations = 0
 
     def forward(self, x):
+        batch_size = x.size(0)
         if self._first_address:
-            self._categorical = AddressCategorical(probs=[1], n_classes=self._n_classes, transform=self._transform_to_address)
+            self._logits = self._logsoftmax(torch.Tensor([1])).expand(batch_size,1)
+            categorical = AddressCategorical(logits=self._logits,
+                                             n_classes=self._n_classes, transform=self._transform_to_address)
         elif self._last_address:
-            self._categorical = Categorical(probs=[1])
-            self._categorical = AddressCategorical(probs=[1], n_classes=self._n_classes, transform=self._transform_to_address)
+            self._logits = self._logsoftmax(torch.Tensor([1])).expand(batch_size,1)
+            categorical = AddressCategorical(logits=self._logits,
+                                             n_classes=self._n_classes, transform=self._transform_to_address)
         else:
-            batch_size = x.size(0)
             x = self._ff["embedding"](x)
             x = self._ff["class_layer"](x)
-            self.probs = self._softmax(x)
-            self._categorical = AddressCategorical(probs=self.probs,
-                                                   n_classes=self._n_classes,
-                                                   transform=self._transform_to_address)
+            self._logits = self._logsoftmax(x)
+            categorical = AddressCategorical(logits=self._logits,
+                                             n_classes=self._n_classes,
+                                             transform=self._transform_to_address)
 
-        return self._categorical
+        return categorical
 
     def add_address_transition(self, new_address):
+        # consider - https://pytorch.org/docs/stable/tensors.html
         classes_param= {"cw": self._ff["class_layer"].weight.data,
                         "cb": self._ff["class_layer"].bias.data}
         placeholder_param = {"pw": self._ff["class_layer"].weight.data[self._n_classes:,:],
@@ -90,8 +95,9 @@ class SurrogateAddressTransition(nn.Module):
         self._ff["class_layer"] = nn.Linear(self._class_layer_input, self._output_dim).apply(init_new_params).to(device=util._device)
 
     def _loss(self, next_addresses):
-        classes = self._transform_to_class(next_addresses).to(device=util._device)
-        loss = -self._categorical.log_prob(classes)
+        target_classes = self._transform_to_class(next_addresses).to(device=util._device)
+        #loss = -self._categorical.log_prob(classes)
+        loss = self.nllloss(self._logits, target_classes.long())
         return loss
 
     def _transform_to_class(self, next_addresses):
@@ -101,8 +107,8 @@ class SurrogateAddressTransition(nn.Module):
         return self._addresses[address_class]
 
 class AddressCategorical(Categorical):
-    def __init__(self, probs=None, n_classes=0, transform=None):
-        super().__init__(probs=probs)
+    def __init__(self, probs=None, logits=None, n_classes=0, transform=None):
+        super().__init__(probs=probs, logits=logits)
         self._transform_to_address = transform
         self._n_classes = n_classes
 

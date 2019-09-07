@@ -17,9 +17,10 @@ class ProposalCategoricalCategorical(nn.Module):
                                         activation_last=None,
                                         hidden_dim=hidden_dim)
         self._total_train_iterations = 0
+        self._logsoftmax = nn.LogSoftmax(dim=1)
 
     def forward(self, x, prior_variables):
         batch_size = x.size(0)
         x = self._ff(x)
-        probs = torch.softmax(x, dim=1).view(batch_size, -1) + util._epsilon
-        return Categorical(probs)
+        logits = self._logsoftmax(x).view(batch_size, -1)
+        return Categorical(logits=logits)

@@ -20,20 +20,21 @@ class SurrogateCategorical(nn.Module):
                                         hidden_dim=hidden_dim)
         self._total_train_iterations = 0
         self.num_categories = num_categories
+        self._logsoftmax = nn.LogSoftmax(dim=1)
 
         self.dist_type = Categorical(probs=torch.ones([self.num_categories])/self.num_categories)
 
     def forward(self, x, no_batch=False):
         batch_size = x.size(0)
         x = self._ff(x)
-        self.probs = torch.softmax(x, dim=1).view(batch_size, self.num_categories) + util._epsilon
+        self._logits = self._logsoftmax(x).view(batch_size, self.num_categories)
 
         if no_batch:
-            self.probs = self.probs.squeeze(0)
+            self._logits = self._logits.squeeze(0)
 
-        return Categorical(self.probs)
+        return Categorical(logits=self._logits)
 
     def _loss(self, p_categorical):
-        q_categorical = Categorical(self.probs)
+        q_categorical = Categorical(self._logits)
 
         return Distribution.kl_divergence(p_categorical, q_categorical)
