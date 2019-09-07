@@ -349,6 +349,11 @@ def clamp_probs(probs):
     eps = torch.finfo(probs.dtype).eps
     return probs.clamp(min=eps, max=1 - eps)
 
+def clamp_logits(logits):
+    eps = torch.finfo(logits.dtype).eps
+    return logits.clamp(min=torch.log(torch.tensor(eps)).item(),
+                        max=torch.log1p(torch.Tensor([-eps])).item())
+
 
 def init_distributed_print(rank, world_size, debug_print=True):
     if not debug_print:

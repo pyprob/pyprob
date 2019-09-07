@@ -16,6 +16,7 @@ class ProposalPoissonTruncatedNormalMixture(nn.Module):
         input_shape = util.to_size(input_shape)
         self._ff = EmbeddingFeedForward(input_shape=input_shape, output_shape=torch.Size([3 * self._mixture_components]), num_layers=num_layers, activation=torch.relu, activation_last=None)
         self._total_train_iterations = 0
+        self._logsoftmax = nn.LogSoftmax(dim=1)
 
     def forward(self, x, prior_variables):
         batch_size = x.size(0)
@@ -25,7 +26,7 @@ class ProposalPoissonTruncatedNormalMixture(nn.Module):
         coeffs = x[:, 2*self._mixture_components:].view(batch_size, -1)
         means = torch.sigmoid(means)
         stddevs = torch.exp(stddevs)
-        coeffs = torch.softmax(coeffs, dim=1)
+        log_coeffs = self._logsoftmax(coeffs)
         means = means.view(batch_size, -1)
         stddevs = stddevs.view(batch_size, -1)
         prior_lows = torch.zeros(batch_size).fill_(self._low)
@@ -33,4 +34,4 @@ class ProposalPoissonTruncatedNormalMixture(nn.Module):
         means = prior_lows.view(batch_size, -1).expand_as(means) + (means * (prior_highs - prior_lows).view(batch_size, -1).expand_as(means))
         # stddevs = stddevs * prior_stddevs
         distributions = [TruncatedNormal(means[:, i:i+1].view(batch_size), stddevs[:, i:i+1].view(batch_size), low=prior_lows, high=prior_highs) for i in range(self._mixture_components)]
-        return Mixture(distributions, coeffs)
+        return Mixture(distributions, logits=log_coeffs)

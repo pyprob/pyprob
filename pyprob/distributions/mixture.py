@@ -5,28 +5,34 @@ from .. import util
 
 
 class Mixture(Distribution):
-    def __init__(self, distributions, probs=None):
+    def __init__(self, distributions, probs=None, logits=None):
         self._distributions = distributions
         self.length = len(distributions)
-        if probs is None:
+        self._probs = probs
+        self._logits = logits
+        if probs is None and logits is None:
             self._probs = torch.zeros(self.length).fill_(1./self.length).unsqueeze(0)
-        else:
+        elif probs is not None and logits is not None:
+            raise ValueError("ERROR in mixture distribution. One of logits or probs has to be none!")
+        elif probs:
             self._probs = util.to_tensor(probs)
             self._probs = self._probs / self._probs.sum(-1, keepdim=True)
             if self._probs.dim() == 1:
                 self._probs = self._probs.unsqueeze(0)
-        self._log_probs = torch.log(util.clamp_probs(self._probs))
+            self._log_probs = torch.log(util.clamp_probs(self._probs))
+        elif logits:
+            self._log_probs = util.clamp_logits(logits)
 
         event_shape = torch.Size()
-        if self._probs.dim() == 0:
+        if self._log_probs.dim() == 0:
             batch_shape = torch.Size()
             self._batch_length = 0
-        elif self._probs.dim() > 0 and self._probs.dim() <= 2 :
-            batch_shape = torch.Size([self._probs.size(0)])
-            self._batch_length = self._probs.size(0)
+        elif self._log_probs.dim() > 0 and self._log_probs.dim() <= 2 :
+            batch_shape = torch.Size([self._log_probs.size(0)])
+            self._batch_length = self._log_probs.size(0)
         else:
             raise ValueError('Expecting a 1d or 2d (batched) mixture probabilities.')
-        self._mixing_dist = Categorical(self._probs)
+        self._mixing_dist = Categorical(logits=self._log_probs)
         self._mean = None
         self._variance = None
         super().__init__(name='Mixture', address_suffix='Mixture({})'.format(', '.join([d._address_suffix for d in self._distributions])), batch_shape=batch_shape, event_shape=event_shape)

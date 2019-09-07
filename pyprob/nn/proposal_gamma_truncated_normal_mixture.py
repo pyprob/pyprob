@@ -20,6 +20,7 @@ class ProposalGammaTruncatedNormalMixture(nn.Module):
                                         activation=torch.relu, activation_last=None,
                                         hidden_dim=hidden_dim)
         self._total_train_iterations = 0
+        self._logsoftmax = nn.LogSoftmax(dim=1)
 
     def forward(self, x, prior_distribution):
         """ Proposal forward function
@@ -36,7 +37,7 @@ class ProposalGammaTruncatedNormalMixture(nn.Module):
 
         means = torch.sigmoid(means)
         stddevs = torch.sigmoid(stddevs)
-        coeffs = torch.softmax(coeffs, dim=1)
+        log_coeffs = self._logsoftmax(coeffs)
 
         distributions = [TruncatedNormal(means[:, i*self.output_dim:(i+1)*self.output_dim].view(batch_size,
                                                                                        self.output_dim),
@@ -46,4 +47,4 @@ class ProposalGammaTruncatedNormalMixture(nn.Module):
                                          high=util.to_tensor(np.inf).to(device=util._device))
                          for i in range(self._mixture_components)]
 
-        return Mixture(distributions, coeffs)
+        return Mixture(distributions, logits=log_coeffs)
