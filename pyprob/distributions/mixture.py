@@ -14,13 +14,13 @@ class Mixture(Distribution):
             self._probs = torch.zeros(self.length).fill_(1./self.length).unsqueeze(0)
         elif probs is not None and logits is not None:
             raise ValueError("ERROR in mixture distribution. One of logits or probs has to be none!")
-        elif probs:
+        elif probs is not None:
             self._probs = util.to_tensor(probs)
             self._probs = self._probs / self._probs.sum(-1, keepdim=True)
             if self._probs.dim() == 1:
                 self._probs = self._probs.unsqueeze(0)
             self._log_probs = torch.log(util.clamp_probs(self._probs))
-        elif logits:
+        elif logits is not None:
             self._log_probs = util.clamp_logits(logits)
 
         event_shape = torch.Size()

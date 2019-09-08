@@ -64,6 +64,7 @@ class SurrogateAddressTransition(nn.Module):
             x = self._ff["embedding"](x)
             x = self._ff["class_layer"](x)
             self._logits = util.clamp_logits(self._logsoftmax(x))
+            print(self._logits, torch.exp(self._logits))
             categorical = AddressCategorical(logits=self._logits,
                                              n_classes=self._n_classes,
                                              transform=self._transform_to_address)
