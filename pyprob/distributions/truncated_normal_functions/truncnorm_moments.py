@@ -1,7 +1,8 @@
 import torch
 import numpy as np
-from utils.utils import erfcx
-#from .utils import erfcx
+#from utils.utils import erfcx
+from .utils import erfcx
+from ... import util
 
 """
 # John P Cunningham
@@ -47,12 +48,14 @@ from utils.utils import erfcx
 
 def moments(lowerB, upperB, mu, sigma):
 
-    pi = torch.Tensor([np.pi]).expand_as(mu)
-    logZhat = torch.empty_like(mu)
-    Zhat = torch.empty_like(mu)
-    muHat = torch.empty_like(mu)
-    sigmaHat = torch.empty_like(mu)
-    entropy = torch.empty_like(mu)
+    pi = torch.Tensor([np.pi]).expand_as(mu).to(device=util._device)
+    logZhat = torch.empty_like(mu).to(device=util._device)
+    Zhat = torch.empty_like(mu).to(device=util._device)
+    muHat = torch.empty_like(mu).to(device=util._device)
+    sigmaHat = torch.empty_like(mu).to(device=util._device)
+    entropy = torch.empty_like(mu).to(device=util._device)
+    meanConst = torch.empty_like(mu).to(device=util._device)
+    varConst = torch.empty_like(mu).to(device=util._device)
 
     """
     lowerB is the lower bound
@@ -91,47 +94,51 @@ def moments(lowerB, upperB, mu, sigma):
     I = torch.isinf(a) & torch.isinf(b)
     if I.any():
         # check the sign
-        I_sign = torch.eq(torch.sign(a[I]),torch.sign(b)
+        I_sign = torch.eq(torch.sign(a),torch.sign(b)) & I
         # then this is integrating from inf to inf, for example.
         #logZhat = -inf
         #meanConst = inf
         #varConst = 0
-        logZhat[I_sign] = torch.Tensor([-np.inf])
-        Zhat[I_sign] = torch.Tensor([0])
+        logZhat[I_sign] = torch.Tensor([-np.inf]).to(device=util._device)
+        Zhat[I_sign] = torch.Tensor([0]).to(device=util._device)
         muHat[I_sign] = a
-        sigmaHat[I_sign] = torch.Tensor([0])
-        entropy[I_sign] = torch.Tensor([-np.inf])
+        sigmaHat[I_sign] = torch.Tensor([0]).to(device=util._device)
+        entropy[I_sign] = torch.Tensor([-np.inf]).to(device=util._device)
         #logZhat = 0
         #meanConst = mu
         #varConst = 0
-        logZhat[~I_sign] = torch.Tensor([0])
-        Zhat[~I_sign] = torch.Tensor([1])
-        muHat[~I_sign] = mu
-        sigmaHat[~I_sign] = sigma
-        entropy[~I_sign] = 0.5*torch.log(2*pi*torch.exp(torch.Tensor([1]))*sigma)
-        return logZhat, Zhat, muHat, sigmaHat, entropy
+        I_sign_n = ~I_sign & I
+        logZhat[I_sign_n] = torch.Tensor([0]).to(device=util._device)
+        Zhat[I_sign_n] = torch.Tensor([1]).to(device=util._device)
+        muHat[I_sign_n] = mu
+        sigmaHat[I_sign_n] = sigma
+        entropy[I_sign_n] = 0.5*torch.log(2*pi*torch.exp(torch.Tensor([1]))*sigma).to(device=util._device)
     # a problem case
-    elif a > b:
+    I_taken_care_of = I
+    I = (a > b) & ~I_taken_care_of
+    if I.any():
         # these bounds pointing the wrong way, so we return 0 by convention.
         #logZhat = -inf
         #meanConst = 0
         #varConst = 0
-        logZhat = torch.Tensor([-np.inf])
-        Zhat = 0
-        muHat = mu
-        sigmaHat = 0
-        entropy = torch.Tensor([-np.inf])
-        return logZhat, Zhat, muHat, sigmaHat, entropy
+        logZhat[I] = torch.Tensor([-np.inf]).to(device=util._device)
+        Zhat[I] = 0
+        muHat[I] = mu
+        sigmaHat[I] = 0
+        entropy[I] = torch.Tensor([-np.inf]).to(device=util._device)
 
     # now real cases follow...
-    elif a==torch.Tensor([-np.inf]):
+    I_taken_care_of = I | I_taken_care_of
+    I = (torch.isinf(a)) & ~I_taken_care_of
+    if I.any():
         # then we are integrating everything up to b
         # in infinite precision we just want normcdf(b), but that is not
         # numerically stable.
         # instead we use various erfcx.  erfcx scales very very well for small
         # probabilities (close to 0), but poorly for big probabilities (close
         # to 1).  So some trickery is required.
-        if b > 26:
+        I_b = (b >= 26) & I
+        if I_b.any():
             # then this will be very close to 1... use this goofy expm1 log1p
             # to extend the range up to b==27... 27 std devs away from the
             # mean is really far, so hopefully that should be adequate.  I
@@ -142,15 +149,19 @@ def moments(lowerB, upperB, mu, sigma):
             # Note that this case is important, because after b=27, logZhat as
             # calculated in the other case will equal inf, not 0 as it should.
             # This case returns 0.
-            logZhatOtherTail = torch.log(torch.Tensor([0.5])) + torch.log(erfcx(b)) - b**2
-            logZhat = torch.log1p(-torch.exp(logZhatOtherTail))
+            logZhatOtherTail = torch.log(torch.Tensor([0.5])).to(device=util._device)\
+                               + torch.log(erfcx(b[I_b]))\
+                               - b[I_b]**2
+            logZhat[I_b] = torch.log1p(-torch.exp(logZhatOtherTail))
 
-        else:
+        I_b_n = (b < 26) & I
+        if (I_b_n).any():
             # b is less than 26, so should be stable to calculate the moments
             # with a clean application of erfcx, which should work out to
             # an argument almost b==-inf.
             # this is the cleanest case, and the other moments are easy also...
-            logZhat = torch.log(torch.Tensor([0.5])) + torch.log(erfcx(-b)) - b**2
+            logZhat[I_b_n] = torch.log(torch.Tensor([0.5])).to(device=util._device)\
+                      + torch.log(erfcx(-b[I_b_n])) - b[I_b_n]**2
 
         # the mean/var calculations are insensitive to these calculations, as we do
         # not deal in the log space.  Since we have to exponentiate everything,
@@ -158,15 +169,19 @@ def moments(lowerB, upperB, mu, sigma):
         # not move.
         # note that the mean and variance are finally calculated below
         # we just calculate the constant here.
-        meanConst = -2./erfcx(-b)
-        varConst = -2./erfcx(-b)*(upperB + mu)
+        meanConst[I] = -2./erfcx(-b[I])
+        varConst[I] = -2./erfcx(-b[I])*(upperB[I] + mu[I])
         #   muHat = mu - (sqrt(sigma/(2*np.pi))*2)./erfcx(-b)
         #   sigmaHat = sigma + mu.^2 - muHat.^2 - (sqrt(sigma/(2*np.pi))*2)./erfcx(-b)*(upperB + mu)
 
-    elif b==torch.Tensor([np.inf]):
+    I_taken_care_of = I | I_taken_care_of
+    I = torch.isinf(b) & ~I_taken_care_of
+    if I.any():
         # then we are integrating from a up to Inf, which is just the opposite
         # of the above case.
-        if a < -26:
+        I_a = (a <= -26) & I
+        a_erfcx = erfcx(a[I])
+        if I_a.any():
             # then this will be very close to 1... use this goofy expm1 log1p
             # to extend the range up to a==27... 27 std devs away from the
             # mean is really far, so hopefully that should be adequate.  I
@@ -177,35 +192,44 @@ def moments(lowerB, upperB, mu, sigma):
             # Note that this case is important, because after a=27, logZhat as
             # calculated in the other case will equal inf, not 0 as it should.
             # This case returns 0.
-            logZhatOtherTail = torch.log(torch.Tensor([0.5])) + torch.log(erfcx(-a)) - a**2
-            logZhat = torch.log1p(-torch.exp(logZhatOtherTail))
+            logZhatOtherTail = torch.log(torch.Tensor([0.5])).to(device=util._device)\
+                               + torch.log(erfcx(-a[I_a]))\
+                               - a[I_a]**2
+            logZhat[I_a] = torch.log1p(-torch.exp(logZhatOtherTail))
 
-        else:
+        I_a_n = (a > -26) & I
+        if (I_a_n).any():
             # a is more than -26, so should be stable to calculate the moments
             # with a clean application of erfcx, which should work out to
             # almost inf.
             # this is the cleanest case, and the other moments are easy also...
-            logZhat = torch.log(torch.Tensor([0.5])) + torch.log(erfcx(a)) - a**2
+            logZhat[I_a_n] = torch.log(torch.Tensor([0.5])).to(device=util._device)\
+                            + torch.log(a_erfcx[I_a_n])\
+                            - a[I_a_n]**2
 
         # the mean/var calculations are insensitive to these calculations, as we do
         # not deal in the log space.  Since we have to exponentiate everything,
         # values will be numerically 0 or 1 at all the tails, so the mean/var will
         # not move.
-        meanConst = 2./erfcx(a)
-        varConst = 2./erfcx(a)*(lowerB + mu)
+        meanConst[I] = 2./a_erfcx
+        varConst[I] = 2./a_erfcx*(lowerB[I] + mu[I])
         #muHat = mu + (sqrt(sigma/(2*np.pi))*2)./erfcx(a)
         #sigmaHat = sigma + mu.^2 - muHat.^2 + (sqrt(sigma/(2*np.pi))*2)./erfcx(a)*(lowerB + mu)
 
-    else:
-        # we have a range from a to b (neither inf), and we need some stable exponent
+    I_taken_care_of = I | I_taken_care_of
+    # any other cases has bounds for which neither are inf
+    I = ~I_taken_care_of
+    # we have a range from a to b (neither inf), and we need some stable exponent
+    if I.any():
         # calculations.
-        if torch.sign(a)==torch.sign(b):
+        I_eq = torch.eq(torch.sign(a),torch.sign(b)) & I
+        if I_eq.any():
             # then we can exploit symmetry in this problem to make the
             # calculations stable for erfcx, that is, with positive arguments:
             # Zerfcx1 = 0.5*(exp(-b.^2)*erfcx(b) - exp(-a.^2)*erfcx(a))
-            maxab = torch.max(torch.abs(a),torch.abs(b))
-            minab = torch.min(torch.abs(a),torch.abs(b))
-            logZhat = torch.log(torch.Tensor([0.5])) - minab*2 \
+            maxab = torch.max(torch.abs(a[I_eq]),torch.abs(b[I_eq]))
+            minab = torch.min(torch.abs(a[I_eq]),torch.abs(b[I_eq]))
+            logZhat[I_eq] = torch.log(torch.Tensor([0.5])).to(device=util._device) - minab*2 \
                       + torch.log( torch.abs( torch.exp(-(maxab**2-minab**2))*erfcx(maxab)\
                       - erfcx(minab)) )
 
@@ -213,70 +237,82 @@ def moments(lowerB, upperB, mu, sigma):
             # note here the use of the abs and signum functions for flipping the sign
             # of the arguments appropriately.  This uses the relationship
             # erfc(a) = 2 - erfc(-a).
-            meanConst = 2*torch.sign(a)*(1/((erfcx(abs(a)) \
-                                      - torch.exp(a**2-b**2)*erfcx(abs(b))))\
-                                      - 1/((torch.exp(b**2-a**2)*erfcx(abs(a))\
-                                      - erfcx(abs(b)))))
-            varConst =  2*torch.sign(a)*((lowerB+mu)/((erfcx(abs(a))\
-                        - torch.exp(a**2-b**2)*erfcx(abs(b))))\
-                        - (upperB+mu)/((torch.exp(b**2-a**2)*erfcx(abs(a))\
-                        - erfcx(abs(b)))))
+            meanConst[I_eq] = 2*torch.sign(a[I_eq])*(1/((erfcx(abs(a[I_eq])) \
+                                      - torch.exp(a[I_eq]**2-b[I_eq]**2)*erfcx(abs(b[I_eq]))))\
+                                      - 1/((torch.exp(b[I_eq]**2-a[I_eq]**2)*erfcx(abs(a[I_eq]))\
+                                      - erfcx(abs(b[I_eq])))))
+            varConst[I_eq] =  2*torch.sign(a[I_eq])*((lowerB[I_eq]+mu[I_eq])/((erfcx(abs(a[I_eq]))\
+                        - torch.exp(a[I_eq]**2-b[I_eq]**2)*erfcx(abs(b[I_eq]))))\
+                        - (upperB[I_eq]+mu[I_eq])/((torch.exp(b[I_eq]**2-a[I_eq]**2)*erfcx(abs(a[I_eq]))\
+                        - erfcx(abs(b[I_eq])))))
 
-        else:
+        I_n_eq = ~torch.eq(torch.sign(a),torch.sign(b)) & I
+        if I_n_eq.any():
             # then the signs are different, which means b>a (upper>lower by definition), and b>=0, a<=0.
             # but we want to take the bigger one (larger magnitude) and make it positive, as that
             # is the numerically stable end of this tail.
-            if abs(b) >= abs(a):
-                if a >= -26:
-
+            I_b_big_a = (torch.abs(b) >= torch.abs(a)) & I_n_eq
+            if I_b_big_a.any():
+                mask = (a >= -26) & I_b_big_a
+                if mask.any():
                     # do things normally
-                    logZhat = torch.log(torch.Tensor([0.5])) - a**2 + torch.log( erfcx(a)\
-                              - torch.exp(-(b**2 - a**2))*erfcx(b) )
+                    logZhat[mask] = torch.log(torch.Tensor([0.5])).to(device=util._device)\
+                                    - a[mask]**2 + torch.log(erfcx(a[mask])\
+                                                             - torch.exp(-(b[mask]**2\
+                                                                           - a[mask]**2))*erfcx(b[mask]))
 
                     # now the mean and var
-                    meanConst = 2*(1/((erfcx(a)\
-                                - torch.exp(a**2-b**2)*erfcx(b)))\
-                                - 1/((torch.exp(b**2-a**2)*erfcx(a) - erfcx(b))))
-                    varConst = 2*((lowerB+mu)/((erfcx(a)\
-                               - torch.exp(a**2-b**2)*erfcx(b)))\
-                               - (upperB+mu)/((torch.exp(b**2-a**2)*erfcx(a)\
-                               - erfcx(b))))
+                    meanConst[mask] = 2*(1/((erfcx(a[mask])\
+                                - torch.exp(a[mask]**2\
+                                            -b[mask]**2)*erfcx(b[mask])))\
+                                - 1/((torch.exp(b[mask]**2\
+                                                -a[mask]**2)*erfcx(a[mask])\
+                                      - erfcx(b[mask]))))
+                    varConst[mask] = 2*((lowerB[mask]+mu[mask])/((erfcx(a[mask])\
+                               - torch.exp(a[mask]**2-b[mask]**2)*erfcx(b[mask])))\
+                               - (upperB[mask]+mu[mask])/((torch.exp(b[mask]**2-a[mask]**2)*erfcx(a[mask])\
+                               - erfcx(b[mask]))))
 
-                else:
+                mask = (a < -26) & I_b_big_a
+                if mask.any():
                     # a is too small and the calculation will be unstable, so
                     # we just put in something very close to 2 instead.
                     # Again this uses the relationship
                     # erfc(a) = 2 - erfc(-a). Since a<0 and b>0, this
                     # case makes sense.  This just says 2 - the right
                     # tail - the left tail.
-                    logZhat = torch.log(torch.Tensor([0.5])) + torch.log( 2 - torch.exp(-b**2)*erfcx(b)\
-                              - torch.exp(-a**2)*erfcx(-a) )
+                    logZhat[mask] = torch.log(torch.Tensor([0.5])).to(device=util._device)\
+                                    + torch.log( 2 - torch.exp(-b[mask]**2)*erfcx(b[mask])\
+                                                 - torch.exp(-a[mask]**2)*erfcx(-a[mask]) )
 
                     # now the mean and var
-                    meanConst = 2*(1/((erfcx(a) - torch.exp(a**2-b**2)*erfcx(b)))\
-                                - 1/(torch.exp(b**2)*2 - erfcx(b)))
-                    varConst = 2*((lowerB+mu)/((erfcx(a)\
-                               - torch.exp(a**2-b**2)*erfcx(b)))\
-                               - (upperB+mu)/(torch.exp(b**2)*2 - erfcx(b)))
+                    meanConst[mask] = 2*(1/((erfcx(a[mask]) - torch.exp(a[mask]**2-b[mask]**2)*erfcx(b[mask])))\
+                                - 1/(torch.exp(b[mask]**2)*2 - erfcx(b[mask])))
+                    varConst[mask] = 2*((lowerB[mask]+mu[mask])/((erfcx(a[mask])\
+                               - torch.exp(a[mask]**2-b[mask]**2)*erfcx(b[mask])))\
+                               - (upperB[mask]+mu[mask])/(torch.exp(b[mask]**2)*2 - erfcx(b[mask])))
 
-            else: # abs(a) is bigger than abs(b), so we reverse the calculation...
-                if b <= 26:
+            I_b_less_a = (torch.abs(b) < torch.abs(a)) & I_n_eq
+            if I_b_less_a.any():
+                mask = (b <= -26) & I_b_less_a
+                if mask.any():
 
                     # do things normally but mirrored across 0
-                    logZhat = torch.log(torch.Tensor([0.5])) - b**2 + torch.log( erfcx(-b)\
-                              - torch.exp(-(a**2 - b**2))*erfcx(-a))
+                    logZhat[mask] = torch.log(torch.Tensor([0.5])).to(device=util._device) - b[mask]**2 + torch.log( erfcx(-b[mask])\
+                              - torch.exp(-(a[mask]**2 - b[mask]**2))*erfcx(-a[mask]))
 
                     # now the mean and var
-                    meanConst = -2*(1/((erfcx(-a)\
-                                - torch.exp(a**2-b**2)*erfcx(-b)))\
-                                - 1/((torch.exp(b**2-a**2)*erfcx(-a)\
-                                - erfcx(-b))))
-                    varConst = -2*((lowerB+mu)/((erfcx(-a) \
-                               - torch.exp(a**2-b**2)*erfcx(-b))) \
-                               - (upperB+mu)/((torch.exp(b**2-a**2)*erfcx(-a) \
-                               - erfcx(-b))))
+                    meanConst[mask] = -2*(1/((erfcx(-a[mask])\
+                                - torch.exp(a[mask]**2-b[mask]**2)*erfcx(-b[mask])))\
+                                - 1/((torch.exp(b[mask]**2-a[mask]**2)*erfcx(-a[mask])\
+                                - erfcx(-b[mask]))))
+                    varConst[mask] = -2*((lowerB[mask]+mu[mask])/((erfcx(-a[mask]) \
+                               - torch.exp(a[mask]**2-b[mask]**2)*erfcx(-b[mask]))) \
+                               - (upperB[mask]+mu[mask])/((torch.exp(b[mask]**2-a[mask]**2)*erfcx(-a[mask]) \
+                               - erfcx(-b[mask]))))
 
-                else:
+                mask = (b > -26) & I_b_less_a
+                if mask.any():
 
                     # b is too big and the calculation will be unstable, so
                     # we just put in something very close to 2 instead.
@@ -284,17 +320,17 @@ def moments(lowerB, upperB, mu, sigma):
                     # erfc(a) = 2 - erfc(-a). Since a<0 and b>0, this
                     # case makes sense. This just says 2 - the right
                     # tail - the left tail.
-                    logZhat = torch.log(torch.Tensor([0.5]))\
-                              + torch.log( 2 - torch.exp(-a**2)*erfcx(-a)\
-                              - torch.exp(-b**2)*erfcx(b) )
+                    logZhat[mask] = torch.log(torch.Tensor([0.5])).to(device=util._device)\
+                              + torch.log( 2 - torch.exp(-a[mask]**2)*erfcx(-a[mask])\
+                              - torch.exp(-b[mask]**2)*erfcx(b[mask]) )
 
                     # now the mean and var
-                    meanConst = -2*(1/(erfcx(-a) - torch.exp(a**2)*2)\
-                                - 1/(torch.exp(b**2-a**2)*erfcx(-a) - erfcx(-b)))
-                    varConst = -2*((lowerB + mu)/(erfcx(-a)\
-                               - torch.exp(a**2)*2)\
-                               - (upperB + mu)/(torch.exp(b**2-a**2)*erfcx(-a)\
-                               - erfcx(-b)))
+                    meanConst[mask] = -2*(1/(erfcx(-a[mask]) - torch.exp(a[mask]**2)*2)\
+                                - 1/(torch.exp(b[mask]**2-a[mask]**2)*erfcx(-a[mask]) - erfcx(-b[mask])))
+                    varConst = -2*((lowerB[mask] + mu[mask])/(erfcx(-a[mask])\
+                               - torch.exp(a[mask]**2)*2)\
+                               - (upperB[mask] + mu[mask])/(torch.exp(b[mask]**2-a[mask]**2)*erfcx(-a[mask])\
+                               - erfcx(-b[mask])))
 
             # the above four cases (diff signs x stable/unstable) can be
             # collapsed into two cases by tracking the sign of the maxab
@@ -317,6 +353,6 @@ def moments(lowerB, upperB, mu, sigma):
     # make entropy
     entropy = 0.5*((meanConst*torch.sqrt(sigma/(2*pi)))**2
                 + sigmaHat - sigma)/sigma\
-              + logZhat + torch.log(torch.sqrt(2*pi*torch.exp(torch.Tensor([1]))))\
+              + logZhat + torch.log(torch.sqrt(2*pi*torch.exp(torch.Tensor([1]).to(device=util._device))))\
               + torch.log(torch.sqrt(sigma))
     return logZhat, Zhat, muHat, sigmaHat, entropy
