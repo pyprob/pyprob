@@ -3,7 +3,10 @@ import numpy as np
 
 def erfcx(x):
     """see - https://github.com/scipy/scipy/blob/8dba340293fe20e62e173bdf2c10ae208286692f/scipy/special/Faddeeva.cc
+    EXPECT INPUT TO BE OF TYPE DOUBLE!
     """
+    if x.dtype != torch.float64:
+        raise ValueError("erfcx input not of type float64")
     result = torch.empty_like(x)
     I = x >= 0
     if I.any():
@@ -15,24 +18,28 @@ def erfcx(x):
 	            result[I_BIG] = ispi / x[I_BIG]
       # 5-term expansion (rely on compiler for CSE), simplified from:
       # ispi / (x+0.5/(x+1/(x+1.5/(x+2/x))))  */
-            if (~I_BIG).any(): # 1-term expansion, important to avoid overflow
-                tmp = x[~I_BIG]
-                result[~I_BIG] = ispi*((tmp*tmp) * (tmp*tmp+4.5) + 2)\
+            I_BIG_n = (x <= 5e7) & I_ge
+            if (I_BIG_n).any(): # 1-term expansion, important to avoid overflow
+                tmp = x[I_BIG_n]
+                result[I_BIG_n] = ispi*((tmp*tmp) * (tmp*tmp+4.5) + 2)\
                                   / (tmp * ((tmp*tmp) * (tmp*tmp+5) + 3.75))
-        if (~I_ge).any():
-            tmp = 400/(4+x[~I_ge])
-            result[~I_ge] =  erfcx_y100(tmp)
+        I_ge_n = (x <= 50) & I
+        if (I_ge_n).any():
+            tmp = 400/(4+x[I_ge_n])
+            result[I_ge_n] =  erfcx_y100(tmp)
     if (~I).any():
         I_less = (x < -26.7) & (~I)
         if I_less.any():
             result[I_less] = torch.tensor([np.infty])
-        if (~I_less).any():
-            mask = (x < -6.1) & (~I_less)
+        I_less_n = (x >= -26.7) & (~I)
+        if (I_less_n).any():
+            mask = (x < -6.1) & (I_less_n)
             if mask.any():
                 result[mask] = 2*torch.exp(x[mask]*x[mask])
-            if (~mask).any():
-                tmp = 400/(4-x[~mask])
-                result[~mask] = 2*torch.exp(x[~mask]*x[~mask]) - erfcx_y100(tmp)
+            mask_n = (x >= -6.1) & (I_less_n)
+            if (mask_n).any():
+                tmp = 400/(4-x[mask_n])
+                result[mask_n] = 2*torch.exp(x[mask_n]*x[mask_n]) - erfcx_y100(tmp)
     return result
 
 @torch.jit.script

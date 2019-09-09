@@ -43,8 +43,8 @@ class ProposalGammaTruncatedNormalMixture(nn.Module):
                                                                                        self.output_dim),
                                          stddevs[:, i*self.output_dim:(i+1)*self.output_dim].view(batch_size,
                                                                                          self.output_dim),
-                                         low=util.to_tensor(0).to(device=util._device),
-                                         high=util.to_tensor(np.inf).to(device=util._device))
+                                         low=torch.Tensor([0]).expand(batch_size).to(device=util._device),
+                                         high=torch.Tensor([np.infty]).expand(batch_size).to(device=util._device))
                          for i in range(self._mixture_components)]
 
         return Mixture(distributions, logits=log_coeffs)

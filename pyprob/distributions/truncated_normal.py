@@ -26,7 +26,7 @@ class TruncatedNormal(Distribution):
 
         output = moments(self._low, self._high, self._mean_non_truncated,
                          self._stddev_non_truncated**2)
-        self._logZ, self._Z, self._mean, self._stddev, self._entropy = output
+        self._logZ, self._Z, self._mean, self._var, self._entropy = output
 
         self._standard_normal_dist = Normal(util.to_tensor(torch.zeros_like(self._mean_non_truncated)), util.to_tensor(torch.ones_like(self._stddev_non_truncated)))
         self._alpha = (self._low - self._mean_non_truncated) / self._stddev_non_truncated
@@ -44,10 +44,16 @@ class TruncatedNormal(Distribution):
                    - (torch.log(self._stddev_non_truncated) + self._logZ)
 
         if util.has_nan_or_inf(log_prob):
+            import sys
+            mask = torch.isinf(log_prob) | torch.isnan(log_prob)
             print(colored('Warning: NaN, -Inf, or Inf encountered in TruncatedNormal log_prob.', 'red', attrs=['bold']))
-            print('distribution', self)
-            print('value', value)
-            print('log_prob', log_prob)
+            print('distribution', self.name)
+            print('value', value[mask])
+            print('log_prob', log_prob[mask])
+            print('parent_mean', self._mean_non_truncated[mask])
+            print('parent_stddev', self._stddev_non_truncated[mask])
+            print('log_Z', self._logZ[mask])
+            sys.exit()
             # lp = util.replace_inf(lp, colored('Warning: TruncatedNormal log_prob has inf, replacing with 0.', 'red', attrs=['bold']))
         return torch.sum(log_prob) if sum else log_prob
 
@@ -77,7 +83,7 @@ class TruncatedNormal(Distribution):
 
     @property
     def variance(self):
-        return self._stddev**2
+        return self._var
 
     def sample(self):
         sample = trandn(self._alpha, self._beta)

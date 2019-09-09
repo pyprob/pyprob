@@ -9,8 +9,8 @@ from trandn import trandn
 from truncnorm_moments import moments
 
 n_samples = int(5)
-mu = -200
-std = 2.0
+mu = 2
+std = 1
 mus = torch.zeros(n_samples) + mu
 stds = torch.zeros(n_samples) + std
 lower_bound = torch.zeros(n_samples)
@@ -41,6 +41,8 @@ for _ in range(1):
 print("Robust time:", time.time()-t)
 print("=============================\n\n")
 
+print(f"Estimated mean: {mean}\nTheoretical mean: {theoretical_mean[0]}\nRobust evaluation of mean: {muHat.tolist()[0]}")
+print("=============================\n\n")
 
 
 ########################################################
@@ -50,22 +52,32 @@ print("=============================\n\n")
 ########################################################
 
 x = 1
-if x < lower_bound:
-    x = lower_bound
-if x > upper_bound:
-    x = upper_bound
+if x < lower_bound[0]:
+    x = lower_bound[0]
+if x > upper_bound[0]:
+    x = upper_bound[0]
 
 clip_a = -mu/std
 clip_b = (np.infty-mu)/std
 theoretical_pdf = truncnorm.pdf((x-mu)/std, clip_a, clip_b)/std
 norm = Normal(0,1)
-print(torch.exp(norm.log_prob((x-mu)/std)), logZhat, torch.exp(logZhat), Zhat)
 robust_pdf = torch.exp(norm.log_prob((x-mu)/std)-(torch.log(torch.Tensor([std]))+logZhat))
 
-print(f"Estimated mean: {mean}\nTheoretical mean: {theoretical_mean[0]}\nRobust evaluation of mean: {muHat.tolist()[0]}")
-print("=============================\n\n")
 print(f"Robust pdf: {robust_pdf[0]}\nTheoretical pdf: {theoretical_pdf}")
 print("=============================")
+
+########################################################
+
+# Variances
+
+########################################################
+
+# set the upper limit VERY high to simulate infinite upper bound
+theoretical_variance = truncnorm.stats(clip_a, 99999, loc=mu, scale=std,
+        moments='v')
+print(f"Theoretical variance: {theoretical_variance}\nRobust variance: {sigmaHat.tolist()[0]}")
+print("=============================\n\n")
+
 
 #fig = plt.figure(figsize=(20,20))
 #sns.distplot(samples, kde=False)
