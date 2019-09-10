@@ -329,7 +329,8 @@ class SurrogateNetworkLSTM(InferenceNetwork):
 
         with torch.no_grad(): # DO NOT ADD THIS NETWORKS PARAMETERS TO GRADIENT COMPUTATION GRAPH
             if not self._address_path:
-                address = self._layers_address_transitions["__init"](None).sample()
+                none_input = torch.Tensor([0])
+                address = self._layers_address_transitions["__init"](none_input).sample()
             else:
                 address = self._address_path[0]
             prev_variable = None
