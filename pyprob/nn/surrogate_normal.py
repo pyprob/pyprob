@@ -24,10 +24,10 @@ class SurrogateNormal(nn.Module):
 
         # check if either loc or scale are constant
         if 'loc' in constants:
-            self._loc_const = constants['loc'].to(device=util._device)
+            self._loc_const = nn.Parameter(constants['loc'].to(device=util._device), requires_grad=False)
             self.constant_loc = True
         if 'scale' in constants:
-            self._scale_const = constants['scale'].to(device=util._device)
+            self._scale_const = nn.Parameter(constants['scale'].to(device=util._device), requires_grad=False)
             self.constant_scale = True
 
         if self.constant_scale and self.constant_loc:

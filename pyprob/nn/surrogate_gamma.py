@@ -24,10 +24,10 @@ class SurrogateGamma(nn.Module):
         input_shape = util.to_size(input_shape)
 
         if 'shape' in constants:
-            self._shape_const = constants['shape'].to(device=util._device)
+            self._shape_const = nn.Parameter(constants['shape'].to(device=util._device),requires_grad=False)
             self.constant_shape= True
         if 'rate' in constants:
-            self._rate_const = constants['rate'].to(device=util._device)
+            self._rate_const = nn.Parameter(constants['rate'].to(device=util._device), requires_grad=False)
             self.constant_rate = True
 
         if self.constant_shape and self.constant_rate:
@@ -47,6 +47,7 @@ class SurrogateGamma(nn.Module):
                                             activation_last=None,
                                             hidden_dim=hidden_dim)
         self._total_train_iterations = 0
+        self.dist_type = Gamma(torch.zeros(self._shape_shape)+0.5, torch.ones(self._rate_shape)+0.5)
 
 
     def forward(self, x, no_batch=False):

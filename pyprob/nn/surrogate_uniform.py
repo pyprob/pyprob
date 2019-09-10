@@ -26,8 +26,8 @@ class SurrogateUniform(nn.Module):
         if ('low' not in constants) or ('high' not in constants):
             raise NotImplementedError("Uniform distibutions must CURRENTLY have constants range")
         else:
-            self._low = util.to_tensor(constants['low']).to(device=util._device)
-            self._high = util.to_tensor(constants['high']).to(device=util._device)
+            self._low = nn.Parameter(util.to_tensor(constants['low']).to(device=util._device), requires_grad=False)
+            self._high = nn.Parameter(util.to_tensor(constants['high']).to(device=util._device), requires_grad=False)
             self.dist_type = Uniform(low=self._low,
                                      high=self._high)
         self.low_shape = self._low.shape

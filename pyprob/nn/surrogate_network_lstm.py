@@ -329,12 +329,12 @@ class SurrogateNetworkLSTM(InferenceNetwork):
 
         with torch.no_grad(): # DO NOT ADD THIS NETWORKS PARAMETERS TO GRADIENT COMPUTATION GRAPH
             if not self._address_path:
-                none_input = torch.Tensor([0])
-                address = self._layers_address_transitions["__init"](none_input).sample()
+                address = self._layers_address_transitions["__init"](None, batch_size=1).sample()
             else:
                 address = self._address_path[0]
             prev_variable = None
             time_step = 1
+            prev_address = address
             while address != "__end":
                 surrogate_dist = self._layers_surrogate_distributions[address]
                 current_variable = Variable(distribution=surrogate_dist.dist_type,
@@ -369,12 +369,15 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 time_step += 1
 
                 if address == "__unknown":
-                    print(colored("Warning: sampled unknown address", 'red', attr=['bold']))
+                    print(colored(f"Warning: sampled unknown address at address: {prev_address}", 'red', attrs=['bold']))
+                    print(colored(f"These are the probabilities: \n\t {torch.exp(a_dist._logits)}",'red', attrs=['bold']))
                     # if an address is unknown default to the simulator
                     # by resetting the _current_trace
                     state._current_trace = Trace()
                     self._original_forward(*args, **kwargs)
                     break
+
+                prev_address = address
 
             # TODO a better data structure than a set?
             # Is this even necessary assuming we trust the model?

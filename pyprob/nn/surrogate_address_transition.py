@@ -49,15 +49,21 @@ class SurrogateAddressTransition(nn.Module):
         self.nllloss = nn.NLLLoss(reduction='sum') # sum instead of the default "mean"
 
         self._total_train_iterations = 0
+        self._first_and_last_address_logits = nn.Parameter(util.clamp_logits(torch.log(torch.Tensor([[1,0]]))).to(device=util._device),
+                                                           requires_grad=False)
 
-    def forward(self, x):
-        batch_size = x.size(0)
+    def forward(self, x, batch_size=1):
+        """
+        x may be none, if the address transition is from the __init address -> simply no input
+        """
+        if x is not None:
+            batch_size = x.size(0)
         if self._first_address:
-            self._logits = self._logsoftmax(torch.Tensor([1])).expand(batch_size,1)
+            self._logits = self._first_and_last_address_logits.expand(batch_size,2)
             categorical = AddressCategorical(logits=self._logits,
                                              n_classes=self._n_classes, transform=self._transform_to_address)
         elif self._last_address:
-            self._logits = self._logsoftmax(torch.Tensor([1])).expand(batch_size,1)
+            self._logits = self._first_and_last_address_logits.expand(batch_size,2)
             categorical = AddressCategorical(logits=self._logits,
                                              n_classes=self._n_classes, transform=self._transform_to_address)
         else:
@@ -92,7 +98,8 @@ class SurrogateAddressTransition(nn.Module):
                 m.weight = nn.Parameter(new_weights)
                 m.bias = nn.Parameter(new_bias)
 
-        self._ff["class_layer"] = nn.Linear(self._class_layer_input, self._output_dim).apply(init_new_params).to(device=util._device)
+        self._ff["class_layer"] = nn.Linear(self._class_layer_input,
+                                            self._output_dim).apply(init_new_params).to(device=util._device)
 
     def _loss(self, next_addresses):
         target_classes = self._transform_to_class(next_addresses).to(device=util._device)
