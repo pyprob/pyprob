@@ -37,8 +37,7 @@ class ProposalGammaTruncatedNormalMixture(nn.Module):
         stddevs = x[:, slice_size:2*slice_size].view(batch_size, -1)
         coeffs = x[:, 2*slice_size:].view(batch_size, -1)
 
-        means = torch.sigmoid(means)
-        stddevs = torch.sigmoid(stddevs)
+        stddevs = torch.exp(stddevs)
         log_coeffs = self._logsoftmax(coeffs)
 
         distributions = [TruncatedNormal(means[:, i*self.output_dim:(i+1)*self.output_dim].view(batch_size,

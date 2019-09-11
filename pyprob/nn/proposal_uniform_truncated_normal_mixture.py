@@ -35,8 +35,7 @@ class ProposalUniformTruncatedNormalMixture(nn.Module):
         stddevs = x[:, slice_size:2*slice_size].view(batch_size, -1)
         coeffs = x[:, 2*slice_size:].view(batch_size, -1)
 
-        means = torch.sigmoid(means)
-        stddevs = torch.sigmoid(stddevs)
+        stddevs = torch.exp(stddevs)
         log_coeffs = self._logsoftmax(coeffs)
 
         prior_lows = prior_distribution.low.view(batch_size, -1).repeat(1,slice_size)
