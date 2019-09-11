@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 from .utils import erfcx
-from ... import util
 
 #############################################
 
@@ -56,19 +55,21 @@ from ... import util
 """
 
 def moments(lowerB, upperB, mu, sigma):
+    device = mu.device
+
     lowerB = lowerB.double()
     upperB = upperB.double()
     mu = mu.double()
     sigma = sigma.double()
 
-    pi = torch.Tensor([np.pi]).double().expand_as(mu).to(device=util._device)
-    logZhat = torch.empty_like(mu).double().to(device=util._device)
-    Zhat = torch.empty_like(mu).double().to(device=util._device)
-    muHat = torch.empty_like(mu).double().to(device=util._device)
-    sigmaHat = torch.empty_like(mu).double().to(device=util._device)
-    entropy = torch.empty_like(mu).double().to(device=util._device)
-    meanConst = torch.empty_like(mu).double().to(device=util._device)
-    varConst = torch.empty_like(mu).double().to(device=util._device)
+    pi = torch.Tensor([np.pi]).double().expand_as(mu).to(device=device)
+    logZhat = torch.empty_like(mu).double().to(device=device)
+    Zhat = torch.empty_like(mu).double().to(device=device)
+    muHat = torch.empty_like(mu).double().to(device=device)
+    sigmaHat = torch.empty_like(mu).double().to(device=device)
+    entropy = torch.empty_like(mu).double().to(device=device)
+    meanConst = torch.empty_like(mu).double().to(device=device)
+    varConst = torch.empty_like(mu).double().to(device=device)
 
     """
     lowerB is the lower bound
@@ -112,21 +113,21 @@ def moments(lowerB, upperB, mu, sigma):
         #logZhat = -inf
         #meanConst = inf
         #varConst = 0
-        logZhat[I_sign] = torch.Tensor([-np.inf]).double().to(device=util._device)
-        Zhat[I_sign] = torch.Tensor([0]).double().to(device=util._device)
+        logZhat[I_sign] = torch.Tensor([-np.inf]).double().to(device=device)
+        Zhat[I_sign] = torch.Tensor([0]).double().to(device=device)
         muHat[I_sign] = a[I_sign]
-        sigmaHat[I_sign] = torch.Tensor([0]).double().to(device=util._device)
-        entropy[I_sign] = torch.Tensor([-np.inf]).double().to(device=util._device)
+        sigmaHat[I_sign] = torch.Tensor([0]).double().to(device=device)
+        entropy[I_sign] = torch.Tensor([-np.inf]).double().to(device=device)
         #logZhat = 0
         #meanConst = mu
         #varConst = 0
 
         I_sign_n = ~torch.eq(torch.sign(a),torch.sign(b)) & I
-        logZhat[I_sign_n] = torch.Tensor([0]).double().to(device=util._device)
-        Zhat[I_sign_n] = torch.Tensor([1]).double().to(device=util._device)
+        logZhat[I_sign_n] = torch.Tensor([0]).double().to(device=device)
+        Zhat[I_sign_n] = torch.Tensor([1]).double().to(device=device)
         muHat[I_sign_n] = mu[I_sign_n]
         sigmaHat[I_sign_n] = sigma[I_sign_n]
-        entropy[I_sign_n] = 0.5*torch.log(2*pi[I_sign_n]*torch.exp(torch.Tensor([1])).double().to(device=util._device)*sigma[I_sign_n])
+        entropy[I_sign_n] = 0.5*torch.log(2*pi[I_sign_n]*torch.exp(torch.Tensor([1])).double().to(device=device)*sigma[I_sign_n])
     # a problem case
     I_taken_care_of = I
     I = (a > b) & ~I_taken_care_of
@@ -135,11 +136,11 @@ def moments(lowerB, upperB, mu, sigma):
         #logZhat = -inf
         #meanConst = 0
         #varConst = 0
-        logZhat[I] = torch.Tensor([-np.inf]).double().to(device=util._device)
-        Zhat[I] = torch.zeroes_like(mu[I]).double().to(device=util._device)
+        logZhat[I] = torch.Tensor([-np.inf]).double().to(device=device)
+        Zhat[I] = torch.zeroes_like(mu[I]).double().to(device=device)
         muHat[I] = mu[I]
-        sigmaHAT[I] = torch.zeroes_like(mu[I]).double().to(device=util._device)
-        entropy[I] = torch.Tensor([-np.inf]).double().to(device=util._device)
+        sigmaHAT[I] = torch.zeroes_like(mu[I]).double().to(device=device)
+        entropy[I] = torch.Tensor([-np.inf]).double().to(device=device)
 
     # now real cases follow...
     I_taken_care_of = I | I_taken_care_of
@@ -163,7 +164,7 @@ def moments(lowerB, upperB, mu, sigma):
             # Note that this case is important, because after b=27, logZhat as
             # calculated in the other case will equal inf, not 0 as it should.
             # This case returns 0.
-            logZhatOtherTail = torch.log(torch.Tensor([0.5])).double().to(device=util._device)\
+            logZhatOtherTail = torch.log(torch.Tensor([0.5])).double().to(device=device)\
                                + torch.log(erfcx(b[I_b]))\
                                - b[I_b]**2
             logZhat[I_b] = torch.log1p(-torch.exp(logZhatOtherTail))
@@ -174,7 +175,7 @@ def moments(lowerB, upperB, mu, sigma):
             # with a clean application of erfcx, which should work out to
             # an argument almost b==-inf.
             # this is the cleanest case, and the other moments are easy also...
-            logZhat[I_b_n] = torch.log(torch.Tensor([0.5])).double().to(device=util._device)\
+            logZhat[I_b_n] = torch.log(torch.Tensor([0.5])).double().to(device=device)\
                       + torch.log(erfcx(-b[I_b_n])) - b[I_b_n]**2
 
         # the mean/var calculations are insensitive to these calculations, as we do
@@ -206,7 +207,7 @@ def moments(lowerB, upperB, mu, sigma):
             # Note that this case is important, because after a=27, logZhat as
             # calculated in the other case will equal inf, not 0 as it should.
             # This case returns 0.
-            logZhatOtherTail = torch.log(torch.Tensor([0.5])).double().to(device=util._device)\
+            logZhatOtherTail = torch.log(torch.Tensor([0.5])).double().to(device=device)\
                                + torch.log(erfcx(-a[I_a]))\
                                - a[I_a]**2
             logZhat[I_a] = torch.log1p(-torch.exp(logZhatOtherTail))
@@ -217,7 +218,7 @@ def moments(lowerB, upperB, mu, sigma):
             # with a clean application of erfcx, which should work out to
             # almost inf.
             # this is the cleanest case, and the other moments are easy also...
-            logZhat[I_a_n] = torch.log(torch.Tensor([0.5])).double().to(device=util._device)\
+            logZhat[I_a_n] = torch.log(torch.Tensor([0.5])).double().to(device=device)\
                             + torch.log(erfcx(a[I_a_n]))\
                             - a[I_a_n]**2
 
@@ -243,7 +244,7 @@ def moments(lowerB, upperB, mu, sigma):
             # Zerfcx1 = 0.5*(exp(-b.^2)*erfcx(b) - exp(-a.^2)*erfcx(a))
             maxab = torch.max(torch.abs(a[I_eq]),torch.abs(b[I_eq]))
             minab = torch.min(torch.abs(a[I_eq]),torch.abs(b[I_eq]))
-            logZhat[I_eq] = torch.log(torch.Tensor([0.5])).double().to(device=util._device) - minab*2 \
+            logZhat[I_eq] = torch.log(torch.Tensor([0.5])).double().to(device=device) - minab*2 \
                       + torch.log( torch.abs( torch.exp(-(maxab**2-minab**2))*erfcx(maxab)\
                       - erfcx(minab)) )
 
@@ -270,7 +271,7 @@ def moments(lowerB, upperB, mu, sigma):
                 mask = (a >= -26) & I_b_big_a
                 if mask.any():
                     # do things normally
-                    logZhat[mask] = torch.log(torch.Tensor([0.5])).double().to(device=util._device)\
+                    logZhat[mask] = torch.log(torch.Tensor([0.5])).double().to(device=device)\
                                     - a[mask]**2 + torch.log(erfcx(a[mask])\
                                                              - torch.exp(-(b[mask]**2\
                                                                            - a[mask]**2))*erfcx(b[mask]))
@@ -295,7 +296,7 @@ def moments(lowerB, upperB, mu, sigma):
                     # erfc(a) = 2 - erfc(-a). Since a<0 and b>0, this
                     # case makes sense.  This just says 2 - the right
                     # tail - the left tail.
-                    logZhat[mask] = torch.log(torch.Tensor([0.5])).double().to(device=util._device)\
+                    logZhat[mask] = torch.log(torch.Tensor([0.5])).double().to(device=device)\
                                     + torch.log( 2 - torch.exp(-b[mask]**2)*erfcx(b[mask])\
                                                  - torch.exp(-a[mask]**2)*erfcx(-a[mask]) )
 
@@ -312,7 +313,7 @@ def moments(lowerB, upperB, mu, sigma):
                 if mask.any():
 
                     # do things normally but mirrored across 0
-                    logZhat[mask] = torch.log(torch.Tensor([0.5])).double().to(device=util._device) - b[mask]**2 + torch.log( erfcx(-b[mask])\
+                    logZhat[mask] = torch.log(torch.Tensor([0.5])).double().to(device=device) - b[mask]**2 + torch.log( erfcx(-b[mask])\
                               - torch.exp(-(a[mask]**2 - b[mask]**2))*erfcx(-a[mask]))
 
                     # now the mean and var
@@ -334,7 +335,7 @@ def moments(lowerB, upperB, mu, sigma):
                     # erfc(a) = 2 - erfc(-a). Since a<0 and b>0, this
                     # case makes sense. This just says 2 - the right
                     # tail - the left tail.
-                    logZhat[mask] = torch.log(torch.Tensor([0.5])).double().to(device=util._device)\
+                    logZhat[mask] = torch.log(torch.Tensor([0.5])).double().to(device=device)\
                               + torch.log( 2 - torch.exp(-a[mask]**2)*erfcx(-a[mask])\
                               - torch.exp(-b[mask]**2)*erfcx(b[mask]) )
 
@@ -367,6 +368,6 @@ def moments(lowerB, upperB, mu, sigma):
     # make entropy
     entropy = 0.5*((meanConst*torch.sqrt(sigma/(2*pi)))**2
                 + sigmaHat - sigma)/sigma\
-              + logZhat + torch.log(torch.sqrt(2*pi*torch.exp(torch.Tensor([1]).double().to(device=util._device))))\
+              + logZhat + torch.log(torch.sqrt(2*pi*torch.exp(torch.Tensor([1]).double().to(device=device))))\
               + torch.log(torch.sqrt(sigma))
     return logZhat.float(), Zhat.float(), muHat.float(), sigmaHat.float(), entropy.float()

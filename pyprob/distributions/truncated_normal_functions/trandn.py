@@ -10,6 +10,7 @@ uniform = Uniform(0,1)
 normal = Normal(0,1)
 
 def trandn(l,u):
+    device=l.device
     ## truncated normal generator
     # * efficient generator of a vector of length(l)=length(u)
     # from the standard multivariate normal distribution,
@@ -33,7 +34,7 @@ def trandn(l,u):
         print('Truncation limits have to be vectors of the same length')
         sys.exit()
 
-    x = torch.empty(len(l))
+    x = torch.empty(len(l)).to(device=device)
     a = .66 # treshold for switching between methods
 
     # three cases to consider:
@@ -68,27 +69,28 @@ def trandn(l,u):
 def ntail(l,u):
 
     # samples a column vector of length=length(l)=length(u)
-    # from the standard multivariate normal distribution,
+    # from the standard multivariate normal distribution,.to(device=device)
     # truncated over the region [l,u], where l>0 and
     # l and u are column vectors;
     # uses acceptance-rejection from Rayleigh distr.
     # similar to Marsaglia (1964);
+    device = l.device
 
     c = l**2/2
     n = torch.Size([len(l)])
     f = expm1(c-u**2/2)
 
-    x = c - np.log(1+uniform.sample(n)*f); # sample using Rayleigh
+    x = c - np.log(1+uniform.sample(n).to(device=device)*f); # sample using Rayleigh
 
     # keep list of rejected
 
-    I = uniform.sample(n)**2*x > c
+    I = uniform.sample(n).to(device=device)**2*x > c
 
     while I.any(): # while there are rejections
         cy = c[I] # find the thresholds of rejected
         tmp_shape = torch.Size([len(cy)])
-        y = cy - torch.log(1+uniform.sample(tmp_shape)*f[I])
-        idx = (uniform.sample(tmp_shape)**2)*y < cy # accepted
+        y = cy - torch.log(1+uniform.sample(tmp_shape).to(device=device)*f[I])
+        idx = (uniform.sample(tmp_shape).to(device=device)**2)*y < cy # accepted
         tmp = I.clone()
         I[tmp] = idx # make the list of elements in x to update
         x[I] = y[idx] # store the accepted
@@ -110,6 +112,7 @@ def ntail(l,u):
 
 def tn(l,u):
 
+    device = l.device
     # samples a column vector of length=length(l)=length(u)
     # from the standard multivariate normal distribution,
     # truncated over the region [l,u], where -a<l<u<a for some
@@ -135,20 +138,21 @@ def tn(l,u):
 
         tl=l[I]
         tu=u[I]
-        pl = erfc(tl/torch.sqrt(2))/2
-        pu = erfc(tu/torch.sqrt(2))/2
+        pl = erfc(tl/torch.sqrt(torch.Tensor([2]).to(device=device)))/2
+        pu = erfc(tu/torch.sqrt(torch.Tensor([2]).to(device=device)))/2
 
-        x[I] = torch.sqrt(2)*erfcinv(2*(pl-(pl-pu)*uniform.sample(len(tl))))
+        x[I] = torch.sqrt(torch.Tensor([2]).to(device=device))*erfcinv(2*(pl-(pl-pu)*uniform.sample(len(tl).to(device=device))))
 
     return x
 
 #############################################################
 
 def trnd(l,u):
+    device = l.device
 
     # uses acceptance rejection to simulate from truncated normal
     n = torch.Size([len(l)])
-    x=normal.sample(n) # sample normal
+    x=normal.sample(n).to(device=device) # sample normal
 
     # keep list of rejected
     I = (x<l)|(x>u)
@@ -156,7 +160,7 @@ def trnd(l,u):
         ly = l[I] # find the thresholds of rejected
         uy = u[I]
         tmp_shape = torch.Size([len(ly)])
-        y = normal.sample(tmp_shape)
+        y = normal.sample(tmp_shape).to(device=device)
         idx = (y>ly)&(y<uy) # accepted
         tmp = I.clone()
         I[tmp] = idx # make the list of elements in x to update
