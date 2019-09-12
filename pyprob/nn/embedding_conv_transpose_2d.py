@@ -166,7 +166,6 @@ class ConvTranspose2d(nn.Module):
         in_channels = channels
         for stage in range(num_upsampling_blocks):
             out_channels = channels_at_stage(stage + 3)
-            print(out_channels)
             h = h*2 if 2*h < H else H
             w = w*2 if 2*w < W else W
             upscale_module.append(UpscaleBlock(in_channels, out_channels,
