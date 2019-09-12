@@ -143,13 +143,13 @@ class ConvTranspose2d(nn.Module):
         max_resolution = max(H,W)
         resolution_log2 = int(np.ceil(np.log2(max_resolution)))
 
-        h = 8 # the paper uses a value of 4
-        w = 8 # the paper uses a value of 4
+        h = 14 # the paper uses a value of 4
+        w = 5 # the paper uses a value of 4
         assert H >= h and W >= w
 
         fmap_max = 512
-        fmap_decay = 1
-        fmap_base = max_resolution * 8
+        fmap_decay = 1.3
+        fmap_base = max_resolution * 6
 
         def channels_at_stage(stage):
             return max(min(int(fmap_base / (2.0 ** (stage * fmap_decay))), fmap_max),1)
@@ -166,6 +166,7 @@ class ConvTranspose2d(nn.Module):
         in_channels = channels
         for stage in range(num_upsampling_blocks):
             out_channels = channels_at_stage(stage + 3)
+            print(out_channels)
             h = h*2 if 2*h < H else H
             w = w*2 if 2*w < W else W
             upscale_module.append(UpscaleBlock(in_channels, out_channels,
