@@ -33,7 +33,7 @@ class ProposalGammaTruncatedNormalMixture(nn.Module):
         x = self._ff(x)
 
         slice_size = self.output_dim*self._mixture_components
-        means = x[:, :slice_size].view(batch_size, -1)
+        means = torch.max(x[:, :slice_size].view(batch_size, -1), -1e6)
         stddevs = x[:, slice_size:2*slice_size].view(batch_size, -1)
         coeffs = x[:, 2*slice_size:].view(batch_size, -1)
 
