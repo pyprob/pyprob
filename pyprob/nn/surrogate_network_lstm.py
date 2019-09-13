@@ -54,7 +54,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
     def _init_layers(self):
         self._lstm_input_dim = self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
         self._layers_lstm = nn.LSTM(self._lstm_input_dim, self._lstm_dim, self._lstm_depth)
-        self._layers_lstm.to(device=util._device)
+        self._layers_lstm.to(device=self._device)
 
     def _init_layers_observe_embedding(self, observe_embedding, example_trace):
         pass
@@ -82,21 +82,21 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     self._address_to_name[address] = name
 
                 if address not in self._layers_address_embedding:
-                    emb = nn.Parameter(torch.zeros(self._address_embedding_dim).normal_().to(device=util._device))
+                    emb = nn.Parameter(torch.zeros(self._address_embedding_dim).normal_().to(device=self._device))
                     self._layers_address_embedding[address] = emb
 
                 if distribution_name not in self._layers_distribution_type_embedding:
-                    emb = nn.Parameter(torch.zeros(self._distribution_type_embedding_dim).normal_().to(device=util._device))
+                    emb = nn.Parameter(torch.zeros(self._distribution_type_embedding_dim).normal_().to(device=self._device))
                     self._layers_distribution_type_embedding[distribution_name] = emb
 
                 if old_address not in self._layers_address_transitions:
                     if not old_address == "__init":
                         self._layers_address_transitions[old_address] = SurrogateAddressTransition(self._lstm_dim + self._sample_embedding_dim,
-                                                                                                   address).to(device=util._device)
+                                                                                                   address).to(device=self._device)
                     else:
                         self._layers_address_transitions[old_address] = SurrogateAddressTransition(self._lstm_dim + self._sample_embedding_dim,
                                                                                                    address,
-                                                                                                   first_address=True).to(device=util._device)
+                                                                                                   first_address=True).to(device=self._device)
                         layers_changed = True
                 else:
                     if address not in self._layers_address_transitions[old_address]._address_to_class:
@@ -157,8 +157,8 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                                                                       input_one_hot_dim=distribution.num_categories,
                                                                       num_layers=1)
 
-                    surrogoate_distribution = surrogate_distribution.to(device=util._device)
-                    sample_embedding_layer = sample_embedding_layer.to(device=util._device)
+                    surrogoate_distribution = surrogate_distribution.to(device=self._device)
+                    sample_embedding_layer = sample_embedding_layer.to(device=self._device)
                     self._layers_sample_embedding[address] = sample_embedding_layer
                     self._layers_surrogate_distributions[address] = surrogate_distribution
                     layers_changed = True
@@ -168,7 +168,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
             # add final address transition that ends the trace
             if address not in self._layers_address_transitions:
                 self._layers_address_transitions[address] = SurrogateAddressTransition(self._lstm_dim + self._sample_embedding_dim,
-                                                                                       None, last_address=True).to(device=util._device)
+                                                                                       None, last_address=True).to(device=self._device)
 
         if layers_changed:
             num_params = sum(p.numel() for p in self.parameters())
@@ -247,16 +247,16 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution_name]
 
                 if time_step == 0:
-                    prev_sample_embedding = torch.zeros(sub_batch_length, self._sample_embedding_dim).to(device=util._device)
-                    prev_address_embedding = torch.zeros(1, self._address_embedding_dim).to(device=util._device)
-                    prev_distribution_type_embedding = torch.zeros(1, self._distribution_type_embedding_dim).to(device=util._device)
+                    prev_sample_embedding = torch.zeros(sub_batch_length, self._sample_embedding_dim).to(device=self._device)
+                    prev_address_embedding = torch.zeros(1, self._address_embedding_dim).to(device=self._device)
+                    prev_distribution_type_embedding = torch.zeros(1, self._distribution_type_embedding_dim).to(device=self._device)
                 else:
                     prev_address = meta_data['addresses'][time_step-1]
                     prev_distribution_name = meta_data['distribution_names'][time_step-1]
                     if prev_address not in self._layers_address_embedding:
                         print(colored('Address unknown by surrogate network: {}'.format(prev_address), 'red', attrs=['bold']))
                         return False, 0
-                    smp = torch_data[time_step-1]['values'].to(device=util._device)
+                    smp = torch_data[time_step-1]['values'].to(device=self._device)
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
                     prev_address_embedding = self._layers_address_embedding[prev_address]
                     prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution_name]
@@ -271,8 +271,8 @@ class SurrogateNetworkLSTM(InferenceNetwork):
 
             # Execute LSTM in a single operation on the whole input sequence
             lstm_input = torch.stack(lstm_input)
-            h0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=util._device)
-            c0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=util._device)
+            h0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=self._device)
+            c0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=self._device)
             lstm_output, _ = self._layers_lstm(lstm_input, (h0, c0))
 
             # surrogate loss
@@ -291,13 +291,13 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     next_addresses = [meta_data['addresses'][time_step+1]]*sub_batch_length
                 else:
                     next_addresses = ["__end"]*sub_batch_length
-                variable_dist = torch_data[time_step]['distribution'].to(device=util._device)
+                variable_dist = torch_data[time_step]['distribution'].to(device=self._device)
                 address_transition_layer = self._layers_address_transitions[address]
                 surrogate_distribution_layer = self._layers_surrogate_distributions[address]
 
                 # only consider loss and training of the address transition if we are not at the end of trace
                 if time_step < trace_length - 1:
-                    values = torch_data[time_step]['values'].to(device=util._device)
+                    values = torch_data[time_step]['values'].to(device=self._device)
                     sample_embedding = self._layers_sample_embedding[address](values)
                     address_transition_input = torch.cat([proposal_input, sample_embedding], dim=1)
                     _ = address_transition_layer(address_transition_input)
@@ -346,9 +346,9 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 dist = surrogate_dist(lstm_output, no_batch=True) # remove batch
 
                 value = state.sample(distribution=dist,
-                                    address=self._address_base[address],
-                                    name=self._address_to_name[address],
-                                    control=self._control_addresses[address])
+                                     address=self._address_base[address],
+                                     name=self._address_to_name[address],
+                                     control=self._control_addresses[address])
 
                 if address in self._tagged_addresses:
                     state.tag(value, address=self._address_base[address])

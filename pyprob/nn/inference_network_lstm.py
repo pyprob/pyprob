@@ -37,7 +37,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                                + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
 
         self._layers_lstm = nn.LSTM(self._lstm_input_dim, self._lstm_dim, self._lstm_depth)
-        self._layers_lstm.to(device=util._device)
+        self._layers_lstm.to(device=self._device)
 
     def _polymorph(self, batch):
         layers_changed = False
@@ -49,11 +49,11 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 current_name = meta_data['names'][time_step]
 
                 if address not in self._layers_address_embedding:
-                    emb = nn.Parameter(torch.zeros(self._address_embedding_dim).normal_().to(device=util._device))
+                    emb = nn.Parameter(torch.zeros(self._address_embedding_dim).normal_().to(device=self._device))
                     self._layers_address_embedding[address] = emb
 
                 if distribution_name not in self._layers_distribution_type_embedding:
-                    emb = nn.Parameter(torch.zeros(self._distribution_type_embedding_dim).normal_().to(device=util._device))
+                    emb = nn.Parameter(torch.zeros(self._distribution_type_embedding_dim).normal_().to(device=self._device))
                     self._layers_distribution_type_embedding[distribution_name] = emb
 
                 if address not in self._layers_proposal:
@@ -108,8 +108,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
                                                                       input_one_hot_dim=num_categories, num_layers=1)
                     else:
                         raise RuntimeError('Distribution currently unsupported: {}'.format(distribution_name))
-                    proposal_layer.to(device=util._device)
-                    sample_embedding_layer.to(device=util._device)
+                    proposal_layer.to(device=self._device)
+                    sample_embedding_layer.to(device=self._device)
                     self._layers_sample_embedding[address] = sample_embedding_layer
                     self._layers_proposal[address] = proposal_layer
 
@@ -135,16 +135,16 @@ class InferenceNetworkLSTM(InferenceNetwork):
         success = True
         if prev_variable is None:
             # First time step
-            prev_sample_embedding = torch.zeros(1, self._sample_embedding_dim).to(device=util._device)
-            prev_address_embedding = torch.zeros(1, self._address_embedding_dim).to(device=util._device)
-            prev_distribution_type_embedding = torch.zeros(1, self._distribution_type_embedding_dim).to(device=util._device)
-            h0 = torch.zeros(self._lstm_depth, 1, self._lstm_dim).to(device=util._device)
-            c0 = torch.zeros(self._lstm_depth, 1, self._lstm_dim).to(device=util._device)
+            prev_sample_embedding = torch.zeros(1, self._sample_embedding_dim).to(device=self._device)
+            prev_address_embedding = torch.zeros(1, self._address_embedding_dim).to(device=self._device)
+            prev_distribution_type_embedding = torch.zeros(1, self._distribution_type_embedding_dim).to(device=self._device)
+            h0 = torch.zeros(self._lstm_depth, 1, self._lstm_dim).to(device=self._device)
+            c0 = torch.zeros(self._lstm_depth, 1, self._lstm_dim).to(device=self._device)
             self._infer_lstm_state = (h0, c0)
         else:
             prev_address = prev_variable.address
             prev_distribution = prev_variable.distribution
-            prev_value = prev_variable.value.to(device=util._device)
+            prev_value = prev_variable.value.to(device=self._device)
             if prev_value.dim() == 1:
                 prev_value = prev_value.unsqueeze(0)
             if prev_address in self._layers_address_embedding:
@@ -177,7 +177,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                                                                              self._infer_observe_embedding,
                                                                              batch_size=1)
             else:
-                prev_sample_embedding_attention = torch.Tensor([[]])
+                prev_sample_embedding_attention = torch.Tensor([[]]).to(device=self._device)
         else:
             print('Warning: address of current variable unknown by inference network: {}'.format(current_address))
             success = False
@@ -201,7 +201,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     return current_distribution
 
             # if variable is uncontrolled the returned distribution is the prior
-            proposal_distribution = proposal_layer.forward(proposal_input, variable.distribution.to(device=util._device))
+            proposal_distribution = proposal_layer.forward(proposal_input, variable.distribution.to(device=self._device))
             return proposal_distribution
         else:
             current_distribution = variable.distribution
@@ -236,16 +236,16 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     if self.prev_sample_attention:
                         self.prev_samples_embedder.init_for_trace()
                     prev_sample_embedding = torch.zeros(sub_batch_length,
-                                                        self._sample_embedding_dim).to(device=util._device)
-                    prev_address_embedding = torch.zeros(1, self._address_embedding_dim).to(device=util._device)
-                    prev_distribution_type_embedding = torch.zeros(1, self._distribution_type_embedding_dim).to(device=util._device)
+                                                        self._sample_embedding_dim).to(device=self._device)
+                    prev_address_embedding = torch.zeros(1, self._address_embedding_dim).to(device=self._device)
+                    prev_distribution_type_embedding = torch.zeros(1, self._distribution_type_embedding_dim).to(device=self._device)
                 else:
                     prev_address = meta_data['addresses'][prev_time_step]
                     prev_distribution_name = meta_data['distribution_names'][prev_time_step]
                     if prev_address not in self._layers_address_embedding:
                         print(colored('Previous address unknown by inference network: {}'.format(prev_address), 'red', attrs=['bold']))
                         return False, 0
-                    smp = torch_data[prev_time_step]['values'].to(device=util._device)
+                    smp = torch_data[prev_time_step]['values'].to(device=self._device)
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
                     prev_address_embedding = self._layers_address_embedding[prev_address]
                     prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution_name]
@@ -258,7 +258,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                                                                                  batch_size=sub_batch_length)
                 else:
                     prev_sample_embedding_attention = torch.Tensor([[]]).expand([sub_batch_length,
-                                                                                 0]).to(device=util._device)
+                                                                                 0]).to(device=self._device)
                 # concat to size batch_size x *
                 t = torch.cat([observe_embedding,
                                prev_sample_embedding,
@@ -273,8 +273,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
             # Execute LSTM in a single operation on the whole input sequence
             lstm_input = torch.stack(lstm_input, dim=0) # dim = seq_len x batch_size x *
 
-            h0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=util._device)
-            c0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=util._device)
+            h0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=self._device)
+            c0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=self._device)
             lstm_output, _ = self._layers_lstm(lstm_input, (h0, c0))
 
             # Construct proposals for each time step in the LSTM output sequence of sub_batch
@@ -284,11 +284,11 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 current_controlled = meta_data['controls'][time_step]
 
                 proposal_input = lstm_output[seq_number]
-                values = torch_data[time_step]['values'].to(device=util._device)
+                values = torch_data[time_step]['values'].to(device=self._device)
                 proposal_layer = self._layers_proposal[current_address]
                 proposal_layer._total_train_iterations += 1
                 proposal_distribution = proposal_layer(proposal_input,
-                                                       torch_data[time_step]['distribution'].to(device=util._device))
+                                                       torch_data[time_step]['distribution'].to(device=self._device))
                 log_prob = proposal_distribution.log_prob(values)
 
                 if util.has_nan_or_inf(log_prob):

@@ -143,6 +143,11 @@ class Batch():
     #             for k, v in d_time_step.items():
     #                 v.to(device=device)
 
+    # TODO!
+    #def pin_memory(self):
+    #    pass
+
+
 class OnlineDataset(Dataset):
     def __init__(self, model, length=None,
                  prior_inflation=PriorInflation.DISABLED,

@@ -133,7 +133,7 @@ class InferenceNetwork(nn.Module):
                 layer = EmbeddingCNN3D5C(input_shape=input_shape, output_shape=output_shape)
             else:
                 raise ValueError('Unknown embedding: {}'.format(embedding))
-            layer.to(device=util._device)
+            layer.to(device=self._device)
             self._layers_observe_embedding[name] = layer
             observe_embedding_total_dim += util.prod(output_shape)
         self._observe_embedding_dim = observe_embedding_total_dim
@@ -142,12 +142,12 @@ class InferenceNetwork(nn.Module):
                                                                     output_shape=self._observe_embedding_dim,
                                                                     num_layers=2)
 
-        self._layers_observe_embedding_final.to(device=util._device)
+        self._layers_observe_embedding_final.to(device=self._device)
         if self.prev_sample_attention:
             if self.prev_samples_embedder is None:
                 self.prev_samples_embedder = PrevSamplesEmbedder(self._observe_embedding_dim,
                                                                  **self.prev_sample_attention_kwargs)
-                self.prev_samples_embedder.to(device=util._device)
+                self.prev_samples_embedder.to(device=self._device)
                 self._sample_attention_embedding_dim = self.prev_samples_embedder.get_output_dim()
         else:
             self._sample_attention_embedding_dim = 0
@@ -155,7 +155,7 @@ class InferenceNetwork(nn.Module):
     def _embed_observe(self, meta_data, torch_data):
         embedding = []
         for time_step in meta_data['observed_time_steps']:
-            values = torch_data[time_step]['values'].to(device=util._device)
+            values = torch_data[time_step]['values'].to(device=self._device)
             name = meta_data['names'][time_step]
             batch_size = values.size(0)
             values = values.view(batch_size, -1)
@@ -168,7 +168,7 @@ class InferenceNetwork(nn.Module):
         self._infer_observe = observe
         embedding = []
         for name, layer in self._layers_observe_embedding.items():
-            value = util.to_tensor(observe[name]).view(1, -1).to(device=util._device)
+            value = util.to_tensor(observe[name]).view(1, -1).to(device=self._device)
             embedding.append(layer(value))
         embedding = torch.cat(embedding, dim=1)
         self._infer_observe_embedding = self._layers_observe_embedding_final(embedding)

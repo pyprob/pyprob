@@ -80,7 +80,7 @@ def ntail(l,u):
     n = torch.Size([len(l)])
     f = expm1(c-u**2/2)
 
-    x = c - np.log(1+uniform.sample(n).to(device=device)*f); # sample using Rayleigh
+    x = c - torch.log(1+uniform.sample(n).to(device=device)*f); # sample using Rayleigh
 
     # keep list of rejected
 

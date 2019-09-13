@@ -138,6 +138,7 @@ class Model():
 
         if surrogate and self._surrogate_network:
             self._surrogate_network.eval()
+            self._surrogate_network.to(device=torch.device('cpu'))
             self.forward = self._surrogate_forward
         elif surrogate and not self._surrogate_network:
             raise RuntimeError("Surrogate model not trained")
@@ -164,6 +165,8 @@ class Model():
             elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
                 if self._inference_network is None:
                     raise RuntimeError('Cannot run inference engine IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK because no inference network for this model is available. Use learn_inference_network or load_inference_network first.')
+                else:
+                    self._inference_network.to(device=torch.device('cpu'))
 
                 with torch.no_grad():
                     posterior = self._traces(num_traces=num_traces,

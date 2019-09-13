@@ -70,7 +70,8 @@ class Mixture(Distribution):
             for b in range(self._batch_length):
                 i = int(indices[b])
                 ret.append(dist_samples[i][b])
-            return util.to_tensor(ret)
+            ret = torch.stack(ret,dim=0)
+            return ret
 
     @property
     def mean(self):

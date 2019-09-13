@@ -168,7 +168,8 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
     if constants:
         for k, v in constants.items():
             try:
-                tmp[k] = util.to_tensor(v)
+                attr_shape = getattr(distribution, k).shape
+                tmp[k] = util.to_tensor(v).view(attr_shape)
             except Exception as e:
                 raise ValueError("Values in constant for distribution {} cannot be made a tensor".format(distribution.name))
     constants = tmp
@@ -246,11 +247,13 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
                                                                                             proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
                     update_previous_variable = True
                 value = proposal_distribution.sample()
+                if distribution.name == "Normal":
+                    value = value.view(torch.Size([-1]) + distribution.loc_shape)
 
                 # removes the redundant batch dimension!
                 # maybe rethink this step
                 if value.dim() > 0:
-                    value = value[0]
+                    value = value.squeeze(0)
 
                 log_prob = distribution.log_prob(value, sum=True)
                 proposal_log_prob = proposal_distribution.log_prob(value, sum=True)
