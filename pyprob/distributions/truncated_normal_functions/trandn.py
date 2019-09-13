@@ -141,7 +141,8 @@ def tn(l,u):
         pl = erfc(tl/torch.sqrt(torch.Tensor([2]).to(device=device)))/2
         pu = erfc(tu/torch.sqrt(torch.Tensor([2]).to(device=device)))/2
 
-        x[I] = torch.sqrt(torch.Tensor([2]).to(device=device))*erfcinv(2*(pl-(pl-pu)*uniform.sample(len(tl).to(device=device))))
+        s = torch.Size([len(tl)])
+        x[I] = torch.sqrt(torch.Tensor([2]).to(device=device))*erfcinv(2*(pl-(pl-pu)*uniform.sample(s).to(device=device)))
 
     return x
 
