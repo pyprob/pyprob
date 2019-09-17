@@ -55,14 +55,10 @@ class NormAdaIn(nn.Module):
 
         return scale*x + bias
 
-class InputBlock(nn.Module):
+class InputBlockWithInput(nn.Module):
 
     def __init__(self, linear_dim, channels, latent_dim, h, w):
         super().__init__()
-
-        # UNCOMMENT FOR MAKING CONSTANT INIT BLOCK
-        #self.const = nn.Parameter(torch.zeros(channels, h, w).normal_()).to(device=util._device)
-        #self.bias = nn.Parameter(torch.zeros(channels).normal_()).view(channels,1,1).to(device=util._device)
 
         self.ada1 = NormAdaIn(latent_dim, channels)
         self.conv2d = nn.Conv2d(channels, channels, kernel_size=(3,3), padding=0)
@@ -77,11 +73,36 @@ class InputBlock(nn.Module):
 
     def forward(self, x, latents):
         batch_size = latents.size(0)
-        # UNCOMMENT FOR MAKING CONSTANT INIT BLOCK
-        #x = self.const.expand(torch.Size([batch_size]) + self.const.shape) + self.bias # broadcast the bias
 
         # UNCOMMENT FOR MAKING INIT BLOCK DEPEND ON AN INPUT
         x = self.lin(x).view(batch_size, self._channels, self._h, self._w)
+
+        x = self.ada1(x, latents)
+        x = self.conv2d(x)
+        x = self.ada2(x, latents)
+
+        return x
+
+class InputBlockConst(nn.Module):
+
+    def __init__(self, linear_dim, channels, latent_dim, h, w):
+        super().__init__()
+
+        # UNCOMMENT FOR MAKING CONSTANT INIT BLOCK
+        self.const = nn.Parameter(torch.zeros(channels, h, w).normal_()).to(device=util._device)
+        self.bias = nn.Parameter(torch.zeros(channels).normal_()).view(channels,1,1).to(device=util._device)
+
+        self.ada1 = NormAdaIn(latent_dim, channels)
+        self.conv2d = nn.Conv2d(channels, channels, kernel_size=(3,3), padding=0)
+        self.ada2 = NormAdaIn(latent_dim, channels)
+
+        self._h = h
+        self._w = w
+        self._channels = channels
+
+    def forward(self, x, latents):
+        batch_size = latents.size(0)
+        x = self.const.expand(torch.Size([batch_size]) + self.const.shape) + self.bias # broadcast the bias
 
         x = self.ada1(x, latents)
         x = self.conv2d(x)
@@ -143,13 +164,13 @@ class ConvTranspose2d(nn.Module):
         max_resolution = max(H,W)
         resolution_log2 = int(np.ceil(np.log2(max_resolution)))
 
-        h = 14 # the paper uses a value of 4
-        w = 5 # the paper uses a value of 4
+        h = 4 # the paper uses a value of 4
+        w = 4 # the paper uses a value of 4
         assert H >= h and W >= w
 
         fmap_max = 512
-        fmap_decay = 1.3
-        fmap_base = max_resolution * 6
+        fmap_decay = 1.1
+        fmap_base = max_resolution * 8
 
         def channels_at_stage(stage):
             return max(min(int(fmap_base / (2.0 ** (stage * fmap_decay))), fmap_max),1)
@@ -158,9 +179,9 @@ class ConvTranspose2d(nn.Module):
 
         channels = channels_at_stage(2)
 
-        self._styles = LinearBlock(linear_dim, self._latent_dim)
+        self._deconv_styles = LinearBlock(linear_dim, self._latent_dim)
 
-        self._input_block = InputBlock(linear_dim, channels, self._latent_dim, h, w)
+        self._input_block = InputBlockWithInput(linear_dim, channels, self._latent_dim, h, w)
 
         upscale_module = []
         in_channels = channels
@@ -177,7 +198,7 @@ class ConvTranspose2d(nn.Module):
         self._to_rgb = nn.Conv2d(in_channels, final_channels,kernel_size=(1,1))
 
     def forward(self, x):
-        latents = self._styles(x)
+        latents = self._deconv_styles(x)
 
         # go through the constant block
         img = self._input_block(x, latents)

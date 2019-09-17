@@ -379,10 +379,18 @@ class InferenceNetwork(nn.Module):
         if self._optimizer_type is None:  # happens when loading pre-generated network
             return
         # print('Creating new optimizer')
+        optim_dict_list = []
+        for m, p in self.named_parameters():
+            if '_deconv_styles' in m:
+                # make the "styles" in the StyleGAN have 2 orders of magnitude smaller learning rate
+                params = {'params': p, 'lr': 0.01*self._learning_rate_init}
+            else:
+                params = {'params': p}
+            optim_dict_list.append(params)
         if self._optimizer_type in [Optimizer.ADAM, Optimizer.ADAM_LARC]:
-            self._optimizer = optim.Adam(self.parameters(), lr=self._learning_rate_init, weight_decay=self._weight_decay)
+            self._optimizer = optim.Adam(optim_dict_list, lr=self._learning_rate_init, weight_decay=self._weight_decay)
         else:  # optimizer_type in [Optimizer.SGD, Optimizer.SGD_LARC]
-            self._optimizer = optim.SGD(self.parameters(), lr=self._learning_rate_init, momentum=self._momentum, nesterov=True, weight_decay=self._weight_decay)
+            self._optimizer = optim.SGD(optim_dict_list, lr=self._learning_rate_init, momentum=self._momentum, nesterov=True, weight_decay=self._weight_decay)
         if self._optimizer_type in [Optimizer.ADAM_LARC, Optimizer.SGD_LARC]:
             self._optimizer = LARC(self._optimizer)
         if state_dict is not None:
