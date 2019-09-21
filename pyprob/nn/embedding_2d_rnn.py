@@ -53,17 +53,14 @@ class ParameterFromRNN(nn.Module):
         self._output_shape = W if W>H else H
         self._seq_len = H if W>H else W
 
-        self._input_block = torch.jit.trace(LinearBlock(input_shape, self._output_shape),
-                                            torch.rand(1,1,input_shape))
+        self._input_block = LinearBlock(input_shape, self._output_shape)
 
         self.c0 = nn.Parameter(torch.zeros([1, 1, self._lstm_hidden_shape]), requires_grad=False)
         self.h0 = nn.Parameter(torch.zeros([1, 1, self._lstm_hidden_shape]), requires_grad=False)
         self._lstm = nn.LSTM(self._output_shape*2, self._lstm_hidden_shape)
 
         self._output_blocks = nn.ModuleList([
-            torch.jit.trace(LinearBlock(self._lstm_hidden_shape, self._output_shape),
-                            torch.rand(1,1,self._lstm_hidden_shape)) for _ in range(self._seq_len)
-        ])
+            LinearBlock(self._lstm_hidden_shape, self._output_shape) for _ in range(self._seq_len)])
 
     def forward(self, x):
         batch_size = x.size(0)
