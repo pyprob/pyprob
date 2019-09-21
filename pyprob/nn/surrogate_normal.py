@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision.transforms import Lambda, Compose
 
-from . import EmbeddingFeedForward, ConvTranspose2d
+from . import EmbeddingFeedForward, ConvTranspose2d, ParameterFromRNN
 from .. import util
 from ..distributions import Distribution, Normal
 
@@ -64,6 +64,22 @@ class SurrogateNormal(nn.Module):
                     self._input_dim = input_dim
                 else:
                     raise ValueError('Cannot deconv to a scalar mean, or the mean has not be non-constant')
+            elif self.em_type == 'rnn':
+                # ONLY SUPPORTS DECONV ON THE MEAN
+                if (loc_shape.numel() != 1) and not (self._loc_output_dim==0):
+                    input_dim = input_shape.numel()
+                    self._lin_embed = EmbeddingFeedForward(input_shape=input_shape,
+                                                output_shape=torch.Size([input_dim + self._scale_output_dim]),
+                                                num_layers=num_layers,
+                                                activation=torch.relu,
+                                                hidden_dim=hidden_dim,
+                                                activation_last=None)
+
+                    H, W = loc_shape[0], loc_shape[1]
+                    self._em = ParameterFromRNN(input_dim, H, W)
+                    self._input_dim = input_dim
+                else:
+                    raise ValueError('Cannot deconv to a scalar mean, or the mean has not be non-constant')
 
 
         self.dist_type = Normal(loc=torch.zeros(loc_shape), scale=torch.ones(scale_shape))
@@ -83,7 +99,7 @@ class SurrogateNormal(nn.Module):
                     self._scale = torch.exp(x[:, self._loc_output_dim:]).view(batch_size, *self._scale_shape)
                 else:
                     self._scale= self._scale_const.expand(batch_size, 1)
-            elif self.em_type == 'deconv':
+            elif self.em_type == 'deconv' or self.em_type == "rnn":
                 x = self._lin_embed(x)
                 loc_embeds = x[:, :self._input_dim].view(batch_size, self._input_dim)
                 if not self.constant_loc:

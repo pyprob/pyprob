@@ -3,6 +3,7 @@ from .embedding_feedforward import EmbeddingFeedForward
 from .embedding_cnn_2d_5c import EmbeddingCNN2D5C
 from .embedding_cnn_3d_5c import EmbeddingCNN3D5C
 from .embedding_conv_transpose_2d import ConvTranspose2d
+from .embedding_2d_rnn import ParameterFromRNN
 from .prev_sample_attention import PrevSamplesEmbedder
 from .proposal_prior_prior import PriorDist
 from .proposal_normal_normal import ProposalNormalNormal
