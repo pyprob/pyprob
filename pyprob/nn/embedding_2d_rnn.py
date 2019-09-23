@@ -53,7 +53,7 @@ class ParameterFromRNN(nn.Module):
         self._output_shape = W if W>H else H
         self._seq_len = H if W>H else W
 
-        self._input_block = LinearBlock(input_shape, self._output_shape)
+        self._rnn_styles = LinearBlock(input_shape, self._output_shape)
 
         self.c0 = nn.Parameter(torch.zeros([1, 1, self._lstm_hidden_shape]), requires_grad=False)
         self.h0 = nn.Parameter(torch.zeros([1, 1, self._lstm_hidden_shape]), requires_grad=False)
@@ -64,7 +64,7 @@ class ParameterFromRNN(nn.Module):
 
     def forward(self, x):
         batch_size = x.size(0)
-        x_input = self._input_block(x)
+        x_input = self._rnn_styles(x)
         output = []
         x = torch.cat([x_input, torch.zeros_like(x_input)], dim=1)
         for i, output_block in enumerate(self._output_blocks):
