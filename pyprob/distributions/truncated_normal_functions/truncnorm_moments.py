@@ -1,14 +1,14 @@
 import torch
 import numpy as np
-#from .utils import erfcx
+from .utils import erfcx
 
 #############################################
 
 ## used for running the test_ambitious_sampler.py script
 
-from utils.utils import erfcx
-class util:
-    _device = torch.device('cpu')
+#from utils.utils import erfcx
+#class util:
+#    _device = torch.device('cpu')
 
 #############################################
 
