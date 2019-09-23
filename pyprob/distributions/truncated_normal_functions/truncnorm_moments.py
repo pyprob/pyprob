@@ -1,14 +1,14 @@
 import torch
 import numpy as np
-from .utils import erfcx
+#from .utils import erfcx
 
 #############################################
 
 ## used for running the test_ambitious_sampler.py script
 
-#from utils.utils import erfcx
-#class util:
-#    _device = torch.device('cpu')
+from utils.utils import erfcx
+class util:
+    _device = torch.device('cpu')
 
 #############################################
 
@@ -242,9 +242,9 @@ def moments(lowerB, upperB, mu, sigma):
             # then we can exploit symmetry in this problem to make the
             # calculations stable for erfcx, that is, with positive arguments:
             # Zerfcx1 = 0.5*(exp(-b.^2)*erfcx(b) - exp(-a.^2)*erfcx(a))
-            maxab = torch.max(torch.abs(a[I_eq]),torch.abs(b[I_eq]))
-            minab = torch.min(torch.abs(a[I_eq]),torch.abs(b[I_eq]))
-            logZhat[I_eq] = torch.log(torch.Tensor([0.5])).double().to(device=device) - minab*2 \
+            maxab = torch.max(torch.abs(a[I_eq]), torch.abs(b[I_eq]))
+            minab = torch.min(torch.abs(a[I_eq]), torch.abs(b[I_eq]))
+            logZhat[I_eq] = torch.log(torch.Tensor([0.5])).double().to(device=device) - minab**2 \
                       + torch.log( torch.abs( torch.exp(-(maxab**2-minab**2))*erfcx(maxab)\
                       - erfcx(minab)) )
 

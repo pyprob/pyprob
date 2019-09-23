@@ -21,6 +21,7 @@ class ProposalUniformTruncatedNormalMixture(nn.Module):
                                         hidden_dim=hidden_dim)
         self._total_train_iterations = 0
         self._logsoftmax = nn.LogSoftmax(dim=1)
+        self._softplus = nn.Softplus()
 
     def forward(self, x, prior_distribution):
         """ Proposal forward function
@@ -39,7 +40,8 @@ class ProposalUniformTruncatedNormalMixture(nn.Module):
         prior_highs = prior_distribution.high.view(batch_size, -1).repeat(1, slice_size)
         prior_range = (prior_highs - prior_lows)
 
-        stddevs = torch.sigmoid(stddevs)*prior_range*10 + util._epsilon
+        #stddevs = torch.sigmoid(stddevs)*prior_range*10 + util._epsilon
+        stddevs = self._softplus(stddevs)
         log_coeffs = self._logsoftmax(coeffs)
 
         means = torch.min(torch.max(prior_lows + (means * prior_range), prior_lows - 1e6), prior_highs + 1e6)
