@@ -51,7 +51,7 @@ class Mixture(Distribution):
             value = util.to_tensor(value).view(self._batch_length, -1)
             bs = value.size(0)
             tmp = torch.stack([d.log_prob(value) for d in self._distributions]).view(len(self._distributions), bs, -1).sum(-1).t()
-            lp = torch.logsumexp(self._log_probs + tmp , dim=1)
+            lp = torch.logsumexp(self._log_probs + tmp, dim=1)
         return torch.sum(lp) if sum else lp
 
     def sample(self):
