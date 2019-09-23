@@ -40,9 +40,9 @@ class TruncatedNormal(Distribution):
 
     def log_prob(self, value, sum=False):
         value = util.to_tensor(value)
-        log_prob = self._standard_normal_dist.log_prob(value)\
+        tmp = (value - self._mean_non_truncated)/self._stddev_non_truncated
+        log_prob = self._standard_normal_dist.log_prob(tmp)\
                    - (torch.log(self._stddev_non_truncated) + self._logZ)
-
         if util.has_nan_or_inf(log_prob):
             import sys
             mask = torch.isinf(log_prob) | torch.isnan(log_prob)
