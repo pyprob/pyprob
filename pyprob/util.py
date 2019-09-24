@@ -393,3 +393,79 @@ def get_source(obj):
         return inspect.getsource(obj)
     except:
         return obj.__name__
+
+def to_variable_dict_data(variable, variables_observed_inf_training=[],
+                          to_list=True):
+    """ sub_trace_data dictionary
+
+    Inputs:
+
+    trace_attr_dict -- dictionary in which to store attributes
+    attr            -- str - attribute
+    to_list         -- boolean specifying converting to a list for json serialization
+
+    We further decode the json string into bytes (which has to be decoded once we load the data again)
+
+    """
+    VARIABLE_ATTRIBUTES = ['value', 'address_base', 'address', 'instance', 'log_prob',
+                           'log_importance_weight', 'control', 'name', 'observed',
+                           'tagged', 'constants', 'replace', 'reused', 'distribution_name', 'distribution_args']
+    var_dict = {}
+    for attr in VARIABLE_ATTRIBUTES:
+        if attr == 'value':
+            v = getattr(variable, attr)
+            var_dict[attr] = v.tolist() if to_list else v
+        elif attr in ['distribution_name']:
+            # extract the input arguments for initializing the distribution
+            var_dict[attr] = variable.distribution_name
+        elif attr in ['distribution_args']:
+            tmp = {}
+            for k, v in variable.distribution_args.items():
+                tmp[k] = v.tolist() if to_list else v
+            var_dict[attr] = tmp
+        elif attr in ['constants']:
+            tmp = {}
+            for k, value in variable.constants.items():
+                tmp[k] = value.tolist() if to_list else value
+            var_dict[attr] = tmp
+        elif attr in ['log_prob']:
+            v = getattr(variable, attr)
+            var_dict[attr] = v.item() if to_list else v
+        elif attr in ['observed']:
+            var_dict[attr] = getattr(variable, attr) or (getattr(variable, 'name') in variables_observed_inf_training)
+        else:
+            var_dict[attr] = getattr(variable, attr)
+
+    return var_dict
+
+def from_variable_dict_data(list_of_variable_dict, variables_observed_inf_training=[]):
+
+        trace_list = []
+
+        for variable_attr_dict in list_of_variable_dict:
+            var_args = {}
+            for attr, variable_data in variable_attr_dict.items():
+                if attr == 'value':
+                    var_args[attr] = util.to_tensor(variable_data)
+                elif attr in ['distribution_name']:
+                    # extract the input arguments for initializing the distribution
+                    var_args[attr] = variable_data
+                elif attr in ['distribution_args']:
+                    tmp = {}
+                    for k, value in variable_data.items():
+                        tmp[k] = util.to_tensor(value)
+                    var_args[attr] = tmp
+                elif attr in ['constants']:
+                    tmp = {}
+                    for k, value in variable_data.items():
+                        tmp[k] = util.to_tensor(value)
+                    var_args[attr] = tmp
+                elif attr in ['log_prob']:
+                    var_args[attr] = util.to_tensor(variable_data)
+                elif attr in ['observed']:
+                    var_args[attr] = variable_data or variable_attr_dict['name'] in variables_observed_inf_training
+                else:
+                    var_args[attr] = variable_data
+
+            trace_list.append(var_args)
+        return trace_list

@@ -24,9 +24,6 @@ from ..util import TraceMode, PriorInflation
 from ..concurrency import ConcurrentShelf
 from ..trace import Trace, Variable
 
-VARIABLE_ATTRIBUTES = ['value', 'address_base', 'address', 'instance', 'log_prob',
-                       'log_importance_weight', 'control', 'name', 'observed',
-                       'tagged', 'constants', 'replace', 'reused', 'distribution_name', 'distribution_args']
 
 class Batch():
     def __init__(self, traces_and_hashes):
@@ -170,9 +167,8 @@ class OnlineDataset(Dataset):
 
         trace_attr_list = []
         for variable in trace.variables:
-            trace_attr_list = self._update_sub_trace_data(trace_attr_list,
-                                                          variable,
-                                                          trace, to_list=False)
+            trace_attr_list.append(util.to_variable_dict_data(variable,
+                                                              self._variables_observed_inf_training, to_list=False))
         return trace_attr_list, trace.hash()
 
     def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, *args, **kwargs):
@@ -192,9 +188,7 @@ class OnlineDataset(Dataset):
                                                               *args, **kwargs))
                     trace_attr_list = []
                     for variable in trace.variables:
-                        trace_attr_list = self._update_sub_trace_data(trace_attr_list,
-                                                                      variable,
-                                                                      trace)
+                        trace_attr_list.append(util.to_variable_dict_data(variable))
 
                     # call trace.__hash__ method for hashing
                     trace_hash = trace.hash()
@@ -218,49 +212,6 @@ class OnlineDataset(Dataset):
             trace.add(variable)
         return trace
 
-    def _update_sub_trace_data(self, trace_attr_list, variable, trace, to_list=True):
-        """ Update sub_trace_data dictionary
-
-        Inputs:
-
-        trace_attr_dict -- dictionary in which to store attributes
-        attr            -- str - attribute
-        trace           -- trace object for which we loop over it variables
-        to_list         -- boolean specifying converting to a list for json serialization
-
-        We further decode the json string into bytes (which has to be decoded once we load the data again)
-
-        """
-        var_dict = {}
-        for attr in VARIABLE_ATTRIBUTES:
-            if attr == 'value':
-                v = getattr(variable, attr)
-                var_dict[attr] = v.tolist() if to_list else v
-            elif attr in ['distribution_name']:
-                # extract the input arguments for initializing the distribution
-                var_dict[attr] = variable.distribution_name
-            elif attr in ['distribution_args']:
-                tmp = {}
-                for k, v in variable.distribution_args.items():
-                    tmp[k] = v.tolist() if to_list else v
-                var_dict[attr] = tmp
-            elif attr in ['constants']:
-                tmp = {}
-                for k, value in variable.constants.items():
-                    tmp[k] = value.tolist() if to_list else value
-                var_dict[attr] = tmp
-            elif attr in ['log_prob']:
-                v = getattr(variable, attr)
-                var_dict[attr] = v.item() if to_list else v
-            elif attr in ['observed']:
-                var_dict[attr] = getattr(variable, attr) or (getattr(variable, 'name') in self._variables_observed_inf_training)
-            else:
-                var_dict[attr] = getattr(variable, attr)
-
-        trace_attr_list.append(var_dict)
-        return trace_attr_list
-
-
 class OfflineDatasetFile(Dataset):
 
     def __init__(self, file_name, variables_observed_inf_training):
@@ -282,35 +233,8 @@ class OfflineDatasetFile(Dataset):
         with h5py.File(self._file_name, 'r') as f:
             trace_attr_list, trace_hash = ujson.loads(f['traces'][idx])
 
-        trace_list = []
-
-        for variable_attr_dict in trace_attr_list:
-            var_args = {}
-            for attr, variable_data in variable_attr_dict.items():
-                if attr == 'value':
-                    var_args[attr] = util.to_tensor(variable_data)
-                elif attr in ['distribution_name']:
-                    # extract the input arguments for initializing the distribution
-                    var_args[attr] = variable_data
-                elif attr in ['distribution_args']:
-                    tmp = {}
-                    for k, value in variable_data.items():
-                        tmp[k] = util.to_tensor(value)
-                    var_args[attr] = tmp
-                elif attr in ['constants']:
-                    tmp = {}
-                    for k, value in variable_data.items():
-                        tmp[k] = util.to_tensor(value)
-                    var_args[attr] = tmp
-                elif attr in ['log_prob']:
-                    var_args[attr] = util.to_tensor(variable_data)
-                elif attr in ['observed']:
-                    var_args[attr] = variable_data or variable_attr_dict['name'] in self._variables_observed_inf_training
-                else:
-                    var_args[attr] = variable_data
-
-            trace_list.append(var_args)
-
+        trace_list = util.from_variable_dict_data(trace_attr_list,
+                                                  self._variables_observed_inf_training)
         return trace_list, trace_hash
 
     def get_example_trace(self):
