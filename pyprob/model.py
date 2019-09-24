@@ -488,7 +488,18 @@ class Model():
         self._inference_network._model = self
 
     def save_dataset(self, dataset_dir, num_traces, num_traces_per_file,
-                     prior_inflation=PriorInflation.DISABLED, *args, **kwargs):
+                     prior_inflation=PriorInflation.DISABLED, surrogate=False,
+                     *args, **kwargs):
+
+        if surrogate and self._surrogate_forward:
+            self._surrogate_network.eval()
+            # make surrogate run on CPU in order to train inference network with GPU
+            self._surrogate_network.to(device=torch.device('cpu'))
+            self.forward = self._surrogate_forward
+        elif surrogate and not self._surrogate_forward:
+            raise RuntimeError('The model has no trained surrogate network.')
+        else:
+            self.forward = self._original_forward
 
         if not os.path.exists(dataset_dir):
             print('Directory does not exist, creating: {}'.format(dataset_dir))
