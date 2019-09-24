@@ -114,7 +114,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_unweighted_stddev_correct = 0.816497
 
         dist = Empirical(values=values, log_weights=log_weights, file_name=file_name)
+        dist.finalize()
         dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
+        dist_empirical.finalize()
         dist_mean = float(dist.mean)
         dist_mean_empirical = float(dist_empirical.mean)
         dist_stddev = float(dist.stddev)
@@ -154,6 +156,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_empirical.add_sequence([dist.sample() for i in range(500)])
         dist_empirical.finalize()
         dist_empirical.close()
+
         dist_empirical_2 = Empirical(file_name=file_name)
         dist_empirical_2.add_sequence([dist.sample() for i in range(500)])
         dist_empirical_2.finalize()
@@ -351,6 +354,11 @@ class DistributionsTestCase(unittest.TestCase):
         dist_combined_mean_empirical = float(dist_combined_empirical.mean)
         dist_combined_stddev_empirical = float(dist_combined_empirical.stddev)
 
+        os.remove(file_name_combined)
+        os.remove(file_name_1)
+        os.remove(file_name_2)
+        os.remove(file_name_3)
+
         util.eval_print('dist1_mean_empirical', 'dist1_mean_correct', 'dist1_stddev_empirical', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_mean_correct', 'dist2_stddev_empirical', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_mean_correct', 'dist3_stddev_empirical', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_empirical', 'dist_combined_stddev_correct')
 
         self.assertAlmostEqual(dist1_mean_empirical, dist1_mean_correct, places=0)
@@ -444,6 +452,11 @@ class DistributionsTestCase(unittest.TestCase):
         dist_combined_mean_empirical = float(dist_combined_empirical.mean)
         dist_combined_stddev_empirical = float(dist_combined_empirical.stddev)
 
+        os.remove(file_name_combined)
+        os.remove(file_name_1)
+        os.remove(file_name_2)
+        os.remove(file_name_3)
+
         util.eval_print('dist1_mean_empirical', 'dist1_mean_correct', 'dist1_stddev_empirical', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_mean_correct', 'dist2_stddev_empirical', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_mean_correct', 'dist3_stddev_empirical', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_empirical', 'dist_combined_stddev_correct')
 
         self.assertAlmostEqual(dist1_mean_empirical, dist1_mean_correct, places=0)
@@ -467,7 +480,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_on_file = Empirical(values, log_weights=log_weights, file_name=file_name)
         dist_on_file.close()
         dist = Empirical(file_name=file_name)
+        dist.finalize()
         dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
+        dist_empirical.finalize()
         dist_mean = float(dist.mean)
         dist_mean_empirical = float(dist_empirical.mean)
         dist_stddev = float(dist.stddev)
@@ -556,15 +571,24 @@ class DistributionsTestCase(unittest.TestCase):
         ess_correct = 1.9459790014029552
 
         dist_correct = Empirical(values=values_correct, log_weights=log_weights_correct)
+        dist_correct.finalize()
         dist_correct_mean = float(dist_correct.mean)
         dist_correct_stddev = float(dist_correct.stddev)
         dist_correct_ess = float(dist_correct.effective_sample_size)
         file_names = [os.path.join(tempfile.mkdtemp(), str(uuid.uuid4())) for i in range(0, 4)]
         empiricals = []
-        empiricals.append(Empirical(values=values_correct[0:3], log_weights=log_weights_correct[0:3], file_name=file_names[0]))
-        empiricals.append(Empirical(values=values_correct[3:5], log_weights=log_weights_correct[3:5], file_name=file_names[1]))
-        empiricals.append(Empirical(values=values_correct[5:9], log_weights=log_weights_correct[5:9], file_name=file_names[2]))
-        empiricals.append(Empirical(values=values_correct[9:10], log_weights=log_weights_correct[9:10], file_name=file_names[3]))
+        empiricals.append(Empirical(values=values_correct[0:3],
+                                    log_weights=log_weights_correct[0:3],
+                                    file_name=file_names[0]))
+        empiricals.append(Empirical(values=values_correct[3:5],
+                                    log_weights=log_weights_correct[3:5],
+                                    file_name=file_names[1]))
+        empiricals.append(Empirical(values=values_correct[5:9],
+                                    log_weights=log_weights_correct[5:9],
+                                    file_name=file_names[2]))
+        empiricals.append(Empirical(values=values_correct[9:10],
+                                    log_weights=log_weights_correct[9:10],
+                                    file_name=file_names[3]))
         [emp.close() for emp in empiricals]
         concat_file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
         concat_emp = Empirical(concat_empirical_file_names=file_names, file_name=concat_file_name)
@@ -573,6 +597,7 @@ class DistributionsTestCase(unittest.TestCase):
         concat_emp_mean = float(concat_emp2.mean)
         concat_emp_stddev = float(concat_emp2.stddev)
         concat_emp_ess = float(concat_emp2.effective_sample_size)
+        concat_emp2.close()
         [os.remove(file_name) for file_name in file_names]
         os.remove(concat_file_name)
 
@@ -718,7 +743,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
 
     def test_dist_truncated_normal(self):
-        dist_batch_shape_correct = torch.Size()
+        dist_batch_shape_correct = torch.Size([1])
         dist_event_shape_correct = torch.Size()
         # a dimension is here added by the truncated normal parent Normal
         dist_sample_shape_correct = torch.Size([1])
@@ -768,7 +793,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_highs_correct = [1, 4]
         dist_log_probs_correct = [-0.537223, -1.69563]
 
-        dist = TruncatedNormal(dist_means_non_truncated_correct, dist_stddevs_non_truncated_correct, dist_lows_correct, dist_highs_correct)
+        dist = TruncatedNormal(dist_means_non_truncated_correct,
+                               dist_stddevs_non_truncated_correct, dist_lows_correct,
+                               dist_highs_correct)
         dist_empirical = Empirical([dist.sample() for i in range(empirical_samples)])
         dist_means = util.to_numpy(dist.mean)
         dist_means_empirical = util.to_numpy(dist_empirical.mean)

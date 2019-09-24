@@ -68,7 +68,6 @@ class Empirical(Distribution):
             self._length = self._concat_cum_sizes[-1]
             self._log_weights = torch.cat([util.to_tensor(emp._log_weights)
                                            for emp in self._concat_empiricals])
-
             self._categorical = torch.distributions.Categorical(logits=self._log_weights)
             weights = self._categorical.probs
             self._effective_sample_size = 1. / weights.pow(2).sum()
@@ -88,14 +87,14 @@ class Empirical(Distribution):
                     self._h5py = h5py.File(self._file_name, h5py_flag)
                     self._h5py.attrs['concat_empirical_file_names'] = concat_empirical_file_names
                     self._h5py.attrs['name'] = self.name
-                    self._h5py.close()
+                    #self._h5py.close()
         else:
             if file_name is None:
                 self._type = EmpiricalType.MEMORY
                 self._values = []
             else:
                 self._h5py = h5py.File(self._file_name, h5py_flag)
-                if 'concat_empirical_file_names' in self._h5py:
+                if 'concat_empirical_file_names' in self._h5py.attrs:
                     self._type = EmpiricalType.CONCAT_FILE
                     concat_empirical_file_names = self._h5py.attrs['concat_empirical_file_names']
                     self._concat_empiricals = [Empirical(file_name=f, file_read_only=True) for f in concat_empirical_file_names]
@@ -159,6 +158,13 @@ class Empirical(Distribution):
             if not self._closed:
                 self._h5py.close()
                 self._closed = True
+        if self._type == EmpiricalType.CONCAT_FILE:
+            self.finalize()
+            if not self._closed:
+                self._h5py.close()
+                [emp.close() for emp in self._concat_empiricals]
+                self._closed = True
+
 
     def copy(self, file_name=None):
         self._check_finalized()

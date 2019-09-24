@@ -85,7 +85,7 @@ class TruncatedNormal(Distribution):
         return self._var
 
     def sample(self):
-        sample = trandn(self._alpha, self._beta)
+        sample = trandn(self._alpha, self._beta).view(self._alpha.shape)
         return sample*self._stddev_non_truncated + self._mean_non_truncated
 
     def to(self, device):
