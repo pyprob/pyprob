@@ -1,7 +1,8 @@
 import torch
 import numpy as np
 import copy
-import shelve
+import h5py
+import ujson
 import collections
 from collections import OrderedDict
 import matplotlib as mpl
@@ -15,7 +16,7 @@ from termcolor import colored
 
 from . import Distribution
 from .. import util
-
+from ..trace import Variable, Trace
 
 class EmpiricalType(enum.Enum):
     MEMORY = 1
@@ -37,15 +38,14 @@ class Empirical(Distribution):
         if self._read_only:
             if not os.path.exists(file_name):
                 raise ValueError('File not found: {}'.format(file_name))
-            shelf_flag = 'r'
+            h5py_flag = 'r'
         else:
-            shelf_flag = 'c'
+            h5py_flag = 'a'
         self._file_name = file_name
         self._categorical = None
         self._log_weights = []
         self._length = 0
         self._uniform_weights = False
-        self._metadata = OrderedDict()
         if concat_empiricals is not None or concat_empirical_file_names is not None:
             if concat_empiricals is not None:
                 if type(concat_empiricals) == list:
@@ -73,13 +73,6 @@ class Empirical(Distribution):
             weights = self._categorical.probs
             self._effective_sample_size = 1. / weights.pow(2).sum()
             name = 'Concatenated empirical, length: {:,}, ESS: {:,.2f}'.format(self._length, self._effective_sample_size)
-            # self._metadata.append('Begin concatenate empiricals ({})'.format(len(self._concat_empiricals)))
-            # for i, emp in enumerate(self._concat_empiricals):
-            #     self._metadata.append('Begin source empirical ({}/{})'.format(i+1, len(self._concat_empiricals)))
-            #     self._metadata.extend(emp._metadata)
-            #     self._metadata.append('End source empirical ({}/{})'.format(i+1, len(self._concat_empiricals)))
-            # self._metadata.append('End concatenate empiricals ({})'.format(len(self._concat_empiricals)))
-            self.add_metadata(op='concat', num_empiricals=len(self._concat_empiricals), metadata_empiricals=[emp._metadata for emp in self._concat_empiricals])
             self.rename(name)
             self._finalized = True
             self._read_only = True
@@ -88,24 +81,23 @@ class Empirical(Distribution):
             else:
                 if concat_empirical_file_names is None:
                     raise ValueError('Expecting concat_empirical_file_names to write a concatenated empirical file.')
-                if shelf_flag == 'r':
+                if h5py_flag == 'r':
                     raise RuntimeError('Empirical file already exists, cannot write new concatenated Empirical: {}'.format(self._file_name))
                 else:
                     self._type = EmpiricalType.CONCAT_FILE
-                    self._shelf = shelve.open(self._file_name, flag=shelf_flag, writeback=False)
-                    self._shelf['concat_empirical_file_names'] = concat_empirical_file_names
-                    self._shelf['name'] = self.name
-                    self._shelf['metadata'] = self._metadata
-                    self._shelf.close()
+                    self._h5py = h5py.File(self._file_name, h5py_flag)
+                    self._h5py.attrs['concat_empirical_file_names'] = concat_empirical_file_names
+                    self._h5py.attrs['name'] = self.name
+                    self._h5py.close()
         else:
             if file_name is None:
                 self._type = EmpiricalType.MEMORY
                 self._values = []
             else:
-                self._shelf = shelve.open(self._file_name, flag=shelf_flag, writeback=file_writeback)
-                if 'concat_empirical_file_names' in self._shelf:
+                self._h5py = h5py.File(self._file_name, h5py_flag)
+                if 'concat_empirical_file_names' in self._h5py:
                     self._type = EmpiricalType.CONCAT_FILE
-                    concat_empirical_file_names = self._shelf['concat_empirical_file_names']
+                    concat_empirical_file_names = self._h5py.attrs['concat_empirical_file_names']
                     self._concat_empiricals = [Empirical(file_name=f, file_read_only=True) for f in concat_empirical_file_names]
                     self._concat_cum_sizes = np.cumsum([emp.length for emp in self._concat_empiricals])
                     self._length = self._concat_cum_sizes[-1]
@@ -113,33 +105,31 @@ class Empirical(Distribution):
                                                    for emp in self._concat_empiricals])
                     logits = util.to_tensor(self._log_weights, dtype=torch.float64)
                     self._categorical = torch.distributions.Categorical(logits=logits)
-                    self.name = self._shelf['name']
-                    if 'metadata' in self._shelf:
-                        self._metadata = self._shelf['metadata']
+                    self.name = self._h5py.attrs['name']
                     self._finalized = True
                     self._read_only = True
                 else:
                     self._type = EmpiricalType.FILE
-                    if 'name' in self._shelf:
-                        self.name = self._shelf['name']
-                    if 'metadata' in self._shelf:
-                        self._metadata = self._shelf['metadata']
-                    if 'log_weights' in self._shelf:
-                        self._log_weights = self._shelf['log_weights']
-                        self._file_last_key = self._shelf['last_key']
+                    if 'name' in self._h5py.attrs:
+                        self.name = self._h5py.attrs['name']
+                    if 'log_weights' in self._h5py:
+                        self._log_weights = [util.to_tensor(w) for w in self._h5py['log_weights'][:]]
+                        self._file_last_key = self._h5py.attrs['last_key']
                         self._length = len(self._log_weights)
                     else:
+                        self._h5py.create_dataset('log_weights', (1,), maxshape=(None,))
                         self._file_last_key = -1
+                    if 'values' not in self._h5py:
+                        str_type = h5py.special_dtype(vlen=str)
+                        self._h5py.create_dataset('values', (1,), maxshape=(None,), dtype=str_type)
                     self._file_sync_timeout = file_sync_timeout
                     self._file_sync_countdown = self._file_sync_timeout
-                    self.finalize()
         self._mean = None
         self._variance = None
         self._mode = None
         self._min = None
         self._max = None
         self._effective_sample_size = None
-        self.add_metadata(name=self.name)
         if values is not None:
             if len(values) > 0:
                 self.add_sequence(values, log_weights, weights)
@@ -163,18 +153,11 @@ class Empirical(Distribution):
     def length(self):
         return self._length
 
-    @property
-    def metadata(self):
-        return self._metadata
-
-    def add_metadata(self, **kwargs):
-        self._metadata['{}'.format(len(self._metadata))] = kwargs
-
     def close(self):
         if self._type == EmpiricalType.FILE:
             self.finalize()
             if not self._closed:
-                self._shelf.close()
+                self._h5py.close()
                 self._closed = True
 
     def copy(self, file_name=None):
@@ -184,8 +167,6 @@ class Empirical(Distribution):
                 status = 'Copy Empirical(file_name: {}) to Empirical(memory)'.format(self._file_name)
                 print(status)
                 ret = Empirical(values=self.get_values(), log_weights=self._log_weights, name=self.name)
-                ret._metadata = copy.deepcopy(self._metadata)
-                ret.add_metadata(op='copy', source='Empirical(file_name: {})'.format(self._file_name), target='Empirical(memory)')
                 return ret
             else:
                 status = 'Copy Empirical(file_name: {}) to Empirical(file_name: {})'.format(self._file_name, file_name)
@@ -194,23 +175,17 @@ class Empirical(Distribution):
                 for i in range(self._length):
                     ret.add(value=self._get_value(i), log_weight=self._log_weights[i])
                 ret.finalize()
-                ret._metadata = copy.deepcopy(self._metadata)
-                ret.add_metadata(op='copy', source='Empirical(file_name: {})'.format(self._file_name), target='Empirical(file_name: {})'.format(file_name))
                 return ret
         elif self._type == EmpiricalType.MEMORY:
             if file_name is None:
                 status = 'Copy Empirical(memory) to Empirical(memory)'
                 print(status)
                 ret = copy.copy(self)
-                ret._metadata = copy.deepcopy(self._metadata)
-                ret.add_metadata(op='copy', source='Empirical(memory)', target='Empirical(memory)')
                 return ret
             else:
                 status = 'Copy Empirical(memory) to Empirical(file_name: {})'.format(file_name)
                 print(status)
                 ret = Empirical(values=self._values, log_weights=self._log_weights, file_name=file_name, name=self.name)
-                ret._metadata = copy.deepcopy(self._metadata)
-                ret.add_metadata(op='copy', source='Empirical(memory)', target='Empirical(file_name: {})'.format(file_name))
                 return ret
         else:
             raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
@@ -220,17 +195,17 @@ class Empirical(Distribution):
         logits = util.to_tensor(self._log_weights, dtype=torch.float)
 
         self._categorical = torch.distributions.Categorical(logits=logits)
-        self.add_metadata(op='finalize', length=self._length)
         if self._length > 0:
-            self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
+            self._uniform_weights = torch.eq(self._categorical.logits,
+                                             self._categorical.logits[0]).all()
         else:
             self._uniform_weights = False
         if self._type == EmpiricalType.FILE and not self._read_only:
-            self._shelf['name'] = self.name
-            self._shelf['metadata'] = self._metadata
-            self._shelf['log_weights'] = self._log_weights
-            self._shelf['last_key'] = self._file_last_key
-            self._shelf.sync()
+            self._h5py.attrs['name'] = self.name
+            w = self._h5py['log_weights']
+            w.resize((self._length,))
+            w[:] = self._log_weights
+            self._h5py.attrs['last_key'] = self._file_last_key
         self._finalized = True
 
     def _check_finalized(self):
@@ -259,7 +234,19 @@ class Empirical(Distribution):
 
         if self._type == EmpiricalType.FILE:
             self._file_last_key += 1
-            self._shelf[str(self._file_last_key)] = value
+            v = self._h5py['values']
+            v.resize((self._file_last_key+1,))
+            trace_attr_list = []
+            if isinstance(value, Trace):
+                for variable in value.variables:
+                    trace_attr_list.append(util.to_variable_dict_data(variable))
+                v[self._file_last_key] = ujson.dumps(trace_attr_list).encode()
+                v.attrs['is_trace'] = True
+            else:
+                if torch.is_tensor(value):
+                    value = value.tolist()
+                v[self._file_last_key] = ujson.dumps(value).encode()
+                v.attrs['is_trace'] = False
             self._file_sync_countdown -= 1
             if self._file_sync_countdown == 0:
                 self.finalize()
@@ -283,11 +270,17 @@ class Empirical(Distribution):
                 self.add(values[i])
 
     def rename(self, name):
-        self.add_metadata(op='rename', name=name)
         self.name = name
         if self._type == EmpiricalType.FILE:
-            self._shelf['name'] = self.name
+            self._h5py.attrs['name'] = self.name
         return self
+
+    def _value_from_hdf5(self, v_decoded):
+        variable_dict_list = util.from_variable_dict_data(v_decoded)
+        value = Trace()
+        for variable_dict in variable_dict_list:
+            value.add(Variable(**variable))
+        return value
 
     def _get_value(self, index):
         if self._type == EmpiricalType.MEMORY:
@@ -295,7 +288,14 @@ class Empirical(Distribution):
         elif self._type == EmpiricalType.FILE:
             if index < 0:
                 index = self._length + index
-            return self._shelf[str(index)]
+            v = self._h5py['values']
+            if v.attrs['is_trace']:
+                v_decoded = ujson.loads(v[index])
+                value = self._value_from_hdf5(v_decoded)
+            else:
+                value = ujson.loads(v[index])
+                value = util.to_tensor(value)
+            return value
         else:  # CONCAT_MEMORY or CONCAT_FILE
             emp_index = self._concat_cum_sizes.searchsorted(index, 'right')
             if emp_index > 0:
@@ -313,7 +313,11 @@ class Empirical(Distribution):
         if self._type == EmpiricalType.MEMORY:
             return self._values
         elif self._type == EmpiricalType.FILE:
-            return [self._shelf[str(i)] for i in range(self._length)]
+            v = self._h5py['values']
+            if v.attrs['is_trace']:
+                return [self._value_from_hdf5(ujson.loads(v[i])) for i in range(self._length)]
+            else:
+                return [ujson.loads(v[i]) for i in range(self._length)]
         else:
             raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
 
@@ -341,8 +345,6 @@ class Empirical(Distribution):
         if isinstance(index, slice):
             if self._type == EmpiricalType.MEMORY:
                 ret = Empirical(values=self._values[index], log_weights=self._log_weights[index], name=self.name)
-                ret._metadata = copy.deepcopy(self._metadata)
-                ret.add_metadata(op='slice', index='{}'.format(index))
                 return ret
             else:
                 raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
@@ -357,13 +359,16 @@ class Empirical(Distribution):
                 ret = sum(map(func, self._values)) / self._length
             else:
                 for i in range(self._length):
-                    ret += util.to_tensor(func(self._values[i]), dtype=torch.float) * self._categorical.probs[i]
+                    ret += util.to_tensor(func(self._values[i]),
+                                          dtype=torch.float) * self._categorical.probs[i]
         elif self._type == EmpiricalType.FILE:
             for i in range(self._length):
-                ret += util.to_tensor(func(self._shelf[str(i)]), dtype=torch.float) * self._categorical.probs[i]
+                ret += util.to_tensor(func(self._get_value(i)),
+                                      dtype=torch.float) * self._categorical.probs[i]
         else:  # CONCAT_MEMORY or CONCAT_FILE
             for i in range(self._length):
-                ret += util.to_tensor(func(self._get_value(i)), dtype=torch.float) * self._categorical.probs[i]
+                ret += util.to_tensor(func(self._get_value(i)),
+                                      dtype=torch.float) * self._categorical.probs[i]
         return util.to_tensor(ret)
 
     def map(self, func, *args, **kwargs):
@@ -372,8 +377,6 @@ class Empirical(Distribution):
         for i in range(self._length):
             values.append(func(self._get_value(i)))
         ret = Empirical(values=values, log_weights=self._log_weights, name=self.name, *args, **kwargs)
-        ret._metadata = copy.deepcopy(self._metadata)
-        ret.add_metadata(op='map', length=len(self), func=util.get_source(func))
         return ret
 
     def filter(self, func, *args, **kwargs):
@@ -388,8 +391,6 @@ class Empirical(Distribution):
                 filtered_values.append(value)
                 filtered_log_weights.append(self._get_log_weight(i))
         ret = Empirical(filtered_values, log_weights=filtered_log_weights, name=self.name, *args, **kwargs)
-        ret._metadata = copy.deepcopy(self._metadata)
-        ret.add_metadata(op='filter', length=len(self), length_after=len(filtered_values), func=util.get_source(func))
         return ret
 
     def resample(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):
@@ -409,8 +410,6 @@ class Empirical(Distribution):
             values.append(map_func(self.sample(min_index=None, max_index=None)))
         util.progress_bar_end()
         ret = Empirical(values=values, name=self.name, *args, **kwargs)
-        ret._metadata = copy.deepcopy(self._metadata)
-        ret.add_metadata(op='resample', length=len(self), num_samples=int(num_samples), min_index=int(min_index), max_index=int(max_index))
         return ret
 
     def thin(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):
@@ -433,8 +432,6 @@ class Empirical(Distribution):
             log_weights.append(self._get_log_weight(indices[i]))
         util.progress_bar_end()
         ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
-        ret._metadata = copy.deepcopy(self._metadata)
-        ret.add_metadata(op='thin', length=len(self), num_samples=int(num_samples), step=int(step), min_index=int(min_index), max_index=int(max_index))
         return ret
 
     @property
@@ -513,8 +510,6 @@ class Empirical(Distribution):
     def unweighted(self, *args, **kwargs):
         self._check_finalized()
         ret = Empirical(values=self.get_values(), name=self.name, *args, **kwargs)
-        ret._metadata = copy.deepcopy(self._metadata)
-        ret.add_metadata(op='discard_weights')
         return ret
 
     def _find_min_max(self):
@@ -556,45 +551,11 @@ class Empirical(Distribution):
                 values = list(distribution.keys())
                 log_weights = list(distribution.values())
                 ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
-                ret._metadata = copy.deepcopy(self._metadata)
-                ret.add_metadata(op='combine_duplicates')
                 return ret
             else:
                 raise RuntimeError('The values in this Empirical as not hashable. Combining of duplicates not currently supported.')
         else:
             raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
-
-    # Deprecated in favor of concat_empiricals in constructor
-    # @staticmethod
-    # def combine(empirical_distributions, file_name=None):
-    #     empirical_type = empirical_distributions[0]._type
-    #     for dist in empirical_distributions:
-    #         if dist._type != empirical_type:
-    #             raise RuntimeError('Expecting all Empirical distributions to be of the same type. Encountered: {} and {}'.format(empirical_type, dist._type))
-    #         if not isinstance(dist, Empirical):
-    #             raise TypeError('Combination is only supported between Empirical distributions.')
-    #
-    #     if empirical_type == EmpiricalType.FILE:
-    #         if file_name is None:
-    #             raise RuntimeError('Expecting a target file_name for the combined Empirical.')
-    #         ret = Empirical(file_name=file_name)
-    #         for dist in empirical_distributions:
-    #             for i in range(dist._length):
-    #                 ret.add(value=dist._shelf[str(i)], log_weight=dist._log_weights[i])
-    #         ret.finalize()
-    #         return ret
-    #     elif empirical_type == EmpiricalType.MEMORY:
-    #         values = []
-    #         log_weights = []
-    #         length = empirical_distributions[0].length
-    #         for dist in empirical_distributions:
-    #             if dist.length != length:
-    #                 raise RuntimeError('Combination is only supported between Empirical distributions of equal length.')
-    #             values += dist._values
-    #             log_weights += dist._log_weights
-    #         return Empirical(values=values, log_weights=log_weights, file_name=file_name)
-    #     else:
-    #         raise NotImplementedError('Not implemented for type: {}'.format(str(empirical_type)))
 
     def values_numpy(self):
         self._check_finalized()
@@ -639,7 +600,3 @@ class Empirical(Distribution):
             plt.savefig(file_name)
         if show:
             plt.show()
-
-    def save_metadata(self, file_name):
-        with open(file_name, 'w') as file:
-            file.write(yaml.dump(self._metadata))

@@ -8,13 +8,13 @@ from torch.distributions import Normal
 from trandn import trandn
 from truncnorm_moments import moments
 
-n_samples = int(500)
-mu = 30
+n_samples = int(20000)
+mu = 2
 std = 3
 mus = torch.zeros(n_samples) + mu
 stds = torch.zeros(n_samples) + std
-lb = -10
-ub = 5
+lb = -4
+ub = 4
 lower_bound = torch.zeros(n_samples) + torch.Tensor([lb])
 upper_bound = torch.zeros(n_samples) + torch.Tensor([ub])
 samples = trandn((lower_bound-mus)/stds, (upper_bound-mus)/stds)

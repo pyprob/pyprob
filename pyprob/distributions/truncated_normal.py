@@ -11,18 +11,17 @@ class TruncatedNormal(Distribution):
     def __init__(self, mean_non_truncated, stddev_non_truncated, low, high, clamp_mean_between_low_high=False):
         self._mean_non_truncated = util.to_tensor(mean_non_truncated)
         self._stddev_non_truncated = util.to_tensor(stddev_non_truncated)
+        if self._mean_non_truncated.dim() == 0:
+            self._mean_non_truncated = self._mean_non_truncated.unsqueeze(0)
+        if self._stddev_non_truncated.dim() == 0:
+            self._stddev_non_truncated = self._stddev_non_truncated.unsqueeze(0)
+
         self._low = util.to_tensor(low).view(self._mean_non_truncated.shape)
         self._high = util.to_tensor(high).view(self._mean_non_truncated.shape)
         if clamp_mean_between_low_high:
-            self._mean_non_truncated = torch.max(torch.min(self._mean_non_truncated, self._high), self._low)
-        if self._mean_non_truncated.dim() == 0:
-            self._batch_length = 0
-        elif self._mean_non_truncated.dim() == 1 or self._mean_non_truncated.dim() == 2:
-            self._batch_length = self._mean_non_truncated.size(0)
-        else:
-            raise RuntimeError('Expecting 1d or 2d (batched) probabilities.')
-
-
+            self._mean_non_truncated = torch.max(torch.min(self._mean_non_truncated,
+                                                           self._high),
+                                                 self._low)
 
         output = moments(self._low, self._high, self._mean_non_truncated,
                          self._stddev_non_truncated**2)

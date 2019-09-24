@@ -6,9 +6,9 @@ from .utils import erfcx
 
 ## used for running the test_ambitious_sampler.py script
 
-#from utils.utils import erfcx
-#class util:
-#    _device = torch.device('cpu')
+# from utils.utils import erfcx
+# class util:
+#     _device = torch.device('cpu')
 
 #############################################
 
@@ -309,7 +309,7 @@ def moments(lowerB, upperB, mu, sigma):
 
             I_b_less_a = (torch.abs(b) < torch.abs(a)) & I_n_eq
             if I_b_less_a.any():
-                mask = (b <= -26) & I_b_less_a
+                mask = (b <= 26) & I_b_less_a
                 if mask.any():
 
                     # do things normally but mirrored across 0
@@ -326,7 +326,7 @@ def moments(lowerB, upperB, mu, sigma):
                                - (upperB[mask]+mu[mask])/((torch.exp(b[mask]**2-a[mask]**2)*erfcx(-a[mask]) \
                                - erfcx(-b[mask]))))
 
-                mask = (b > -26) & I_b_less_a
+                mask = (b > 26) & I_b_less_a
                 if mask.any():
 
                     # b is too big and the calculation will be unstable, so
