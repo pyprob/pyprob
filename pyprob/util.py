@@ -446,22 +446,22 @@ def from_variable_dict_data(list_of_variable_dict, variables_observed_inf_traini
             var_args = {}
             for attr, variable_data in variable_attr_dict.items():
                 if attr == 'value':
-                    var_args[attr] = util.to_tensor(variable_data)
+                    var_args[attr] = to_tensor(variable_data)
                 elif attr in ['distribution_name']:
                     # extract the input arguments for initializing the distribution
                     var_args[attr] = variable_data
                 elif attr in ['distribution_args']:
                     tmp = {}
                     for k, value in variable_data.items():
-                        tmp[k] = util.to_tensor(value)
+                        tmp[k] = to_tensor(value)
                     var_args[attr] = tmp
                 elif attr in ['constants']:
                     tmp = {}
                     for k, value in variable_data.items():
-                        tmp[k] = util.to_tensor(value)
+                        tmp[k] = to_tensor(value)
                     var_args[attr] = tmp
                 elif attr in ['log_prob']:
-                    var_args[attr] = util.to_tensor(variable_data)
+                    var_args[attr] = to_tensor(variable_data)
                 elif attr in ['observed']:
                     var_args[attr] = variable_data or variable_attr_dict['name'] in variables_observed_inf_training
                 else:
