@@ -12,11 +12,11 @@ from pyprob.distributions import Normal, Categorical
 
 
 docker_client = docker.from_env()
-print('Pulling latest Docker image: etalumis/pyprob_cpp')
-docker_client.images.pull('etalumis/pyprob_cpp')
+print('Pulling latest Docker image: pyprob/pyprob_cpp')
+docker_client.images.pull('pyprob/pyprob_cpp')
 print('Docker image pulled.')
 
-docker_container = docker_client.containers.run('etalumis/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_set_defaults_and_addresses ipc://@RemoteModelSetDefaultsAndAddresses', network='host', detach=True)
+docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_set_defaults_and_addresses ipc://@RemoteModelSetDefaultsAndAddresses', network='host', detach=True)
 SetDefaultsAndAddressesCPP = RemoteModel('ipc://@RemoteModelSetDefaultsAndAddresses')
 
 

@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN git clone --branch v1.10.0 https://github.com/google/flatbuffers.git /code/flatbuffers && cd /code/flatbuffers && cmake -G "Unix Makefiles" && make install
 RUN git clone --branch 0.4.16 https://github.com/QuantStack/xtl.git /code/xtl && cd /code/xtl && cmake . && make install
 RUN git clone --branch 0.17.4 https://github.com/QuantStack/xtensor.git /code/xtensor && cd /code/xtensor && cmake . && make install
-RUN git clone --branch v0.1.7 https://github.com/etalumis/pyprob_cpp.git /code/pyprob_cpp && cd /code/pyprob_cpp && mkdir build && cd build && cmake ../src && cmake --build . && make install
+RUN git clone --branch v0.1.7 https://github.com/pyprob/pyprob_cpp.git /code/pyprob_cpp && cd /code/pyprob_cpp && mkdir build && cd build && cmake ../src && cmake --build . && make install
 
 RUN curl -o ~/miniconda.sh -O  https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh  && \
      chmod +x ~/miniconda.sh && \
@@ -39,7 +39,7 @@ ARG PYPROB_VERSION="unknown"
 ARG GIT_COMMIT="unknown"
 
 LABEL project="pyprob"
-LABEL url="https://github.com/etalumis/pyprob"
+LABEL url="https://github.com/pyprob/pyprob"
 LABEL maintainer="Atilim Gunes Baydin <gunes@robots.ox.ac.uk>"
 LABEL version=$PYPROB_VERSION
 LABEL git_commit=$GIT_COMMIT
