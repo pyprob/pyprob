@@ -129,7 +129,7 @@ class OnlineDataset(Dataset):
             file_name = os.path.join(dataset_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
             shelf = shelve.open(file_name, flag='c')
             for j in range(num_traces_per_file):
-                trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR, prior_inflation=self._prior_inflation, *args, **kwargs))
+                trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK, prior_inflation=self._prior_inflation, *args, **kwargs))
                 self._prune_trace(trace)
                 shelf[str(j)] = trace
                 shelf['__length'] = j + 1
