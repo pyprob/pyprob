@@ -158,10 +158,15 @@ class Empirical(Distribution):
             if not self._closed:
                 self._h5py.close()
                 self._closed = True
-        if self._type == EmpiricalType.CONCAT_FILE:
+        elif self._type == EmpiricalType.CONCAT_FILE:
             self.finalize()
             if not self._closed:
                 self._h5py.close()
+                [emp.close() for emp in self._concat_empiricals]
+                self._closed = True
+        elif self._type == EmpiricalType.CONCAT_MEMORY:
+            self.finalize()
+            if not self._closed:
                 [emp.close() for emp in self._concat_empiricals]
                 self._closed = True
 
@@ -285,7 +290,7 @@ class Empirical(Distribution):
         variable_dict_list = util.from_variable_dict_data(v_decoded)
         value = Trace()
         for variable_dict in variable_dict_list:
-            value.add(Variable(**variable))
+            value.add(Variable(**variable_dict))
         return value
 
     def _get_value(self, index):
