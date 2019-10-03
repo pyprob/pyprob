@@ -25,9 +25,10 @@ class LinearBlock(nn.Module):
                 return max(dim, output_shape)
 
         old_shape = input_shape
-        for i in range(7):
+        for i in range(2):
             next_shape = shape_at_layer(i+1)
-            modules.append((f"dense_{i}", nn.Linear(old_shape, next_shape)))
+            modules.append((f"dense_{i}", nn.Linear(old_shape, next_shape, bias=False)))
+            modules.append((f"batchnorm_{i}", nn.BatchNorm1d(next_shape)))
             modules.append((f"leaky_relu_{i}", nn.LeakyReLU(negative_slope=0.2, inplace=True)))
             old_shape = next_shape
 
@@ -72,8 +73,8 @@ class ParameterFromRNN(nn.Module):
                 out, hidden_state = self._lstm(x.view(1, batch_size, -1))
             else:
                 out, hidden_state = self._lstm(x.view(1, batch_size, -1), hidden_state)
-            out = output_block(out)
-            output.append(out.squeeze(0)) # squeeze sequence
-            x = torch.cat([out, x_input.view(out.shape)], dim=2) # seq_len x batch_size x *
+            out = output_block(out.squeeze(0))
+            output.append(out) # squeeze sequence
+            x = torch.cat([x_input.view(out.shape), out], dim=1) # seq_len x batch_size x *
         output = torch.stack(output, dim=self._iterative_dim)
         return output
