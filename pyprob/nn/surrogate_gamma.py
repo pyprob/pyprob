@@ -77,11 +77,11 @@ class SurrogateGamma(nn.Module):
             return Gamma(self._shape_const.expand(batch_size, *self._shape_shape),
                          self._rate_const.expand(batch_size, *self._rate_shape))
 
-    def _loss(self, p_normal):
+    def _loss(self, values):
         if self.do_train:
             q_normal = Gamma(self._shape, self._rate)
-
-            return Distribution.kl_divergence(p_normal, q_normal)
+            return -q_normal.log_prob(values)
+            #return Distribution.kl_divergence(p_normal, q_normal)
         else:
             batch_size = p_normal.shape.size(0) # concentration = shape
             return torch.zeros([batch_size,1]).to(device=util._device)

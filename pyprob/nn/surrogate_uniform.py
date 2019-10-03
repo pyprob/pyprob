@@ -46,12 +46,12 @@ class SurrogateUniform(nn.Module):
                            high=self._high.repeat(batch_size, *self.high_shape))
 
 
-    def _loss(self, p_uniform):
+    def _loss(self, values):
         # simulator_lows = self._transform_low(distributions)
         # simulator_highs = self._transform_high(distributions)
         # p_normal = Uniform(simulator_lows, simulator_highs)
         # q_normal = Uniform(self.low, self.high)
 
-        batch_size = p_uniform.low.size(0)
+        batch_size = values.size(0)
         return torch.zeros([batch_size,1]).to(device=util._device)
 

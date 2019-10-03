@@ -304,7 +304,8 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     surrogate_loss += torch.sum(address_transition_layer._loss(next_addresses))
 
                 _ = surrogate_distribution_layer(proposal_input)
-                surrogate_loss += torch.sum(surrogate_distribution_layer._loss(variable_dist))
+                values = torch_data[time_step]['values'].to(device=self._device)
+                surrogate_loss += torch.sum(surrogate_distribution_layer._loss(values))
 
             batch_loss += sub_batch_loss + surrogate_loss
         return True, batch_loss / batch.size

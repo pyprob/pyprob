@@ -28,7 +28,6 @@ class LinearBlock(nn.Module):
         for i in range(2):
             next_shape = shape_at_layer(i+1)
             modules.append((f"dense_{i}", nn.Linear(old_shape, next_shape, bias=False)))
-            modules.append((f"batchnorm_{i}", nn.BatchNorm1d(next_shape)))
             modules.append((f"leaky_relu_{i}", nn.LeakyReLU(negative_slope=0.2, inplace=True)))
             old_shape = next_shape
 

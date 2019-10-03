@@ -124,11 +124,12 @@ class SurrogateNormal(nn.Module):
                 return Normal(self._loc_const.expand(batch_size, *self._loc_shape),
                               self._scale_const.expand(batch_size, *self._scale_shape))
 
-    def _loss(self, p_normal):
+    def _loss(self, values):
         if self.do_train:
             q_normal = Normal(self._loc, self._scale)
+            return -q_normal.log_prob(values)
 
-            return Distribution.kl_divergence(p_normal, q_normal)
+            #return Distribution.kl_divergence(p_normal, q_normal)
         else:
-            batch_size = p_normal.loc.size(0)
+            batch_size = values.size(0)
             return torch.zeros([batch_size,1]).to(device=util._device)

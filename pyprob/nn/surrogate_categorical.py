@@ -34,7 +34,8 @@ class SurrogateCategorical(nn.Module):
 
         return Categorical(logits=self._logits)
 
-    def _loss(self, p_categorical):
+    def _loss(self, values):
         q_categorical = Categorical(self._logits)
+        return -q_categorical.log_prob(values)
 
-        return Distribution.kl_divergence(p_categorical, q_categorical)
+        #return Distribution.kl_divergence(p_categorical, q_categorical)
