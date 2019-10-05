@@ -6,7 +6,8 @@ from .. import util
 
 class EmbeddingFeedForward(nn.Module):
     def __init__(self, input_shape, output_shape, num_layers=3, hidden_dim=None,
-                 activation=torch.relu, activation_last=torch.relu,
+                 activation=nn.LeakyReLU(inplace=True),
+                 activation_last=nn.LeakyReLU(inplace=True),
                  input_is_one_hot_index=False, input_one_hot_dim=None):
         super().__init__()
         self._input_shape = util.to_size(input_shape)

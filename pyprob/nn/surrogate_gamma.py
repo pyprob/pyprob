@@ -43,7 +43,6 @@ class SurrogateGamma(nn.Module):
             self._ff = EmbeddingFeedForward(input_shape=input_shape,
                                             output_shape=torch.Size([self._shape_output_dim + self._rate_output_dim]),
                                             num_layers=num_layers,
-                                            activation=torch.relu,
                                             activation_last=None,
                                             hidden_dim=hidden_dim)
         self._total_train_iterations = 0

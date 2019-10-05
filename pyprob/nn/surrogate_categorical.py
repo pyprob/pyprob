@@ -15,7 +15,6 @@ class SurrogateCategorical(nn.Module):
         self._ff = EmbeddingFeedForward(input_shape=input_shape,
                                         output_shape=torch.Size([num_categories]),
                                         num_layers=num_layers,
-                                        activation=torch.relu,
                                         activation_last=None,
                                         hidden_dim=hidden_dim)
         self._total_train_iterations = 0

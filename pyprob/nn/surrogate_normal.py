@@ -44,7 +44,6 @@ class SurrogateNormal(nn.Module):
                                                 output_shape=torch.Size([self._loc_output_dim
                                                                         + self._scale_output_dim]),
                                                 num_layers=num_layers,
-                                                activation=torch.relu,
                                                 hidden_dim=hidden_dim,
                                                 activation_last=None)
 
@@ -55,7 +54,6 @@ class SurrogateNormal(nn.Module):
                     self._lin_embed = EmbeddingFeedForward(input_shape=input_shape,
                                                 output_shape=torch.Size([input_dim + self._scale_output_dim]),
                                                 num_layers=num_layers,
-                                                activation=torch.relu,
                                                 hidden_dim=hidden_dim,
                                                 activation_last=None)
 
@@ -71,7 +69,6 @@ class SurrogateNormal(nn.Module):
                     self._lin_embed = EmbeddingFeedForward(input_shape=input_shape,
                                                 output_shape=torch.Size([input_dim + self._scale_output_dim]),
                                                 num_layers=num_layers,
-                                                activation=torch.relu,
                                                 hidden_dim=hidden_dim,
                                                 activation_last=None)
 
@@ -89,7 +86,6 @@ class SurrogateNormal(nn.Module):
         if self.do_train:
             if self.em_type == 'ff':
                 x = self._em(x)
-
                 if not self.constant_loc:
                     self._loc = x[:, :self._loc_output_dim].view(batch_size, *self._loc_shape)
                 else:
