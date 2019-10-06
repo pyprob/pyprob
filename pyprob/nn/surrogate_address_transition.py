@@ -103,7 +103,6 @@ class SurrogateAddressTransition(nn.Module):
 
     def _loss(self, next_addresses):
         target_classes = self._transform_to_class(next_addresses).to(device=util._device)
-        #loss = -self._categorical.log_prob(classes)
         loss = self.nllloss(self._logits, target_classes.long())
         return loss
 
