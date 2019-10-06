@@ -20,7 +20,6 @@ class Beta(Distribution):
                                                                                     self._concentration0,
                                                                                     self._low,
                                                                                     self._high)
-
     @property
     def concentration1(self):
         return self._torch_dist.concentration1

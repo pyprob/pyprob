@@ -34,7 +34,7 @@ class Normal(Distribution):
 
     def log_prob(self, value, sum=False):
         if self._torch_dist is not None:
-            lp = self._torch_dist.log_prob(util.to_tensor(value).flatten(start_dim=self.flatten_dim_loc))
+            lp = super().log_prob(util.to_tensor(value).flatten(start_dim=self.flatten_dim_loc))
             return torch.sum(lp) if sum else lp
         else:
             raise NotImplementedError()

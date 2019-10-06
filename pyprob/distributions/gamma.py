@@ -22,7 +22,7 @@ class Gamma(Distribution):
 
     def log_prob(self, value, sum=False):
         if self._torch_dist is not None:
-            lp = self._torch_dist.log_prob(util.to_tensor(value))
+            lp = super().log_prob(util.to_tensor(value))
             return torch.sum(lp) if sum else lp
         else:
             raise NotImplementedError()

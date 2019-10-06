@@ -16,8 +16,8 @@ class SurrogateGamma(nn.Module):
         self.constant_shape = False
         self.constant_rate = False
         self.do_train = True
-        self._rate_output_dim = util.prod(shape_shape)
-        self._shape_output_dim = util.prod(rate_shape)
+        self._shape_output_dim = util.prod(shape_shape)
+        self._rate_output_dim = util.prod(rate_shape)
         self._shape_shape = shape_shape
         self._rate_shape = rate_shape
 
@@ -60,7 +60,7 @@ class SurrogateGamma(nn.Module):
                 self._shape = self._shape_const.expand(batch_size, 1)
 
             if not self.constant_rate:
-                self._rate = torch.exp(x[:, self._shape_output_dim:]).view(batch_size, *self._rate_shape)
+                self._rate = torch.exp(x[:, self._rate_output_dim:]).view(batch_size, *self._rate_shape)
             else:
                 self._rate= self._rate_const.expand(batch_size, 1)
 
@@ -82,5 +82,5 @@ class SurrogateGamma(nn.Module):
             return -q_normal.log_prob(values)
             #return Distribution.kl_divergence(p_normal, q_normal)
         else:
-            batch_size = p_normal.shape.size(0) # concentration = shape
+            batch_size = values.shape.size(0) # concentration = shape
             return torch.zeros([batch_size,1]).to(device=util._device)

@@ -78,7 +78,6 @@ class SurrogateNormal(nn.Module):
                 else:
                     raise ValueError('Cannot deconv to a scalar mean, or the mean has not be non-constant')
 
-
         self.dist_type = Normal(loc=torch.zeros(loc_shape), scale=torch.ones(scale_shape))
 
     def forward(self, x, no_batch=False):

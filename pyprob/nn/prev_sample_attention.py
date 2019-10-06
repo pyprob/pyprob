@@ -74,11 +74,11 @@ class PrevSamplesEmbedder(nn.Module):
                 self.key_dim*self.n_queries
             )
         self._key_layers[address] = \
-            EmbeddingFeedForward(value_shape, self.key_dim,
+            EmbeddingFeedForward(value_shape, self.key_dim, hidden_dim=50,
                                  *embedder_args, **embedder_kwargs)
         self._value_layers[address] = \
             EmbeddingFeedForward(value_shape,
-                                 self.sample_embedding_dim,
+                                 self.sample_embedding_dim, hidden_dim=50,
                                  *embedder_args, **embedder_kwargs)
         self._query_layers[address].to(device=util._device)
         self._key_layers.to(device=util._device)

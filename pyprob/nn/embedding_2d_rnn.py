@@ -55,8 +55,6 @@ class ParameterFromRNN(nn.Module):
 
         self._rnn_styles = LinearBlock(input_shape, self._output_shape)
 
-        self.c0 = nn.Parameter(torch.zeros([1, 1, self._lstm_hidden_shape]), requires_grad=False)
-        self.h0 = nn.Parameter(torch.zeros([1, 1, self._lstm_hidden_shape]), requires_grad=False)
         self._lstm = nn.LSTM(self._output_shape*2, self._lstm_hidden_shape)
 
         self._output_blocks = nn.ModuleList([
