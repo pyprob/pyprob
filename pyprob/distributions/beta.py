@@ -8,6 +8,8 @@ class Beta(Distribution):
     def __init__(self, concentration1, concentration0, low=0, high=1):
         self._concentration1 = util.to_tensor(concentration1)
         self._concentration0 = util.to_tensor(concentration0)
+        self.concentration1_shape = self._concentration1.shape
+        self.concentration0_shape = self._concentration0.shape
         super().__init__(name='Beta', address_suffix='Beta',
                          torch_dist=torch.distributions.Beta(self._concentration1,
                                                              self._concentration0))
@@ -20,6 +22,10 @@ class Beta(Distribution):
                                                                                     self._concentration0,
                                                                                     self._low,
                                                                                     self._high)
+
+    def get_input_parameters(self):
+        return {'concentration1': self._concentration1, 'concentration0': self._concentration0}
+
     @property
     def concentration1(self):
         return self._torch_dist.concentration1

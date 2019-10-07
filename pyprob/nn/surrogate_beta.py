@@ -60,9 +60,9 @@ class SurrogateBeta(nn.Module):
                 self._concentration1 = self._concentration1_const.expand(batch_size, 1)
 
             if not self.constant_concentration0:
-                self._concentration0 = torch.exp(x[:, self._concentration0_output_dim:]).view(batch_size, *self._rate_shape)
+                self._concentration0 = torch.exp(x[:, self._concentration0_output_dim:]).view(batch_size, *self._concentration0_shape)
             else:
-                self._concentration0= self._rate_const.expand(batch_size, 1)
+                self._concentration0= self._concentration0_const.expand(batch_size, 1)
 
             if no_batch:
                 self._concentration1 = self._concentration1.squeeze(0)

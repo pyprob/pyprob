@@ -23,6 +23,7 @@ class ProposalBetaTruncatedNormalMixture(nn.Module):
         self._logsoftmax = nn.LogSoftmax(dim=1)
         self._low = nn.Parameter(torch.Tensor([0]).to(device=util._device), requires_grad=False)
         self._high = nn.Parameter(torch.Tensor([1]).to(device=util._device), requires_grad=False)
+        self._softplus = nn.Softplus()
 
     def forward(self, x, prior_distribution):
         """ Proposal forward function
@@ -33,7 +34,7 @@ class ProposalBetaTruncatedNormalMixture(nn.Module):
         x = self._ff(x)
 
         slice_size = self.output_dim*self._mixture_components
-        means = torch.max(x[:, :slice_size].view(batch_size, -1), -1e6)
+        means = x[:, :slice_size].view(batch_size, -1)
         stddevs = x[:, slice_size:2*slice_size].view(batch_size, -1)
         coeffs = x[:, 2*slice_size:].view(batch_size, -1)
 

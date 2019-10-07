@@ -1,6 +1,6 @@
 import os
 import torch
-from ...distributions import Normal, Uniform, Categorical, Gamma
+from ...distributions import Normal, Uniform, Categorical, Gamma, Beta
 
 
 class MyFile:
@@ -41,6 +41,8 @@ def construct_distribution(name, dist_args):
         return Categorical(**dist_args)
     elif name == 'Gamma':
         return Gamma(**dist_args)
+    elif name == 'Beta':
+        return Beta(**dist_args)
     else:
         raise NotImplementedError("Distribution not supported to save on disk")
 

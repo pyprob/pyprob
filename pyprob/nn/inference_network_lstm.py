@@ -5,7 +5,7 @@ from termcolor import colored
 from . import InferenceNetwork, EmbeddingFeedForward, ProposalNormalNormalMixture, \
     ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, \
     ProposalPoissonTruncatedNormalMixture, PriorDist, \
-    ProposalGammaTruncatedNormalMixture
+    ProposalGammaTruncatedNormalMixture, ProposalBetaTruncatedNormalMixture
 from .. import util
 from ..distributions import Normal, Uniform, Categorical, Poisson
 
@@ -89,6 +89,13 @@ class InferenceNetworkLSTM(InferenceNetwork):
                                                                              variable_shape,
                                                                              mixture_components=self._proposal_mixture_components,
                                                                              **var_embedding)
+                        sample_embedding_layer = EmbeddingFeedForward(variable_shape,
+                                                                      self._sample_embedding_dim, num_layers=1)
+                    elif distribution_name == 'Beta':
+                        proposal_layer = ProposalBetaTruncatedNormalMixture(self._lstm_dim,
+                                                                            variable_shape,
+                                                                            mixture_components=self._proposal_mixture_components,
+                                                                            **var_embedding)
                         sample_embedding_layer = EmbeddingFeedForward(variable_shape,
                                                                       self._sample_embedding_dim, num_layers=1)
                     elif distribution_name == 'Poisson':

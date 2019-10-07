@@ -14,11 +14,13 @@ from .proposal_uniform_truncated_normal_mixture import ProposalUniformTruncatedN
 from .proposal_poisson_truncated_normal_mixture import ProposalPoissonTruncatedNormalMixture
 from .proposal_categorical_categorical import ProposalCategoricalCategorical
 from .proposal_gamma_truncated_normal_mixture import ProposalGammaTruncatedNormalMixture
+from .proposal_beta_truncated_normal_mixture import ProposalBetaTruncatedNormalMixture
 from .surrogate_address_transition import SurrogateAddressTransition
 from .surrogate_normal import SurrogateNormal
 from .surrogate_uniform import SurrogateUniform
 from .surrogate_categorical import SurrogateCategorical
 from .surrogate_gamma import SurrogateGamma
+from .surrogate_beta import SurrogateBeta
 from .inference_network import InferenceNetwork
 from .inference_network_feedforward import InferenceNetworkFeedForward
 from .inference_network_lstm import InferenceNetworkLSTM

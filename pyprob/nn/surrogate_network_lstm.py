@@ -12,7 +12,7 @@ from termcolor import colored
 
 from . import EmbeddingFeedForward, InferenceNetwork, SurrogateAddressTransition, \
     SurrogateNormal, SurrogateCategorical, SurrogateUniform, \
-    SurrogateGamma
+    SurrogateGamma, SurrogateBeta
 from .. import util, state
 from ..distributions import Normal, Uniform, Categorical, Poisson
 from ..trace import Variable, Trace
@@ -43,6 +43,10 @@ class SurrogateNetworkLSTM(InferenceNetwork):
         # Surrogate attributes
         self._layers_address_transitions = nn.ModuleDict()
         self._layers_surrogate_distributions = nn.ModuleDict()
+
+        # normalizers
+        self._normalizer_bias = {}
+        self._normalizer_std = {}
 
         self._tagged_addresses = []
         self._control_addresses = {}
@@ -137,6 +141,17 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                         sample_embedding_layer = EmbeddingFeedForward(variable_shape,
                                                                       self._sample_embedding_dim,
                                                                       num_layers=1)
+                    elif distribution_name == 'Beta':
+                        distribution = torch_data[time_step]['distribution']
+                        concentration1_shape, concentration0_shape = distribution.concentration1_shape[1:], distribution.concentration0_shape[1:]
+                        surrogate_distribution = SurrogateBeta(self._lstm_dim,
+                                                               concentration1_shape,
+                                                               concentration0_shape,
+                                                               dist_constants,
+                                                               **var_embedding)
+                        sample_embedding_layer = EmbeddingFeedForward(variable_shape,
+                                                                      self._sample_embedding_dim,
+                                                                      num_layers=1)
                     elif distribution_name == 'Poisson':
                         surrogate_distribution = SurrogatePoisson(self._lstm_dim,
                                                                   variable_shape,
@@ -194,6 +209,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
             if prev_value.dim() == 0:
                 prev_value = prev_value.unsqueeze(0)
             if prev_address in self._layers_address_embedding:
+                prev_value = (prev_value - self._normalizer_bias[prev_address])/self._normalizer_std[prev_address]
                 prev_sample_embedding = self._layers_sample_embedding[prev_address](prev_value.float())
                 prev_address_embedding = self._layers_address_embedding[prev_address]
                 prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution.name]
@@ -246,6 +262,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 current_address_embedding = self._layers_address_embedding[current_address]
                 current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution_name]
 
+
                 if time_step == 0:
                     prev_sample_embedding = torch.zeros(sub_batch_length, self._sample_embedding_dim).to(device=self._device)
                     prev_address_embedding = torch.zeros(1, self._address_embedding_dim).to(device=self._device)
@@ -257,6 +274,16 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                         print(colored('Address unknown by surrogate network: {}'.format(prev_address), 'red', attrs=['bold']))
                         return False, 0
                     smp = torch_data[time_step-1]['values'].to(device=self._device)
+
+                    if prev_address not in self._normalizer_bias:
+                        self._normalizer_bias[prev_address] = smp.mean(dim=0)
+                    if prev_address not in self._normalizer_std:
+                        self._normalizer_std[prev_address] = smp.std(dim=0)
+
+                    # TODO BE CAREFUL - THIS IS A SUB MINIBATCH. THE NORMALIZATION COULD CHANGE IMMENSELY ACROSS SUBMINIBATCH
+                    # CONSIDER USING RUNNING MEANS, ETC...
+                    # MAYBE NORMALIZE FOR EACH TRACETYPE
+                    smp = (smp - self._normalizer_bias[prev_address])/self._normalizer_std[prev_address]
                     prev_sample_embedding = self._layers_sample_embedding[prev_address](smp)
                     prev_address_embedding = self._layers_address_embedding[prev_address]
                     prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution_name]
@@ -270,7 +297,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 lstm_input.append(t)
 
             # Execute LSTM in a single operation on the whole input sequence
-            lstm_input = torch.stack(lstm_input)
+            lstm_input = torch.stack(lstm_input, dim=0)
             h0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=self._device)
             c0 = torch.zeros(self._lstm_depth, sub_batch_length, self._lstm_dim).to(device=self._device)
             lstm_output, _ = self._layers_lstm(lstm_input, (h0, c0))
@@ -303,7 +330,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     _ = address_transition_layer(address_transition_input)
                     surrogate_loss += torch.sum(address_transition_layer._loss(next_addresses))
 
-                d = surrogate_distribution_layer(proposal_input)
+                _ = surrogate_distribution_layer(proposal_input)
                 values = torch_data[time_step]['values'].to(device=self._device)
                 surrogate_loss += torch.sum(surrogate_distribution_layer._loss(values))
 
