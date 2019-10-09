@@ -2,6 +2,7 @@ from .distribution import Distribution
 from .categorical import Categorical
 from .empirical import Empirical
 from .normal import Normal
+from .multivariate_normal import MultivariateNormal
 from .log_normal import LogNormal
 from .gamma import Gamma
 from .weibull import Weibull
