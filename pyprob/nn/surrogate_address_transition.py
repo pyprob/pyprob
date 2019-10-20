@@ -80,8 +80,8 @@ class SurrogateAddressTransition(nn.Module):
         # consider - https://pytorch.org/docs/stable/tensors.html
         classes_param= {"cw": self._ff["class_layer"].weight.data,
                         "cb": self._ff["class_layer"].bias.data}
-        placeholder_param = {"pw": self._ff["class_layer"].weight.data[self._n_classes:,:],
-                             "pb": self._ff["class_layer"].bias.data[self._n_classes:]}
+        placeholder_param = {"pw": self._ff["class_layer"].weight.data[self._n_classes:,:].clone().detach(),
+                             "pb": self._ff["class_layer"].bias.data[self._n_classes:].clone().detach()}
 
         new_weights = torch.cat([classes_param["cw"], placeholder_param["pw"]], dim=0)
         new_bias = torch.cat([classes_param["cb"], placeholder_param["pb"]], dim=0)

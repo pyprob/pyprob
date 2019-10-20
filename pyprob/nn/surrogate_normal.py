@@ -123,7 +123,7 @@ class SurrogateNormal(nn.Module):
 
     def _loss(self, values):
         if self._bias is None and self._std is None:
-            self._bias = values.mean(dim=0)
+            self._bias = nn.Parameter(values.mean(dim=0), requires_grad=False)
 
         if self.do_train:
             q_normal = Normal(self._loc + self._bias, self._scale)

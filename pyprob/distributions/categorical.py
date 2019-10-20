@@ -6,11 +6,10 @@ from .. import util
 
 class Categorical(Distribution):
     def __init__(self, probs=None, logits=None):
-        self.use_probs = False
         if probs is not None:
-            self.use_probs = True
-            probs = util.to_tensor(probs)
-            if probs.dim() == 0:
+            logits = torch.log(util.to_tensor(probs))
+            probs=None
+            if logits.dim() == 0:
                 raise ValueError('probs cannot be a scalar.')
         elif logits is not None:
             logits = util.to_tensor(logits)
@@ -21,19 +20,13 @@ class Categorical(Distribution):
         self._probs = torch_dist.probs
         self._logits = torch_dist.logits
 
-        if self.use_probs:
-            self._num_categories = self._probs.size(-1)
-        else:
-            self._num_categories = self._logits.size(-1)
+        self._num_categories = self._logits.size(-1)
 
         super().__init__(name='Categorical', address_suffix='Categorical(len_probs:{})'.format(self._num_categories),
                          torch_dist=torch_dist)
 
     def get_input_parameters(self):
-        if self.use_probs:
-            return {'probs': self._probs}
-        else:
-            return {'logits': self._logits}
+        return {'logits': self._logits}
 
     def __repr__(self):
         return 'Categorical(num_categories: {}, probs:{})'.format(self.num_categories, self._probs)
@@ -51,12 +44,8 @@ class Categorical(Distribution):
         return self._logits
 
     def to(self, device):
-        if self.use_probs:
-            self._probs = self._probs.to(device=device)
-            self._logits = None
-        else:
-            self._probs = None
-            self._logits = self._logits.to(device=device)
+        self._probs = None
+        self._logits = self._logits.to(device=device)
         torch_dist = torch.distributions.Categorical(probs=self._probs, logits=self._logits)
         super().__init__(name='Categorical', address_suffix='Categorical(len_probs:{})'.format(self._num_categories),
                          torch_dist=torch_dist)

@@ -45,8 +45,8 @@ class SurrogateNetworkLSTM(InferenceNetwork):
         self._layers_surrogate_distributions = nn.ModuleDict()
 
         # normalizers
-        self._normalizer_bias = {}
-        self._normalizer_std = {}
+        self._normalizer_bias = nn.ParameterDict()
+        self._normalizer_std = nn.ParameterDict()
 
         self._tagged_addresses = []
         self._control_addresses = {}
@@ -106,6 +106,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     if address not in self._layers_address_transitions[old_address]._address_to_class:
                         self._layers_address_transitions[old_address].add_address_transition(address)
                         layers_changed = True
+                old_address = address
                 if address not in self._layers_surrogate_distributions:
                     variable_shape = torch_data[time_step]['values'][0].shape
                     if name in self._variable_embeddings:
@@ -168,8 +169,6 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                                                                       **var_embedding)
                         sample_embedding_layer = EmbeddingFeedForward(variable_shape,
                                                                       self._sample_embedding_dim,
-                                                                      input_is_one_hot_index=True,
-                                                                      input_one_hot_dim=distribution.num_categories,
                                                                       num_layers=1)
 
                     surrogoate_distribution = surrogate_distribution.to(device=self._device)
@@ -179,7 +178,6 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     layers_changed = True
                     print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address), distribution_name))
 
-                old_address = address
             # add final address transition that ends the trace
             if address not in self._layers_address_transitions:
                 self._layers_address_transitions[address] = SurrogateAddressTransition(self._lstm_dim + self._sample_embedding_dim,
@@ -276,9 +274,13 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     smp = torch_data[time_step-1]['values'].to(device=self._device)
 
                     if prev_address not in self._normalizer_bias:
-                        self._normalizer_bias[prev_address] = smp.mean(dim=0)
+                        self._normalizer_bias[prev_address] = nn.Parameter(smp.mean(dim=0), requires_grad=False)
                     if prev_address not in self._normalizer_std:
-                        self._normalizer_std[prev_address] = smp.std(dim=0)
+                        # TODO consider what happens if batchnorm is small - ie 1 !!
+                        tmp_std = smp.std(dim=0)
+                        mask = (tmp_std == 0) | torch.isnan(tmp_std)
+                        tmp_std[mask] = 1
+                        self._normalizer_std[prev_address] = nn.Parameter(tmp_std, requires_grad=False)
 
                     # TODO BE CAREFUL - THIS IS A SUB MINIBATCH. THE NORMALIZATION COULD CHANGE IMMENSELY ACROSS SUBMINIBATCH
                     # CONSIDER USING RUNNING MEANS, ETC...
@@ -325,6 +327,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 # only consider loss and training of the address transition if we are not at the end of trace
                 if time_step < trace_length - 1:
                     values = torch_data[time_step]['values'].to(device=self._device)
+                    values = (values - self._normalizer_bias[address])/self._normalizer_std[address]
                     sample_embedding = self._layers_sample_embedding[address](values)
                     address_transition_input = torch.cat([proposal_input, sample_embedding], dim=1)
                     _ = address_transition_layer(address_transition_input)
@@ -381,6 +384,8 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 if address in self._tagged_addresses:
                     state.tag(value, address=self._address_base[address])
 
+                if address in self._normalizer_bias and address in self._normalizer_std:
+                    value = (value - self._normalizer_bias[address])/self._normalizer_std[address]
                 sample_embedding = self._layers_sample_embedding[address](value.unsqueeze(0)) # add batch again!
 
                 prev_variable = Variable(distribution=surrogate_dist.dist_type,
@@ -397,8 +402,10 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 time_step += 1
 
                 if address == "__unknown":
-                    print(colored(f"Warning: sampled unknown address at address: {prev_address}", 'red', attrs=['bold']))
-                    print(colored(f"These are the probabilities: \n\t {torch.exp(a_dist._logits)}",'red', attrs=['bold']))
+                    print(colored(f"Warning: sampled unknown address at address: {prev_address}",
+                                  'red', attrs=['bold']))
+                    print(colored(f"These are the address probabilities (THE LAST IS UNKNOWN!!): \n\t {torch.exp(a_dist._logits)}",
+                                  'red', attrs=['bold']))
                     # if an address is unknown default to the simulator
                     # by resetting the _current_trace
                     state._current_trace = Trace()
@@ -516,4 +523,3 @@ class SurrogateNetworkLSTM(InferenceNetwork):
         ret._create_optimizer(ret._optimizer_state)
         ret._create_lr_scheduler(ret._learning_rate_scheduler_state)
         return ret
-

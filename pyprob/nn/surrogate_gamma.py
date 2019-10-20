@@ -24,7 +24,7 @@ class SurrogateGamma(nn.Module):
         input_shape = util.to_size(input_shape)
 
         if 'shape' in constants:
-            self._shape_const = nn.Parameter(constants['shape'].to(device=util._device),requires_grad=False)
+            self._shape_const = nn.Parameter(constants['shape'].to(device=util._device), requires_grad=False)
             self.constant_shape= True
         if 'rate' in constants:
             self._rate_const = nn.Parameter(constants['rate'].to(device=util._device), requires_grad=False)
@@ -67,14 +67,15 @@ class SurrogateGamma(nn.Module):
             if no_batch:
                 self._shape = self._shape.squeeze(0)
                 self._rate = self._rate.squeeze(0)
-            return Gamma(self._shape, self._rate)
 
+            return Gamma(self._shape, self._rate)
+        else:
             if no_batch:
                 return Gamma(self._shape_const.expand(*self._shape_shape),
                              self._rate_const.expand(*self._rate_shape))
-        else:
-            return Gamma(self._shape_const.expand(batch_size, *self._shape_shape),
-                         self._rate_const.expand(batch_size, *self._rate_shape))
+            else:
+                return Gamma(self._shape_const.expand(batch_size, *self._shape_shape),
+                             self._rate_const.expand(batch_size, *self._rate_shape))
 
     def _loss(self, values):
         if self.do_train:
