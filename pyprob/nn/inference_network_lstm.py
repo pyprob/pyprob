@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from termcolor import colored
 
-from . import InferenceNetwork, EmbeddingFeedForward, ProposalGammaGamma, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
+from . import InferenceNetwork, EmbeddingFeedForward, ProposalGammaGamma, ProposalNormalNormal, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
 from .. import util
 from ..distributions import Gamma, Normal, Uniform, Categorical, Poisson
 
@@ -52,7 +52,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                         proposal_layer = ProposalGammaGamma(self._lstm_dim, variable_shape)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     elif isinstance(distribution, Normal):
-                        proposal_layer = ProposalNormalNormalMixture(self._lstm_dim, variable_shape, mixture_components=self._proposal_mixture_components)
+                        proposal_layer = ProposalNormalNormal(self._lstm_dim, variable_shape)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     elif isinstance(distribution, Uniform):
                         proposal_layer = ProposalUniformTruncatedNormalMixture(self._lstm_dim, variable_shape, mixture_components=self._proposal_mixture_components)
