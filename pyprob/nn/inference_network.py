@@ -16,7 +16,7 @@ import math
 from threading import Thread
 from termcolor import colored
 
-from . import Batch, OfflineDataset, TraceBatchSampler, DistributedTraceBatchSampler, EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
+from . import Batch, OfflineDataset, TraceBatchSampler, DistributedTraceBatchSampler, EmbeddingFeedForward, EmbeddingAlexNet, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 from .optimizer_larc import LARC
 from .. import __version__, util, Optimizer, LearningRateScheduler, ObserveEmbedding
 
@@ -112,6 +112,8 @@ class InferenceNetwork(nn.Module):
                     print('Observable {}: embedding depth not specified, using the default 2.'.format(name))
                     depth = 2
                 layer = EmbeddingFeedForward(input_shape=input_shape, output_shape=output_shape, num_layers=depth)
+            elif embedding == ObserveEmbedding.ALEXNET:
+                layer = EmbeddingAlexNet(input_shape=input_shape, output_shape=output_shape)
             elif embedding == ObserveEmbedding.CNN2D5C:
                 layer = EmbeddingCNN2D5C(input_shape=input_shape, output_shape=output_shape)
             elif embedding == ObserveEmbedding.CNN3D5C:
