@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from termcolor import colored
 
-from . import InferenceNetwork, EmbeddingFeedForward, ProposalGammaGamma, ProposalNormalNormal, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
+from . import InferenceNetwork, EmbeddingFeedForward, ProposalGammaGamma, ProposalNormalNormal, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture, EmbeddingCNN2D5C
 from .. import util
 from ..distributions import Gamma, Normal, Uniform, Categorical, Poisson
 
@@ -16,6 +16,10 @@ class InferenceNetworkBPL(InferenceNetwork):
         self._layers_address_embedding = nn.ParameterDict()
         self._layers_distribution_type_embedding = nn.ParameterDict()
         self._layers_lstm = None
+
+        # BPL
+        self._layers_partial_image_embedding = None
+
         self._lstm_input_dim = None
         self._lstm_dim = lstm_dim
         self._lstm_depth = lstm_depth
@@ -26,7 +30,15 @@ class InferenceNetworkBPL(InferenceNetwork):
         self._proposal_mixture_components = proposal_mixture_components
 
     def _init_layers(self):
-        self._lstm_input_dim = self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
+        # BPL
+        self._partial_image_embedding_input_shape = torch.Size([1, 105, 105])
+        self._partial_image_embedding_output_shape = torch.Size([128])
+        self._layers_partial_image_embedder = EmbeddingCNN2D5C(
+            self._partial_image_embedding_input_shape,
+            self._partial_image_embedding_output_shape)
+        self._partial_image_embedding_dim = sum(self._partial_image_embedding_output_shape)
+        self._lstm_input_dim = self._partial_image_embedding_dim + self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
+
         self._layers_lstm = nn.LSTM(self._lstm_input_dim, self._lstm_dim, self._lstm_depth)
         self._layers_lstm.to(device=util._device)
 
@@ -78,7 +90,8 @@ class InferenceNetworkBPL(InferenceNetwork):
             self._history_num_params_trace.append(self._total_train_traces)
         return layers_changed
 
-    def _infer_step(self, variable, prev_variable=None, proposal_min_train_iterations=None):
+    # BPL
+    def _infer_step(self, variable, partial_image_embedding, prev_variable=None, proposal_min_train_iterations=None):
         success = True
         if prev_variable is None:
             # First time step
@@ -112,7 +125,9 @@ class InferenceNetworkBPL(InferenceNetwork):
             success = False
 
         if success:
-            t = torch.cat([self._infer_observe_embedding[0],
+            # BPL
+            t = torch.cat([partial_image_embedding,
+                           self._infer_observe_embedding[0],
                            prev_sample_embedding[0],
                            prev_distribution_type_embedding,
                            prev_address_embedding,
@@ -137,12 +152,28 @@ class InferenceNetworkBPL(InferenceNetwork):
         for sub_batch in batch.sub_batches:
             example_trace = sub_batch[0]
             observe_embedding = self._embed_observe(sub_batch)
+
+            # BPL: Construct partial image embeddings
+            # TODO: make faster by passing the batched version into the embedder
+            partial_image_embeddingss = []
+            for trace in sub_batch:
+                partial_image_embeddings = [util.to_tensor(torch.zeros(self._partial_image_embedding_dim))]
+                for tagged_variable in trace.variables_tagged:
+                    partial_image = tagged_variable.value
+                    partial_image_embedding = self._layers_partial_image_embedder(partial_image.unsqueeze(0)).squeeze(0)
+                    partial_image_embeddings.append(partial_image_embedding)
+                partial_image_embeddingss.append(partial_image_embeddings)
+
             sub_batch_length = len(sub_batch)
             sub_batch_loss = 0.
             # print('sub_batch_length', sub_batch_length, 'example_trace_length_controlled', example_trace.length_controlled, '  ')
 
             # Construct LSTM input sequence for the whole trace length of sub_batch
             lstm_input = []
+
+            # BPL
+            partial_image_embedding_idx = 0
+
             for time_step in range(example_trace.length_controlled):
                 current_variable = example_trace.variables_controlled[time_step]
                 current_address = current_variable.address
@@ -170,8 +201,17 @@ class InferenceNetworkBPL(InferenceNetwork):
                     prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution.name]
 
                 lstm_input_time_step = []
+
+                # BPL
+                if current_address.startswith('nsub_minus_one') and time_step > 1:
+                    partial_image_embedding_idx += 1
+
                 for b in range(sub_batch_length):
-                    t = torch.cat([observe_embedding[b],
+
+                    # BPL
+                    partial_image_embedding = partial_image_embeddingss[b][partial_image_embedding_idx]
+                    t = torch.cat([partial_image_embedding,
+                                   observe_embedding[b],
                                    prev_sample_embedding[b],
                                    prev_distribution_type_embedding,
                                    prev_address_embedding,

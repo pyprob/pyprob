@@ -9,6 +9,8 @@ from .distributions import Normal, Categorical, Uniform, TruncatedNormal
 from .trace import Variable, Trace
 from . import util, TraceMode, PriorInflation, InferenceEngine, ImportanceWeighting
 
+# BPL
+from .nn import InferenceNetworkBPL
 
 _trace_mode = TraceMode.PRIOR
 _inference_engine = InferenceEngine.IMPORTANCE_SAMPLING
@@ -23,6 +25,10 @@ _current_trace_previous_variable = None
 _current_trace_replaced_variable_proposal_distributions = {}
 _current_trace_observed_variables = None
 _current_trace_execution_start = None
+
+# BPL
+_current_trace_partial_image_embedding = None
+
 _metropolis_hastings_trace = None
 _metropolis_hastings_site_address = None
 _metropolis_hastings_site_transition_log_prob = 0
@@ -111,6 +117,15 @@ def tag(value, name=None, address=None):
     variable = Variable(distribution=None, value=value, address_base=address_base, address=address, instance=instance, log_prob=0., tagged=True, name=name)
     _current_trace.add(variable)
 
+    # BPL
+    if isinstance(_current_trace_inference_network, InferenceNetworkBPL) and _trace_mode == TraceMode.POSTERIOR:
+        # import pdb; pdb.set_trace()
+        # print('HAHA')
+        global _current_trace_partial_image_embedding
+        partial_image = value
+        _current_trace_partial_image_embedding = _current_trace_inference_network._layers_partial_image_embedder(
+            partial_image.unsqueeze(0)).squeeze(0)
+
 
 def observe(distribution, value=None, name=None, address=None):
     global _current_trace
@@ -190,6 +205,10 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                     log_prob = distribution.log_prob(value, sum=True)
                     log_importance_weight = float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))  # To account for prior inflation
             elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+                # BPL
+                if isinstance(_current_trace_inference_network, InferenceNetworkBPL):
+                    partial_image_embedding = util.to_tensor(
+                        torch.zeros(_current_trace_inference_network._partial_image_embedding_dim))
                 if _importance_weighting == ImportanceWeighting.IW0:  # use prior as proposal for all replace=True addresses
                     address = address_base + '__' + ('replaced' if replace else str(instance))  # Address seen by inference network
                     if control:
@@ -202,6 +221,10 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                                 update_previous_variable = True
                             proposal_distribution = distribution
                         else:
+                            # BPL
+                            if isinstance(_current_trace_inference_network, InferenceNetworkBPL):
+                                proposal_distribution = _current_trace_inference_network._infer_step(variable, _current_trace_partial_image_embedding, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
+                            else:
                             proposal_distribution = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
                             update_previous_variable = True
                         value = proposal_distribution.sample()
@@ -241,6 +264,10 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                                 update_previous_variable = True
                             proposal_distribution = _current_trace_replaced_variable_proposal_distributions[address]
                         else:
+                            # BPL
+                            if isinstance(_current_trace_inference_network, InferenceNetworkBPL):
+                                proposal_distribution = _current_trace_inference_network._infer_step(variable, _current_trace_partial_image_embedding, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
+                            else:
                             proposal_distribution = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
                             update_previous_variable = True
                         value = proposal_distribution.sample()
@@ -384,6 +411,11 @@ def _init_traces(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflatio
             variable = random.choice(_metropolis_hastings_trace.variables_controlled)
             _metropolis_hastings_site_address = variable.address
 
+    # BPL
+    if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK and isinstance(_current_trace_inference_network, InferenceNetworkBPL):
+        global _current_trace_partial_image_embedding
+        _current_trace_partial_image_embedding = util.to_tensor(
+            torch.zeros(_current_trace_inference_network._partial_image_embedding_dim))
 
 def _begin_trace():
     global _current_trace
