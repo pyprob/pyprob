@@ -48,6 +48,7 @@ class InferenceEngine(enum.Enum):
 class InferenceNetwork(enum.Enum):
     FEEDFORWARD = 0
     LSTM = 1
+    BPL = 2
 
 
 class ObserveEmbedding(enum.Enum):

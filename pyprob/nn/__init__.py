@@ -14,3 +14,4 @@ from .proposal_categorical_categorical import ProposalCategoricalCategorical
 from .inference_network import InferenceNetwork
 from .inference_network_feedforward import InferenceNetworkFeedForward
 from .inference_network_lstm import InferenceNetworkLSTM
+from .inference_network_bpl import InferenceNetworkBPL

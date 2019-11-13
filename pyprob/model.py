@@ -9,7 +9,7 @@ from termcolor import colored
 from .distributions import Empirical
 from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, ImportanceWeighting, Optimizer, LearningRateScheduler, AddressDictionary
 from .nn import InferenceNetwork as InferenceNetworkBase
-from .nn import OnlineDataset, OfflineDataset, InferenceNetworkFeedForward, InferenceNetworkLSTM
+from .nn import OnlineDataset, OfflineDataset, InferenceNetworkFeedForward, InferenceNetworkLSTM, InferenceNetworkBPL
 from .remote import ModelServer
 
 
@@ -168,6 +168,8 @@ class Model():
                 self._inference_network = InferenceNetworkFeedForward(model=self, observe_embeddings=observe_embeddings, proposal_mixture_components=proposal_mixture_components)
             elif inference_network == InferenceNetwork.LSTM:
                 self._inference_network = InferenceNetworkLSTM(model=self, observe_embeddings=observe_embeddings, lstm_dim=lstm_dim, lstm_depth=lstm_depth, proposal_mixture_components=proposal_mixture_components)
+            elif inference_network == InferenceNetwork.BPL:
+                self._inference_network = InferenceNetworkBPL(model=self, observe_embeddings=observe_embeddings, lstm_dim=lstm_dim, lstm_depth=lstm_depth, proposal_mixture_components=proposal_mixture_components)            
             else:
                 raise ValueError('Unknown inference_network: {}'.format(inference_network))
             if pre_generate_layers:
