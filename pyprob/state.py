@@ -268,7 +268,7 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                             if isinstance(_current_trace_inference_network, InferenceNetworkBPL):
                                 proposal_distribution = _current_trace_inference_network._infer_step(variable, _current_trace_partial_image_embedding, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
                             else:
-                            proposal_distribution = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
+                                proposal_distribution = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable, proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
                             update_previous_variable = True
                         value = proposal_distribution.sample()
                         if value.dim() > 0:
