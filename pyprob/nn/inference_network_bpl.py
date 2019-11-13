@@ -36,6 +36,7 @@ class InferenceNetworkBPL(InferenceNetwork):
         self._layers_partial_image_embedder = EmbeddingCNN2D5C(
             self._partial_image_embedding_input_shape,
             self._partial_image_embedding_output_shape)
+        self.self._layers_partial_image_embedder.to(device=util._device)
         self._partial_image_embedding_dim = sum(self._partial_image_embedding_output_shape)
         self._lstm_input_dim = self._partial_image_embedding_dim + self._observe_embedding_dim + self._sample_embedding_dim + 2 * (self._address_embedding_dim + self._distribution_type_embedding_dim)
 
