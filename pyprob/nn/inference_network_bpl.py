@@ -168,7 +168,7 @@ class InferenceNetworkBPL(InferenceNetwork):
                 len(sub_batch[0].variables_tagged),
                 -1)
             partial_image_embeddingss = torch.cat([
-                util.to_tensor(torch.zeros(1, 1, self._partial_image_embedding_dim)),
+                util.to_tensor(torch.zeros(len(sub_batch), 1, self._partial_image_embedding_dim)),
                 partial_image_embeddingss
             ], dim=1)
 
