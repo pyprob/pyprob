@@ -155,15 +155,22 @@ class InferenceNetworkBPL(InferenceNetwork):
             observe_embedding = self._embed_observe(sub_batch)
 
             # BPL: Construct partial image embeddings
-            # TODO: make faster by passing the batched version into the embedder
-            partial_image_embeddingss = []
+            partial_imagess = []
             for trace in sub_batch:
-                partial_image_embeddings = [util.to_tensor(torch.zeros(self._partial_image_embedding_dim))]
+                partial_images = []
                 for tagged_variable in trace.variables_tagged:
                     partial_image = tagged_variable.value
-                    partial_image_embedding = self._layers_partial_image_embedder(partial_image.unsqueeze(0)).squeeze(0)
-                    partial_image_embeddings.append(partial_image_embedding)
-                partial_image_embeddingss.append(partial_image_embeddings)
+                    partial_images.append(partial_image)
+                partial_imagess.append(torch.stack(partial_images))
+            partial_imagess = torch.stack(partial_imagess)
+            partial_image_embeddingss = self._layers_partial_image_embedder(partial_imagess.view(-1, 105, 105)).view(
+                len(sub_batch),
+                len(sub_batch[0].variables_tagged),
+                -1)
+            partial_image_embeddingss = torch.cat([
+                util.to_tensor(torch.zeros(1, 1, self._partial_image_embedding_dim)),
+                partial_image_embeddingss
+            ], dim=1)
 
             sub_batch_length = len(sub_batch)
             sub_batch_loss = 0.
