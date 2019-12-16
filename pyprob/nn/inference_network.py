@@ -88,6 +88,7 @@ class InferenceNetwork(nn.Module):
         if len(observe_embeddings) == 0:
             raise ValueError('At least one observe embedding is needed to initialize inference network.')
         observe_embedding_total_dim = 0
+        self._observe_moments = {}
         for name, value in observe_embeddings.items():
             variable = example_trace.variables_observed[name]
             # distribution = variable.distribution
@@ -135,6 +136,7 @@ class InferenceNetwork(nn.Module):
                 raise ValueError('Unknown embedding: {}'.format(embedding))
             layer.to(device=self._device)
             self._layers_observe_embedding[name] = layer
+            self._observe_moments[name] = util.RunningMoments()
             observe_embedding_total_dim += util.prod(output_shape)
         self._observe_embedding_dim = observe_embedding_total_dim
         print('Observe embedding dimension: {}'.format(self._observe_embedding_dim))
@@ -155,11 +157,15 @@ class InferenceNetwork(nn.Module):
     def _embed_observe(self, meta_data, torch_data):
         embedding = []
         for time_step in meta_data['observed_time_steps']:
-            values = torch_data[time_step]['values'].to(device=self._device)
+            values = torch_data[time_step]['values']\
+                .to(device=self._device)\
+                .flatten(start_dim=1)
             name = meta_data['names'][time_step]
-            batch_size = values.size(0)
-            values = values.view(batch_size, -1)
-            embedding.append(self._layers_observe_embedding[name](values))
+            layer = self._layers_observe_embedding[name]
+            self._observe_moments[name].update(values)
+            mean, std = self._observe_moments[name].get()
+            normed_values = (values-mean.unsqueeze(0))/std.unsqueeze(0)
+            embedding.append(layer(normed_values))
         embedding = torch.cat(embedding, dim=1)
         embedding = self._layers_observe_embedding_final(embedding)
         return embedding

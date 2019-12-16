@@ -469,3 +469,20 @@ def from_variable_dict_data(list_of_variable_dict, variables_observed_inf_traini
 
             trace_list.append(var_args)
         return trace_list
+
+class RunningMoments():
+    def __init__(self, initial_x=None):
+        self.seen = 0
+        self.mean = 0
+        self.std = 0
+        if initial_x is not None:
+            self.update(initial_x)
+
+    def update(self, x):
+        w = len(x) / (self.seen+len(x))
+        self.mean = self.mean*(1-w) + x.mean(dim=0)*w
+        self.std = self.std*(1-w) + w*((x-self.mean)**2).mean(dim=0)**0.5
+        self.seen = self.seen + len(x)
+
+    def get(self):
+        return self.mean, self.std+1e-8
