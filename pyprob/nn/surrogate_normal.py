@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torchvision.transforms import Lambda, Compose
 
 from . import EmbeddingFeedForward, ConvTranspose2d, ParameterFromRNN
 from .. import util

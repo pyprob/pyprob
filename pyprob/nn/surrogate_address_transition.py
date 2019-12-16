@@ -1,7 +1,6 @@
 from collections import OrderedDict
 import torch
 import torch.nn as nn
-from torchvision.transforms import Lambda, Compose
 
 from . import EmbeddingFeedForward
 from .. import util
