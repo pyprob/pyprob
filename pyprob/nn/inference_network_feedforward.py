@@ -75,7 +75,7 @@ class InferenceNetworkFeedForward(InferenceNetwork):
             if prev_variable is None:
                 self.prev_samples_embedder.init_for_trace()
             else:
-                self.prev_samples_embedder.add_value([prev_variable])
+                self.prev_samples_embedder.add_value(prev_variable.address, prev_variable.value)
         if address in self._layers_proposal:
             proposal_layer = self._layers_proposal[address]
             if proposal_min_train_iterations is not None:
@@ -89,7 +89,7 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                                                   self._infer_observe_embedding], dim=1)
             else:
                 proposal_layer_input = self._infer_observe_embedding
-            proposal_distribution = proposal_layer.forward(self._infer_observe_embedding,
+            proposal_distribution = proposal_layer.forward(proposal_layer_input,
                                                            variable.distribution.to(device=util._device))
             return proposal_distribution
         else:

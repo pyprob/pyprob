@@ -173,9 +173,13 @@ class InferenceNetwork(nn.Module):
     def _infer_init(self, observe=None):
         self._infer_observe = observe
         embedding = []
+        if self.prev_sample_attention:
+            self.prev_samples_embedder.init_for_trace()
         for name, layer in self._layers_observe_embedding.items():
             value = util.to_tensor(observe[name]).view(1, -1).to(device=self._device)
-            embedding.append(layer(value))
+            mean, std = self._observe_moments[name].get()
+            normed_value = (value-mean.unsqueeze(0))/std.unsqueeze(0)
+            embedding.append(layer(normed_value))
         embedding = torch.cat(embedding, dim=1)
         self._infer_observe_embedding = self._layers_observe_embedding_final(embedding)
 

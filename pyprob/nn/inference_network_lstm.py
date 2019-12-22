@@ -152,6 +152,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
             prev_address = prev_variable.address
             prev_distribution = prev_variable.distribution
             prev_value = prev_variable.value.to(device=self._device)
+            if self.prev_sample_attention:
+                self.prev_samples_embedder.add_value(prev_address, prev_value)
             if prev_value.dim() == 1:
                 prev_value = prev_value.unsqueeze(0)
             if prev_address in self._layers_address_embedding:
