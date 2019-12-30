@@ -305,7 +305,10 @@ class InferenceNetwork(nn.Module):
         ret._create_optimizer(ret._optimizer_state)
         ret._create_lr_scheduler(ret._learning_rate_scheduler_state)
         if load_rng_state:
-            util.set_rng_state(data['rng_state'])
+            if 'rng_state' in data:
+                util.set_rng_state(data['rng_state'])
+            else:
+                print("RNG state not found. Not setting RNG state.")
         return ret
 
     def to(self, device=None, *args, **kwargs):
