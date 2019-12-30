@@ -482,8 +482,8 @@ class Model():
             raise RuntimeError('The model has no trained inference network.')
         self._inference_network._save(file_name)
 
-    def load_inference_network(self, file_name):
-        self._inference_network = InferenceNetworkBase._load(file_name)
+    def load_inference_network(self, file_name, load_rng_state=False):
+        self._inference_network = InferenceNetworkBase._load(file_name, load_rng_state)
         # The following is due to a temporary hack related with https://github.com/pytorch/pytorch/issues/9981 and can be deprecated by using dill as pickler with torch > 0.4.1
         self._inference_network._model = self
 

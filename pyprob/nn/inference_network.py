@@ -209,6 +209,7 @@ class InferenceNetwork(nn.Module):
         data = {}
         data['pyprob_version'] = __version__
         data['torch_version'] = torch.__version__
+        data['rng_state'] = util.get_rng_state()
         # The following is due to a temporary hack related with https://github.com/pytorch/pytorch/issues/9981 and can be deprecated by using dill as pickler with torch > 0.4.1
         data['inference_network'] = copy.copy(self)
         data['inference_network']._model = None
@@ -236,7 +237,7 @@ class InferenceNetwork(nn.Module):
         t.join()
 
     @staticmethod
-    def _load(file_name):
+    def _load(file_name, load_rng_state):
         try:
             tar = tarfile.open(file_name, 'r:gz')
             tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
@@ -303,6 +304,8 @@ class InferenceNetwork(nn.Module):
 
         ret._create_optimizer(ret._optimizer_state)
         ret._create_lr_scheduler(ret._learning_rate_scheduler_state)
+        if load_rng_state:
+            util.set_rng_state(data['rng_state'])
         return ret
 
     def to(self, device=None, *args, **kwargs):

@@ -80,6 +80,17 @@ def set_random_seed(seed=None):
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
 
+def get_rng_state():
+    # Get combined state for all packages set in set_random_seed.
+    return {"torch": torch.get_rng_state(),
+            "cuda": torch.cuda.get_rng_state_all(),
+            "numpy": np.random.get_state()}
+
+def set_rng_state(state):
+    torch.set_rng_state(state["torch"])
+    torch.cuda.set_rng_state_all(state["cuda"])
+    np.random.set_state(state["numpy"])
+
 def set_device(device='cpu'):
     global _device
     global _cuda_enabled
