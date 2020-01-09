@@ -174,6 +174,7 @@ class InferenceNetwork(nn.Module):
         self._infer_observe = observe
         embedding = []
         if self.prev_sample_attention:
+            # TODO calling init_for_trace here may be unnecessary
             self.prev_samples_embedder.init_for_trace()
         for name, layer in self._layers_observe_embedding.items():
             value = util.to_tensor(observe[name]).view(1, -1).to(device=self._device)
