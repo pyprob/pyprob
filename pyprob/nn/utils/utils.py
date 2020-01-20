@@ -1,6 +1,6 @@
 import os
 import torch
-from ...distributions import Normal, Uniform, Categorical, Gamma, Beta
+from ...distributions import Normal, Uniform, Categorical, Gamma, Beta, MultivariateNormal
 
 
 class MyFile:
@@ -32,7 +32,6 @@ class MyFile:
         return b
 
 def construct_distribution(name, dist_args):
-
     if name == 'Normal':
         return Normal(**dist_args)
     elif name == 'Uniform':
