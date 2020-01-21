@@ -36,7 +36,9 @@ class Model():
                          prior_inflation=PriorInflation.DISABLED,
                          inference_engine=InferenceEngine.IMPORTANCE_SAMPLING,
                          inference_network=None, observe=None, metropolis_hastings_trace=None,
-                         likelihood_importance=1., *args, **kwargs):
+                         likelihood_importance=1.,
+                         proposal=None, importance_weighting=None, num_z_estimate_samples=None, num_z_inv_estimate_samples=None,
+                          *args, **kwargs):
 
         state._init_traces(func=self.forward, trace_mode=trace_mode,
                            prior_inflation=prior_inflation, inference_engine=inference_engine,
@@ -106,9 +108,9 @@ class Model():
     def get_trace(self, *args, **kwargs):
         return next(self._trace_generator(*args, **kwargs))
 
-    def model_traces(self, num_traces=10,
-                     prior_inflation=PriorInflation.DISABLED, map_func=None, file_name=None,
-                     likelihood_importance=1., surrogate=False, *args, **kwargs):
+    def joint(self, num_traces=10,
+              prior_inflation=PriorInflation.DISABLED, map_func=None, file_name=None,
+              likelihood_importance=1., surrogate=False, *args, **kwargs):
 
         if surrogate and self._surrogate_network:
             self._surrogate_network.eval()
@@ -131,10 +133,10 @@ class Model():
             #                 likelihood_importance=likelihood_importance)
         return prior
 
-    def posterior_traces(self, num_traces=10,
-                         inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None,
-                         map_func=None, observe=None, file_name=None, thinning_steps=None,
-                         likelihood_importance=1., surrogate=False, *args, **kwargs):
+    def posterior(self, num_traces=10,
+                  inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None,
+                  map_func=None, observe=None, file_name=None, thinning_steps=None,
+                  likelihood_importance=1., surrogate=False, *args, **kwargs):
 
         if surrogate and self._surrogate_network:
             self._surrogate_network.eval()
@@ -264,6 +266,14 @@ class Model():
                 #                        num_samples_reuised=samples_reused,
                 #                        num_samples=samples_all)
         return posterior
+
+    def posterior_return(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, observe=None, file_name=None, thinning_steps=None, *args, **kwargs):
+        return self.posterior(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=lambda trace: trace.result, observe=observe, file_name=file_name, thinning_steps=thinning_steps, *args, **kwargs)
+
+    def joint_return(self, num_traces=10,
+                     prior_inflation=PriorInflation.DISABLED, file_name=None,
+                     likelihood_importance=1., surrogate=False, *args, **kwargs):
+        return self.joint(num_traces=num_traces, prior_inflation=prior_inflation, map_func=lambda trace: trace.result, file_name=file_name, likelihood_importance=likelihood_importance, surrogate=surrogate, *args, **kwargs)
 
     def reset_inference_network(self):
         self._inference_network = None
