@@ -15,3 +15,9 @@ class MultivariateNormal(Distribution):
 
     def get_input_parameters(self):
         return {'loc': self.loc, 'scale': self.scale}
+
+    def to(self, device):
+        self.loc = self.loc.to(device=device)
+        self.scale = self.scale.to(device=device)
+        super().__init__(name='MultivariateNormal', address_suffix='MultivariateNormal', torch_dist=torch.distributions.MultivariateNormal(loc, scale))
+        return self

@@ -34,6 +34,8 @@ class MyFile:
 def construct_distribution(name, dist_args):
     if name == 'Normal':
         return Normal(**dist_args)
+    elif name == 'MultivariateNormal':
+        return MultivariateNormal(**dist_args)
     elif name == 'Uniform':
         return Uniform(**dist_args)
     elif name == 'Categorical':
