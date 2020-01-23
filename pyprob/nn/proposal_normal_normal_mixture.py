@@ -18,6 +18,8 @@ class ProposalNormalNormalMixture(nn.Module):
                                         num_layers=num_layers, activation=torch.relu, hidden_dim=hidden_dim,
                                         activation_last=None)
         self._total_train_iterations = 0
+        # initialise standard deviations at 0 for stability
+        self._ff._layers[1].weight[mixture_components:2*mixture_components, :].data *= 0
 
     def forward(self, x, prior_distribution):
         """ Proposal forward function

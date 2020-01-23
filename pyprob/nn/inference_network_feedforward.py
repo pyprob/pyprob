@@ -75,7 +75,7 @@ class InferenceNetworkFeedForward(InferenceNetwork):
             if prev_variable is None:
                 self.prev_samples_embedder.init_for_trace()
             else:
-                self.prev_samples_embedder.add_value([prev_variable])
+                self.prev_samples_embedder.add_value(prev_variable.address, prev_variable.value)
         if address in self._layers_proposal:
             proposal_layer = self._layers_proposal[address]
             if proposal_min_train_iterations is not None:
@@ -89,7 +89,7 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                                                   self._infer_observe_embedding], dim=1)
             else:
                 proposal_layer_input = self._infer_observe_embedding
-            proposal_distribution = proposal_layer.forward(self._infer_observe_embedding,
+            proposal_distribution = proposal_layer.forward(proposal_layer_input,
                                                            variable.distribution.to(device=util._device))
             return proposal_distribution
         else:
@@ -102,6 +102,7 @@ class InferenceNetworkFeedForward(InferenceNetwork):
             observe_embedding = self._embed_observe(meta_data, torch_data)
             sub_batch_length = torch_data[0]['values'].size(0)
             sub_batch_loss = 0.
+            prev_time_step = None
             for time_step in meta_data['latent_time_steps']:
                 address = meta_data['addresses'][time_step]
                 current_controlled = meta_data['controls'][time_step]
@@ -114,8 +115,8 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                     if time_step == 0:
                         self.prev_samples_embedder.init_for_trace()
                     else:
-                        prev_address = meta_data['addresses'][time_step-1]
-                        smp = torch_data[time_step-1]['values'].to(device=util._device)
+                        prev_address = meta_data['addresses'][prev_time_step]
+                        smp = torch_data[prev_time_step]['values'].to(device=util._device)
                         self.prev_samples_embedder.add_value(prev_address, smp)
                 if address not in self._layers_proposal:
                     print(colored('Address unknown by inference network: {}'.format(address), 'red', attrs=['bold']))
@@ -144,5 +145,6 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                         print(colored('Nan or Inf present in proposal log_prob.', 'red', attrs=['bold']))
                         return False, 0
                 sub_batch_loss += -torch.sum(log_prob)
+                prev_time_step = time_step
             batch_loss += sub_batch_loss
         return True, batch_loss / batch.size

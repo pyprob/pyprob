@@ -37,6 +37,8 @@ class EmbeddingFeedForward(nn.Module):
         self._layers = nn.ModuleList(layers)
 
     def forward(self, x):
+        if len(x.shape) == 0:
+            x = x.view(1)
         if self._input_is_one_hot_index:
             if x.ndim == 0:
                 x = torch.zeros(1, self._input_one_hot_dim).scatter_(1, torch.tensor([[int(i)] for i in [x]]), 1).squeeze(0).to(device=x.device)

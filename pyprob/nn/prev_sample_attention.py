@@ -59,6 +59,7 @@ class PrevSamplesEmbedder(nn.Module):
         self._key_layers = nn.ModuleDict()
         self._value_layers = nn.ModuleDict()
 
+
     def _add_address(self, address, value_shape, *embedder_args, **embedder_kwargs):
         """
         Add a new query layer and key layer for a previously unseen address.
@@ -112,7 +113,7 @@ class PrevSamplesEmbedder(nn.Module):
         accessed later when __forward__ is run.
         """
         self.empty = False
-        batch_size = values.size(0)
+        batch_size = 1 if len(values.shape) == 0 else values.size(0)
         keys = self._key_layers[address](values.view(batch_size, -1)).view(batch_size,
                                                                            1, -1)
         values = self._value_layers[address](values.view(batch_size, -1)).view(batch_size,

@@ -155,6 +155,7 @@ def observe(distribution, value=None, constants={}, name=None, address=None):
                         log_prob=log_prob, log_importance_weight=log_importance_weight,
                         observed=True, name=name)
     _current_trace.add(variable)
+    return variable.value
 
 
 def sample(distribution, constants={}, control=True, replace=False, name=None,

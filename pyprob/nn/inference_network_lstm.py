@@ -142,6 +142,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
         success = True
         if prev_variable is None:
             # First time step
+            if self.prev_sample_attention:
+                self.prev_samples_embedder.init_for_trace()
             prev_sample_embedding = torch.zeros(1, self._sample_embedding_dim).to(device=self._device)
             prev_address_embedding = torch.zeros(1, self._address_embedding_dim).to(device=self._device)
             prev_distribution_type_embedding = torch.zeros(1, self._distribution_type_embedding_dim).to(device=self._device)
@@ -152,6 +154,8 @@ class InferenceNetworkLSTM(InferenceNetwork):
             prev_address = prev_variable.address
             prev_distribution = prev_variable.distribution
             prev_value = prev_variable.value.to(device=self._device)
+            if self.prev_sample_attention:
+                self.prev_samples_embedder.add_value(prev_address, prev_value)
             if prev_value.dim() == 1:
                 prev_value = prev_value.unsqueeze(0)
             if prev_address in self._layers_address_embedding:

@@ -88,6 +88,7 @@ class InferenceNetwork(nn.Module):
         if len(observe_embeddings) == 0:
             raise ValueError('At least one observe embedding is needed to initialize inference network.')
         observe_embedding_total_dim = 0
+        self._observe_moments = {}
         for name, value in observe_embeddings.items():
             variable = example_trace.variables_observed[name]
             # distribution = variable.distribution
@@ -135,6 +136,7 @@ class InferenceNetwork(nn.Module):
                 raise ValueError('Unknown embedding: {}'.format(embedding))
             layer.to(device=self._device)
             self._layers_observe_embedding[name] = layer
+            self._observe_moments[name] = util.RunningMoments()
             observe_embedding_total_dim += util.prod(output_shape)
         self._observe_embedding_dim = observe_embedding_total_dim
         print('Observe embedding dimension: {}'.format(self._observe_embedding_dim))
@@ -155,11 +157,15 @@ class InferenceNetwork(nn.Module):
     def _embed_observe(self, meta_data, torch_data):
         embedding = []
         for time_step in meta_data['observed_time_steps']:
-            values = torch_data[time_step]['values'].to(device=self._device)
+            values = torch_data[time_step]['values']\
+                .to(device=self._device)\
+                .flatten(start_dim=1)
             name = meta_data['names'][time_step]
-            batch_size = values.size(0)
-            values = values.view(batch_size, -1)
-            embedding.append(self._layers_observe_embedding[name](values))
+            layer = self._layers_observe_embedding[name]
+            self._observe_moments[name].update(values)
+            mean, std = self._observe_moments[name].get()
+            normed_values = (values-mean.unsqueeze(0))/std.unsqueeze(0)
+            embedding.append(layer(normed_values))
         embedding = torch.cat(embedding, dim=1)
         embedding = self._layers_observe_embedding_final(embedding)
         return embedding
@@ -167,9 +173,14 @@ class InferenceNetwork(nn.Module):
     def _infer_init(self, observe=None):
         self._infer_observe = observe
         embedding = []
+        if self.prev_sample_attention:
+            # TODO calling init_for_trace here may be unnecessary
+            self.prev_samples_embedder.init_for_trace()
         for name, layer in self._layers_observe_embedding.items():
             value = util.to_tensor(observe[name]).view(1, -1).to(device=self._device)
-            embedding.append(layer(value))
+            mean, std = self._observe_moments[name].get()
+            normed_value = (value-mean.unsqueeze(0))/std.unsqueeze(0)
+            embedding.append(layer(normed_value))
         embedding = torch.cat(embedding, dim=1)
         self._infer_observe_embedding = self._layers_observe_embedding_final(embedding)
 
@@ -199,6 +210,7 @@ class InferenceNetwork(nn.Module):
         data = {}
         data['pyprob_version'] = __version__
         data['torch_version'] = torch.__version__
+        data['rng_state'] = util.get_rng_state()
         # The following is due to a temporary hack related with https://github.com/pytorch/pytorch/issues/9981 and can be deprecated by using dill as pickler with torch > 0.4.1
         data['inference_network'] = copy.copy(self)
         data['inference_network']._model = None
@@ -226,7 +238,7 @@ class InferenceNetwork(nn.Module):
         t.join()
 
     @staticmethod
-    def _load(file_name):
+    def _load(file_name, load_rng_state):
         try:
             tar = tarfile.open(file_name, 'r:gz')
             tmp_dir = tempfile.mkdtemp(suffix=str(uuid.uuid4()))
@@ -293,6 +305,11 @@ class InferenceNetwork(nn.Module):
 
         ret._create_optimizer(ret._optimizer_state)
         ret._create_lr_scheduler(ret._learning_rate_scheduler_state)
+        if load_rng_state:
+            if 'rng_state' in data:
+                util.set_rng_state(data['rng_state'])
+            else:
+                print("RNG state not found. Not setting RNG state.")
         return ret
 
     def to(self, device=None, *args, **kwargs):
