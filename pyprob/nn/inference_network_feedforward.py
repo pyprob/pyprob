@@ -35,10 +35,10 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                                                                              distribution_name))
                     if not current_controlled:
                         proposal_layer = PriorDist()
-                        sample_embedding_layer = EmbeddingFeedForward(variable_shape,
-                                                                      self._sample_embedding_dim,
-                                                                      num_layers=1)
-                    if distribution_name == 'Normal':
+                        layer = EmbeddingFeedForward(variable_shape,
+                                                     self._sample_embedding_dim,
+                                                     num_layers=1)
+                    elif distribution_name == 'Normal':
                         layer = ProposalNormalNormalMixture(self._observe_embedding_dim+self._sample_attention_embedding_dim,
                                                             variable_shape)
                     elif distribution_name == 'Uniform':
