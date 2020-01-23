@@ -83,12 +83,12 @@ class InferenceNetwork(nn.Module):
         self._distributed_backend = None
         self._distributed_world_size = None
         self._network_type = network_type
+        self._observe_moments = nn.ModuleDict()
 
     def _init_layers_observe_embedding(self, observe_embeddings, example_trace):
         if len(observe_embeddings) == 0:
             raise ValueError('At least one observe embedding is needed to initialize inference network.')
         observe_embedding_total_dim = 0
-        self._observe_moments = {}
         for name, value in observe_embeddings.items():
             variable = example_trace.variables_observed[name]
             # distribution = variable.distribution
@@ -136,7 +136,7 @@ class InferenceNetwork(nn.Module):
                 raise ValueError('Unknown embedding: {}'.format(embedding))
             layer.to(device=self._device)
             self._layers_observe_embedding[name] = layer
-            self._observe_moments[name] = util.RunningMoments()
+            self._observe_moments[name] = util.RunningMoments().to(self._device)
             observe_embedding_total_dim += util.prod(output_shape)
         self._observe_embedding_dim = observe_embedding_total_dim
         print('Observe embedding dimension: {}'.format(self._observe_embedding_dim))
@@ -157,9 +157,7 @@ class InferenceNetwork(nn.Module):
     def _embed_observe(self, meta_data, torch_data):
         embedding = []
         for time_step in meta_data['observed_time_steps']:
-            values = torch_data[time_step]['values']\
-                .to(device=self._device)\
-                .flatten(start_dim=1)
+            values = torch_data[time_step]['values'].to(device=self._device).flatten(start_dim=1)
             name = meta_data['names'][time_step]
             layer = self._layers_observe_embedding[name]
             self._observe_moments[name].update(values)

@@ -116,6 +116,7 @@ class Model():
 
         if surrogate and self._surrogate_network:
             self._surrogate_network.eval()
+            self._surrogate_network.to(device=torch.device('cpu'))
             self.forward = self._surrogate_forward
         elif surrogate and not self._surrogate_network:
             raise RuntimeError("Surrogate model not trained")

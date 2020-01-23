@@ -62,14 +62,17 @@ def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_sta
     addresses_extra['addresses'] = len(addresses)
     addresses_extra['addresses_controlled'] = len([1 for value in list(addresses.values()) if value['variable'].control])
     addresses_extra['addresses_replaced'] = len([1 for value in list(addresses.values()) if value['variable'].replace])
-    addresses_extra['addresses_observable'] = len([1 for value in list(addresses.values()) if value['variable'].observable])
+    #addresses_extra['addresses_observable'] = len([1 for value in list(addresses.values()) if value['variable'].observable])
     addresses_extra['addresses_observed'] = len([1 for value in list(addresses.values()) if value['variable'].observed])
     addresses_extra['addresses_tagged'] = len([1 for value in list(addresses.values()) if value['variable'].tagged])
     return {'addresses': addresses, 'addresses_extra': addresses_extra, 'address_base_ids': address_base_ids, 'address_ids': address_ids, 'address_id_to_variable': address_id_to_variable}
 
 
-def _trace_stats(trace_dist, use_address_base=True, reuse_ids_from_address_stats=None, reuse_ids_from_trace_stats=None):
-    address_stats = _address_stats(trace_dist, use_address_base=use_address_base, reuse_ids_from_address_stats=reuse_ids_from_address_stats)
+def _trace_stats(trace_dist, use_address_base=True,
+                 reuse_ids_from_address_stats=None, reuse_ids_from_trace_stats=None):
+    address_stats = _address_stats(trace_dist,
+                                   use_address_base=use_address_base,
+                                   reuse_ids_from_address_stats=reuse_ids_from_address_stats)
     addresses = address_stats['addresses']
     traces = {}
     if reuse_ids_from_trace_stats is not None:
@@ -102,25 +105,28 @@ def _trace_stats(trace_dist, use_address_base=True, reuse_ids_from_address_stats
     for _, value in traces.items():
         trace_weights.append(value['count'])
     trace_id_dist = Empirical(unique_trace_ids, weights=unique_trace_ids, name='Unique trace ID')
-    trace_length_dist = trace_dist.map(lambda trace: trace.length).unweighted().rename('Trace length (all)')
+#    trace_length_dist = trace_dist.map(lambda trace: trace.length).unweighted().rename('Trace length (all)')
     trace_length_controlled_dist = trace_dist.map(lambda trace: len([v for v in trace.variables if v.control])).unweighted().rename('Trace length (controlled)')
-    trace_execution_time_dist = trace_dist.map(lambda trace: trace.execution_time_sec).unweighted().rename('Trace execution time (s)')
+#    trace_execution_time_dist = trace_dist.map(lambda trace: trace.execution_time_sec).unweighted().rename('Trace execution time (s)')
     traces_extra = OrderedDict()
     traces_extra['trace_types'] = len(traces)
-    traces_extra['trace_length_min'] = float(trace_length_dist.min)
-    traces_extra['trace_length_max'] = float(trace_length_dist.max)
-    traces_extra['trace_length_mean'] = float(trace_length_dist.mean)
-    traces_extra['trace_length_stddev'] = float(trace_length_dist.stddev)
-    traces_extra['trace_length_controlled_min'] = float(trace_length_controlled_dist.min)
-    traces_extra['trace_length_controlled_max'] = float(trace_length_controlled_dist.max)
-    traces_extra['trace_length_controlled_mean'] = float(trace_length_controlled_dist.mean)
-    traces_extra['trace_length_controlled_stddev'] = float(trace_length_controlled_dist.stddev)
-    traces_extra['trace_execution_time_min'] = float(trace_execution_time_dist.min)
-    traces_extra['trace_execution_time_max'] = float(trace_execution_time_dist.max)
-    traces_extra['trace_execution_time_mean'] = float(trace_execution_time_dist.mean)
-    traces_extra['trace_execution_time_stddev'] = float(trace_execution_time_dist.stddev)
-    return {'traces': traces, 'traces_extra': traces_extra, 'trace_ids': trace_ids, 'address_stats': address_stats, 'trace_id_dist': trace_id_dist, 'trace_length_dist': trace_length_dist, 'trace_length_controlled_dist': trace_length_controlled_dist, 'trace_execution_time_dist': trace_execution_time_dist, 'address_id_dist': address_id_dist}
+#    traces_extra['trace_length_min'] = float(trace_length_dist.min)
+#    traces_extra['trace_length_max'] = float(trace_length_dist.max)
+#    traces_extra['trace_length_mean'] = float(trace_length_dist.mean)
+#    traces_extra['trace_length_stddev'] = float(trace_length_dist.stddev)
+#    traces_extra['trace_length_controlled_min'] = float(trace_length_controlled_dist.min)
+#    traces_extra['trace_length_controlled_max'] = float(trace_length_controlled_dist.max)
+#    traces_extra['trace_length_controlled_mean'] = float(trace_length_controlled_dist.mean)
+#    traces_extra['trace_length_controlled_stddev'] = float(trace_length_controlled_dist.stddev)
+#    traces_extra['trace_execution_time_min'] = float(trace_execution_time_dist.min)
+#    traces_extra['trace_execution_time_max'] = float(trace_execution_time_dist.max)
+#    traces_extra['trace_execution_time_mean'] = float(trace_execution_time_dist.mean)
+#    traces_extra['trace_execution_time_stddev'] = float(trace_execution_time_dist.stddev)
 
+    #return {'traces': traces, 'traces_extra': traces_extra, 'trace_ids': trace_ids, 'address_stats': address_stats, 'trace_id_dist': trace_id_dist, 'trace_length_dist': trace_length_dist, 'trace_length_controlled_dist': trace_length_controlled_dist, 'trace_execution_time_dist': trace_execution_time_dist, 'address_id_dist': address_id_dist}
+    return {'traces': traces, 'traces_extra': traces_extra, 'trace_ids':
+            trace_ids, 'address_stats': address_stats, 'trace_id_dist': trace_id_dist,
+            'address_id_dist': address_id_dist}
 
 def trace_histograms(trace_dist, use_address_base=True, figsize=(10, 5), bins=30, plot=False, plot_show=True, file_name=None):
     trace_stats = _trace_stats(trace_dist, use_address_base=use_address_base)
@@ -430,8 +436,11 @@ def network(inference_network, save_dir=None):
     return stats
 
 
-def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=None, file_name=None, normalize_weights=True):
-    graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent, base_graph=base_graph, normalize_weights=normalize_weights)
+def graph(trace_dist, use_address_base=True, n_most_frequent=None,
+          base_graph=None, file_name=None, normalize_weights=True):
+    graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base,
+                  n_most_frequent=n_most_frequent, base_graph=base_graph,
+                  normalize_weights=normalize_weights)
     if file_name is not None:
         graph.render_to_file(file_name, background_graph=base_graph)
         for trace_id, trace_graph in graph.trace_graphs():
