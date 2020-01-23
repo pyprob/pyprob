@@ -6,8 +6,9 @@ import time
 from termcolor import colored
 
 from .distributions import Normal, Categorical, Uniform, TruncatedNormal
-from .trace import Variable, Trace
-from . import util, TraceMode, PriorInflation, InferenceEngine
+from .trace import Variable, RSEntry, Trace
+from . import util, TraceMode, PriorInflation, InferenceEngine,ImportanceWeighting
+from .nn import InferenceNetworkLSTM
 
 
 _trace_mode = TraceMode.PRIOR
@@ -27,10 +28,11 @@ _metropolis_hastings_site_address = None
 _metropolis_hastings_site_transition_log_prob = 0
 _address_dictionary = None
 _variables_observed_inf_training = []
+_importance_weighting = ImportanceWeighting.IW2
 
 
 # _extract_address and _extract_target_of_assignment code by Tobias Kohn (kohnt@tobiaskohn.ch)
-def _extract_address(root_function_name):
+def _extract_address(root_function_name, user_specified_name, append_rejection=True):
     # Retun an address in the format:
     # 'instruction pointer' __ 'qualified function name'
     frame = sys._getframe(2)
@@ -49,7 +51,11 @@ def _extract_address(root_function_name):
         if n == root_function_name:
             break
         frame = frame.f_back
-    return '{}__{}'.format(ip, '__'.join(reversed(names)))
+    address_base_noname = '{}__{}'.format(ip, '__'.join(reversed(names)))
+    if append_rejection:
+        if not _current_trace._rs_stack.isempty():
+            address_base_noname = '{}_RS_{}'.format(address_base_noname, _current_trace._rs_stack.top_entry.address)
+    return '{}__{}'.format(address_base_noname, user_specified_name)
 
 
 def _extract_target_of_assignment():
@@ -98,7 +104,7 @@ def _inflate(distribution):
 def tag(value, name=None, address=None):
     global _current_trace
     if address is None:
-        address_base = _extract_address(_current_trace_root_function_name) + '__None'
+        address_base = _extract_address(_current_trace_root_function_name, name) + '__None'
     else:
         address_base = address + '__None'
     if _address_dictionary is not None:
@@ -117,18 +123,14 @@ def tag(value, name=None, address=None):
 def observe(distribution, value=None, constants={}, name=None, address=None):
     global _current_trace
 
+    if not _current_trace._rs_stack.isempty():
+        raise ValueError('No observation can be within a rejection sampling loop')
+
     # make values in constants tensors
-    tmp = {}
-    if constants:
-        for k, v in constants.items():
-            try:
-                tmp[k] = util.to_tensor(v)
-            except Exception as e:
-                raise ValueError("Values in constant for distribution {} cannot be made a tensor".format(distribution.name))
-    constants = tmp
+    constants = util.constants_to_tensors(constants)
 
     if address is None:
-        address_base = _extract_address(_current_trace_root_function_name) + '__' + distribution._address_suffix
+        address_base = _extract_address(_current_trace_root_function_name, name) + '__' + distribution._address_suffix
     else:
         address_base = address + '__' + distribution._address_suffix
     if _address_dictionary is not None:
@@ -140,7 +142,7 @@ def observe(distribution, value=None, constants={}, name=None, address=None):
         # Override observed value
         value = _current_trace_observed_variables[name]
     elif value is not None:
-        value = util.to_tensor(value)
+        value = util.to_tensor(value) # TODO: doesn't it break training?
     elif distribution is not None:
         value = distribution.sample()
 
@@ -165,15 +167,17 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
     global _current_trace_replaced_variable_proposal_distributions
 
     # make values in constants tensors
-    tmp = {}
-    if constants:
-        for k, v in constants.items():
-            try:
-                attr_shape = getattr(distribution, k).shape
-                tmp[k] = util.to_tensor(v).view(attr_shape)
-            except Exception as e:
-                raise ValueError("Values in constant for distribution {} cannot be made a tensor".format(distribution.name))
-    constants = tmp
+    constants = util.constants_to_tensors(constants)
+
+    replace = False
+    if (not _current_trace._rs_stack.isempty()):
+        # If there is an active rejection sampling,
+        # -> the variable is "replaced"
+        # -> rejection_address is set to the address of the latest started rejection sampling
+        replace = True
+        if _current_trace._rs_stack.top_entry.control == False:
+            # An uncontrolled rejection sampling makes everything under its scope uncontrolled.
+            control = False
 
     # Only replace if controlled
     if not control:
@@ -184,13 +188,17 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
         replace = False
 
     if address is None:
-        address_base = _extract_address(_current_trace_root_function_name) + '__' + distribution._address_suffix
+        address_base = _extract_address(_current_trace_root_function_name, name) + '__' + distribution._address_suffix
     else:
         address_base = address + '__' + distribution._address_suffix
     if _address_dictionary is not None:
         address_base = _address_dictionary.address_to_id(address_base)
 
     instance = _current_trace.last_instance(address_base) + 1
+
+    if name in _variables_observed_inf_training + list(_current_trace_observed_variables):
+        if not _current_trace._rs_stack.isempty():
+            raise ValueError('No observation can be within a rejection sampling loop')
 
     if name in _current_trace_observed_variables:
         # Variable is observed
@@ -226,7 +234,7 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
                     log_prob = distribution.log_prob(value, sum=True)
                     log_importance_weight = float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))  # To account for prior inflation
             elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-                address = address_base + '__' + ('replaced' if replace else str(instance))
+                address = address_base + '__' + ('replaced' if replace else str(instance))  # Address seen by inference network
                 variable = Variable(distribution=distribution, value=None,
                                     constants=constants,
                                     address_base=address_base,
@@ -234,19 +242,11 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
                                     log_prob=0., control=control,
                                     replace=replace, name=name,
                                     observed=observed, reused=reused)
-                update_previous_variable = False
-                if replace:
-                    # TODO: address not in _current_trace_replaced_variable_proposal_distributions might not be sufficient to discover a new replace loop instance. Implement better.
-                    if address not in _current_trace_replaced_variable_proposal_distributions:
-                        _current_trace_replaced_variable_proposal_distributions[address] = _current_trace_inference_network._infer_step(variable,
-                                                                                                                                        prev_variable=_current_trace_previous_variable,
-                                                                                                                                        proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
-                        update_previous_variable = True
-                    proposal_distribution = _current_trace_replaced_variable_proposal_distributions[address]
-                else:
-                    proposal_distribution = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable,
-                                                                                            proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
-                    update_previous_variable = True
+                proposal_distribution = _current_trace_inference_network._infer_step(variable,
+                                                                                     prev_variable=_current_trace_previous_variable,
+                                                                                     proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
+                if replace and _importance_weighting == ImportanceWeighting.IW0: # use prior as proposal for all addresses with replace=True
+                    proposal_distribution = distribution
                 value = proposal_distribution.sample()
                 if distribution.name == "Normal":
                     value = value.view(torch.Size([-1]) + distribution.loc_shape)
@@ -260,6 +260,7 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
                 proposal_log_prob = proposal_distribution.log_prob(value, sum=True)
                 if util.has_nan_or_inf(log_prob):
                     print(colored('Warning: prior log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
+                    print(address)
                     print('distribution', distribution)
                     print('value', value)
                     print('log_prob', log_prob)
@@ -269,18 +270,17 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
                     print('value', value)
                     print('log_prob', proposal_log_prob)
                 log_importance_weight = float(log_prob) - float(proposal_log_prob)
-                if update_previous_variable:
-                    variable = Variable(distribution=distribution,
-                                        value=value, constants=constants,
-                                        address_base=address_base,
-                                        address=address, instance=instance,
-                                        log_prob=log_prob,
-                                        log_importance_weight=log_importance_weight,
-                                        control=control, replace=replace,
-                                        name=name, observed=observed,
-                                        reused=reused)
-                    _current_trace_previous_variable = variable
-                    # print('prev_var address {}'.format(variable.address))
+                variable = Variable(distribution=distribution,
+                                    value=value, constants=constants,
+                                    address_base=address_base,
+                                    address=address, instance=instance,
+                                    log_prob=log_prob,
+                                    log_importance_weight=log_importance_weight,
+                                    control=control, replace=replace,
+                                    name=name, observed=observed,
+                                    reused=reused)
+                _current_trace_previous_variable = variable
+                # print('prev_var address {}'.format(variable.address))
                 address = address_base + '__' + str(instance)
             else:  # _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
                 address = address_base + '__' + str(instance)
@@ -350,6 +350,10 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
                 log_prob = distribution.log_prob(value, sum=True)
                 log_importance_weight = float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))  # To account for prior inflation
 
+        if _trace_mode == TraceMode.POSTERIOR and _importance_weighting == ImportanceWeighting.IW2:
+            # IW2 should take all the weights into account => no replaced variables
+            replace=False
+
         variable = Variable(distribution=distribution, value=value,
                             constants=constants, address_base=address_base,
                             address=address, instance=instance,
@@ -361,16 +365,81 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
     _current_trace.add(variable)
     return variable.value
 
+
 def _set_observed_from_inf(variables_observed_inf_training):
     global _variables_observed_inf_training
     _variables_observed_inf_training = variables_observed_inf_training
+
+
+def rs_start(control=True, name=None, address=None):
+    global _current_trace_previous_variable
+
+    rejection_sampling_suffix = 'rejsmp'
+
+    # Compute the address and address_base
+    if address is None:
+        address_base = _extract_address(_current_trace_root_function_name, name, append_rejection=False) + '__' + rejection_sampling_suffix
+        # Problematic for nested rejection sampling!
+    else:
+        address_base = address + '__' + rejection_sampling_suffix
+    if _address_dictionary is not None:
+        address_base = _address_dictionary.address_to_id(address_base)
+
+    # Compute iteration number
+    if (not _current_trace._rs_stack.isempty()) and _current_trace._rs_stack.top_entry.address_base == address_base:
+        # It is not a new rejection sampling. Rather, it's retrying to sample from the base distribution
+        # We use the same instance number in such cases
+        last_entry = _current_trace._rs_stack.top_entry
+        instance = last_entry.instance
+        iteration = last_entry.iteration + 1
+    else:
+        instance = _current_trace.last_rs_entry_instance(address_base) + 1
+        iteration = util.to_tensor(0)
+
+    address = address_base + '__' + str(instance)
+
+    entry = RSEntry(address=address, address_base=address_base, name=name, instance=instance, control=control, iteration=iteration)
+
+    _current_trace.add_rs_entry(entry)
+    previous_variable = None if len(_current_trace.variables) == 0 else _current_trace.variables[-1]
+    if iteration == 0:
+        # Start of a new rejection sampling -> should be pushed to the stack
+        hidden_state = None
+        if _current_trace_inference_network is not None and isinstance(_current_trace_inference_network, InferenceNetworkLSTM):
+            # TODO: also check that inference engine is IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK and importance_weighting is 
+            hidden_state = _current_trace_inference_network._infer_lstm_state #TODO: clone/copy
+        _current_trace._rs_stack.push(entry=entry,
+                                      previous_variable=previous_variable,
+                                      network_state=(hidden_state, _current_trace_previous_variable))
+    else:
+        ## Retrying the same rejection sampling loop
+        # Set accepted=False for all the variables samples since the last rs_start with the same address
+        target_variable = _current_trace._rs_stack.top_previous_variable
+        for i in range(len(_current_trace.variables)-1, -1, -1):
+            variable = _current_trace.variables[i]
+            if variable is target_variable:
+                break
+            variable.accepted = False
+
+        # Update trace's previous variable and restore LSTM's hidden state (if exists)
+        (hidden_state, network_previous_state) = _current_trace._rs_stack.top_network_state
+        _current_trace_previous_variable = network_previous_state
+        if hidden_state is not None:
+            _current_trace_inference_network._infer_lstm_state = hidden_state
+        # Replace the active rejection sampling entry and previous variable (hidden remains the same)
+        _current_trace._rs_stack.updateTop(entry, previous_variable)
+
+def rs_end():
+    _current_trace._rs_stack.pop()
+    # TODO: add a dummy variable or a tag to the trace?
+
 
 def _init_traces(func, trace_mode=TraceMode.PRIOR,
                  prior_inflation=PriorInflation.DISABLED,
                  inference_engine=InferenceEngine.IMPORTANCE_SAMPLING,
                  inference_network=None, observe=None,
                  metropolis_hastings_trace=None, address_dictionary=None,
-                 likelihood_importance=1.):
+                 likelihood_importance=1., importance_weighting=ImportanceWeighting.IW2):
 
     """ Initialize the trace object
 
@@ -383,10 +452,12 @@ def _init_traces(func, trace_mode=TraceMode.PRIOR,
     global _inference_engine
     global _prior_inflation
     global _likelihood_importance
+    global _importance_weighting
     _trace_mode = trace_mode
     _inference_engine = inference_engine
     _prior_inflation = prior_inflation
     _likelihood_importance = likelihood_importance
+    _importance_weighting = importance_weighting
     global _current_trace_root_function_name
     global _current_trace_inference_network
     global _current_trace_inference_network_proposal_min_train_iterations
@@ -426,6 +497,7 @@ def _begin_trace():
     global _current_trace_previous_variable
     global _current_trace_replaced_variable_proposal_distributions
     global _current_trace_execution_start
+
     _current_trace_execution_start = time.time()
     _current_trace = Trace()
     _current_trace_previous_variable = None
@@ -433,6 +505,19 @@ def _begin_trace():
 
 
 def _end_trace(result):
+    # Make sure there is no active rejection sampling remaining.
+    if not _current_trace._rs_stack.isempty():
+        print(f'{_current_trace._rs_stack.size()}, {_current_trace._rs_stack.top_entry.address}')
+        raise Exception(f'Trace ended while active rejection samplings still exist')
+
     execution_time_sec = time.time() - _current_trace_execution_start
+
+    if _trace_mode == TraceMode.PRIOR_FOR_INFERENCE_NETWORK or\
+        (_trace_mode == TraceMode.POSTERIOR and _inference_engine in [InferenceEngine.IMPORTANCE_SAMPLING, InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK] and _importance_weighting in [ImportanceWeighting.IW1, ImportanceWeighting.IW0]):
+        # Rejected samples should be discarded
+        _current_trace.variables = list(filter(lambda v: v.accepted, _current_trace.variables))
+    else: #TODO: just for debugging
+        pass#raise Exception()
     _current_trace.end(result, execution_time_sec)
+
     return _current_trace

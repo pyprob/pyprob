@@ -426,7 +426,8 @@ def to_variable_dict_data(variable, variables_observed_inf_training=[],
     """
     VARIABLE_ATTRIBUTES = ['value', 'address_base', 'address', 'instance', 'log_prob',
                            'log_importance_weight', 'control', 'name', 'observed',
-                           'tagged', 'constants', 'replace', 'reused', 'distribution_name', 'distribution_args']
+                           'tagged', 'constants', 'replace', 'reused', 'distribution_name',
+                           'distribution_args', 'accepted']
     var_dict = {}
     for attr in VARIABLE_ATTRIBUTES:
         if attr == 'value':
@@ -503,3 +504,14 @@ class RunningMoments():
 
     def get(self):
         return self.mean, self.std+1e-8
+
+def constants_to_tensors(constants):
+    tmp = {}
+    if constants:
+        for k, v in constants.items():
+            try:
+                attr_shape = getattr(distribution, k).shape
+                tmp[k] = util.to_tensor(v).view(attr_shape)
+            except Exception as e:
+                raise ValueError("Values in constant for distribution {} cannot be made a tensor".format(distribution.name))
+    return tmp

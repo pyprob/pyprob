@@ -8,7 +8,8 @@ from termcolor import colored
 
 from .distributions import Empirical
 from . import util, state, TraceMode, PriorInflation, InferenceEngine, \
-    InferenceNetwork, Optimizer, LearningRateScheduler, AddressDictionary
+    InferenceNetwork, Optimizer, LearningRateScheduler, AddressDictionary, \
+    ImportanceWeighting
 from .nn import InferenceNetwork as InferenceNetworkBase
 from .nn import SurrogateNetworkLSTM as SurrogateNetworkBase
 from .nn import OnlineDataset, OfflineDataset, InferenceNetworkFeedForward, \
@@ -37,15 +38,16 @@ class Model():
                          inference_engine=InferenceEngine.IMPORTANCE_SAMPLING,
                          inference_network=None, observe=None, metropolis_hastings_trace=None,
                          likelihood_importance=1.,
-                         proposal=None, importance_weighting=None, num_z_estimate_samples=None, num_z_inv_estimate_samples=None,
-                          *args, **kwargs):
+                         proposal=None, importance_weighting=ImportanceWeighting.IW2, num_z_estimate_samples=None, num_z_inv_estimate_samples=None,
+                         *args, **kwargs):
 
         state._init_traces(func=self.forward, trace_mode=trace_mode,
                            prior_inflation=prior_inflation, inference_engine=inference_engine,
                            inference_network=inference_network, observe=observe,
                            metropolis_hastings_trace=metropolis_hastings_trace,
                            address_dictionary=self._address_dictionary,
-                           likelihood_importance=likelihood_importance)
+                           likelihood_importance=likelihood_importance,
+                           importance_weighting=importance_weighting)
         while True:
             state._begin_trace()
             result = self.forward(*args, **kwargs)

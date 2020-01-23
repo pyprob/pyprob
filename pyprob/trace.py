@@ -8,7 +8,8 @@ class Variable():
                  address=None, instance=None, log_prob=None,
                  log_importance_weight=None, control=False, constants={},
                  name=None, observed=False, reused=False, tagged=False,
-                 replace=False, distribution_name=None, distribution_args=None):
+                 replace=False, distribution_name=None, distribution_args=None,
+                 accepted=True):
         if value is None:
             self.value = None
         else:
@@ -38,6 +39,7 @@ class Variable():
         else:
             self.distribution_name = distribution_name
             self.distribution_args = distribution_args
+        self.accepted = accepted
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned variables in offline training datasets
@@ -66,6 +68,63 @@ class Variable():
         return hash(self) == hash(other)
 
 
+class RejectionSamplingStack:
+    def __init__(self):
+        '''
+        Stores a stack of tuples (rejection sampling entry, previous variable, (LSTM hidden state, network's previous variable))
+        if a network is present and has a hidden state, otherwise,
+        (rejection sampling entry, previous variable, (none, network's previous variable))
+        where network's previous variable is the variable before entering the rejection sampling loop for the first time.
+        (LSTM hidden state, network's previous variable) are used to restore network's state after retrying.
+        '''
+        self._stack = []
+
+    def push(self, entry, previous_variable, network_state):
+        # network_state should be a tuple of the format (LSTM hidden state or None, network's previous variable)
+        if len(network_state) != 2:
+            raise ValueError("Network state is expected to be a tuple of size two with the format (LSTM hidden state or None, network's previous variable)")
+        self._stack.append([entry, previous_variable, network_state])
+
+    def updateTop(self, entry, previous_variable):
+        self._stack[-1][0] = entry
+        self._stack[-1][1] = previous_variable
+
+    def pop(self):
+        self._stack.pop()
+
+    @property
+    def top_entry(self):
+        return self._stack[-1][0]
+
+    @property
+    def top_previous_variable(self):
+        return self._stack[-1][1]
+
+    @property
+    def top_network_state(self):
+        return self._stack[-1][2]
+
+    def size(self):
+        return len(self._stack)
+
+    def isempty(self):
+        return self.size() == 0
+
+
+class RSEntry:
+    def __init__(self, address=None, address_base=None, name=None, instance=None, control=None, iteration=None):
+        self.address = address
+        self.address_base = address_base
+        self.name = name
+        self.instance = instance
+        self.control = control
+        self.iteration=iteration
+        self.weight = None
+
+    def __repr__(self):
+        return f'RSEntry(name:{name}, address:{address})'
+
+
 class Trace():
     def __init__(self, trace_hash=None):
         self.variables = []
@@ -79,6 +138,10 @@ class Trace():
         self.length = 0
         self.execution_time_sec = None
         self.trace_hash = trace_hash
+        self.replaced_log_importance_weights = {} # Used for computing the weights
+        self.rs_entries = []
+        self.rs_entries_dict_address_base = {}
+        self._rs_stack = RejectionSamplingStack()
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned traces in offline training datasets
@@ -90,27 +153,46 @@ class Trace():
 
     def add(self, variable):
         self.variables.append(variable)
-        if variable.observed:
-            self.log_prob_observed += torch.sum(variable.log_prob)
-            if variable.name:
-                self.variables_observed[variable.name] = variable
-            else:
-                self.variables_observed[variable.address] = variable
         self.variables_dict_address[variable.address] = variable
         self.variables_dict_address_base[variable.address_base] = variable
-        if variable.observed or variable.control:
-            self.log_prob += torch.sum(variable.log_prob)
-        if variable.log_importance_weight is not None:
-            self.log_importance_weight += variable.log_importance_weight
+
+    def add_rs_entry(self, entry):
+        self.rs_entries.append(entry)
+        self.rs_entries_dict_address_base[entry.address_base] = entry
 
     def end(self, result, execution_time_sec):
         self.result = result
         self.execution_time_sec = execution_time_sec
         self.length = len(self.variables)
 
+        # Compute weights and re-construct dictionaries (because of rejected variables that might be removed)
+        self.variables_dict_address = {}
+        self.variables_dict_address_base = {}
+        for variable in self.variables:
+            if variable.observed:
+                if variable.name:
+                    self.variables_observed[variable.name] = variable
+                else:
+                    self.variables_observed[variable.address] = variable
+            self.variables_dict_address[variable.address] = variable
+            self.variables_dict_address_base[variable.address_base] = variable
+
+            # Compute weights
+            if variable.observed or variable.control:
+                self.log_prob_observed += torch.sum(variable.log_prob)
+                self.log_prob += torch.sum(variable.log_prob)
+            if variable.log_importance_weight is not None:
+                self.log_importance_weight += variable.log_importance_weight
+
     def last_instance(self, address_base):
         if address_base in self.variables_dict_address_base:
             return self.variables_dict_address_base[address_base].instance
+        else:
+            return 0
+
+    def last_rs_entry_instance(self, address_base):
+        if address_base in self.rs_entries_dict_address_base:
+            return self.rs_entries_dict_address_base[address_base].instance
         else:
             return 0
 

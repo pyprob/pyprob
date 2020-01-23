@@ -76,6 +76,7 @@ class Batch():
                     observed_time_steps.append(time_step)
                 else:
                     latent_time_steps.append(time_step)
+
                 dist_names.append(var_args['distribution_name'])
                 addresses.append(var_args['address'])
                 controls.append(var_args['control'])
@@ -162,8 +163,8 @@ class OnlineDataset(Dataset):
         return self._length
 
     def __getitem__(self, idx):
-        trace =next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK,
-                                                 prior_inflation=self._prior_inflation))
+        trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK,
+                                                  prior_inflation=self._prior_inflation))
 
         trace_attr_list = []
         for variable in trace.variables:
@@ -210,6 +211,7 @@ class OnlineDataset(Dataset):
             distribution = construct_dist(var_args['distribution_name'], var_args['distribution_args'])
             variable = Variable(distribution=distribution, **var_args)
             trace.add(variable)
+        trace.end(None, None)
         return trace
 
 class OfflineDatasetFile(Dataset):
