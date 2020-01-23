@@ -43,7 +43,6 @@ class TruncatedNormal(Distribution):
         log_prob = self._standard_normal_dist.log_prob(tmp)\
                    - (torch.log(self._stddev_non_truncated) + self._logZ)
         if util.has_nan_or_inf(log_prob):
-            import sys
             mask = torch.isinf(log_prob) | torch.isnan(log_prob)
             print(colored('Warning: NaN, -Inf, or Inf encountered in TruncatedNormal log_prob.', 'red', attrs=['bold']))
             print('distribution', self.name)
@@ -52,7 +51,7 @@ class TruncatedNormal(Distribution):
             print('parent_mean', self._mean_non_truncated[mask])
             print('parent_stddev', self._stddev_non_truncated[mask])
             print('log_Z', self._logZ[mask])
-            sys.exit()
+            raise ValueError(f'Warning: NaN, -Inf, or Inf encountered in TruncatedNormal ({self.name}) log_prob.')
             # lp = util.replace_inf(lp, colored('Warning: TruncatedNormal log_prob has inf, replacing with 0.', 'red', attrs=['bold']))
         return torch.sum(log_prob) if sum else log_prob
 

@@ -22,6 +22,7 @@ class Mixture(Distribution):
             self._log_probs = torch.log(util.clamp_probs(self._probs))
         elif logits is not None:
             self._log_probs = util.clamp_logits(logits)
+            self._probs = torch.exp(self._log_probs)
 
         event_shape = torch.Size()
         if self._log_probs.dim() == 0:
