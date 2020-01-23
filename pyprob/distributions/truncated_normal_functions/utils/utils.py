@@ -19,7 +19,7 @@ def erfcx(x):
       # 5-term expansion (rely on compiler for CSE), simplified from:
       # ispi / (x+0.5/(x+1/(x+1.5/(x+2/x))))  */
             I_BIG_n = (x <= 5e7) & I_ge
-            if (I_BIG_n).any(): # 1-term expansion, important to avoid overflow
+            if I_BIG_n.any(): # 1-term expansion, important to avoid overflow
                 tmp = x[I_BIG_n]
                 result[I_BIG_n] = ispi*((tmp*tmp) * (tmp*tmp+4.5) + 2)\
                                   / (tmp * ((tmp*tmp) * (tmp*tmp+5) + 3.75))
@@ -30,14 +30,14 @@ def erfcx(x):
     if (~I).any():
         I_less = (x < -26.7) & (~I)
         if I_less.any():
-            result[I_less] = torch.tensor([np.infty])
+            result[I_less] = torch.tensor(np.infty).to(device=x.device)
         I_less_n = (x >= -26.7) & (~I)
-        if (I_less_n).any():
+        if I_less_n.any():
             mask = (x < -6.1) & (I_less_n)
             if mask.any():
                 result[mask] = 2*torch.exp(x[mask]*x[mask])
             mask_n = (x >= -6.1) & (I_less_n)
-            if (mask_n).any():
+            if mask_n.any():
                 tmp = 400/(4-x[mask_n])
                 result[mask_n] = 2*torch.exp(x[mask_n]*x[mask_n]) - erfcx_y100(tmp)
     return result

@@ -9,7 +9,7 @@ from ..distributions import Categorical
 
 class SurrogateAddressTransition(nn.Module):
 
-    def __init__(self, input_shape, next_address=None, num_layers=2,
+    def __init__(self, input_shape, next_address=None, num_layers=4,
                  first_address=False, last_address=False, hidden_size=None):
         super().__init__()
         self._n_classes = 1
@@ -51,6 +51,7 @@ class SurrogateAddressTransition(nn.Module):
         self._total_train_iterations = 0
         self._first_and_last_address_logits = nn.Parameter(util.clamp_logits(torch.log(torch.Tensor([[1,0]]))).to(device=util._device),
                                                            requires_grad=False)
+        self._new_address_parameterdict = nn.ParameterDict()
 
     def forward(self, x, batch_size=1):
         """
@@ -73,7 +74,6 @@ class SurrogateAddressTransition(nn.Module):
             categorical = AddressCategorical(logits=self._logits,
                                              n_classes=self._n_classes,
                                              transform=self._transform_to_address)
-
         return categorical
 
     def add_address_transition(self, new_address):
@@ -95,8 +95,10 @@ class SurrogateAddressTransition(nn.Module):
         def init_new_params(m):
             # replace the weights and biasses (TODO: ADD A TINY BIT OF NOISE??)
             if type(m) == nn.Linear:
-                m.weight = nn.Parameter(new_weights)
-                m.bias = nn.Parameter(new_bias)
+                self._new_address_parameterdict.update({f"w_{self._n_classes}": nn.Parameter(new_weights)})
+                self._new_address_parameterdict.update({f"b_{self._n_classes}": nn.Parameter(new_bias)})
+                m.weight = self._new_address_parameterdict[f"w_{self._n_classes}"]
+                m.bias = self._new_address_parameterdict[f"b_{self._n_classes}"]
 
         self._ff["class_layer"] = nn.Linear(self._class_layer_input,
                                             self._output_dim).apply(init_new_params).to(device=util._device)

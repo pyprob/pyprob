@@ -30,6 +30,7 @@ class SurrogateCategorical(nn.Module):
         self._total_train_iterations = 0
         self.num_categories = num_categories
         self._logsoftmax = nn.LogSoftmax(dim=1)
+        self.nllloss = nn.NLLLoss(reduction='sum') # sum instead of the default "mean"
 
         self.dist_type = Categorical(probs=torch.ones([self.num_categories])/self.num_categories)
 
@@ -57,6 +58,7 @@ class SurrogateCategorical(nn.Module):
 
     def _loss(self, values):
         q_categorical = Categorical(logits=self._logits)
-        return -q_categorical.log_prob(values)
+        loss = self.nllloss(self._logits, values.long())
+        return loss
 
         #return Distribution.kl_divergence(p_categorical, q_categorical)

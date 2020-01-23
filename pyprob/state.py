@@ -244,7 +244,7 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
                     proposal_distribution = _current_trace_replaced_variable_proposal_distributions[address]
                 else:
                     proposal_distribution = _current_trace_inference_network._infer_step(variable, prev_variable=_current_trace_previous_variable,
-                                                                                            proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
+                                                                                         proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
                     update_previous_variable = True
                 value = proposal_distribution.sample()
                 if distribution.name == "Normal":
