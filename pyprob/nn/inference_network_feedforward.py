@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from termcolor import colored
 
-from . import InferenceNetwork, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
+from . import InferenceNetwork, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture, PriorDist
 from .. import util
 from ..distributions import Normal, Uniform, Categorical, Poisson
 
@@ -33,6 +33,11 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                 if address not in self._layers_proposal:
                     print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address),
                                                                              distribution_name))
+                    if not current_controlled:
+                        proposal_layer = PriorDist()
+                        sample_embedding_layer = EmbeddingFeedForward(variable_shape,
+                                                                      self._sample_embedding_dim,
+                                                                      num_layers=1)
                     if distribution_name == 'Normal':
                         layer = ProposalNormalNormalMixture(self._observe_embedding_dim+self._sample_attention_embedding_dim,
                                                             variable_shape)
