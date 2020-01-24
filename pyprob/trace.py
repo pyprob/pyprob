@@ -119,11 +119,12 @@ class RSEntry:
         self.instance = instance
         self.control = control
         self.iteration=iteration
-        self.weight = None
+        self.log_importance_weight = None
+        self.log_prob = None
+        
 
     def __repr__(self):
         return f'RSEntry(name:{name}, address:{address})'
-
 
 class Trace():
     def __init__(self, trace_hash=None):
@@ -141,6 +142,7 @@ class Trace():
         self.replaced_log_importance_weights = {} # Used for computing the weights
         self.rs_entries = []
         self.rs_entries_dict_address_base = {}
+        self.rs_entries_dict_address = {}
         self._rs_stack = RejectionSamplingStack()
 
     def __repr__(self):
@@ -153,19 +155,31 @@ class Trace():
 
     def add(self, variable):
         self.variables.append(variable)
+        if variable.observed:
+            self.log_prob_observed += torch.sum(variable.log_prob)
+            if variable.name:
+                self.variables_observed[variable.name] = variable
+            else:
+                self.variables_observed[variable.address] = variable
         self.variables_dict_address[variable.address] = variable
         self.variables_dict_address_base[variable.address_base] = variable
+        if variable.observed or variable.control:
+            self.log_prob += torch.sum(variable.log_prob)
+        if variable.log_importance_weight is not None:
+            self.log_importance_weight += variable.log_importance_weight
 
     def add_rs_entry(self, entry):
-        self.rs_entries.append(entry)
+        self.rs_entries.append(entry) # TODO: is this really needed anymore (even though rs_entries_dict_address exists)?
         self.rs_entries_dict_address_base[entry.address_base] = entry
+        self.rs_entries_dict_address[entry.address] = entry
 
     def end(self, result, execution_time_sec):
         self.result = result
         self.execution_time_sec = execution_time_sec
         self.length = len(self.variables)
 
-        # Compute weights and re-construct dictionaries (because of rejected variables that might be removed)
+    def refresh_weights_and_dictionaries(self):
+        # Compute weights and re-construct dictionaries
         self.variables_dict_address = {}
         self.variables_dict_address_base = {}
         for variable in self.variables:
@@ -183,6 +197,17 @@ class Trace():
                 self.log_prob += torch.sum(variable.log_prob)
             if variable.log_importance_weight is not None:
                 self.log_importance_weight += variable.log_importance_weight
+
+        for rs_entry in self.rs_entries_dict_address.values():
+            if rs_entry.log_importance_weight is not None:
+                self.log_importance_weight += rs_entry.log_importance_weight
+                #self.log_prob += rs_entry.log_prob
+
+        self.length = len(self.variables)
+
+    def discard_rejected(self):
+        self.variables = list(filter(lambda v: v.accepted, self.variables))
+        self.refresh_weights_and_dictionaries()
 
     def last_instance(self, address_base):
         if address_base in self.variables_dict_address_base:

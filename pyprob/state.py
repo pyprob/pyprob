@@ -31,8 +31,48 @@ _variables_observed_inf_training = []
 _importance_weighting = ImportanceWeighting.IW2
 
 
+class RejectionEndException(Exception):
+    def __init__(self, rs_entry):
+        self.length = int(rs_entry.iteration.item()) + 1
+
+class RSPartialTrace:
+    def __init__(self, trace=None, rejection_address=None):
+        self.trace = trace
+        self.rejection_address = rejection_address
+        self.index = 0
+        if trace is None:
+            if rejection_address is not None:
+                raise ValueError('In a partial trace, when trace=None, rejection_address should also be None')
+            self._done = True
+        else:
+            if rejection_address is None:
+                raise ValueError('rejection_address cannot be None in a partial trace')
+            self._done = False
+
+    def get_variable(self, address):
+        # Returns the next variable from the partial trace
+        # Verifies the variable address to be the same as the given address
+        # Updates the partial trace (advances the index and sets it to null if reached the target address)
+        variable = self.trace.variables[self.index]
+        assert variable.address == address
+        self.index += 1
+        return variable
+
+    def rs_checkpoint(self, address):
+        # It is called once a rs_start is reached. Input is the address of this rs_start.
+        # Will mark the partial trace as done if the address matches the rejection address in the partial trace
+        if address == self.rejection_address:
+            self._done = True
+
+    @property
+    def done(self):
+        return self._done
+
+_current_rs_partial_trace = None
+
+
 # _extract_address and _extract_target_of_assignment code by Tobias Kohn (kohnt@tobiaskohn.ch)
-def _extract_address(root_function_name, user_specified_name, append_rejection=True):
+def _extract_address(root_function_name, user_specified_name):
     # Retun an address in the format:
     # 'instruction pointer' __ 'qualified function name'
     frame = sys._getframe(2)
@@ -52,9 +92,6 @@ def _extract_address(root_function_name, user_specified_name, append_rejection=T
             break
         frame = frame.f_back
     address_base_noname = '{}__{}'.format(ip, '__'.join(reversed(names)))
-    if append_rejection:
-        if not _current_trace._rs_stack.isempty():
-            address_base_noname = '{}_RS_{}'.format(address_base_noname, _current_trace._rs_stack.top_entry.address)
     return '{}__{}'.format(address_base_noname, user_specified_name)
 
 
@@ -138,24 +175,27 @@ def observe(distribution, value=None, constants={}, name=None, address=None):
     instance = _current_trace.last_instance(address_base) + 1
     address = address_base + '__' + str(instance)
 
-    if name in _current_trace_observed_variables:
-        # Override observed value
-        value = _current_trace_observed_variables[name]
-    elif value is not None:
-        value = util.to_tensor(value) # TODO: doesn't it break training?
-    elif distribution is not None:
-        value = distribution.sample()
-
-    log_prob = _likelihood_importance * distribution.log_prob(value, sum=True)
-    if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-        log_importance_weight = float(log_prob)
+    if not _current_rs_partial_trace.done:
+        variable = _current_rs_partial_trace.get_variable(address)
     else:
-        log_importance_weight = None  # TODO: Check the reason/behavior for this
+        if name in _current_trace_observed_variables:
+            # Override observed value
+            value = _current_trace_observed_variables[name]
+        elif value is not None:
+            value = util.to_tensor(value) # TODO: doesn't it break training?
+        elif distribution is not None:
+            value = distribution.sample()
 
-    variable = Variable(distribution=distribution, value=value, constants=constants,
-                        address_base=address_base, address=address, instance=instance,
-                        log_prob=log_prob, log_importance_weight=log_importance_weight,
-                        observed=True, name=name)
+        log_prob = _likelihood_importance * distribution.log_prob(value, sum=True)
+        if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+            log_importance_weight = float(log_prob)
+        else:
+            log_importance_weight = None  # TODO: Check the reason/behavior for this
+
+        variable = Variable(distribution=distribution, value=value, constants=constants,
+                            address_base=address_base, address=address, instance=instance,
+                            log_prob=log_prob, log_importance_weight=log_importance_weight,
+                            observed=True, name=name)
     _current_trace.add(variable)
     return variable.value
 
@@ -195,35 +235,150 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
         address_base = _address_dictionary.address_to_id(address_base)
 
     instance = _current_trace.last_instance(address_base) + 1
+    address = address_base + '__' + str(instance)
 
-    if name in _variables_observed_inf_training + list(_current_trace_observed_variables):
-        if not _current_trace._rs_stack.isempty():
-            raise ValueError('No observation can be within a rejection sampling loop')
-
-    if name in _current_trace_observed_variables:
-        # Variable is observed
-        address = address_base + '__' + str(instance)
-        value = _current_trace_observed_variables[name]
-        log_prob = _likelihood_importance * distribution.log_prob(value, sum=True)
-        if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-            log_importance_weight = float(log_prob)
-        else:
-            log_importance_weight = None  # TODO: Check the reason/behavior for this
-        variable = Variable(distribution=distribution, value=value, constants=constants,
-                            address_base=address_base, address=address, instance=instance,
-                            log_prob=log_prob, log_importance_weight=log_importance_weight,
-                            observed=True, name=name)
+    if not _current_rs_partial_trace.done:
+        variable = _current_rs_partial_trace.get_variable(address)
     else:
-        # Variable is sampled
-        reused = False
-        if name in _variables_observed_inf_training:
-            observed = True
-        else:
-            observed = False
+        if name in _variables_observed_inf_training + list(_current_trace_observed_variables):
+            if not _current_trace._rs_stack.isempty():
+                raise ValueError('No observation can be within a rejection sampling loop')
 
-        if _trace_mode == TraceMode.POSTERIOR:
-            if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
-                address = address_base + '__' + str(instance)
+        if name in _current_trace_observed_variables:
+            # Variable is observed
+            value = _current_trace_observed_variables[name]
+            log_prob = _likelihood_importance * distribution.log_prob(value, sum=True)
+            if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+                log_importance_weight = float(log_prob)
+            else:
+                log_importance_weight = None  # TODO: Check the reason/behavior for this
+            variable = Variable(distribution=distribution, value=value, constants=constants,
+                                address_base=address_base, address=address, instance=instance,
+                                log_prob=log_prob, log_importance_weight=log_importance_weight,
+                                observed=True, name=name)
+        else:
+            # Variable is sampled
+            reused = False
+            if name in _variables_observed_inf_training:
+                observed = True
+            else:
+                observed = False
+
+            if _trace_mode == TraceMode.POSTERIOR:
+                if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
+                    inflated_distribution = _inflate(distribution)
+                    if inflated_distribution is None:
+                        value = distribution.sample()
+                        log_prob = distribution.log_prob(value, sum=True)
+                        log_importance_weight = None
+                    else:
+                        value = inflated_distribution.sample()
+                        log_prob = distribution.log_prob(value, sum=True)
+                        log_importance_weight = float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))  # To account for prior inflation
+                elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+                    address = address_base + '__' + ('replaced' if replace else str(instance))  # Address seen by inference network
+                    variable = Variable(distribution=distribution, value=None,
+                                        constants=constants,
+                                        address_base=address_base,
+                                        address=address, instance=instance,
+                                        log_prob=0., control=control,
+                                        replace=replace, name=name,
+                                        observed=observed, reused=reused)
+                    proposal_distribution = _current_trace_inference_network._infer_step(variable,
+                                                                                        prev_variable=_current_trace_previous_variable,
+                                                                                        proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
+                    if replace and _importance_weighting == ImportanceWeighting.IW0: # use prior as proposal for all addresses with replace=True
+                        proposal_distribution = distribution
+                    value = proposal_distribution.sample()
+                    if distribution.name == "Normal":
+                        value = value.view(torch.Size([-1]) + distribution.loc_shape)
+
+                    # removes the redundant batch dimension!
+                    # maybe rethink this step
+                    if value.dim() > 0:
+                        value = value.squeeze(0)
+
+                    log_prob = distribution.log_prob(value, sum=True)
+                    proposal_log_prob = proposal_distribution.log_prob(value, sum=True)
+                    if util.has_nan_or_inf(log_prob):
+                        print(colored('Warning: prior log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
+                        print(address)
+                        print('distribution', distribution)
+                        print('value', value)
+                        print('log_prob', log_prob)
+                    if util.has_nan_or_inf(proposal_log_prob):
+                        print(colored('Warning: proposal log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
+                        print('distribution', proposal_distribution)
+                        print('value', value)
+                        print('log_prob', proposal_log_prob)
+                    log_importance_weight = float(log_prob) - float(proposal_log_prob)
+                    variable = Variable(distribution=distribution,
+                                        value=value, constants=constants,
+                                        address_base=address_base,
+                                        address=address, instance=instance,
+                                        log_prob=log_prob,
+                                        log_importance_weight=log_importance_weight,
+                                        control=control, replace=replace,
+                                        name=name, observed=observed,
+                                        reused=reused)
+                    _current_trace_previous_variable = variable
+                    # print('prev_var address {}'.format(variable.address))
+                    address = address_base + '__' + str(instance)
+                else:  # _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
+                    log_importance_weight = None
+                    if _metropolis_hastings_trace is None:
+                        value = distribution.sample()
+                        log_prob = distribution.log_prob(value, sum=True)
+                    else:
+                        if address == _metropolis_hastings_site_address:
+                            global _metropolis_hastings_site_transition_log_prob
+                            _metropolis_hastings_site_transition_log_prob = util.to_tensor(0.)
+                            if _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
+                                if isinstance(distribution, Normal):
+                                    proposal_kernel_func = lambda x: Normal(x, distribution.stddev)
+                                elif isinstance(distribution, Uniform):
+                                    proposal_kernel_func = lambda x: TruncatedNormal(x, 0.1*(distribution.high - distribution.low), low=distribution.low, high=distribution.high)
+                                else:
+                                    proposal_kernel_func = None
+
+                                if proposal_kernel_func is not None:
+                                    _metropolis_hastings_site_value = _metropolis_hastings_trace.variables_dict_address[address].value
+                                    _metropolis_hastings_site_log_prob = _metropolis_hastings_trace.variables_dict_address[address].log_prob
+                                    proposal_kernel_forward = proposal_kernel_func(_metropolis_hastings_site_value)
+                                    alpha = 0.5
+                                    if random.random() < alpha:
+                                        value = proposal_kernel_forward.sample()
+                                    else:
+                                        value = distribution.sample()
+                                    log_prob = distribution.log_prob(value, sum=True)
+                                    proposal_kernel_reverse = proposal_kernel_func(value)
+
+                                    _metropolis_hastings_site_transition_log_prob = torch.log(alpha * torch.exp(proposal_kernel_reverse.log_prob(_metropolis_hastings_site_value, sum=True)) + (1 - alpha) * torch.exp(_metropolis_hastings_site_log_prob)) + log_prob
+                                    _metropolis_hastings_site_transition_log_prob -= torch.log(alpha * torch.exp(proposal_kernel_forward.log_prob(value, sum=True)) + (1 - alpha) * torch.exp(log_prob)) + _metropolis_hastings_site_log_prob
+                                else:
+                                    value = distribution.sample()
+                                    log_prob = distribution.log_prob(value, sum=True)
+                            else:
+                                value = distribution.sample()
+                                log_prob = distribution.log_prob(value, sum=True)
+                            reused = False
+                        elif address not in _metropolis_hastings_trace.variables_dict_address:
+                            value = distribution.sample()
+                            log_prob = distribution.log_prob(value, sum=True)
+                            reused = False
+                        else:
+                            value = _metropolis_hastings_trace.variables_dict_address[address].value
+                            reused = True
+                            try:  # Takes care of issues such as changed distribution parameters (e.g., batch size) that prevent a rescoring of a reused value under this distribution.
+                                log_prob = distribution.log_prob(value, sum=True)
+                            except:
+                                value = distribution.sample()
+                                log_prob = distribution.log_prob(value, sum=True)
+                                reused = False
+
+            else:  # _trace_mode == TraceMode.PRIOR or _trace_mode == TraceMode.PRIOR_FOR_INFERENCE_NETWORK:
+                if _trace_mode == TraceMode.PRIOR_FOR_INFERENCE_NETWORK:
+                    address = address_base + '__' + ('replaced' if replace else str(instance))
                 inflated_distribution = _inflate(distribution)
                 if inflated_distribution is None:
                     value = distribution.sample()
@@ -233,134 +388,18 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
                     value = inflated_distribution.sample()
                     log_prob = distribution.log_prob(value, sum=True)
                     log_importance_weight = float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))  # To account for prior inflation
-            elif _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-                address = address_base + '__' + ('replaced' if replace else str(instance))  # Address seen by inference network
-                variable = Variable(distribution=distribution, value=None,
-                                    constants=constants,
-                                    address_base=address_base,
-                                    address=address, instance=instance,
-                                    log_prob=0., control=control,
-                                    replace=replace, name=name,
-                                    observed=observed, reused=reused)
-                proposal_distribution = _current_trace_inference_network._infer_step(variable,
-                                                                                     prev_variable=_current_trace_previous_variable,
-                                                                                     proposal_min_train_iterations=_current_trace_inference_network_proposal_min_train_iterations)
-                if replace and _importance_weighting == ImportanceWeighting.IW0: # use prior as proposal for all addresses with replace=True
-                    proposal_distribution = distribution
-                value = proposal_distribution.sample()
-                if distribution.name == "Normal":
-                    value = value.view(torch.Size([-1]) + distribution.loc_shape)
 
-                # removes the redundant batch dimension!
-                # maybe rethink this step
-                if value.dim() > 0:
-                    value = value.squeeze(0)
+            if _trace_mode == TraceMode.POSTERIOR and _importance_weighting == ImportanceWeighting.IW2:
+                # IW2 should take all the weights into account => no replaced variables
+                replace=False
 
-                log_prob = distribution.log_prob(value, sum=True)
-                proposal_log_prob = proposal_distribution.log_prob(value, sum=True)
-                if util.has_nan_or_inf(log_prob):
-                    print(colored('Warning: prior log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
-                    print(address)
-                    print('distribution', distribution)
-                    print('value', value)
-                    print('log_prob', log_prob)
-                if util.has_nan_or_inf(proposal_log_prob):
-                    print(colored('Warning: proposal log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
-                    print('distribution', proposal_distribution)
-                    print('value', value)
-                    print('log_prob', proposal_log_prob)
-                log_importance_weight = float(log_prob) - float(proposal_log_prob)
-                variable = Variable(distribution=distribution,
-                                    value=value, constants=constants,
-                                    address_base=address_base,
-                                    address=address, instance=instance,
-                                    log_prob=log_prob,
-                                    log_importance_weight=log_importance_weight,
-                                    control=control, replace=replace,
-                                    name=name, observed=observed,
-                                    reused=reused)
-                _current_trace_previous_variable = variable
-                # print('prev_var address {}'.format(variable.address))
-                address = address_base + '__' + str(instance)
-            else:  # _inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
-                address = address_base + '__' + str(instance)
-                log_importance_weight = None
-                if _metropolis_hastings_trace is None:
-                    value = distribution.sample()
-                    log_prob = distribution.log_prob(value, sum=True)
-                else:
-                    if address == _metropolis_hastings_site_address:
-                        global _metropolis_hastings_site_transition_log_prob
-                        _metropolis_hastings_site_transition_log_prob = util.to_tensor(0.)
-                        if _inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
-                            if isinstance(distribution, Normal):
-                                proposal_kernel_func = lambda x: Normal(x, distribution.stddev)
-                            elif isinstance(distribution, Uniform):
-                                proposal_kernel_func = lambda x: TruncatedNormal(x, 0.1*(distribution.high - distribution.low), low=distribution.low, high=distribution.high)
-                            else:
-                                proposal_kernel_func = None
-
-                            if proposal_kernel_func is not None:
-                                _metropolis_hastings_site_value = _metropolis_hastings_trace.variables_dict_address[address].value
-                                _metropolis_hastings_site_log_prob = _metropolis_hastings_trace.variables_dict_address[address].log_prob
-                                proposal_kernel_forward = proposal_kernel_func(_metropolis_hastings_site_value)
-                                alpha = 0.5
-                                if random.random() < alpha:
-                                    value = proposal_kernel_forward.sample()
-                                else:
-                                    value = distribution.sample()
-                                log_prob = distribution.log_prob(value, sum=True)
-                                proposal_kernel_reverse = proposal_kernel_func(value)
-
-                                _metropolis_hastings_site_transition_log_prob = torch.log(alpha * torch.exp(proposal_kernel_reverse.log_prob(_metropolis_hastings_site_value, sum=True)) + (1 - alpha) * torch.exp(_metropolis_hastings_site_log_prob)) + log_prob
-                                _metropolis_hastings_site_transition_log_prob -= torch.log(alpha * torch.exp(proposal_kernel_forward.log_prob(value, sum=True)) + (1 - alpha) * torch.exp(log_prob)) + _metropolis_hastings_site_log_prob
-                            else:
-                                value = distribution.sample()
-                                log_prob = distribution.log_prob(value, sum=True)
-                        else:
-                            value = distribution.sample()
-                            log_prob = distribution.log_prob(value, sum=True)
-                        reused = False
-                    elif address not in _metropolis_hastings_trace.variables_dict_address:
-                        value = distribution.sample()
-                        log_prob = distribution.log_prob(value, sum=True)
-                        reused = False
-                    else:
-                        value = _metropolis_hastings_trace.variables_dict_address[address].value
-                        reused = True
-                        try:  # Takes care of issues such as changed distribution parameters (e.g., batch size) that prevent a rescoring of a reused value under this distribution.
-                            log_prob = distribution.log_prob(value, sum=True)
-                        except:
-                            value = distribution.sample()
-                            log_prob = distribution.log_prob(value, sum=True)
-                            reused = False
-
-        else:  # _trace_mode == TraceMode.PRIOR or _trace_mode == TraceMode.PRIOR_FOR_INFERENCE_NETWORK:
-            if _trace_mode == TraceMode.PRIOR:
-                address = address_base + '__' + str(instance)
-            elif _trace_mode == TraceMode.PRIOR_FOR_INFERENCE_NETWORK:
-                address = address_base + '__' + ('replaced' if replace else str(instance))
-            inflated_distribution = _inflate(distribution)
-            if inflated_distribution is None:
-                value = distribution.sample()
-                log_prob = distribution.log_prob(value, sum=True)
-                log_importance_weight = None
-            else:
-                value = inflated_distribution.sample()
-                log_prob = distribution.log_prob(value, sum=True)
-                log_importance_weight = float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))  # To account for prior inflation
-
-        if _trace_mode == TraceMode.POSTERIOR and _importance_weighting == ImportanceWeighting.IW2:
-            # IW2 should take all the weights into account => no replaced variables
-            replace=False
-
-        variable = Variable(distribution=distribution, value=value,
-                            constants=constants, address_base=address_base,
-                            address=address, instance=instance,
-                            log_prob=log_prob,
-                            log_importance_weight=log_importance_weight,
-                            control=control, replace=replace, name=name,
-                            observed=observed, reused=reused)
+            variable = Variable(distribution=distribution, value=value,
+                                constants=constants, address_base=address_base,
+                                address=address, instance=instance,
+                                log_prob=log_prob,
+                                log_importance_weight=log_importance_weight,
+                                control=control, replace=replace, name=name,
+                                observed=observed, reused=reused)
 
     _current_trace.add(variable)
     return variable.value
@@ -378,7 +417,7 @@ def rs_start(control=True, name=None, address=None):
 
     # Compute the address and address_base
     if address is None:
-        address_base = _extract_address(_current_trace_root_function_name, name, append_rejection=False) + '__' + rejection_sampling_suffix
+        address_base = _extract_address(_current_trace_root_function_name, name) + '__' + rejection_sampling_suffix
         # Problematic for nested rejection sampling!
     else:
         address_base = address + '__' + rejection_sampling_suffix
@@ -397,6 +436,9 @@ def rs_start(control=True, name=None, address=None):
         iteration = util.to_tensor(0)
 
     address = address_base + '__' + str(instance)
+
+    if not _current_rs_partial_trace.done:
+        _current_rs_partial_trace.rs_checkpoint(address)
 
     entry = RSEntry(address=address, address_base=address_base, name=name, instance=instance, control=control, iteration=iteration)
 
@@ -430,6 +472,8 @@ def rs_start(control=True, name=None, address=None):
         _current_trace._rs_stack.updateTop(entry, previous_variable)
 
 def rs_end():
+    if _current_rs_partial_trace.rejection_address == _current_trace._rs_stack.top_entry.address:
+        raise RejectionEndException(_current_trace._rs_stack.top_entry)
     _current_trace._rs_stack.pop()
     # TODO: add a dummy variable or a tag to the trace?
 
@@ -492,16 +536,19 @@ def _init_traces(func, trace_mode=TraceMode.PRIOR,
             _metropolis_hastings_site_address = variable.address
 
 
-def _begin_trace():
+def _begin_trace(rs_partial_trace=RSPartialTrace()):
     global _current_trace
     global _current_trace_previous_variable
     global _current_trace_replaced_variable_proposal_distributions
     global _current_trace_execution_start
+    global _current_rs_partial_trace
 
     _current_trace_execution_start = time.time()
     _current_trace = Trace()
     _current_trace_previous_variable = None
     _current_trace_replaced_variable_proposal_distributions = {}
+
+    _current_rs_partial_trace = rs_partial_trace
 
 
 def _end_trace(result):
@@ -511,13 +558,6 @@ def _end_trace(result):
         raise Exception(f'Trace ended while active rejection samplings still exist')
 
     execution_time_sec = time.time() - _current_trace_execution_start
-
-    if _trace_mode == TraceMode.PRIOR_FOR_INFERENCE_NETWORK or\
-        (_trace_mode == TraceMode.POSTERIOR and _inference_engine in [InferenceEngine.IMPORTANCE_SAMPLING, InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK] and _importance_weighting in [ImportanceWeighting.IW1, ImportanceWeighting.IW0]):
-        # Rejected samples should be discarded
-        _current_trace.variables = list(filter(lambda v: v.accepted, _current_trace.variables))
-    else: #TODO: just for debugging
-        pass#raise Exception()
     _current_trace.end(result, execution_time_sec)
 
     return _current_trace

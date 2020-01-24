@@ -5,6 +5,7 @@ import os
 import math
 import random
 from termcolor import colored
+import numpy as np
 
 from .distributions import Empirical
 from . import util, state, TraceMode, PriorInflation, InferenceEngine, \
@@ -33,6 +34,41 @@ class Model():
     def forward(self):
         raise NotImplementedError()
 
+    def _estimate_z_inv(self, trace, rs_address, num_estimate_samples, *args, **kwargs):
+        if num_estimate_samples < 1:
+            return 1
+
+        rejection_length_list = []
+        for _ in range(num_estimate_samples):
+            try:
+                partial_trace = state.RSPartialTrace(trace, rs_address)
+                state._begin_trace(rs_partial_trace=partial_trace)
+                self.forward(*args, **kwargs)
+            except state.RejectionEndException as e:
+                rejection_length_list.append(e.length)
+        assert len(rejection_length_list) == num_estimate_samples, f'When estimating Z, all function calls should throw an exception ({len(rejection_length_list)} != {num_estimate_samples})'
+        return np.mean([x for x in rejection_length_list])
+
+    def _estimate_z(self, trace, rs_address, num_estimate_samples, *args, **kwargs):
+        if num_estimate_samples < 1:
+            return 1
+
+        total_samples = 0
+        accepted_samples = 0
+        while total_samples < num_estimate_samples:
+            try:
+                partial_trace = state.RSPartialTrace(trace, rs_address)
+                state._begin_trace(rs_partial_trace=partial_trace)
+                self.forward(*args, **kwargs)
+            except state.RejectionEndException as e:
+                if total_samples + e.length <= num_estimate_samples:
+                    total_samples += e.length
+                    accepted_samples += 1
+                else: # Before accepting in this rejection sampling run, we reach the required number of samples
+                    total_samples = num_estimate_samples
+        estimate = accepted_samples / total_samples
+        return estimate
+
     def _trace_generator(self, trace_mode=TraceMode.PRIOR,
                          prior_inflation=PriorInflation.DISABLED,
                          inference_engine=InferenceEngine.IMPORTANCE_SAMPLING,
@@ -40,18 +76,45 @@ class Model():
                          likelihood_importance=1.,
                          proposal=None, importance_weighting=ImportanceWeighting.IW2, num_z_estimate_samples=None, num_z_inv_estimate_samples=None,
                          *args, **kwargs):
-
-        state._init_traces(func=self.forward, trace_mode=trace_mode,
-                           prior_inflation=prior_inflation, inference_engine=inference_engine,
-                           inference_network=inference_network, observe=observe,
-                           metropolis_hastings_trace=metropolis_hastings_trace,
-                           address_dictionary=self._address_dictionary,
-                           likelihood_importance=likelihood_importance,
-                           importance_weighting=importance_weighting)
         while True:
+            state._init_traces(func=self.forward, trace_mode=trace_mode,
+                            prior_inflation=prior_inflation, inference_engine=inference_engine,
+                            inference_network=inference_network, observe=observe,
+                            metropolis_hastings_trace=metropolis_hastings_trace,
+                            address_dictionary=self._address_dictionary,
+                            likelihood_importance=likelihood_importance,
+                            importance_weighting=importance_weighting)
             state._begin_trace()
             result = self.forward(*args, **kwargs)
             trace = state._end_trace(result)
+
+            ## Fix trace weights
+            if trace_mode == TraceMode.POSTERIOR and importance_weighting == ImportanceWeighting.IW1 and (inference_engine==InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK or proposal is not None):
+                for rs_address, rs_entry in trace.rs_entries_dict_address.items():
+                    pass
+                    state._init_traces(trace_mode=trace_mode, func=self.forward, prior_inflation=prior_inflation,
+                                       inference_engine=inference_engine, inference_network=inference_network,
+                                       observe=observe, metropolis_hastings_trace=metropolis_hastings_trace,
+                                       address_dictionary=self._address_dictionary, likelihood_importance=likelihood_importance,
+                                       importance_weighting=importance_weighting)
+                    z_q_estimate = self._estimate_z(trace, rs_address, num_z_estimate_samples,
+                                                    *args, **kwargs)
+
+                    state._init_traces(trace_mode=TraceMode.PRIOR, func=self.forward, prior_inflation=prior_inflation,
+                                       inference_engine=inference_engine, inference_network=inference_network,
+                                       observe=observe, metropolis_hastings_trace=metropolis_hastings_trace,
+                                       address_dictionary=self._address_dictionary, likelihood_importance=likelihood_importance,
+                                       importance_weighting=importance_weighting)
+                    z_p_inv_estimate = self._estimate_z_inv(trace, rs_address, num_z_inv_estimate_samples,
+                                                            *args, **kwargs)
+
+                    rs_entry.log_importance_weight = float(np.log(z_q_estimate * z_p_inv_estimate))
+                    rs_entry.log_prob = float(np.log(z_p_inv_estimate))
+                    # trace.refresh_weights_and_dictionaries should be called here, but since it will be called after discarding rejected samples, we leave it for then.
+
+            if trace_mode == TraceMode.PRIOR_FOR_INFERENCE_NETWORK or\
+                (trace_mode == TraceMode.POSTERIOR and inference_engine in [InferenceEngine.IMPORTANCE_SAMPLING, InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK] and importance_weighting in [ImportanceWeighting.IW1, ImportanceWeighting.IW0]):
+                trace.discard_rejected()
             yield trace
 
     def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR,
