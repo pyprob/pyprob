@@ -28,14 +28,6 @@ from ..trace import Trace, Variable
 class Batch():
     def __init__(self, traces_and_hashes):
         self.traces_lists, hashes = zip(*traces_and_hashes)
-        cnt = 0
-        for trace in self.traces_lists:
-            for variable in trace:
-                if variable['accepted'] == False:
-                    cnt += 1
-        print()
-        print(cnt)
-
 
         sub_batches = {}
         total_length = 0
