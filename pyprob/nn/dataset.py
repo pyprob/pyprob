@@ -28,6 +28,14 @@ from ..trace import Trace, Variable
 class Batch():
     def __init__(self, traces_and_hashes):
         self.traces_lists, hashes = zip(*traces_and_hashes)
+        cnt = 0
+        for trace in self.traces_lists:
+            for variable in trace:
+                if variable['accepted'] == False:
+                    cnt += 1
+        print()
+        print(cnt)
+
 
         sub_batches = {}
         total_length = 0
@@ -172,21 +180,27 @@ class OnlineDataset(Dataset):
                                                               self._variables_observed_inf_training, to_list=False))
         return trace_attr_list, trace.hash()
 
-    def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, *args, **kwargs):
+    def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, for_inference=True, *args, **kwargs):
         num_files = math.ceil(num_traces / num_traces_per_file)
         util.progress_bar_init('Saving offline dataset, traces:{}, traces per file:{}, files:{}'.format(num_traces, num_traces_per_file, num_files), num_traces, 'Traces')
         i = 0
         str_type = h5py.special_dtype(vlen=str)
         while i < num_traces:
-            i += num_traces_per_file
             file_name = os.path.join(dataset_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
+            if for_inference:
+                file_name = f'{file_name}_pruned'
             dataset = []
             hashes = []
             with h5py.File(file_name+".hdf5", 'w') as f:
                 for j in range(num_traces_per_file):
-                    trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR,
+                    if for_inference:
+                        trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK,
                                                               prior_inflation=self._prior_inflation,
                                                               *args, **kwargs))
+                    else:
+                        trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR,
+                                                                prior_inflation=self._prior_inflation,
+                                                                *args, **kwargs))
                     trace_attr_list = []
                     for variable in trace.variables:
                         trace_attr_list.append(util.to_variable_dict_data(variable))
@@ -195,13 +209,14 @@ class OnlineDataset(Dataset):
                     trace_hash = trace.hash()
                     hashes.append(trace_hash)
                     dataset.append(ujson.dumps([trace_attr_list, trace_hash]).encode())
+                    util.progress_bar_update(i+j)
 
                 f.create_dataset('traces', (num_traces_per_file,), data=dataset,
                                  chunks=True, dtype=str_type)
 
                 f.attrs['num_traces'] = num_traces_per_file
                 f.attrs['hashes'] = hashes
-            util.progress_bar_update(i)
+            i += num_traces_per_file
         util.progress_bar_end()
 
     def get_example_trace(self):
