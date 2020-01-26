@@ -46,7 +46,7 @@ class Beta(Distribution):
         return self._low + (super().sample() * self._range)
 
     def log_prob(self, value, sum=False):
-        lp = super().log_prob((util.to_tensor(value) - self._low) / self._range, sum=False)
+        lp = super().log_prob((util.to_tensor(value) - self._low) / self._range, sum=False) - torch.log(self._range)
         return torch.sum(lp) if sum else lp
 
     @property
