@@ -43,7 +43,7 @@ class Variable():
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned variables in offline training datasets
-        return 'Variable(name:{}, control:{}, constants:{}, observed:{}, tagged:{}, replace:{}, reused:{}, address:{}, distribution_name:{}, value:{}: log_prob:{})'.format(
+        return 'Variable(name:{}, control:{}, constants:{}, observed:{}, tagged:{}, replace:{}, reused:{}, address:{}, distribution_name:{}, value:{}: log_prob:{}, log_importance_weight:{})'.format(
             self.name if hasattr(self, 'name') else 'Unknown',
             self.control if hasattr(self, 'control') else 'Unknown',
             self.constants if hasattr(self, 'constants') else 'Unknown',
@@ -54,7 +54,8 @@ class Variable():
             self.address if hasattr(self, 'address') else 'Unknown',
             str(self.distribution_name) if hasattr(self, 'distribution_name') else 'Unknown',
             str(self.value) if hasattr(self, 'value') else 'Unknown',
-            str(self.log_prob) if hasattr(self, 'log_prob') else 'Unknown')
+            str(self.log_prob) if hasattr(self, 'log_prob') else 'Unknown',
+            str(self.log_importance_weight) if hasattr(self, 'log_importance_weight') else 'Unknown')
 
     def to(self, device):
         if self.value is not None:
