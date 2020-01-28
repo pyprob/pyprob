@@ -192,7 +192,10 @@ class Trace():
             self.variables_dict_address[variable.address] = variable
             self.variables_dict_address_base[variable.address_base] = variable
 
-            # Compute weights
+            # Re-compute weights
+            self.log_prob_observed = 0.
+            self.log_prob = 0.
+            self.log_importance_weight = 0.
             if variable.observed or variable.control:
                 self.log_prob_observed += torch.sum(variable.log_prob)
                 self.log_prob += torch.sum(variable.log_prob)
