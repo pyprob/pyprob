@@ -125,7 +125,7 @@ class RSEntry:
         
 
     def __repr__(self):
-        return f'RSEntry(name:{name}, address:{address})'
+        return f'RSEntry(name:{self.name}, address:{self.address})'
 
 class Trace():
     def __init__(self, trace_hash=None):
@@ -183,6 +183,9 @@ class Trace():
         # Compute weights and re-construct dictionaries
         self.variables_dict_address = {}
         self.variables_dict_address_base = {}
+        self.log_prob_observed = 0.
+        self.log_prob = 0.
+        self.log_importance_weight = 0.
         for variable in self.variables:
             if variable.observed:
                 if variable.name:
@@ -193,9 +196,6 @@ class Trace():
             self.variables_dict_address_base[variable.address_base] = variable
 
             # Re-compute weights
-            self.log_prob_observed = 0.
-            self.log_prob = 0.
-            self.log_importance_weight = 0.
             if variable.observed or variable.control:
                 self.log_prob_observed += torch.sum(variable.log_prob)
                 self.log_prob += torch.sum(variable.log_prob)
