@@ -30,7 +30,7 @@ def erfcx(x):
     if (~I).any():
         I_less = (x < -26.7) & (~I)
         if I_less.any():
-            result[I_less] = torch.tensor(np.infty).to(device=x.device)
+            result[I_less] = torch.tensor(np.infty).double().to(device=x.device)
         I_less_n = (x >= -26.7) & (~I)
         if I_less_n.any():
             mask = (x < -6.1) & (I_less_n)
