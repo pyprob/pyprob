@@ -1,6 +1,6 @@
 import os
 import torch
-from ...distributions import Normal, Uniform, Categorical, Gamma, Beta, MultivariateNormal
+from ...distributions import Normal, Uniform, Categorical, Gamma, Beta, MultivariateNormal, Poisson
 
 
 class MyFile:
@@ -36,6 +36,8 @@ def construct_distribution(name, dist_args):
         return Normal(**dist_args)
     elif name == 'MultivariateNormal':
         return MultivariateNormal(**dist_args)
+    elif name == 'Poisson':
+        return Poisson(**dist_args)
     elif name == 'Uniform':
         return Uniform(**dist_args)
     elif name == 'Categorical':
