@@ -66,7 +66,10 @@ class Graph():
 
         # self.address_stats = diagnostics._address_stats(trace_dist, use_address_base=self.use_address_base)
 
-        self.trace_stats = diagnostics._trace_stats(trace_dist, use_address_base=self.use_address_base, reuse_ids_from_address_stats=self.address_stats, reuse_ids_from_trace_stats=self.trace_stats)
+        self.trace_stats = diagnostics._trace_stats(trace_dist,
+                                                    use_address_base=self.use_address_base,
+                                                    reuse_ids_from_address_stats=self.address_stats,
+                                                    reuse_ids_from_trace_stats=self.trace_stats)
         self.address_stats = self.trace_stats['address_stats']
         address_id_to_variable = self.address_stats['address_id_to_variable']
         traces = self.trace_stats['traces']

@@ -47,6 +47,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
         # normalizers
         self._normalizer_bias = nn.ParameterDict()
         self._normalizer_std = nn.ParameterDict()
+        self._n_keys_normalizers = 0
 
         self._tagged_addresses = []
         self._control_addresses = {}
@@ -71,6 +72,9 @@ class SurrogateNetworkLSTM(InferenceNetwork):
 
     def _polymorph(self, batch):
         layers_changed = False
+        if self._n_keys_normalizers < len(self._normalizer_bias.keys()) + len(self._normalizer_std.keys()):
+            self._n_keys_normalizers = len(self._normalizer_bias.keys()) + len(self._normalizer_std.keys())
+            layers_changed = True
 
         for meta_data, torch_data in batch.sub_batches:
             old_address = "__init"
@@ -274,13 +278,13 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     smp = torch_data[time_step-1]['values'].to(device=self._device)
 
                     if prev_address not in self._normalizer_bias:
-                        self._normalizer_bias[prev_address] = nn.Parameter(smp.mean(dim=0), requires_grad=False)
+                        self._normalizer_bias.update({prev_address: nn.Parameter(smp.mean(dim=0), requires_grad=False)})
                     if prev_address not in self._normalizer_std:
                         # TODO consider what happens if batchnorm is small - ie 1 !!
                         tmp_std = smp.std(dim=0)
                         mask = (tmp_std == 0) | torch.isnan(tmp_std)
                         tmp_std[mask] = 1
-                        self._normalizer_std[prev_address] = nn.Parameter(tmp_std, requires_grad=False)
+                        self._normalizer_std.update({prev_address: nn.Parameter(tmp_std, requires_grad=False)})
 
                     # TODO BE CAREFUL - THIS IS A SUB MINIBATCH. THE NORMALIZATION COULD CHANGE IMMENSELY ACROSS SUBMINIBATCH
                     # CONSIDER USING RUNNING MEANS, ETC...
@@ -330,6 +334,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     values = (values - self._normalizer_bias[address])/self._normalizer_std[address]
                     sample_embedding = self._layers_sample_embedding[address](values)
                     address_transition_input = torch.cat([proposal_input, sample_embedding], dim=1)
+
                     _ = address_transition_layer(address_transition_input)
                     surrogate_loss += torch.sum(address_transition_layer._loss(next_addresses))
 
@@ -386,7 +391,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                     state.tag(value, address=self._address_base[address])
 
                 prev_variable = Variable(distribution=surrogate_dist.dist_type,
-                                        address=address, value=value)
+                                         address=address, value=value.unsqueeze(0))
 
                 # normalize value for the address transitions
                 if address in self._normalizer_bias and address in self._normalizer_std:
@@ -440,6 +445,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
         if self._optimizer is None:
             data['surrogate_network']._optimizer_state = None
         else:
+        #    self._create_optimizer()
             data['surrogate_network']._optimizer_state = self._optimizer.state_dict()
         data['surrogate_network']._learning_rate_scheduler = None
         if self._learning_rate_scheduler is None:

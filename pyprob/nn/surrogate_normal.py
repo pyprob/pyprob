@@ -78,8 +78,7 @@ class SurrogateNormal(nn.Module):
                     raise ValueError('Cannot deconv to a scalar mean, or the mean has not be non-constant')
 
         self.dist_type = Normal(loc=torch.zeros(loc_shape), scale=torch.ones(scale_shape))
-        self._bias = None
-        self._std = None
+        self._bias = nn.ParameterDict()
 
     def forward(self, x, no_batch=False):
         batch_size = x.size(0)
@@ -111,7 +110,7 @@ class SurrogateNormal(nn.Module):
             if no_batch:
                 self._loc = self._loc.squeeze(0)
                 self._scale = self._scale.squeeze(0)
-            return Normal(self._loc + (self._bias if self._bias is not None else 0), self._scale)
+            return Normal(self._loc + (self._bias['bias'] if 'bias' in self._bias else 0), self._scale)
         else:
             if no_batch:
                 return Normal(self._loc_const.expand(*self._loc_shape),
@@ -121,11 +120,11 @@ class SurrogateNormal(nn.Module):
                               self._scale_const.expand(batch_size, *self._scale_shape))
 
     def _loss(self, values):
-        if self._bias is None and self._std is None:
-            self._bias = nn.Parameter(values.mean(dim=0), requires_grad=False)
+        if "bias" not in self._bias:
+            self._bias.update({'bias': nn.Parameter(values.mean(dim=0), requires_grad=False)})
 
         if self.do_train:
-            q_normal = Normal(self._loc + self._bias, self._scale)
+            q_normal = Normal(self._loc + self._bias['bias'], self._scale)
             return -q_normal.log_prob(values)
 
             #return Distribution.kl_divergence(p_normal, q_normal)

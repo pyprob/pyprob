@@ -1,4 +1,5 @@
 import torch
+from torch import nn
 import numpy as np
 import random
 from termcolor import colored
@@ -481,18 +482,19 @@ def from_variable_dict_data(list_of_variable_dict, variables_observed_inf_traini
             trace_list.append(var_args)
         return trace_list
 
-class RunningMoments():
+class RunningMoments(nn.Module):
     def __init__(self, initial_x=None):
+        super().__init__()
         self.seen = 0
-        self.mean = 0
-        self.std = 0
+        self.mean =  nn.Parameter(torch.Tensor([0]), requires_grad=False)
+        self.std = nn.Parameter(torch.Tensor([0]), requires_grad=False)
         if initial_x is not None:
             self.update(initial_x)
 
     def update(self, x):
         w = len(x) / (self.seen+len(x))
-        self.mean = self.mean*(1-w) + x.mean(dim=0)*w
-        self.std = self.std*(1-w) + w*((x-self.mean)**2).mean(dim=0)**0.5
+        self.mean = nn.Parameter(self.mean*(1-w) + x.mean(dim=0)*w, requires_grad=False)
+        self.std = nn.Parameter(self.std*(1-w) + w*((x-self.mean)**2).mean(dim=0)**0.5, requires_grad=False)
         self.seen = self.seen + len(x)
 
     def get(self):
