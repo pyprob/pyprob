@@ -371,6 +371,7 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 current_variable = Variable(distribution=surrogate_dist.dist_type,
                                             address=address,
                                             value=None)
+                # normalization happens in run_lstm_step
                 _, lstm_output = self.run_lstm_step(current_variable, prev_variable)
                 address_dist = self._layers_address_transitions[address]
                 lstm_output = lstm_output.squeeze(0) # remove sequence dim
@@ -384,14 +385,14 @@ class SurrogateNetworkLSTM(InferenceNetwork):
                 if address in self._tagged_addresses:
                     state.tag(value, address=self._address_base[address])
 
-                if address in self._normalizer_bias and address in self._normalizer_std:
-                    value = (value - self._normalizer_bias[address])/self._normalizer_std[address]
-                sample_embedding = self._layers_sample_embedding[address](value.unsqueeze(0)) # add batch again!
-
                 prev_variable = Variable(distribution=surrogate_dist.dist_type,
                                         address=address, value=value)
 
-                # squeeze sequence dim
+                # normalize value for the address transitions
+                if address in self._normalizer_bias and address in self._normalizer_std:
+                    tmp = (value - self._normalizer_bias[address])/self._normalizer_std[address]
+                sample_embedding = self._layers_sample_embedding[address](tmp.unsqueeze(0)) # add batch again!
+
                 address_transition_input = torch.cat([lstm_output, sample_embedding], dim=1)
                 a_dist = address_dist(address_transition_input)
                 if not self._address_path:
