@@ -343,9 +343,9 @@ def moments(lowerB, upperB, mu, sigma):
                     meanConst[mask] = -2*(1/(erfcx(-a[mask]) - torch.exp(a[mask]**2)*2)\
                                 - 1/(torch.exp(b[mask]**2-a[mask]**2)*erfcx(-a[mask]) - erfcx(-b[mask])))
                     varConst[mask] = -2*((lowerB[mask] + mu[mask])/(erfcx(-a[mask])\
-                                     - torch.exp(a[mask]**2)*2)\
-                                     - (upperB[mask] + mu[mask])/(torch.exp(b[mask]**2-a[mask]**2)*erfcx(-a[mask])\
-                                     - erfcx(-b[mask])))
+                                    - torch.exp(a[mask]**2)*2)\
+                                    - (upperB[mask] + mu[mask])/(torch.exp(b[mask]**2-a[mask]**2)*erfcx(-a[mask])\
+                                    - erfcx(-b[mask])))
 
             # the above four cases (diff signs x stable/unstable) can be
             # collapsed into two cases by tracking the sign of the maxab
