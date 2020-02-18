@@ -1,4 +1,7 @@
-# pyprob [![Build Status](https://travis-ci.org/pyprob/pyprob.svg?branch=master)](https://travis-ci.org/pyprob/pyprob)
+# pyprob 
+
+[![Build Status](https://travis-ci.org/pyprob/pyprob.svg?branch=master)](https://travis-ci.org/pyprob/pyprob)
+[![PyPI version](https://badge.fury.io/py/pyprob.svg)](https://badge.fury.io/py/pyprob)
 
 `pyprob` is a [PyTorch](http://pytorch.org/)-based library for [probabilistic
 programming](http://probabilistic-programming.org) and inference compilation.
