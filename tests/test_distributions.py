@@ -1066,10 +1066,10 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
 
     def test_dist_poisson(self):
-        dist_batch_shape_correct = torch.Size()
+        dist_batch_shape_correct = torch.Size([1])
         dist_event_shape_correct = torch.Size()
-        dist_sample_shape_correct = torch.Size()
-        dist_log_prob_shape_correct = torch.Size()
+        dist_sample_shape_correct = torch.Size([1])
+        dist_log_prob_shape_correct = torch.Size([1])
         dist_means_correct = 4
         dist_stddevs_correct = math.sqrt(4)
         dist_rates_correct = 4
