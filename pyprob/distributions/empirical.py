@@ -247,11 +247,13 @@ class Empirical(Distribution):
             self._file_last_key += 1
             v = self._h5py['values']
             v.resize((self._file_last_key+1,))
-            trace_attr_list = []
+            value_dict = {'trace_attr_list': []}
             if isinstance(value, Trace):
                 for variable in value.variables:
-                    trace_attr_list.append(util.to_variable_dict_data(variable))
-                v[self._file_last_key] = ujson.dumps(trace_attr_list).encode()
+                    value_dict['trace_attr_list'].append(util.to_variable_dict_data(variable))
+                result = value.result
+                value_dict['result'] = [util.to_tensor(result).tolist(), str(type(result))]
+                v[self._file_last_key] = ujson.dumps(value_dict).encode()
                 v.attrs['is_trace'] = True
             else:
                 if torch.is_tensor(value):
@@ -287,10 +289,12 @@ class Empirical(Distribution):
         return self
 
     def _value_from_hdf5(self, v_decoded):
-        variable_dict_list = util.from_variable_dict_data(v_decoded)
+        trace_attr_list, (result, result_type) = v_decoded['trace_attr_list'], v_decoded['result']
+        variable_dict_list = util.from_variable_dict_data(trace_attr_list)
         value = Trace()
         for variable_dict in variable_dict_list:
             value.add(Variable(**variable_dict))
+        value.result = util.to_tensor(result)
         return value
 
     def _get_value(self, index):
