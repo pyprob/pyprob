@@ -12,11 +12,11 @@ from pyprob.distributions import Normal, Categorical
 
 
 docker_client = docker.from_env()
-print('Pulling latest Docker image: probprog/pyprob_cpp')
-docker_client.images.pull('probprog/pyprob_cpp')
+print('Pulling latest Docker image: pyprob/pyprob_cpp')
+docker_client.images.pull('pyprob/pyprob_cpp')
 print('Docker image pulled.')
 
-docker_container = docker_client.containers.run('probprog/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_set_defaults_and_addresses ipc://@RemoteModelSetDefaultsAndAddresses', network='host', detach=True)
+docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/code/pyprob_cpp/build/pyprob_cpp/test_set_defaults_and_addresses ipc://@RemoteModelSetDefaultsAndAddresses', network='host', detach=True)
 SetDefaultsAndAddressesCPP = RemoteModel('ipc://@RemoteModelSetDefaultsAndAddresses')
 
 
@@ -30,7 +30,7 @@ class RemoteModelSetDefaultsAndAddressesTestCase(unittest.TestCase):
         prior_mean_correct = 1
         prior_stddev_correct = 3.882074  # Estimate from 100k samples
 
-        prior = self._model.prior_distribution(samples)
+        prior = self._model.joint_return(samples)
         prior_mean = float(prior.mean)
         prior_stddev = float(prior.stddev)
         util.eval_print('samples', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
