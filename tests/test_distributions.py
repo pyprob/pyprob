@@ -1255,7 +1255,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_highs_correct = 5
         dist_means_correct = 0.8
         dist_stddevs_correct = 1.4
-        dist_log_probs_correct = 0.546965
+        dist_log_probs_correct = 0.546965 - math.log(dist_highs_correct - dist_lows_correct)
 
         dist = Beta(dist_concentration1s_correct, dist_concentration0s_correct, low=dist_lows_correct, high=dist_highs_correct)
         dist_batch_shape = dist.batch_shape
@@ -1300,7 +1300,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_highs_correct = [5, 4]
         dist_means_correct = [0.8, 3.4]
         dist_stddevs_correct = [1.4, 0.2]
-        dist_log_probs_correct = [0.546965, 0.546965]
+        dist_log_probs_correct = [0.546965 - math.log(high - low) for low, high in zip(dist_lows_correct, dist_highs_correct)]
 
         dist = Beta(dist_concentration1s_correct, dist_concentration0s_correct, low=dist_lows_correct, high=dist_highs_correct)
         dist_batch_shape = dist.batch_shape
@@ -1345,7 +1345,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_highs_correct = [[5], [4]]
         dist_means_correct = [[0.8], [3.4]]
         dist_stddevs_correct = [[1.4], [0.2]]
-        dist_log_probs_correct = [[0.546965], [0.546965]]
+        dist_log_probs_correct = [[0.546965 - math.log(high[0] - low[0])] for low, high in zip(dist_lows_correct, dist_highs_correct)]
 
         dist = Beta(dist_concentration1s_correct, dist_concentration0s_correct, low=dist_lows_correct, high=dist_highs_correct)
         dist_batch_shape = dist.batch_shape
