@@ -87,7 +87,7 @@ class DatasetTestCase(unittest.TestCase):
         sorted_num_traces_per_file = len(sorted_dataset.datasets[0])
         sorted_num_files = len(sorted_dataset.datasets)
         sorted_num_traces = sorted_num_traces_per_file * sorted_num_files
-        sorted_hashes = [OfflineDataset._trace_hash(trace) for trace in sorted_dataset]
+        sorted_hashes = [trace_hash for _, trace_hash in sorted_dataset]
         sorted_indices = sorted_dataset._sorted_indices
         sorted_on_disk = util.is_sorted(sorted_indices)
         shutil.rmtree(sorted_dataset_dir)
@@ -122,7 +122,7 @@ class DatasetTestCase(unittest.TestCase):
         sorted_num_traces_per_file = len(sorted_dataset.datasets[0])
         sorted_num_files = len(sorted_dataset.datasets)
         sorted_num_traces = sorted_num_traces_per_file * sorted_num_files
-        sorted_hashes = [OfflineDataset._trace_hash(trace) for trace in sorted_dataset]
+        sorted_hashes = [trace_hash for _, trace_hash in sorted_dataset]
         sorted_indices = sorted_dataset._sorted_indices
         sorted_on_disk = util.is_sorted(sorted_indices)
         shutil.rmtree(sorted_dataset_dir)
