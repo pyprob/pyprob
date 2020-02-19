@@ -7,6 +7,9 @@ from .. import util
 class Poisson(Distribution):
     def __init__(self, rate):
         self._rate = util.to_tensor(rate)
+        if self._rate.dim() == 0:
+            self._rate = self._rate.unsqueeze(0)
+
         super().__init__(name='Poisson', address_suffix='Poisson', torch_dist=torch.distributions.Poisson(self._rate))
 
     def __repr__(self):
