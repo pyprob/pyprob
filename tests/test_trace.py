@@ -19,7 +19,7 @@ class TraceTestCase(unittest.TestCase):
                 val = pyprob.sample(uniform, control=False)
                 val = pyprob.sample(uniform, control=False)
                 val = pyprob.sample(uniform, control=False)
-                #pyprob.tag(value=val, name='val')
+                pyprob.tag(value=val, name='val')
                 pyprob.observe(uniform, 0.5)
                 pyprob.observe(uniform, 0.5)
                 pyprob.observe(uniform, 0.5)
@@ -35,10 +35,10 @@ class TraceTestCase(unittest.TestCase):
         observed_correct = 4
 
         trace = self._model._traces(1)[0]
-        controlled = len([v.address for v in trace.variables if v.control])
-        uncontrolled = len([v.address for v in trace.variables if not v.control and not v.observed])
+        controlled = len(trace.variables_controlled)
+        uncontrolled = len(trace.variables_uncontrolled)
         observed = len(trace.variables_observed)
-        tagged_val = 'val' in [v.address for v in trace.variables if v.name]
+        tagged_val = 'val' in trace.named_variables
 
         util.eval_print('controlled',
                         'controlled_correct',
@@ -51,122 +51,124 @@ class TraceTestCase(unittest.TestCase):
         self.assertEqual(controlled, controlled_correct)
         self.assertEqual(uncontrolled, uncontrolled_correct)
         self.assertEqual(observed, observed_correct)
-#        self.assertTrue(tagged_val)
+        self.assertTrue(tagged_val)
 
 
-# class RejectionSamplingTraceTestCase(unittest.TestCase):
-#     def __init__(self, *args, **kwargs):
-#         # http://www.robots.ox.ac.uk/~fwood/assets/pdf/Wood-AISTATS-2014.pdf
-#         class RejectionSampling(Model):
-#             def __init__(self):
-#                 super().__init__('RejectionSampling')
+class RejectionSamplingTraceTestCase(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        # http://www.robots.ox.ac.uk/~fwood/assets/pdf/Wood-AISTATS-2014.pdf
+        class RejectionSampling(Model):
+            def __init__(self):
+                super().__init__('RejectionSampling')
 
-#             def forward(self):
-#                 uniform = Uniform(-1, 1)
-#                 for i in range(2):
-#                     x = pyprob.sample(uniform, replace=True)
-#                     y = pyprob.sample(uniform, replace=True)
-#                     s = x*x + y*y
+            def forward(self):
+                uniform = Uniform(-1, 1)
+                for i in range(2):
+                    pyprob.rs_start()
+                    x = pyprob.sample(uniform)
+                    y = pyprob.sample(uniform)
+                    s = x*x + y*y
+                pyprob.rs_end()
 
-#                 likelihood = Normal(s, 0.1)
-#                 pyprob.observe(likelihood, name='obs0')
-#                 pyprob.observe(likelihood, name='obs1')
-#                 return s
+                likelihood = Normal(s, 0.1)
+                pyprob.observe(likelihood, name='obs0')
+                pyprob.observe(likelihood, name='obs1')
+                return s
 
-#         self._model = RejectionSampling()
-#         super().__init__(*args, **kwargs)
+        self._model = RejectionSampling()
+        super().__init__(*args, **kwargs)
 
-#     def test_prior(self):
-#         trace_addresses_controlled_correct = ['34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
-#         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
+    def test_prior(self):
+        trace_addresses_accepted_correct = ['38__forward__x__Uniform__2', '48__forward__y__Uniform__2']
+        trace_addresses_correct = ['38__forward__x__Uniform__1', '48__forward__y__Uniform__1', '38__forward__x__Uniform__2', '48__forward__y__Uniform__2', '100__forward__?__Normal__1', '114__forward__?__Normal__1']
 
-#         prior = self._model.model_traces(1, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
-#         trace = prior[0]
-#         trace_addresses_controlled = [v.address for v in trace.variables if v.control]
-#         trace_addresses = [v.address for v in trace.variables]
+        prior = self._model.joint(1, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
+        trace = prior[0]
+        trace_addresses_accepted = [v.address for v in trace.variables_controlled if v.accepted]
+        trace_addresses = [v.address for v in trace.variables]
 
-#         util.eval_print('trace', 'trace_addresses_controlled', 'trace_addresses')
+        util.eval_print('trace', 'trace_addresses_accepted', 'trace_addresses')
 
-#         #self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
-#         self.assertEqual(trace_addresses, trace_addresses_correct)
+        self.assertEqual(trace_addresses_accepted, trace_addresses_accepted_correct)
+        self.assertEqual(trace_addresses, trace_addresses_correct)
 
-#     def test_prior_for_inference_network(self):
-#         trace_addresses_controlled_correct = ['34__forward__x__Uniform__replaced', '48__forward__y__Uniform__replaced']
-#         trace_addresses_correct = ['34__forward__x__Uniform__replaced', '48__forward__y__Uniform__replaced', '34__forward__x__Uniform__replaced', '48__forward__y__Uniform__replaced', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
+    def test_prior_for_inference_network(self):
+        trace_addresses_accepted_correct = ['38__forward__x__Uniform__replaced', '48__forward__y__Uniform__replaced']
+        trace_addresses_correct = ['38__forward__x__Uniform__replaced', '48__forward__y__Uniform__replaced', '100__forward__?__Normal__1', '114__forward__?__Normal__1']
 
-#         trace = OnlineDataset(model=self._model).__getitem__(0)[0]
-#         trace_addresses_controlled = [v['address'] for v in trace if v['control']]
-#         trace_addresses= [v['address'] for v in trace]
+        trace = OnlineDataset(model=self._model).__getitem__(0)[0]
+        trace_addresses_accepted = [v['address'] for v in trace if v['control'] and v['accepted']]
+        trace_addresses= [v['address'] for v in trace]
 
-#         util.eval_print('trace', 'trace_addresses_controlled', 'trace_addresses')
+        util.eval_print('trace', 'trace_addresses_accepted', 'trace_addresses')
 
-#         #self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
-#         self.assertEqual(trace_addresses, trace_addresses_correct)
+        self.assertEqual(trace_addresses_accepted, trace_addresses_accepted_correct)
+        self.assertEqual(trace_addresses, trace_addresses_correct)
 
-#     def test_posterior_importance_sampling(self):
-#         trace_addresses_controlled_correct = ['34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
-#         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
-#         posterior = self._model.posterior_traces(1,
-#                                                  inference_engine=InferenceEngine.IMPORTANCE_SAMPLING,
-#                                                  observe={'obs0': 8,
-#                                                           'obs1': 9})
-#         trace = posterior[0]
-#         trace_addresses_controlled = [v.address for v in trace.variables if v.control]
-#         trace_addresses = [v.address for v in trace.variables]
+    def test_posterior_importance_sampling(self):
+        trace_addresses_accepted_correct = ['38__forward__x__Uniform__2', '48__forward__y__Uniform__2']
+        trace_addresses_correct = ['38__forward__x__Uniform__1', '48__forward__y__Uniform__1', '38__forward__x__Uniform__2', '48__forward__y__Uniform__2', '100__forward__?__Normal__1', '114__forward__?__Normal__1']
+        posterior = self._model.posterior(1,
+                                          inference_engine=InferenceEngine.IMPORTANCE_SAMPLING,
+                                          observe={'obs0': 8,
+                                                   'obs1': 9})
+        trace = posterior[0]
+        trace_addresses_accepted = [v.address for v in trace.variables if v.control and v.accepted]
+        trace_addresses = [v.address for v in trace.variables]
 
-#         util.eval_print('trace', 'trace_addresses_controlled', 'trace_addresses')
+        util.eval_print('trace', 'trace_addresses_accepted', 'trace_addresses')
 
-#         self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
-#         self.assertEqual(trace_addresses, trace_addresses_correct)
+        self.assertEqual(trace_addresses_accepted, trace_addresses_accepted_correct)
+        self.assertEqual(trace_addresses, trace_addresses_correct)
 
-#     def test_posterior_importance_sampling_with_inference_network(self):
-#         trace_addresses_controlled_correct = ['34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
-#         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
-#         self._model.learn_inference_network(num_traces=10, observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}})
-#         posterior = self._model.posterior_traces(1,
-#                                                  inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK,
-#                                                  observe={'obs0': 8, 'obs1': 9})
-#         trace = posterior[0]
-#         trace_addresses_controlled = [v.address for v in trace.variables if v.control]
-#         trace_addresses = [v.address for v in trace.variables]
+    def test_posterior_importance_sampling_with_inference_network(self):
+        trace_addresses_accepted_correct = ['38__forward__x__Uniform__2', '48__forward__y__Uniform__2']
+        trace_addresses_correct = ['38__forward__x__Uniform__1', '48__forward__y__Uniform__1', '38__forward__x__Uniform__2', '48__forward__y__Uniform__2', '100__forward__?__Normal__1', '114__forward__?__Normal__1']
+        self._model.learn_inference_network(num_traces=10, observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}})
+        posterior = self._model.posterior(1,
+                                          inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK,
+                                          observe={'obs0': 8, 'obs1': 9})
+        trace = posterior[0]
+        trace_addresses_accepted = [v.address for v in trace.variables if v.control and v.accepted]
+        trace_addresses = [v.address for v in trace.variables]
 
-#         util.eval_print('trace', 'trace_addresses_controlled', 'trace_addresses')
+        util.eval_print('trace', 'trace_addresses_accepted', 'trace_addresses')
 
-#         self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
-#         self.assertEqual(trace_addresses, trace_addresses_correct)
+        self.assertEqual(trace_addresses_accepted, trace_addresses_accepted_correct)
+        self.assertEqual(trace_addresses, trace_addresses_correct)
 
-#     def test_posterior_lightweight_metropolis_hastings(self):
-#         trace_addresses_controlled_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
-#         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
+    def test_posterior_lightweight_metropolis_hastings(self):
+        trace_addresses_controlled_correct = ['38__forward__x__Uniform__1', '48__forward__y__Uniform__1', '38__forward__x__Uniform__2', '48__forward__y__Uniform__2']
+        trace_addresses_correct = ['38__forward__x__Uniform__1', '48__forward__y__Uniform__1', '38__forward__x__Uniform__2', '48__forward__y__Uniform__2', '100__forward__?__Normal__1', '114__forward__?__Normal__1']
 
-#         posterior = self._model.posterior_traces(1,
-#                                                  inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS,
-#                                                  observe={'obs0': 8, 'obs1': 9})
-#         trace = posterior[0]
-#         trace_addresses_controlled = [v.address for v in trace.variables if v.control]
-#         trace_addresses = [v.address for v in trace.variables]
+        posterior = self._model.posterior(1,
+                                          inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS,
+                                          observe={'obs0': 8, 'obs1': 9})
+        trace = posterior[0]
+        trace_addresses_controlled = [v.address for v in trace.variables if v.control]
+        trace_addresses = [v.address for v in trace.variables]
 
-#         util.eval_print('trace', 'trace_addresses_controlled', 'trace_addresses')
+        util.eval_print('trace', 'trace_addresses_controlled', 'trace_addresses')
 
-#         self.assertEqual(trace_addresses_controlled,
-#                          trace_addresses_controlled_correct)
-#         self.assertEqual(trace_addresses, trace_addresses_correct)
+        self.assertEqual(trace_addresses_controlled,
+                         trace_addresses_controlled_correct)
+        self.assertEqual(trace_addresses, trace_addresses_correct)
 
-#     def test_posterior_random_walk_metropolis_hastings(self):
-#         trace_addresses_controlled_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
-#         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
+    def test_posterior_random_walk_metropolis_hastings(self):
+        trace_addresses_controlled_correct = ['38__forward__x__Uniform__1', '48__forward__y__Uniform__1', '38__forward__x__Uniform__2', '48__forward__y__Uniform__2']
+        trace_addresses_correct = ['38__forward__x__Uniform__1', '48__forward__y__Uniform__1', '38__forward__x__Uniform__2', '48__forward__y__Uniform__2', '100__forward__?__Normal__1', '114__forward__?__Normal__1']
 
-#         posterior = self._model.posterior_traces(1,
-#                                                  inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS,
-#                                                  observe={'obs0': 8, 'obs1': 9})
-#         trace = posterior[0]
-#         trace_addresses_controlled = [v.address for v in trace.variables if v.control]
-#         trace_addresses = [v.address for v in trace.variables]
+        posterior = self._model.posterior(1,
+                                          inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS,
+                                          observe={'obs0': 8, 'obs1': 9})
+        trace = posterior[0]
+        trace_addresses_controlled = [v.address for v in trace.variables if v.control]
+        trace_addresses = [v.address for v in trace.variables]
 
-#         util.eval_print('trace', 'trace_addresses_controlled', 'trace_addresses')
+        util.eval_print('trace', 'trace_addresses_controlled', 'trace_addresses')
 
-#         self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
-#         self.assertEqual(trace_addresses, trace_addresses_correct)
+        self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
+        self.assertEqual(trace_addresses, trace_addresses_correct)
 
 
 if __name__ == '__main__':

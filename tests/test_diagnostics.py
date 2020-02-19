@@ -43,7 +43,7 @@ class DiagnosticsTestCase(unittest.TestCase):
         trace_length_stddev_correct = 1.177796721458435  # Reference value from 100k runs
         trace_length_min_correct = 4
 
-        stats = pyprob.diagnostics._trace_stats(self._model.model_traces(num_traces=num_traces))
+        stats = pyprob.diagnostics._trace_stats(self._model.joint(num_traces=num_traces))
         trace_length_mean = stats['traces_extra']['trace_length_mean']
         trace_length_stddev = stats['traces_extra']['trace_length_stddev']
         trace_length_min = stats['traces_extra']['trace_length_min']
@@ -61,7 +61,7 @@ class DiagnosticsTestCase(unittest.TestCase):
         trace_length_stddev_correct = 1.1909255981445312  # Reference value from 100k runs
         trace_length_min_correct = 4
 
-        stats = pyprob.diagnostics._trace_stats(self._model.posterior_traces(num_traces=num_traces, observe={'obs0': 8, 'obs1': 9}))
+        stats = pyprob.diagnostics._trace_stats(self._model.posterior(num_traces=num_traces, observe={'obs0': 8, 'obs1': 9}))
         trace_length_mean = stats['traces_extra']['trace_length_mean']
         trace_length_stddev = stats['traces_extra']['trace_length_stddev']
         trace_length_min = stats['traces_extra']['trace_length_min']

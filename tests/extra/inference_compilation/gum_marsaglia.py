@@ -70,8 +70,8 @@ def produce_results(results_dir):
     model_replace_true_is_posterior_ess = []
     model_replace_false_is_posterior_ess = []
     for observe in observes:
-        model_replace_true_is_posterior = model_replace_true.posterior_distribution(infer_traces, observe=observe)
-        model_replace_false_is_posterior = model_replace_false.posterior_distribution(infer_traces, observe=observe)
+        model_replace_true_is_posterior = model_replace_true.posterior_return(infer_traces, observe=observe)
+        model_replace_false_is_posterior = model_replace_false.posterior_return(infer_traces, observe=observe)
         model_replace_true_is_posterior_ess.append(float(model_replace_true_is_posterior.effective_sample_size) / infer_traces)
         model_replace_false_is_posterior_ess.append(float(model_replace_false_is_posterior.effective_sample_size) / infer_traces)
 
@@ -86,8 +86,8 @@ def produce_results(results_dir):
         model_replace_true_loss.append(float(model_replace_true._inference_network._history_train_loss[-1]))
         model_replace_false_loss.append(float(model_replace_false._inference_network._history_train_loss[-1]))
         for i, observe in enumerate(observes):
-            model_replace_true_ic_posterior = model_replace_true.posterior_distribution(infer_traces, observe=observe, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK)
-            model_replace_false_ic_posterior = model_replace_false.posterior_distribution(infer_traces, observe=observe, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK)
+            model_replace_true_ic_posterior = model_replace_true.posterior_return(infer_traces, observe=observe, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK)
+            model_replace_false_ic_posterior = model_replace_false.posterior_return(infer_traces, observe=observe, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK)
             model_replace_true_ic_posterior_ess[i, j] = float(model_replace_true_ic_posterior.effective_sample_size) / infer_traces
             model_replace_false_ic_posterior_ess[i, j] = float(model_replace_false_ic_posterior.effective_sample_size) / infer_traces
 

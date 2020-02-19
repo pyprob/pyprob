@@ -10,7 +10,7 @@ from pyprob import util, Model, InferenceEngine
 from pyprob.distributions import Normal, Uniform, Empirical
 
 
-importance_sampling_samples = 100000
+importance_sampling_samples = 5000
 
 
 class ModelTestCase(unittest.TestCase):
@@ -35,8 +35,8 @@ class ModelTestCase(unittest.TestCase):
             def forward(self):
                 mu = self.marsaglia(self.prior_mean, self.prior_stddev)
                 likelihood = Normal(mu, self.likelihood_stddev)
-                pyprob.observe(likelihood, 0, name='obs0')
-                pyprob.observe(likelihood, 0, name='obs1')
+                pyprob.observe(likelihood, name='obs0')
+                pyprob.observe(likelihood, name='obs1')
                 return mu
 
         self._model = GaussianWithUnknownMeanMarsaglia()
@@ -47,7 +47,7 @@ class ModelTestCase(unittest.TestCase):
         prior_mean_correct = 1
         prior_stddev_correct = math.sqrt(5)
 
-        prior = self._model.model_traces(num_traces, map_func=lambda x: x.result)
+        prior = self._model.joint_return(num_traces)
         prior_mean = float(prior.mean)
         prior_stddev = float(prior.stddev)
         util.eval_print('num_traces', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct')
@@ -55,33 +55,32 @@ class ModelTestCase(unittest.TestCase):
         self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
         self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
 
-    # def test_model_prior_on_disk(self):
-    #     file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
-    #     num_traces = 1000
-    #     prior_mean_correct = 1
-    #     prior_stddev_correct = math.sqrt(5)
-    #     prior_length_correct = 2 * num_traces
+    def test_model_prior_on_disk(self):
+        file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        num_traces = 1000
+        prior_mean_correct = 1
+        prior_stddev_correct = math.sqrt(5)
+        prior_length_correct = 2 * num_traces
 
-    #     prior = self._model.model_traces(num_traces, file_name=file_name, map_func=lambda x: x.result)
-    #     prior.close()
-    #     prior = self._model.model_traces(num_traces, file_name=file_name, map_func=lambda x: x.result)
-    #     # prior.close()
-    #     prior_length = prior.length
-    #     prior_mean = float(prior.mean)
-    #     prior_stddev = float(prior.stddev)
-    #     util.eval_print('num_traces', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct', 'prior_length', 'prior_length_correct')
+        prior = self._model.joint_return(num_traces, file_name=file_name)
+        prior.close()
+        prior = self._model.joint_return(num_traces, file_name=file_name)
+        prior_length = prior.length
+        prior_mean = float(prior.mean)
+        prior_stddev = float(prior.stddev)
+        util.eval_print('num_traces', 'prior_mean', 'prior_mean_correct', 'prior_stddev', 'prior_stddev_correct', 'prior_length', 'prior_length_correct')
 
-    #     self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
-    #     self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
-    #     self.assertEqual(prior_length, prior_length_correct)
+        self.assertAlmostEqual(prior_mean, prior_mean_correct, places=0)
+        self.assertAlmostEqual(prior_stddev, prior_stddev_correct, places=0)
+        self.assertEqual(prior_length, prior_length_correct)
 
     def test_model_trace_length_statistics(self):
-        num_traces = 20000
+        num_traces = 2000
         trace_length_mean_correct = 2.5630438327789307
         trace_length_stddev_correct = 1.2081329822540283
         trace_length_min_correct = 2
 
-        trace_lengths = self._model.model_traces(num_traces, map_func=lambda trace: len([v for v in trace.variables if v.control]))
+        trace_lengths = self._model.joint(num_traces, map_func=lambda trace: trace.length_controlled)
         trace_length_dist = Empirical(trace_lengths)
         trace_length_mean = float(trace_length_dist.mean)
         trace_length_stddev = float(trace_length_dist.stddev)
@@ -96,7 +95,7 @@ class ModelTestCase(unittest.TestCase):
 
     def test_model_lmh_posterior_with_stop_and_resume(self):
         posterior_num_runs = 100
-        posterior_num_traces_each_run = 200
+        posterior_num_traces_each_run = 20
         posterior_num_traces_correct = posterior_num_traces_each_run * posterior_num_runs
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
@@ -107,9 +106,9 @@ class ModelTestCase(unittest.TestCase):
         posteriors = []
         initial_trace = None
         for i in range(posterior_num_runs):
-            posterior = self._model.posterior_traces(num_traces=posterior_num_traces_each_run,
-                                                     inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS,
-                                                     observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace)
+            posterior = self._model.posterior(num_traces=posterior_num_traces_each_run,
+                                              inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS,
+                                              observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace)
             initial_trace = posterior[-1]
             posteriors.append(posterior)
         posterior = Empirical(concat_empiricals=posteriors).map(lambda trace: trace.result)
@@ -129,7 +128,7 @@ class ModelTestCase(unittest.TestCase):
 
     def test_model_rmh_posterior_with_stop_and_resume(self):
         posterior_num_runs = 100
-        posterior_num_traces_each_run = 200
+        posterior_num_traces_each_run = 20
         posterior_num_traces_correct = posterior_num_traces_each_run * posterior_num_runs
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
@@ -140,9 +139,9 @@ class ModelTestCase(unittest.TestCase):
         posteriors = []
         initial_trace = None
         for i in range(posterior_num_runs):
-            posterior = self._model.posterior_traces(num_traces=posterior_num_traces_each_run,
-                                                     inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS,
-                                                     observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace)
+            posterior = self._model.posterior(num_traces=posterior_num_traces_each_run,
+                                              inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS,
+                                              observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace)
             initial_trace = posterior[-1]
             posteriors.append(posterior)
         posterior = Empirical(concat_empiricals=posteriors).map(lambda trace: trace.result)
@@ -162,24 +161,24 @@ class ModelTestCase(unittest.TestCase):
 
     def test_model_rmh_posterior_with_online_thinning(self):
         thinning_steps = 10
-        posterior_num_traces = 50000
-        posterior_with_thinning_num_traces_correct = 5000
+        posterior_num_traces = 2000
+        posterior_with_thinning_num_traces_correct = 200
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
 
-        posterior = self._model.posterior_traces(num_traces=posterior_num_traces,
+        posterior = self._model.posterior_return(num_traces=posterior_num_traces,
                                                  inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS,
-                                                 observe={'obs0': 8, 'obs1': 9}, map_func=lambda x: x.result)
+                                                 observe={'obs0': 8, 'obs1': 9})
         posterior_num_traces = posterior.length
         posterior_mean = float(posterior.mean)
         posterior_stddev = float(posterior.stddev)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
 
-        posterior_with_thinning = self._model.posterior_traces(num_traces=posterior_num_traces,
+        posterior_with_thinning = self._model.posterior_return(num_traces=posterior_num_traces,
                                                                inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS,
                                                                observe={'obs0': 8, 'obs1': 9},
-                                                               thinning_steps=thinning_steps, map_func=lambda x: x.result)
+                                                               thinning_steps=thinning_steps)
 
         posterior_with_thinning_num_traces = posterior_with_thinning.length
         posterior_with_thinning_mean = float(posterior_with_thinning.mean)
@@ -198,26 +197,25 @@ class ModelTestCase(unittest.TestCase):
 
     def test_model_lmh_posterior_with_online_thinning(self):
         thinning_steps = 10
-        posterior_num_traces = 50000
-        posterior_with_thinning_num_traces_correct = 5000
+        posterior_num_traces = 2000
+        posterior_with_thinning_num_traces_correct = 200
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
 
-        posterior = self._model.posterior_traces(num_traces=posterior_num_traces,
+        posterior = self._model.posterior_return(num_traces=posterior_num_traces,
                                                  inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS,
-                                                 observe={'obs0': 8, 'obs1': 9}, map_func=lambda x: x.result)
+                                                 observe={'obs0': 8, 'obs1': 9})
         posterior_num_traces = posterior.length
         posterior_mean = float(posterior.mean)
         posterior_stddev = float(posterior.stddev)
         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior,
                                                                               Normal(posterior.mean, posterior.stddev)))
 
-        posterior_with_thinning = self._model.posterior_traces(num_traces=posterior_num_traces,
+        posterior_with_thinning = self._model.posterior_return(num_traces=posterior_num_traces,
                                                                inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS,
                                                                observe={'obs0': 8, 'obs1': 9},
-                                                               thinning_steps=thinning_steps,
-                                                               map_func=lambda x: x.result)
+                                                               thinning_steps=thinning_steps)
         posterior_with_thinning_num_traces = posterior_with_thinning.length
         posterior_with_thinning_mean = float(posterior_with_thinning.mean)
         posterior_with_thinning_stddev = float(posterior_with_thinning.stddev)
@@ -248,10 +246,10 @@ class ModelTestCase(unittest.TestCase):
 
         initial_trace = None
         for i in range(posterior_num_runs):
-            posterior_traces = self._model.posterior_traces(num_traces=posterior_num_traces_each_run,
-                                                            inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS,
-                                                            observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace,
-                                                            file_name=file_name)
+            posterior_traces = self._model.posterior(num_traces=posterior_num_traces_each_run,
+                                                     inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS,
+                                                     observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace,
+                                                     file_name=file_name)
             initial_trace = posterior_traces[-1]
             posterior_traces.close()
         posterior = Empirical(file_name=file_name)
@@ -284,10 +282,10 @@ class ModelTestCase(unittest.TestCase):
 
         initial_trace = None
         for i in range(posterior_num_runs):
-            posterior_traces = self._model.posterior_traces(num_traces=posterior_num_traces_each_run,
-                                                            inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS,
-                                                            observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace,
-                                                            file_name=file_name)
+            posterior_traces = self._model.posterior(num_traces=posterior_num_traces_each_run,
+                                                     inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS,
+                                                     observe={'obs0': 8, 'obs1': 9}, initial_trace=initial_trace,
+                                                     file_name=file_name)
             initial_trace = posterior_traces[-1]
             posterior_traces.close()
         posterior = Empirical(file_name=file_name)
@@ -307,56 +305,57 @@ class ModelTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
 
-# class ModelWithReplacementTestCase(unittest.TestCase):
-#     def __init__(self, *args, **kwargs):
-#         # http://www.robots.ox.ac.uk/~fwood/assets/pdf/Wood-AISTATS-2014.pdf
-#         class GaussianWithUnknownMeanMarsagliaWithReplacement(Model):
-#             def __init__(self, prior_mean=1, prior_stddev=math.sqrt(5), likelihood_stddev=math.sqrt(2)):
-#                 self.prior_mean = prior_mean
-#                 self.prior_stddev = prior_stddev
-#                 self.likelihood_stddev = likelihood_stddev
-#                 super().__init__('Gaussian with unknown mean (Marsaglia)')
+class ModelWithReplacementTestCase(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        # http://www.robots.ox.ac.uk/~fwood/assets/pdf/Wood-AISTATS-2014.pdf
+        class GaussianWithUnknownMeanMarsagliaWithReplacement(Model):
+            def __init__(self, prior_mean=1, prior_stddev=math.sqrt(5), likelihood_stddev=math.sqrt(2)):
+                self.prior_mean = prior_mean
+                self.prior_stddev = prior_stddev
+                self.likelihood_stddev = likelihood_stddev
+                super().__init__('Gaussian with unknown mean (Marsaglia)')
 
-#             def marsaglia(self, mean, stddev):
-#                 uniform = Uniform(-1, 1)
-#                 s = 1
-#                 while float(s) >= 1:
-#                     x = pyprob.sample(uniform, replace=True)
-#                     y = pyprob.sample(uniform, replace=True)
-#                     s = x*x + y*y
-#                 return mean + stddev * (x * torch.sqrt(-2 * torch.log(s) / s))
+            def marsaglia(self, mean, stddev):
+                uniform = Uniform(-1, 1)
+                s = 1
+                while float(s) >= 1:
+                    pyprob.rs_start()
+                    x = pyprob.sample(uniform)
+                    y = pyprob.sample(uniform)
+                    s = x*x + y*y
+                pyprob.rs_end()
+                return mean + stddev * (x * torch.sqrt(-2 * torch.log(s) / s))
 
-#             def forward(self):
-#                 mu = self.marsaglia(self.prior_mean, self.prior_stddev)
-#                 likelihood = Normal(mu, self.likelihood_stddev)
-#                 pyprob.observe(likelihood, 0, name='obs0')
-#                 pyprob.observe(likelihood, 0, name='obs1')
-#                 return mu
+            def forward(self):
+                mu = self.marsaglia(self.prior_mean, self.prior_stddev)
+                likelihood = Normal(mu, self.likelihood_stddev)
+                pyprob.observe(likelihood, name='obs0')
+                pyprob.observe(likelihood, name='obs1')
+                return mu
 
-#         self._model = GaussianWithUnknownMeanMarsagliaWithReplacement()
-#         super().__init__(*args, **kwargs)
+        self._model = GaussianWithUnknownMeanMarsagliaWithReplacement()
+        super().__init__(*args, **kwargs)
 
-#     def test_model_with_replacement_trace_length_statistics(self):
-#         num_traces = 2000
-#         trace_length_mean_correct = 2
-#         trace_length_stddev_correct = 0
-#         trace_length_min_correct = 2
-#         trace_length_max_correct = 2
+    def test_model_with_replacement_trace_length_statistics(self):
+        num_traces = 2000
+        trace_length_mean_correct = 2
+        trace_length_stddev_correct = 0
+        trace_length_min_correct = 2
+        trace_length_max_correct = 2
 
-#         trace_lengths = self._model.model_traces(num_traces, map_func=lambda
-#                                                  trace: trace.length_controlled, map_func=lambda x: x.result)
-#         trace_length_dist = Empirical(trace_lengths)
-#         trace_length_mean = float(trace_length_dist.mean)
-#         trace_length_stddev = float(trace_length_dist.stddev)
-#         trace_length_min = float(trace_length_dist.min)
-#         trace_length_max = (trace_length_dist.max)
+        trace_lengths = self._model.joint(num_traces, map_func=lambda trace: trace.length_controlled_accepted)
+        trace_length_dist = Empirical(trace_lengths)
+        trace_length_mean = float(trace_length_dist.mean)
+        trace_length_stddev = float(trace_length_dist.stddev)
+        trace_length_min = float(trace_length_dist.min)
+        trace_length_max = (trace_length_dist.max)
 
-#         util.eval_print('num_traces', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max', 'trace_length_max_correct')
+        util.eval_print('num_traces', 'trace_length_mean', 'trace_length_mean_correct', 'trace_length_stddev', 'trace_length_stddev_correct', 'trace_length_min', 'trace_length_min_correct', 'trace_length_max', 'trace_length_max_correct')
 
-#         self.assertAlmostEqual(trace_length_mean, trace_length_mean_correct, places=0)
-#         self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)
-#         self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
-#         self.assertAlmostEqual(trace_length_max, trace_length_max_correct, places=0)
+        self.assertAlmostEqual(trace_length_mean, trace_length_mean_correct, places=0)
+        self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)
+        self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
+        self.assertAlmostEqual(trace_length_max, trace_length_max_correct, places=0)
 
 
 class ModelObservationStyle1TestCase(unittest.TestCase):
@@ -388,9 +387,9 @@ class ModelObservationStyle1TestCase(unittest.TestCase):
         prior_mean_correct = 1.
         prior_stddev_correct = math.sqrt(5)
 
-        posterior = self._model.posterior_traces(samples,
+        posterior = self._model.posterior_return(samples,
                                                  inference_engine=InferenceEngine.IMPORTANCE_SAMPLING,
-                                                 observe={'obs0': 8, 'obs1': 9}, map_func=lambda x: x.result)
+                                                 observe={'obs0': 8, 'obs1': 9})
 
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.unweighted().mean)
@@ -438,9 +437,9 @@ class ModelObservationStyle2TestCase(unittest.TestCase):
         prior_mean_correct = 1.
         prior_stddev_correct = math.sqrt(5)
 
-        posterior = self._model.posterior_traces(samples,
+        posterior = self._model.posterior_return(samples,
                                                  inference_engine=InferenceEngine.IMPORTANCE_SAMPLING,
-                                                 observe={'obs0': 8, 'obs1': 9}, map_func=lambda x: x.result)
+                                                 observe={'obs0': 8, 'obs1': 9})
 
         posterior_mean = float(posterior.mean)
         posterior_mean_unweighted = float(posterior.unweighted().mean)
