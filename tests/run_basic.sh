@@ -13,8 +13,8 @@ python test_distributions.py
 echo "Running model tests"
 python test_model.py
 
-echo "Running remote model tests"
-python test_model_remote.py
+# echo "Running remote model tests"
+# python test_model_remote.py
 
 echo "Running diagnostics tests"
 python test_diagnostics.py
