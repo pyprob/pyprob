@@ -34,7 +34,8 @@ after_success:
 - export CURRENT_BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH;
   else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
 - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, TRAVIS_TAG=$TRAVIS_TAG, CURRENT_BRANCH=$CURRENT_BRANCH"
-- if [[ [[ "$CURRENT_BRANCH" == "master" ]] || [[ -n "$TRAVIS_TAG" ]] ]] && [[-n "$DOCKER_PASSWORD" ]]; then
+- if [[ "$CURRENT_BRANCH" == "master" ]] || [[ -n "$TRAVIS_TAG" ]]; then
+    docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD;
     docker tag pyprob/pyprob pyprob/pyprob:latest;
     docker push pyprob/pyprob:latest;
     if [[ -n "$TRAVIS_TAG" ]]; then
