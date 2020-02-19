@@ -72,7 +72,7 @@ _current_rs_partial_trace = None
 
 
 # _extract_address and _extract_target_of_assignment code by Tobias Kohn (kohnt@tobiaskohn.ch)
-def _extract_address(root_function_name, user_specified_name):
+def _extract_address(root_function_name):
     # Retun an address in the format:
     # 'instruction pointer' __ 'qualified function name'
     frame = sys._getframe(2)
@@ -91,8 +91,7 @@ def _extract_address(root_function_name, user_specified_name):
         if n == root_function_name:
             break
         frame = frame.f_back
-    address_base_noname = '{}__{}'.format(ip, '__'.join(reversed(names)))
-    return '{}__{}'.format(address_base_noname, user_specified_name)
+    return '{}__{}'.format(ip, '__'.join(reversed(names)))
 
 
 def _extract_target_of_assignment():
@@ -141,7 +140,7 @@ def _inflate(distribution):
 def tag(value, name=None, address=None):
     global _current_trace
     if address is None:
-        address_base = _extract_address(_current_trace_root_function_name, name) + '__None'
+        address_base = _extract_address(_current_trace_root_function_name) + '__None'
     else:
         address_base = address + '__None'
     if _address_dictionary is not None:
@@ -167,7 +166,7 @@ def observe(distribution, value=None, constants={}, name=None, address=None):
     constants = util.constants_to_tensors(constants)
 
     if address is None:
-        address_base = _extract_address(_current_trace_root_function_name, name) + '__' + distribution._address_suffix
+        address_base = _extract_address(_current_trace_root_function_name) + '__' + distribution._address_suffix
     else:
         address_base = address + '__' + distribution._address_suffix
     if _address_dictionary is not None:
@@ -178,11 +177,14 @@ def observe(distribution, value=None, constants={}, name=None, address=None):
     if not _current_rs_partial_trace.done:
         variable = _current_rs_partial_trace.get_variable(address)
     else:
-        if name in _current_trace_observed_variables:
+        if value is not None and _trace_mode != TraceMode.PRIOR:
+            if name in _current_trace_observed_variables:
+                print(colored(f'WARNING @{name}:', 'red'), f'ignoring the custom-defined observed value for {name} because it is specified in the observe statement!')
+            value = util.to_tensor(value).reshape(distribution.sample().shape) # TODO: doesn't it break training?
+            # TODO: @Gunes can you check this?
+        elif name in _current_trace_observed_variables:
             # Override observed value
             value = _current_trace_observed_variables[name]
-        elif value is not None:
-            value = util.to_tensor(value) # TODO: doesn't it break training?
         elif distribution is not None:
             value = distribution.sample()
 
@@ -200,7 +202,7 @@ def observe(distribution, value=None, constants={}, name=None, address=None):
     return variable.value
 
 
-def sample(distribution, constants={}, control=True, replace=False, name=None,
+def sample(distribution, constants={}, control=True, name=None,
            address=None):
     global _current_trace
     global _current_trace_previous_variable
@@ -228,7 +230,7 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
         replace = False
 
     if address is None:
-        address_base = _extract_address(_current_trace_root_function_name, name) + '__' + distribution._address_suffix
+        address_base = _extract_address(_current_trace_root_function_name) + '__' + distribution._address_suffix
     else:
         address_base = address + '__' + distribution._address_suffix
     if _address_dictionary is not None:
@@ -282,7 +284,7 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
                                         address_base=address_base,
                                         address=address, instance=instance,
                                         log_prob=0., control=control,
-                                        replace=replace, name=name,
+                                        accepted=True, name=name,
                                         observed=observed, reused=reused)
                     proposal_distribution = _current_trace_inference_network._infer_step(variable,
                                                                                         prev_variable=_current_trace_previous_variable,
@@ -318,7 +320,7 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
                                         address=address, instance=instance,
                                         log_prob=log_prob,
                                         log_importance_weight=log_importance_weight,
-                                        control=control, replace=replace,
+                                        control=control, accepted=True,
                                         name=name, observed=observed,
                                         reused=reused)
                     _current_trace_previous_variable = variable
@@ -389,16 +391,12 @@ def sample(distribution, constants={}, control=True, replace=False, name=None,
                     log_prob = distribution.log_prob(value, sum=True)
                     log_importance_weight = float(log_prob) - float(inflated_distribution.log_prob(value, sum=True))  # To account for prior inflation
 
-            if _trace_mode == TraceMode.POSTERIOR and _importance_weighting == ImportanceWeighting.IW2:
-                # IW2 should take all the weights into account => no replaced variables
-                replace=False
-
             variable = Variable(distribution=distribution, value=value,
                                 constants=constants, address_base=address_base,
                                 address=address, instance=instance,
                                 log_prob=log_prob,
                                 log_importance_weight=log_importance_weight,
-                                control=control, replace=replace, name=name,
+                                control=control, accepted=True, name=name,
                                 observed=observed, reused=reused)
 
     _current_trace.add(variable)
@@ -417,7 +415,7 @@ def rs_start(control=True, name=None, address=None):
 
     # Compute the address and address_base
     if address is None:
-        address_base = _extract_address(_current_trace_root_function_name, name) + '__' + rejection_sampling_suffix
+        address_base = _extract_address(_current_trace_root_function_name) + '__' + rejection_sampling_suffix
         # Problematic for nested rejection sampling!
     else:
         address_base = address + '__' + rejection_sampling_suffix

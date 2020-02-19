@@ -90,7 +90,7 @@ class InferenceNetwork(nn.Module):
             raise ValueError('At least one observe embedding is needed to initialize inference network.')
         observe_embedding_total_dim = 0
         for name, value in observe_embeddings.items():
-            variable = example_trace.variables_observed[name]
+            variable = example_trace.named_variables[name]
             # distribution = variable.distribution
             # if distribution is None:
             #     raise ValueError('Observable {}: cannot use this observation as an input to the inference network, because there is no associated likelihood.'.format(name))

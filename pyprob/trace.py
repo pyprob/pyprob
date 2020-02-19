@@ -8,8 +8,7 @@ class Variable():
                  address=None, instance=None, log_prob=None,
                  log_importance_weight=None, control=False, constants={},
                  name=None, observed=False, reused=False, tagged=False,
-                 replace=False, distribution_name=None, distribution_args=None,
-                 accepted=True):
+                 accepted=True, distribution_name=None, distribution_args=None):
         if value is None:
             self.value = None
         else:
@@ -31,7 +30,6 @@ class Variable():
         self.reused = reused
         self.tagged = tagged
         self.constants = constants
-        self.replace = replace
         self.distribution = distribution
         if distribution:
             self.distribution_name = distribution.name
@@ -43,13 +41,13 @@ class Variable():
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned variables in offline training datasets
-        return 'Variable(name:{}, control:{}, constants:{}, observed:{}, tagged:{}, replace:{}, reused:{}, address:{}, distribution_name:{}, value:{}: log_prob:{}, log_importance_weight:{})'.format(
+        return 'Variable(name:{}, control:{}, constants:{}, observed:{}, tagged:{}, reused:{}, address:{}, distribution_name:{}, value:{}: log_prob:{}, log_importance_weight:{})'.format(
             self.name if hasattr(self, 'name') else 'Unknown',
             self.control if hasattr(self, 'control') else 'Unknown',
             self.constants if hasattr(self, 'constants') else 'Unknown',
+            self.observable if hasattr(self, 'observable') else 'Unknown',
             self.observed if hasattr(self, 'observed') else 'Unknown',
             self.tagged if hasattr(self, 'tagged') else 'Unknown',
-            self.replace if hasattr(self, 'replace') else 'Unknown',
             self.reused if hasattr(self, 'reused') else 'Unknown',
             self.address if hasattr(self, 'address') else 'Unknown',
             str(self.distribution_name) if hasattr(self, 'distribution_name') else 'Unknown',
@@ -62,11 +60,14 @@ class Variable():
             self.value.to(device=device)
 
     def __hash__(self):
-        # WHAT ABOUT HERE?
         return hash(self.address + str(self.value) + str(self.control) + str(self.observed) + str(self.tagged))
 
     def __eq__(self, other):
         return hash(self) == hash(other)
+
+    @property
+    def observable(self):
+        return ((not self.tagged) and (self.name is not None)) or self.observed
 
 
 class RejectionSamplingStack:
@@ -130,7 +131,6 @@ class RSEntry:
 class Trace():
     def __init__(self, trace_hash=None):
         self.variables = []
-        self.variables_observed = {}
         self.variables_dict_address = {}
         self.variables_dict_address_base = {}
         self.result = None
@@ -140,7 +140,6 @@ class Trace():
         self.length = 0
         self.execution_time_sec = None
         self.trace_hash = trace_hash
-        self.replaced_log_importance_weights = {} # Used for computing the weights
         self.rs_entries = []
         self.rs_entries_dict_address_base = {}
         self.rs_entries_dict_address = {}
@@ -148,9 +147,14 @@ class Trace():
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned traces in offline training datasets
-        return 'Trace(number of variables:{:,}, observed:{}, log_prob:{}, log_importance_weight:{})'.format(
+        return 'Trace(all:{:,}, controlled:{:,}, replaced:{}, observeable:{}, observed:{}, tagged:{}, uncontrolled:{}, log_prob:{}, log_importance_weight:{})'.format(
             self.length,
+            self.length_controlled,
+            '{:,}'.format(len(self.variables_replaced)) if hasattr(self, 'variables_replaced') else 'Unknown',
             '{:,}'.format(len(self.variables_observed)) if hasattr(self, 'variables_observed') else 'Unknown',
+            '{:,}'.format(len(self.variables_observable)) if hasattr(self, 'variables_observable') else 'Unknown',
+            '{:,}'.format(len(self.variables_tagged)) if hasattr(self, 'variables_tagged') else 'Unknown',
+            '{:,}'.format(len(self.variables_uncontrolled)) if hasattr(self, 'variables_uncontrolled') else 'Unknown',
             str(self.log_prob) if hasattr(self, 'log_prob') else 'Unknown',
             str(self.log_importance_weight) if hasattr(self, 'log_importance_weight') else 'Unknown')
 
@@ -158,10 +162,6 @@ class Trace():
         self.variables.append(variable)
         if variable.observed:
             self.log_prob_observed += torch.sum(variable.log_prob)
-            if variable.name:
-                self.variables_observed[variable.name] = variable
-            else:
-                self.variables_observed[variable.address] = variable
         self.variables_dict_address[variable.address] = variable
         self.variables_dict_address_base[variable.address_base] = variable
         if variable.observed or variable.control:
@@ -187,11 +187,6 @@ class Trace():
         self.log_prob = 0.
         self.log_importance_weight = 0.
         for variable in self.variables:
-            if variable.observed:
-                if variable.name:
-                    self.variables_observed[variable.name] = variable
-                else:
-                    self.variables_observed[variable.address] = variable
             self.variables_dict_address[variable.address] = variable
             self.variables_dict_address_base[variable.address_base] = variable
 
@@ -236,3 +231,43 @@ class Trace():
 
     def __eq__(self, other):
         return self.hash() == other.hash()
+
+    @property
+    def variables_observed(self):
+        return {variable.address if variable.name is None else variable.name: variable for variable in self.variables if variable.observed}
+
+    @property
+    def variables_controlled(self):
+        return [variable for variable in self.variables if variable.control]
+
+    @property
+    def variables_uncontrolled(self):
+        return [variable for variable in self.variables if (not variable.control) and (not variable.observed) and (not variable.tagged)]
+
+    @property
+    def variables_replaced(self):
+        return [variable for variable in self.variables if (not variable.accepted)]
+
+    @property
+    def variables_accepted(self):
+        return [variable for variable in self.variables if variable.accepted]
+
+    @property
+    def variables_observable(self):
+        return [variable for variable in self.variables if variable.observable]
+
+    @property
+    def variables_tagged(self):
+        return [variable for variable in self.variables if variable.tagged]
+
+    @property
+    def length_controlled(self):
+        return len(self.variables_controlled)
+
+    @property
+    def length_controlled_accepted(self):
+        return len([1 for v in self.variables_controlled if v.accepted])
+
+    @property
+    def named_variables(self):
+        return {variable.name: variable for variable in self.variables if variable.name is not None}

@@ -14,6 +14,7 @@ import operator
 import datetime
 import inspect
 import torch.multiprocessing
+from scipy.stats import wasserstein_distance as wd
 
 from .distributions import Categorical
 
@@ -71,7 +72,7 @@ class LearningRateScheduler(enum.Enum):
 
 
 class ImportanceWeighting(enum.Enum):
-    IW0 = 0  # use prior as proposal for all replace=True addresses
+    IW0 = 0  # use prior as proposal for all accepted=False addresses
     IW1 = 1  # Discard all the rejected samples
     IW2 = 2  # Do not discard anything
 
@@ -427,8 +428,8 @@ def to_variable_dict_data(variable, variables_observed_inf_training=[],
     """
     VARIABLE_ATTRIBUTES = ['value', 'address_base', 'address', 'instance', 'log_prob',
                            'log_importance_weight', 'control', 'name', 'observed',
-                           'tagged', 'constants', 'replace', 'reused', 'distribution_name',
-                           'distribution_args', 'accepted']
+                           'tagged', 'constants', 'accepted', 'reused', 'distribution_name',
+                           'distribution_args']
     var_dict = {}
     for attr in VARIABLE_ATTRIBUTES:
         if attr == 'value':
@@ -517,3 +518,12 @@ def constants_to_tensors(constants):
             except Exception as e:
                 raise ValueError("Values in constant for distribution {} cannot be made a tensor".format(distribution.name))
     return tmp
+
+def earthmover_distance_categorical(p1, p2):
+    if not isinstance(p1, Categorical) or not isinstance(p2, Categorical):
+        raise ValueError('Input distributions must be Categoricals')
+
+    probs1 = p1._probs
+    probs2 = p2._probs
+
+    return wd(range(len(probs1)), range(len(probs2)), probs1, probs2)

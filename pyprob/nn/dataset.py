@@ -8,6 +8,7 @@ import h5py
 import ujson
 import time
 import hashlib
+import bisect
 from glob import glob
 import numpy as np
 import uuid
@@ -61,7 +62,7 @@ class Batch():
             latent_time_steps = []
             addresses = []
             constants = []
-            replace = []
+            accepted = []
             reused = []
             tagged = []
 
@@ -81,7 +82,7 @@ class Batch():
                 addresses.append(var_args['address'])
                 controls.append(var_args['control'])
                 constants.append(var_args['constants'])
-                replace.append(var_args['replace'])
+                accepted.append(var_args['accepted'])
                 reused.append(var_args['reused'])
                 tagged.append(var_args['tagged'])
 
@@ -97,7 +98,7 @@ class Batch():
             meta_data['addresses'] = addresses
             meta_data['controls'] = controls
             meta_data['distribution_constants'] = constants
-            meta_data['replace'] = replace
+            meta_data['accepted'] = accepted
             meta_data['reused'] = reused
             meta_data['tagged'] = tagged
 
@@ -277,12 +278,78 @@ class OfflineDataset(ConcatDataset):
                     for h in dataset.hashes]
         self._hashes = hashes
         print(colored('Sorting'))
-        self._sorted_indices = np.argsort(hashes)
+        self._sorted_indices = np.argsort(hashes, kind='mergesort')
         print(colored('Finished sorting hashes'))
 
     def get_example_trace(self):
         return self.datasets[0].get_example_trace()
 
+    def save_sorted(self, sorted_dataset_dir, num_traces_per_file=None, num_files=None, begin_file_index=None, end_file_index=None):
+        if num_traces_per_file is not None:
+            if num_files is not None:
+                raise ValueError('Expecting either num_traces_per_file or num_files')
+        else:
+            if num_files is None:
+                raise ValueError('Expecting either num_traces_per_file or num_files')
+            else:
+                num_traces_per_file = math.ceil(len(self) / num_files)
+
+        if os.path.exists(sorted_dataset_dir):
+            if len(glob(os.path.join(sorted_dataset_dir, '*'))) > 0:
+                print(colored('Warning: target directory is not empty: {})'.format(sorted_dataset_dir), 'red', attrs=['bold']))
+        util.create_path(sorted_dataset_dir, directory=True)
+        file_indices = list(util.chunks(list(self._sorted_indices), num_traces_per_file))
+        num_traces = len(self)
+        num_files = len(file_indices)
+        num_files_digits = len(str(num_files))
+        file_name_template = 'pyprob_traces_sorted_{{:d}}_{{:0{}d}}'.format(num_files_digits)
+        file_names = list(map(lambda x: os.path.join(sorted_dataset_dir, file_name_template.format(num_traces_per_file, x)), range(num_files)))
+        if begin_file_index is None:
+            begin_file_index = 0
+        if end_file_index is None:
+            end_file_index = num_files
+        if begin_file_index < 0 or begin_file_index > end_file_index or end_file_index > num_files or end_file_index < begin_file_index:
+            raise ValueError('Invalid indexes begin_file_index:{} and end_file_index: {}'.format(begin_file_index, end_file_index))
+
+        print('Sorted offline dataset, traces: {}, traces per file: {}, files: {} (overall)'.format(num_traces, num_traces_per_file, num_files))
+        util.progress_bar_init('Saving sorted files with indices in range [{}, {}) ({} of {} files overall)'.format(begin_file_index, end_file_index, end_file_index - begin_file_index, num_files), end_file_index - begin_file_index + 1, 'Files')
+        j = 0
+        str_type = h5py.special_dtype(vlen=str)
+        for i in range(begin_file_index, end_file_index):
+            j += 1
+            file_name = file_names[i]
+            print(file_name)
+
+            with h5py.File(file_name+".hdf5", 'w') as f:
+                dataset = []
+                hashes = []
+                for old_i in file_indices[i]:
+                    trace_attr_list, trace_hash = self._get_hdf5_item(old_i)
+                    dataset.append(ujson.dumps([trace_attr_list, trace_hash]).encode())
+                    hashes.append(trace_hash)
+                f.create_dataset('traces', (num_traces_per_file,), data=dataset,
+                                chunks=True, dtype=str_type)
+                f.attrs['num_traces'] = len(dataset)
+                f.attrs['hashes'] = hashes
+
+                util.progress_bar_update(j)
+        util.progress_bar_end()
+
+    def _get_hdf5_item(self, idx):
+        if idx < 0:
+            if -idx > len(self):
+                raise ValueError("absolute value of index should not exceed dataset length")
+            idx = len(self) + idx
+        dataset_idx = bisect.bisect_right(self.cumulative_sizes, idx)
+        if dataset_idx == 0:
+            sample_idx = idx
+        else:
+            sample_idx = idx - self.cumulative_sizes[dataset_idx - 1]
+
+        dataset = self.datasets[dataset_idx]
+        with h5py.File(dataset._file_name, 'r') as f:
+            trace_attr_list, trace_hash = ujson.loads(f['traces'][sample_idx])
+        return trace_attr_list, trace_hash
 
 class TraceSampler(Sampler):
     def __init__(self, offline_dataset):

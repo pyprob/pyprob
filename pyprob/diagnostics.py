@@ -61,8 +61,8 @@ def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_sta
     addresses_extra['num_distribution_elements'] = len(trace_dist)
     addresses_extra['addresses'] = len(addresses)
     addresses_extra['addresses_controlled'] = len([1 for value in list(addresses.values()) if value['variable'].control])
-    addresses_extra['addresses_replaced'] = len([1 for value in list(addresses.values()) if value['variable'].replace])
-    #addresses_extra['addresses_observable'] = len([1 for value in list(addresses.values()) if value['variable'].observable])
+    addresses_extra['addresses_replaced'] = len([1 for value in list(addresses.values()) if not value['variable'].accepted])
+    addresses_extra['addresses_observable'] = len([1 for value in list(addresses.values()) if value['variable'].observable])
     addresses_extra['addresses_observed'] = len([1 for value in list(addresses.values()) if value['variable'].observed])
     addresses_extra['addresses_tagged'] = len([1 for value in list(addresses.values()) if value['variable'].tagged])
     return {'addresses': addresses, 'addresses_extra': addresses_extra, 'address_base_ids': address_base_ids, 'address_ids': address_ids, 'address_id_to_variable': address_id_to_variable}
@@ -105,28 +105,25 @@ def _trace_stats(trace_dist, use_address_base=True,
     for _, value in traces.items():
         trace_weights.append(value['count'])
     trace_id_dist = Empirical(unique_trace_ids, weights=unique_trace_ids, name='Unique trace ID')
-#    trace_length_dist = trace_dist.map(lambda trace: trace.length).unweighted().rename('Trace length (all)')
-    trace_length_controlled_dist = trace_dist.map(lambda trace: len([v for v in trace.variables if v.control])).unweighted().rename('Trace length (controlled)')
-#    trace_execution_time_dist = trace_dist.map(lambda trace: trace.execution_time_sec).unweighted().rename('Trace execution time (s)')
+    trace_length_dist = trace_dist.map(lambda trace: trace.length).unweighted().rename('Trace length (all)')
+    trace_length_controlled_dist = trace_dist.map(lambda trace: trace.length_controlled).unweighted().rename('Trace length (controlled)')
+    trace_execution_time_dist = trace_dist.map(lambda trace: trace.execution_time_sec).unweighted().rename('Trace execution time (s)')
     traces_extra = OrderedDict()
     traces_extra['trace_types'] = len(traces)
-#    traces_extra['trace_length_min'] = float(trace_length_dist.min)
-#    traces_extra['trace_length_max'] = float(trace_length_dist.max)
-#    traces_extra['trace_length_mean'] = float(trace_length_dist.mean)
-#    traces_extra['trace_length_stddev'] = float(trace_length_dist.stddev)
-#    traces_extra['trace_length_controlled_min'] = float(trace_length_controlled_dist.min)
-#    traces_extra['trace_length_controlled_max'] = float(trace_length_controlled_dist.max)
-#    traces_extra['trace_length_controlled_mean'] = float(trace_length_controlled_dist.mean)
-#    traces_extra['trace_length_controlled_stddev'] = float(trace_length_controlled_dist.stddev)
-#    traces_extra['trace_execution_time_min'] = float(trace_execution_time_dist.min)
-#    traces_extra['trace_execution_time_max'] = float(trace_execution_time_dist.max)
-#    traces_extra['trace_execution_time_mean'] = float(trace_execution_time_dist.mean)
-#    traces_extra['trace_execution_time_stddev'] = float(trace_execution_time_dist.stddev)
+    traces_extra['trace_length_min'] = float(trace_length_dist.min)
+    traces_extra['trace_length_max'] = float(trace_length_dist.max)
+    traces_extra['trace_length_mean'] = float(trace_length_dist.mean)
+    traces_extra['trace_length_stddev'] = float(trace_length_dist.stddev)
+    traces_extra['trace_length_controlled_min'] = float(trace_length_controlled_dist.min)
+    traces_extra['trace_length_controlled_max'] = float(trace_length_controlled_dist.max)
+    traces_extra['trace_length_controlled_mean'] = float(trace_length_controlled_dist.mean)
+    traces_extra['trace_length_controlled_stddev'] = float(trace_length_controlled_dist.stddev)
+    traces_extra['trace_execution_time_min'] = float(trace_execution_time_dist.min)
+    traces_extra['trace_execution_time_max'] = float(trace_execution_time_dist.max)
+    traces_extra['trace_execution_time_mean'] = float(trace_execution_time_dist.mean)
+    traces_extra['trace_execution_time_stddev'] = float(trace_execution_time_dist.stddev)
+    return {'traces': traces, 'traces_extra': traces_extra, 'trace_ids': trace_ids, 'address_stats': address_stats, 'trace_id_dist': trace_id_dist, 'trace_length_dist': trace_length_dist, 'trace_length_controlled_dist': trace_length_controlled_dist, 'trace_execution_time_dist': trace_execution_time_dist, 'address_id_dist': address_id_dist}
 
-    #return {'traces': traces, 'traces_extra': traces_extra, 'trace_ids': trace_ids, 'address_stats': address_stats, 'trace_id_dist': trace_id_dist, 'trace_length_dist': trace_length_dist, 'trace_length_controlled_dist': trace_length_controlled_dist, 'trace_execution_time_dist': trace_execution_time_dist, 'address_id_dist': address_id_dist}
-    return {'traces': traces, 'traces_extra': traces_extra, 'trace_ids':
-            trace_ids, 'address_stats': address_stats, 'trace_id_dist': trace_id_dist,
-            'address_id_dist': address_id_dist}
 
 def trace_histograms(trace_dist, use_address_base=True, figsize=(10, 5), bins=30, plot=False, plot_show=True, file_name=None):
     trace_stats = _trace_stats(trace_dist, use_address_base=use_address_base)
@@ -300,10 +297,10 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
             addresses_file_name = file_name + '.csv'
             print('Saving addresses to file: {}'.format(addresses_file_name))
             with open(addresses_file_name, 'w') as file:
-                file.write('address_id, count, name, controlled, replaced, observable, observed, {}\n'.format('address_base' if use_address_base else 'address'))
+                file.write('address_id, count, name, controlled, rejected, observable, observed, {}\n'.format('address_base' if use_address_base else 'address'))
                 for key, value in address_stats_combined.items():
                     name = '' if value['variable'].name is None else value['variable'].name
-                    file.write('{}, {}, {}, {}, {}, {}, {}, {}\n'.format(value['address_id'], value['count'], name, value['variable'].control, value['variable'].replace, value['variable'].observable, value['variable'].observed, key))
+                    file.write('{}, {}, {}, {}, {}, {}, {}, {}\n'.format(value['address_id'], value['count'], name, value['variable'].control, not value['variable'].accepted, value['variable'].observable, value['variable'].observed, key))
         if plot_show:
             plt.show()
 
