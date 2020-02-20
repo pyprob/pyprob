@@ -27,7 +27,7 @@ importance_sampling_with_inference_network_ff_prior_inflation = PriorInflation.E
 importance_sampling_with_inference_network_lstm_samples = 5000
 importance_sampling_with_inference_network_lstm_kl_divergence = 0
 importance_sampling_with_inference_network_lstm_duration = 0
-importance_sampling_with_inference_network_lstm_training_traces = 50000
+importance_sampling_with_inference_network_lstm_training_traces = 100000
 importance_sampling_with_inference_network_lstm_prior_inflation = PriorInflation.ENABLED
 
 lightweight_metropolis_hastings_samples = 5000
@@ -365,7 +365,7 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
         posterior_effective_sample_size_min = samples * 0.02
 
         self._model.reset_inference_network()
-        self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_ff_training_traces,
+        self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_lstm_training_traces,
                                             observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}},
                                             prior_inflation=importance_sampling_with_inference_network_lstm_prior_inflation,
                                             inference_network=InferenceNetwork.LSTM)
