@@ -119,6 +119,7 @@ class Graph():
 
         if normalize_weights:
             self.normalize_weights()
+        self.address_stats['edge_stats'] = edges
 
     def add_node(self, node):
         self.nodes.append(node)
