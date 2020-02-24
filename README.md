@@ -336,8 +336,8 @@ If you use `pyprob` and/or would like to cite our paper, please use the followin
 ## Authors
 
 `pyprob` has been developed by [Atılım Güneş
-Baydin](http://www.robots.ox.ac.uk/~gunes/) and [Tuan Anh
-Le](http://www.tuananhle.co.uk/) within the Programming Languages and AI group
+Baydin](http://www.robots.ox.ac.uk/~gunes/), [Tuan Anh
+Le](http://www.tuananhle.co.uk/), [Andreas Munk](https://ammunk.com), and [Saeid Naderiparizi](https://www.cs.ubc.ca/~saeidnp/) within the Programming Languages and AI group
 led by [Frank Wood](http://www.cs.ubc.ca/~fwood/index.html) at the University of
 Oxford and University of British Columbia.
 
