@@ -312,7 +312,8 @@ def empirical_to_categorical(empirical_dist, max_val=None):
 def check_gnu_dbm():
     try:
         import dbm.gnu
-    except (ModuleNotFoundError, ImportError):
+    except (ModuleNotFoundError, ImportError) as e:
+        print('Cannot import dbm.gnu:', e)
         return False
     return True
 
