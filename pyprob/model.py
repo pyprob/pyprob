@@ -57,7 +57,10 @@ class Model():
                 log_weight = 1.
             else:
                 log_weight = trace.log_importance_weight
-            traces.add(map_func(trace), log_weight)
+            if util.has_nan_or_inf(log_weight):
+                print(colored('Warning: encountered trace with nan, inf, or -inf log_weight, discarding trace', 'red', attrs=['bold']))
+            else:
+                traces.add(map_func(trace), log_weight)
         if (util._verbosity > 1) and not silent:
             print()
         traces.finalize()

@@ -229,7 +229,7 @@ def has_nan_or_inf(value):
         return isnan or isinf
     else:
         value = float(value)
-        return (value == float('inf')) or (value == float('-inf')) or (value == float('NaN'))
+        return math.isnan(value) or math.isinf(value)
 
 
 def safe_log(value):
