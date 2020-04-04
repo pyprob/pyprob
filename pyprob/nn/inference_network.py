@@ -562,7 +562,7 @@ class InferenceNetwork(nn.Module):
                         # stop = True
 
                     if self._learning_rate_scheduler is not None:
-                        self._learning_rate_scheduler.step(self._total_train_traces)
+                        self._learning_rate_scheduler.step(self._total_train_traces)  # Gives a DeprecationWarning with PyTorch 1.4.0
                     learning_rate_current = self._optimizer.param_groups[0]['lr']
                     learning_rate_current_str = '{:+.2e}'.format(learning_rate_current)
 

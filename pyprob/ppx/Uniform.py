@@ -3,6 +3,8 @@
 # namespace: ppx
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class Uniform(object):
     __slots__ = ['_tab']
@@ -14,6 +16,10 @@ class Uniform(object):
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def UniformBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
+        return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
+
     # Uniform
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
@@ -23,7 +29,7 @@ class Uniform(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from .Tensor import Tensor
+            from ppx.Tensor import Tensor
             obj = Tensor()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -34,7 +40,7 @@ class Uniform(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from .Tensor import Tensor
+            from ppx.Tensor import Tensor
             obj = Tensor()
             obj.Init(self._tab.Bytes, x)
             return obj

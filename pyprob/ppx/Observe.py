@@ -3,6 +3,8 @@
 # namespace: ppx
 
 import flatbuffers
+from flatbuffers.compat import import_numpy
+np = import_numpy()
 
 class Observe(object):
     __slots__ = ['_tab']
@@ -13,6 +15,10 @@ class Observe(object):
         x = Observe()
         x.Init(buf, n + offset)
         return x
+
+    @classmethod
+    def ObserveBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
+        return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
 
     # Observe
     def Init(self, buf, pos):
@@ -54,7 +60,7 @@ class Observe(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from .Tensor import Tensor
+            from ppx.Tensor import Tensor
             obj = Tensor()
             obj.Init(self._tab.Bytes, x)
             return obj
