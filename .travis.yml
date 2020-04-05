@@ -41,7 +41,7 @@ after_success:
     docker tag pyprob/pyprob pyprob/pyprob:latest;
     docker push pyprob/pyprob:latest;
     mkdir shared;
-    docker run --rm -it -v $PWD/shared:/shared pyprob/pyprob bash -c "mv pyprob/tests/.coverage /shared";
+    docker run --rm -it -v $PWD/shared:/shared pyprob/pyprob bash -c "mv pyprob/coverage.xml /shared";
     bash <(curl -s https://codecov.io/bash);
     if [[ -n "$TRAVIS_TAG" ]]; then
       docker tag pyprob/pyprob pyprob/pyprob:$TRAVIS_TAG;
