@@ -1,4 +1,8 @@
-# PyProb
+<div align="center">
+  <a href=""> <img height="120px" src="docs/source/_static/img/pyprob-logo-large.png"></a>
+</div>
+
+-----------------------------------------
 
 [![Build Status](https://travis-ci.org/pyprob/pyprob.svg?branch=master)](https://travis-ci.org/pyprob/pyprob)
 [![PyPI version](https://badge.fury.io/py/pyprob.svg)](https://badge.fury.io/py/pyprob)
@@ -46,7 +50,7 @@ cd pyprob
 pip install .
 ```
 
-### Install using `pip`
+### Install the latest package
 To use the latest version available in [Python Package
 Index](https://pypi.org/project/pyprob/), run:
 
