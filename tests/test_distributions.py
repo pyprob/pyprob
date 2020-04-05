@@ -11,7 +11,7 @@ from pyprob import util
 from pyprob.distributions import Empirical, Normal, Categorical, Uniform, Poisson, Beta, Mixture, TruncatedNormal
 
 
-empirical_samples = 20000
+empirical_samples = 25000
 
 
 class DistributionsTestCase(unittest.TestCase):
@@ -1293,7 +1293,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_lows, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_lows_empirical, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
-        self.assertTrue(np.allclose(dist_highs_empirical, dist_highs_correct, atol=0.25))
+        self.assertTrue(np.allclose(dist_highs_empirical, dist_highs_correct, atol=0.33))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
 
     def test_distributions_beta_low_high_batched_2(self):
@@ -1338,7 +1338,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_lows, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_lows_empirical, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
-        self.assertTrue(np.allclose(dist_highs_empirical, dist_highs_correct, atol=0.25))
+        self.assertTrue(np.allclose(dist_highs_empirical, dist_highs_correct, atol=0.33))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
 
     def test_distributions_beta_low_high_batched_2_1(self):
