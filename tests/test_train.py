@@ -40,7 +40,7 @@ class ModelTestCase(unittest.TestCase):
         self._model = GaussianWithUnknownMeanMarsaglia()
         super().__init__(*args, **kwargs)
 
-    def test_model_train_save_load_train(self):
+    def test_train_save_load_train(self):
         training_traces = 128
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
 
@@ -84,8 +84,7 @@ class ModelTestCase(unittest.TestCase):
 
         self.assertTrue(True)
 
-
-    def test_model_train_lr_scheduler_poly1(self):
+    def test_train_lr_scheduler_poly1(self):
         num_traces = 256
 
         self._model.reset_inference_network()
@@ -95,7 +94,7 @@ class ModelTestCase(unittest.TestCase):
 
         self.assertTrue(True)
 
-    def test_model_train_lr_scheduler_poly2(self):
+    def test_train_lr_scheduler_poly2(self):
         num_traces = 256
 
         self._model.reset_inference_network()
@@ -105,7 +104,7 @@ class ModelTestCase(unittest.TestCase):
 
         self.assertTrue(True)
 
-    def test_model_train_online_adam_larc_lr_poly2(self):
+    def test_train_online_adam_larc_lr_poly2(self):
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
         file_name_2 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
         file_name_3 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
@@ -151,7 +150,7 @@ class ModelTestCase(unittest.TestCase):
         self.assertEqual(optimizer_state_step_before_save, optimizer_state_step_after_load)
         self.assertAlmostEqual(learning_rate_end, learning_rate_end_correct, delta=learning_rate_end_correct)
 
-    def test_model_train_offline_adam_larc_lr_poly2(self):
+    def test_train_offline_adam_larc_lr_poly2(self):
         dataset_dir = tempfile.mkdtemp()
         dataset_num_traces = 128
         dataset_num_traces_per_file = 32

@@ -4,6 +4,7 @@ import math
 import time
 import sys
 import docker
+import uuid
 import functools
 from termcolor import colored
 
@@ -72,31 +73,37 @@ def add_random_walk_metropolis_hastings_duration(val):
     random_walk_metropolis_hastings_duration += val
 
 
-docker_client = docker.from_env()
-print('Pulling latest Docker image: pyprob/pyprob_cpp')
-docker_client.images.pull('pyprob/pyprob_cpp')
-print('Docker image pulled.')
+# print('Pulling latest Docker image: pyprob/pyprob_cpp')
+# docker_client.images.pull('pyprob/pyprob_cpp')
+# print('Docker image pulled.')
 
-docker_containers = []
-docker_containers.append(docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_gum ipc://@GaussianWithUnknownMeanCPP', network='host', detach=True))
-GaussianWithUnknownMeanCPP = RemoteModel('ipc://@GaussianWithUnknownMeanCPP')
-
-docker_containers.append(docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia_replacement ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP', network='host', detach=True))
-GaussianWithUnknownMeanMarsagliaWithReplacementCPP = RemoteModel('ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP')
-
-docker_containers.append(docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_hmm ipc://@HiddenMarkovModelCPP', network='host', detach=True))
-HiddenMarkovModelCPP = RemoteModel('ipc://@HiddenMarkovModelCPP')
-
-docker_containers.append(docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_branching ipc://@BranchingCPP', network='host', detach=True))
-BranchingCPP = RemoteModel('ipc://@BranchingCPP')
+# docker_containers = []
+# docker_containers.append(docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_gum ipc://@GaussianWithUnknownMeanCPP', network='host', detach=True))
+# GaussianWithUnknownMeanCPP = RemoteModel('ipc://@GaussianWithUnknownMeanCPP')
+#
+# docker_containers.append(docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia_replacement ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP', network='host', detach=True))
+# GaussianWithUnknownMeanMarsagliaWithReplacementCPP = RemoteModel('ipc://@GaussianWithUnknownMeanMarsagliaWithReplacementCPP')
+#
+# docker_containers.append(docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_hmm ipc://@HiddenMarkovModelCPP', network='host', detach=True))
+# HiddenMarkovModelCPP = RemoteModel('ipc://@HiddenMarkovModelCPP')
+#
+# docker_containers.append(docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_branching ipc://@BranchingCPP', network='host', detach=True))
+# BranchingCPP = RemoteModel('ipc://@BranchingCPP')
 
 
 class GaussianWithUnknownMeanTestCase(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        self._model = GaussianWithUnknownMeanCPP
-        super().__init__(*args, **kwargs)
+    def setUp(self):
+        docker_client = docker.from_env()
+        server_address = 'ipc://@RemoteModelGaussianWithUnknownMean_' + str(uuid.uuid4())
+        docker_client = docker.from_env()
+        self._docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_gum {}'.format(server_address), network='host', detach=True)
+        self._model = RemoteModel(server_address)
 
-    def test_inference_gum_posterior_importance_sampling(self):
+    def tearDown(self):
+        self._model.close()
+        self._docker_container.kill()
+
+    def test_inference_remote_gum_posterior_importance_sampling(self):
         samples = importance_sampling_samples
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
@@ -126,12 +133,12 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_inference_gum_posterior_importance_sampling_with_inference_network(self):
+    def test_inference_remote_gum_posterior_importance_sampling_with_inference_network(self):
         samples = importance_sampling_samples
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
-        posterior_effective_sample_size_min = samples * 0.03
+        posterior_effective_sample_size_min = samples * 0.02
 
         self._model.reset_inference_network()
         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs0': {'dim': 256, 'depth': 1}, 'obs1': {'dim': 256, 'depth': 1}})
@@ -155,7 +162,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_inference_gum_posterior_lightweight_metropolis_hastings(self):
+    def test_inference_remote_gum_posterior_lightweight_metropolis_hastings(self):
         samples = lightweight_metropolis_hastings_samples
         burn_in = lightweight_metropolis_hastings_burn_in
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
@@ -177,7 +184,7 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_inference_gum_posterior_random_walk_metropolis_hastings(self):
+    def test_inference_remote_gum_posterior_random_walk_metropolis_hastings(self):
         samples = random_walk_metropolis_hastings_samples
         burn_in = random_walk_metropolis_hastings_burn_in
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
@@ -201,18 +208,25 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
 
 
 class GaussianWithUnknownMeanMarsagliaWithReplacementTestCase(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        self._model = GaussianWithUnknownMeanMarsagliaWithReplacementCPP
-        super().__init__(*args, **kwargs)
+    def setUp(self):
+        docker_client = docker.from_env()
+        server_address = 'ipc://@RemoteModelGaussianWithUnknownMeanMarsagliaWithReplacement_' + str(uuid.uuid4())
+        docker_client = docker.from_env()
+        self._docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia_replacement {}'.format(server_address), network='host', detach=True)
+        self._model = RemoteModel(server_address)
 
-    def test_inference_gum_marsaglia_replacement_posterior_importance_sampling(self):
+    def tearDown(self):
+        self._model.close()
+        self._docker_container.kill()
+
+    def test_inference_remote_gum_marsaglia_replacement_posterior_importance_sampling(self):
         samples = importance_sampling_samples
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
         posterior_stddev_correct = float(true_posterior.stddev)
         prior_mean_correct = 1.
         prior_stddev_correct = math.sqrt(5)
-        posterior_effective_sample_size_min = samples * 0.005
+        posterior_effective_sample_size_min = samples * 0.001
 
         start = time.time()
         posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
@@ -235,7 +249,7 @@ class GaussianWithUnknownMeanMarsagliaWithReplacementTestCase(unittest.TestCase)
         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_inference_gum_marsaglia_replacement_posterior_importance_sampling_with_inference_network(self):
+    def test_inference_remote_gum_marsaglia_replacement_posterior_importance_sampling_with_inference_network(self):
         samples = importance_sampling_samples
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
         posterior_mean_correct = float(true_posterior.mean)
@@ -264,7 +278,7 @@ class GaussianWithUnknownMeanMarsagliaWithReplacementTestCase(unittest.TestCase)
         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_inference_gum_marsaglia_replacement_posterior_lightweight_metropolis_hastings(self):
+    def test_inference_remote_gum_marsaglia_replacement_posterior_lightweight_metropolis_hastings(self):
         samples = lightweight_metropolis_hastings_samples
         burn_in = lightweight_metropolis_hastings_burn_in
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
@@ -286,7 +300,7 @@ class GaussianWithUnknownMeanMarsagliaWithReplacementTestCase(unittest.TestCase)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
 
-    def test_inference_gum_marsaglia_replacement_posterior_random_walk_metropolis_hastings(self):
+    def test_inference_remote_gum_marsaglia_replacement_posterior_random_walk_metropolis_hastings(self):
         samples = random_walk_metropolis_hastings_samples
         burn_in = random_walk_metropolis_hastings_burn_in
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
@@ -311,7 +325,6 @@ class GaussianWithUnknownMeanMarsagliaWithReplacementTestCase(unittest.TestCase)
 
 class HiddenMarkovModelTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self._model = HiddenMarkovModelCPP
         self._observation = [0.9, 0.8, 0.7, 0.0, -0.025, -5.0, -2.0, -0.1, 0.0, 0.13, 0.45, 6, 0.2, 0.3, -1, -1]
         self._posterior_mean_correct = util.to_tensor([[0.3775, 0.3092, 0.3133],
                                                        [0.0416, 0.4045, 0.5539],
@@ -332,7 +345,18 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
                                                        [0.2545, 0.0611, 0.6844]])
         super().__init__(*args, **kwargs)
 
-    def test_inference_hmm_posterior_importance_sampling(self):
+    def setUp(self):
+        docker_client = docker.from_env()
+        server_address = 'ipc://@RemoteModelHiddenMarkovModel_' + str(uuid.uuid4())
+        docker_client = docker.from_env()
+        self._docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_hmm {}'.format(server_address), network='host', detach=True)
+        self._model = RemoteModel(server_address)
+
+    def tearDown(self):
+        self._model.close()
+        self._docker_container.kill()
+
+    def test_inference_remote_hmm_posterior_importance_sampling(self):
         samples = importance_sampling_samples
         observation = {'obs{}'.format(i): self._observation[i] for i in range(len(self._observation))}
         posterior_mean_correct = self._posterior_mean_correct
@@ -356,7 +380,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         self.assertLess(l2_distance, 3)
         self.assertLess(kl_divergence, 1)
 
-    def test_inference_hmm_posterior_importance_sampling_with_inference_network(self):
+    def test_inference_remote_hmm_posterior_importance_sampling_with_inference_network(self):
         samples = importance_sampling_with_inference_network_samples
         observation = {'obs{}'.format(i): self._observation[i] for i in range(len(self._observation))}
         posterior_mean_correct = self._posterior_mean_correct
@@ -382,7 +406,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         self.assertLess(l2_distance, 3)
         self.assertLess(kl_divergence, 1)
 
-    def test_inference_hmm_posterior_lightweight_metropolis_hastings(self):
+    def test_inference_remote_hmm_posterior_lightweight_metropolis_hastings(self):
         samples = lightweight_metropolis_hastings_samples
         burn_in = lightweight_metropolis_hastings_burn_in
         observation = {'obs{}'.format(i): self._observation[i] for i in range(len(self._observation))}
@@ -402,7 +426,7 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         self.assertLess(l2_distance, 3)
         self.assertLess(kl_divergence, 1)
 
-    def test_inference_hmm_posterior_random_walk_metropolis_hastings(self):
+    def test_inference_remote_hmm_posterior_random_walk_metropolis_hastings(self):
         samples = lightweight_metropolis_hastings_samples
         burn_in = lightweight_metropolis_hastings_burn_in
         observation = {'obs{}'.format(i): self._observation[i] for i in range(len(self._observation))}
@@ -424,9 +448,16 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
 
 
 class BranchingTestCase(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        self._model = BranchingCPP
-        super().__init__(*args, **kwargs)
+    def setUp(self):
+        docker_client = docker.from_env()
+        server_address = 'ipc://@RemoteModelBranching_' + str(uuid.uuid4())
+        docker_client = docker.from_env()
+        self._docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_branching {}'.format(server_address), network='host', detach=True)
+        self._model = RemoteModel(server_address)
+
+    def tearDown(self):
+        self._model.close()
+        self._docker_container.kill()
 
     @functools.lru_cache(maxsize=None)  # 128 by default
     def fibonacci(self, n):
@@ -454,7 +485,7 @@ class BranchingTestCase(unittest.TestCase):
                 log_weights.append(Poisson(l).log_prob(observe) + count_prior.log_prob(r) + count_prior.log_prob(s))
         return Empirical(vals, log_weights)
 
-    def test_inference_branching_importance_sampling(self):
+    def test_inference_remote_branching_importance_sampling(self):
         samples = importance_sampling_samples
         posterior_correct = util.empirical_to_categorical(self.true_posterior(), max_val=40)
 
@@ -471,7 +502,7 @@ class BranchingTestCase(unittest.TestCase):
 
         self.assertLess(kl_divergence, 0.75)
     #
-    # def test_inference_branching_importance_sampling_with_inference_network(self):
+    # def test_inference_remote_branching_importance_sampling_with_inference_network(self):
     #     samples = importance_sampling_samples
     #     posterior_correct = util.empirical_to_categorical(self._model.true_posterior(), max_val=40)
     #
@@ -491,7 +522,7 @@ class BranchingTestCase(unittest.TestCase):
     #
     #     self.assertLess(kl_divergence, 0.75)
 
-    def test_inference_branching_lightweight_metropolis_hastings(self):
+    def test_inference_remote_branching_lightweight_metropolis_hastings(self):
         samples = importance_sampling_samples
         posterior_correct = util.empirical_to_categorical(self.true_posterior(), max_val=40)
 
@@ -508,7 +539,7 @@ class BranchingTestCase(unittest.TestCase):
 
         self.assertLess(kl_divergence, 0.75)
 
-    def test_inference_branching_random_walk_metropolis_hastings(self):
+    def test_inference_remote_branching_random_walk_metropolis_hastings(self):
         samples = importance_sampling_samples
         posterior_correct = util.empirical_to_categorical(self.true_posterior(), max_val=40)
 
@@ -527,13 +558,13 @@ class BranchingTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    pyprob.set_random_seed(123)
+    # pyprob.set_random_seed(123)
     pyprob.set_verbosity(1)
     tests = []
     tests.append('GaussianWithUnknownMeanTestCase')
     tests.append('GaussianWithUnknownMeanMarsagliaWithReplacementTestCase')
     tests.append('HiddenMarkovModelTestCase')
-    # tests.append('BranchingTestCase')
+    tests.append('BranchingTestCase')
 
     time_start = time.time()
     success = unittest.main(defaultTest=tests, verbosity=2, exit=False).result.wasSuccessful()
@@ -550,8 +581,8 @@ if __name__ == '__main__':
     print(colored('Random-walk Metropolis Hastings      : ', 'yellow', attrs=['bold']), end='')
     print(colored('{:+.6e}  {:+.6e}  {:+.6e}\n'.format(random_walk_metropolis_hastings_samples, random_walk_metropolis_hastings_kl_divergence, random_walk_metropolis_hastings_duration), 'white', attrs=['bold']))
 
-    for container in docker_containers:
-        print('Killing Docker container {}'.format(container.name))
-        container.kill()
+    # for container in docker_containers:
+    #     print('Killing Docker container {}'.format(container.name))
+    #     container.kill()
 
     sys.exit(0 if success else 1)

@@ -95,7 +95,7 @@ class ModelTestCase(unittest.TestCase):
         self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
 
     def test_model_lmh_posterior_with_stop_and_resume(self):
-        posterior_num_runs = 100
+        posterior_num_runs = 200
         posterior_num_traces_each_run = 20
         posterior_num_traces_correct = posterior_num_traces_each_run * posterior_num_runs
         true_posterior = Normal(7.25, math.sqrt(1/1.2))

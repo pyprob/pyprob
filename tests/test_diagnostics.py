@@ -37,7 +37,7 @@ class DiagnosticsTestCase(unittest.TestCase):
         self._model = GaussianWithUnknownMeanMarsaglia()
         super().__init__(*args, **kwargs)
 
-    def test_prior_statistics(self):
+    def test_diagnostics_prior_statistics(self):
         num_traces = 2000
         trace_length_mean_correct = 4.543580055236816  # Reference value from 100k runs
         trace_length_stddev_correct = 1.177796721458435  # Reference value from 100k runs
@@ -55,7 +55,7 @@ class DiagnosticsTestCase(unittest.TestCase):
         self.assertAlmostEqual(trace_length_stddev, trace_length_stddev_correct, places=0)
         self.assertAlmostEqual(trace_length_min, trace_length_min_correct, places=0)
 
-    def test_posterior_statistics(self):
+    def test_diagnostics_posterior_statistics(self):
         num_traces = 2000
         trace_length_mean_correct = 4.556660175323486  # Reference value from 100k runs
         trace_length_stddev_correct = 1.1909255981445312  # Reference value from 100k runs

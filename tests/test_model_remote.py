@@ -3,6 +3,7 @@ import unittest
 import math
 import time
 import sys
+import uuid
 import docker
 from termcolor import colored
 
@@ -11,19 +12,20 @@ from pyprob import util, RemoteModel, InferenceEngine
 from pyprob.distributions import Normal, Categorical
 
 
-docker_client = docker.from_env()
-print('Pulling latest Docker image: pyprob/pyprob_cpp')
-docker_client.images.pull('pyprob/pyprob_cpp')
-print('Docker image pulled.')
-
-docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_set_defaults_and_addresses ipc://@RemoteModelSetDefaultsAndAddresses', network='host', detach=True)
-SetDefaultsAndAddressesCPP = RemoteModel('ipc://@RemoteModelSetDefaultsAndAddresses')
-
+# print('Pulling latest Docker image: pyprob/pyprob_cpp')
+# docker_client.images.pull('pyprob/pyprob_cpp')
+# print('Docker image pulled.')
 
 class RemoteModelSetDefaultsAndAddressesTestCase(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        self._model = SetDefaultsAndAddressesCPP
-        super().__init__(*args, **kwargs)
+    def setUp(self):
+        server_address = 'ipc://@RemoteModelSetDefaultsAndAddresses_' + str(uuid.uuid4())
+        docker_client = docker.from_env()
+        self._docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_set_defaults_and_addresses {}'.format(server_address), network='host', detach=True)
+        self._model = RemoteModel(server_address)
+
+    def tearDown(self):
+        self._model.close()
+        self._docker_container.kill()
 
     def test_model_remote_set_defaults_and_addresses_prior(self):
         samples = 1000
@@ -53,9 +55,9 @@ class RemoteModelSetDefaultsAndAddressesTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    pyprob.set_random_seed(123)
+    # pyprob.set_random_seed(123)
     pyprob.set_verbosity(1)
     unittest.main(verbosity=2)
 
-    print('Killing Docker container {}'.format(docker_container.name))
-    docker_container.kill()
+    # print('Killing Docker container {}'.format(docker_container.name))
+    # docker_container.kill()

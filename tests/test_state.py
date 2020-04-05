@@ -7,16 +7,16 @@ from pyprob.distributions import Categorical, Normal
 
 class StateTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self._root_function_name = self.test_address.__code__.co_name
+        self._root_function_name = self.test_state_address.__code__.co_name
         super().__init__(*args, **kwargs)
 
     def _sample_address(self):
         address = state._extract_address(self._root_function_name)
         return address
 
-    def test_address(self):
+    def test_state_address(self):
         address = self._sample_address()
-        address_correct = '4__test_address__address'
+        address_correct = '4__test_state_address__address'
         util.eval_print('address', 'address_correct')
         self.assertEqual(address, address_correct)
 
@@ -36,7 +36,7 @@ class PriorInflationTestCase(unittest.TestCase):
         self._model = CategoricalModel()
         super().__init__(*args, **kwargs)
 
-    def test_prior_inflation(self):
+    def test_state_prior_inflation(self):
         samples = 5000
         categorical_prior_mean_correct = 1.7
         categorical_prior_stddev_correct = 0.640312

@@ -70,7 +70,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         self._model = RejectionSampling()
         super().__init__(*args, **kwargs)
 
-    def test_prior(self):
+    def test_trace_prior(self):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
 
@@ -84,7 +84,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
         self.assertEqual(trace_addresses, trace_addresses_correct)
 
-    def test_prior_for_inference_network(self):
+    def test_trace_prior_for_inference_network(self):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__replaced', '48__forward__y__Uniform__replaced']
         trace_addresses_correct = ['34__forward__x__Uniform__replaced', '48__forward__y__Uniform__replaced', '34__forward__x__Uniform__replaced', '48__forward__y__Uniform__replaced', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
 
@@ -97,7 +97,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
         self.assertEqual(trace_addresses, trace_addresses_correct)
 
-    def test_posterior_importance_sampling(self):
+    def test_trace_posterior_importance_sampling(self):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
         posterior = self._model.posterior(1, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
@@ -110,7 +110,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
         self.assertEqual(trace_addresses, trace_addresses_correct)
 
-    def test_posterior_importance_sampling_with_inference_network(self):
+    def test_trace_posterior_importance_sampling_with_inference_network(self):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
         self._model.learn_inference_network(num_traces=10, observe_embeddings={'obs0': {'dim': 128, 'depth': 6}, 'obs1': {'dim': 128, 'depth': 6}})
@@ -124,7 +124,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
         self.assertEqual(trace_addresses, trace_addresses_correct)
 
-    def test_posterior_lightweight_metropolis_hastings(self):
+    def test_trace_posterior_lightweight_metropolis_hastings(self):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
 
@@ -138,7 +138,7 @@ class RejectionSamplingTraceTestCase(unittest.TestCase):
         self.assertEqual(trace_addresses_controlled, trace_addresses_controlled_correct)
         self.assertEqual(trace_addresses, trace_addresses_correct)
 
-    def test_posterior_random_walk_metropolis_hastings(self):
+    def test_trace_posterior_random_walk_metropolis_hastings(self):
         trace_addresses_controlled_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2']
         trace_addresses_correct = ['34__forward__x__Uniform__1', '48__forward__y__Uniform__1', '34__forward__x__Uniform__2', '48__forward__y__Uniform__2', '92__forward__?__Normal__1', '106__forward__?__Normal__1']
 

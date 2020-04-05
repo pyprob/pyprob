@@ -42,4 +42,6 @@ after_success:
       docker tag pyprob/pyprob pyprob/pyprob:$TRAVIS_TAG;
       docker push pyprob/pyprob:$TRAVIS_TAG;
     fi
+    docker run --rm -it -v $PWD:/opt/mount pyprob/pyprob bash -c "cp pyprob/tests/.coverage /opt/mount";
+    bash <(curl -s https://codecov.io/bash);
   fi

@@ -42,7 +42,7 @@ class DatasetTestCase(unittest.TestCase):
         self._model = GaussianWithUnknownMeanMarsaglia()
         super().__init__(*args, **kwargs)
 
-    def test_save_offline_dataset(self):
+    def test_dataset_save_offline_dataset(self):
         dataset_dir = tempfile.mkdtemp()
         num_traces_correct = 20
         num_traces_per_file_correct = 5
@@ -66,7 +66,7 @@ class DatasetTestCase(unittest.TestCase):
         self.assertEqual(num_traces_per_file, num_traces_per_file_correct)
         self.assertFalse(sorted_on_disk)
 
-    def test_sort_offline_dataset(self):
+    def test_dataset_sort_offline_dataset(self):
         unsorted_dataset_dir = tempfile.mkdtemp()
         unsorted_num_traces = 20
         unsorted_num_traces_per_file = 5
@@ -99,7 +99,7 @@ class DatasetTestCase(unittest.TestCase):
         self.assertEqual(sorted_num_traces, unsorted_num_traces)
         self.assertEqual(sorted_num_traces_per_file, sorted_num_traces_per_file_correct)
 
-    def test_sort_offline_dataset_multi_node(self):
+    def test_dataset_sort_offline_dataset_multi_node(self):
         unsorted_dataset_dir = tempfile.mkdtemp()
         unsorted_num_traces = 20
         unsorted_num_traces_per_file = 5

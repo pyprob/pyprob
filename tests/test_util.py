@@ -8,7 +8,7 @@ class UtilTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def test_random_seed(self):
+    def test_util_random_seed(self):
         samples = 10
 
         stochastic_samples = []

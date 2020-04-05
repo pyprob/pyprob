@@ -7,7 +7,7 @@ from pyprob.nn import EmbeddingFeedForward, EmbeddingCNN2D5C, EmbeddingCNN3D5C
 
 
 class NNTestCase(unittest.TestCase):
-    def test_EmbeddingFeedForward(self):
+    def test_nn_EmbeddingFeedForward(self):
         batch_size = 32
         input_shape = [100, 100]
         output_shape = [128]
@@ -23,7 +23,7 @@ class NNTestCase(unittest.TestCase):
 
         self.assertEqual(output_batch_shape, output_batch_shape_correct)
 
-    def test_EmbeddingCNN2D5C(self):
+    def test_nn_EmbeddingCNN2D5C(self):
         batch_size = 32
         input_shape = [3, 100, 100]
         output_shape = [128]
@@ -39,7 +39,7 @@ class NNTestCase(unittest.TestCase):
 
         self.assertEqual(output_batch_shape, output_batch_shape_correct)
 
-    def test_EmbeddingCNN3D5C(self):
+    def test_nn_EmbeddingCNN3D5C(self):
         batch_size = 32
         input_shape = [2, 25, 25, 25]
         output_shape = [128]
