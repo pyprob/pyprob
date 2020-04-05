@@ -56,10 +56,17 @@ pip install pyprob
 
 ## Docker
 
-A CUDA + PyTorch + pyprob image with the latest passing commit is automatically
-pushed to `pyprob/pyprob:latest`
+You can build a [Docker](https://hub.docker.com/search/?type=edition&offering=community) image locally as follows:
+```
+git clone https://github.com/pyprob/pyprob.git
+cd pyprob
+docker build -t pyprob .
+```
 
-https://hub.docker.com/r/pyprob/pyprob/
+An image with the latest passing commit is automatically pushed to `pyprob/pyprob:latest` at https://hub.docker.com/r/pyprob/pyprob/. You can pull this as follows:
+```
+docker pull pyprob/pyprob
+```
 
 ## Documentation and examples
 
