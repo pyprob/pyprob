@@ -38,7 +38,8 @@ after_success:
     docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD;
     docker tag pyprob/pyprob pyprob/pyprob:latest;
     docker push pyprob/pyprob:latest;
-    docker run --rm -it -v $PWD:/opt/mount pyprob/pyprob bash -c "cp pyprob/tests/.coverage /opt/mount";
+    mkdir shared;
+    docker run --rm -it -v $PWD/shared:/shared pyprob/pyprob bash -c "mv pyprob/tests/.coverage /shared";
     bash <(curl -s https://codecov.io/bash);
     if [[ -n "$TRAVIS_TAG" ]]; then
       docker tag pyprob/pyprob pyprob/pyprob:$TRAVIS_TAG;
