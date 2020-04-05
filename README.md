@@ -1,5 +1,5 @@
-<div align="center">
-  <a href=""> <img height="120px" src="docs/source/_static/img/pyprob-logo-large.png"></a>
+<div align="left">
+  <a href=""> <img height="80px" src="docs/source/_static/img/pyprob-logo-large.png"></a>
 </div>
 
 -----------------------------------------
