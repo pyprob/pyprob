@@ -26,13 +26,13 @@ check_python_version()
 setup(
     name='pyprob',
     version=read_package_variable('__version__'),
-    description='A PyTorch-based library for probabilistic programming and inference compilation',
-    author='Atilim Gunes Baydin and Tuan-Anh Le',
+    description='A probabilistic programming system for simulators and high-performance computing (HPC), based on PyTorch',
+    author='PyProb contributors',
     author_email='gunes@robots.ox.ac.uk',
     packages=find_packages(),
     install_requires=['torch>=1.0.0', 'numpy', 'matplotlib', 'termcolor==1.1.0', 'pyzmq>=19.0.0', 'flatbuffers==1.12', 'pydotplus==2.0.2', 'pyyaml>=3.13'],
     url='https://github.com/pyprob/pyprob',
-    classifiers=['Development Status :: 4 - Beta', 'License :: OSI Approved :: BSD License', 'Programming Language :: Python :: 3.5'],
+    classifiers=['License :: OSI Approved :: BSD License', 'Programming Language :: Python :: 3'],
     license='BSD',
-    keywords='probabilistic programming deep learning inference compilation markov chain monte carlo',
+    keywords='probabilistic programming simulation deep learning inference compilation markov chain monte carlo',
 )
