@@ -214,7 +214,6 @@ class RemoteModel(Model):
     def close(self):
         if self._model_server is not None:
             self._model_server.close()
-        super().close()
 
     def forward(self):
         if self._model_server is None:

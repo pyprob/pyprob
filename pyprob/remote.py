@@ -47,7 +47,7 @@ class ZMQRequester():
     def close(self):
         if not self._socket.closed:
             self._socket.close()
-            self._context.destroy()
+            self._context.term()
             print('ppx (Python): zmq.REQ socket disconnected from server {}'.format(self._server_address))
 
     def send_request(self, request):
