@@ -17,14 +17,25 @@
 
 # -- Project information -----------------------------------------------------
 import sphinx_rtd_theme
-from pyprob import __version__
+
+
+def read_package_variable(key):
+    """Read the value of a variable from the package without importing."""
+    module_path = '../../pyprob/__init__.py'
+    with open(module_path) as module:
+        for line in module:
+            parts = line.strip().split(' ')
+            if parts and parts[0] == key:
+                return parts[-1].strip("'")
+    assert 0, "'{0}' not found in '{1}'".format(key, module_path)
+
 
 project = 'PyProb'
 copyright = '2020, PyProb contributors'
 author = 'PyProb contributors'
 
 # The full version, including alpha/beta/rc tags
-release = __version__
+release = read_package_variable('__version__')
 
 
 # -- General configuration ---------------------------------------------------
