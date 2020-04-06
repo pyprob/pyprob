@@ -4,17 +4,19 @@
    contain the root `toctree` directive.
 
 Welcome to PyProb documentation!
-==================================
+================================
+
+Note: documentation is in progress.
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+  :maxdepth: 2
 
+  installation
 
+Index
+=====
 
-Indices and tables
-==================
+- :ref:`genindex`
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. * :ref:`modindex`
+.. * :ref:`search`

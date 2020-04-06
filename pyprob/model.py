@@ -14,7 +14,7 @@ from .remote import ModelServer
 
 
 class Model():
-    def __init__(self, name='Unnamed pyprob model', address_dict_file_name=None):
+    def __init__(self, name='Unnamed PyProb model', address_dict_file_name=None):
         super().__init__()
         self.name = name
         self._inference_network = None
