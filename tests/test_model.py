@@ -218,7 +218,7 @@ class ModelTestCase(unittest.TestCase):
 
     def test_model_lmh_posterior_with_stop_and_resume_on_disk(self):
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
-        posterior_num_runs = 50
+        posterior_num_runs = 200
         posterior_num_traces_each_run = 50
         posterior_num_traces_correct = posterior_num_traces_each_run * posterior_num_runs
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
