@@ -147,15 +147,15 @@ class DistributionsTestCase(unittest.TestCase):
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
         dist_means_correct = -1.2
         dist_stddevs_correct = 1.4
-        dist_empirical_length_correct = 1000
+        dist_empirical_length_correct = 2000
 
         dist = Normal(dist_means_correct, dist_stddevs_correct)
         dist_empirical = Empirical(file_name=file_name)
-        dist_empirical.add_sequence([dist.sample() for i in range(500)])
+        dist_empirical.add_sequence([dist.sample() for i in range(1000)])
         dist_empirical.finalize()
         dist_empirical.close()
         dist_empirical_2 = Empirical(file_name=file_name)
-        dist_empirical_2.add_sequence([dist.sample() for i in range(500)])
+        dist_empirical_2.add_sequence([dist.sample() for i in range(1000)])
         dist_empirical_2.finalize()
         dist_empirical_length = dist_empirical_2.length
         dist_means = util.to_numpy(dist.mean)
