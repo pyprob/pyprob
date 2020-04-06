@@ -34,6 +34,8 @@ project = 'PyProb'
 copyright = '2020, PyProb contributors'
 author = 'PyProb contributors'
 
+master_doc = 'index'
+
 # The full version, including alpha/beta/rc tags
 release = read_package_variable('__version__')
 
