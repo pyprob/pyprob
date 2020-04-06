@@ -78,6 +78,8 @@ docker pull pyprob/pyprob
 
 Documentation coming soon.
 
+https://pyprob.readthedocs.io/
+
 ## Information and citing
 
 If you would like to learn more about or cite the techniques PyProb uses, please see the following papers:
