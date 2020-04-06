@@ -1,11 +1,12 @@
-<div align="center">
-  <a href=""> <img height="120px" src="docs/source/_static/img/pyprob-logo-large.png"></a>
+<div align="left">
+  <a href=""> <img height="80px" src="docs/source/_static/img/pyprob-logo-large.png"></a>
 </div>
 
 -----------------------------------------
 
 [![Build Status](https://travis-ci.org/pyprob/pyprob.svg?branch=master)](https://travis-ci.org/pyprob/pyprob)
 [![PyPI version](https://badge.fury.io/py/pyprob.svg)](https://badge.fury.io/py/pyprob)
+[![codecov](https://codecov.io/gh/pyprob/pyprob/branch/master/graph/badge.svg)](https://codecov.io/gh/pyprob/pyprob)
 
 PyProb is a [probabilistic programming](http://probabilistic-programming.org) system for simulators and high-performance computing (HPC), based on [PyTorch](http://pytorch.org/). The main focus of PyProb is on coupling existing simulation code bases with probabilistic inference with minimal intervention.
 
