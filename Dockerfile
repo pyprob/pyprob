@@ -11,7 +11,7 @@ RUN ln -s $(which python3) /usr/bin/python
 WORKDIR /home
 COPY . /home/pyprob
 
-RUN pip3 install ./pyprob
+RUN pip3 install ./pyprob[dev]
 RUN cd pyprob && sh tests/run_basic.sh
 
 ARG PYPROB_VERSION="unknown"
