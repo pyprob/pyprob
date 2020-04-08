@@ -12,6 +12,7 @@ Note: documentation is in progress.
   :maxdepth: 2
 
   installation
+  probabilistic-model
 
 Index
 =====
