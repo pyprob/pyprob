@@ -128,7 +128,9 @@ def observe(distribution, value=None, name=None, address=None):
         value = _current_trace_observed_variables[name]
     elif value is not None:
         value = util.to_tensor(value)
-    elif distribution is not None:
+    elif _trace_mode == TraceMode.PRIOR_FOR_INFERENCE_NETWORK and distribution is not None:
+        value = distribution.sample()
+    else:
         value = None
 
     if value is None:
@@ -141,7 +143,7 @@ def observe(distribution, value=None, name=None, address=None):
         if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             log_importance_weight = float(log_prob)
         else:
-            log_importance_weight = None  # TODO: Check the reason/behavior for this
+            log_importance_weight = None  # TODO: Check the reason/behavior of this
 
     variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, observed=observed, name=name)
     _current_trace.add(variable)
