@@ -453,14 +453,14 @@ def address_dictionary(address_dictionary, file_name):
 
 def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, file_name=None, min_index=None, max_index=None, *args, **kwargs):
     if type(trace_dists) != list:
-        raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s posterior_traces.')
+        raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s prior or posterior.')
     if min_index is None:
         min_i = 0
     iters = []
     log_probs = []
     for j in range(len(trace_dists)):
         if type(trace_dists[j][0]) != Trace:
-            raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s posterior_traces.')
+            raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s prior or posterior.')
         if max_index is None:
             max_i = trace_dists[j].length
         else:
@@ -638,6 +638,9 @@ def autocorrelation(trace_dist, names=None, lags=None, n_most_frequent=None, fig
 
 
 def gelman_rubin(trace_dists, names=None, iters=None, n_most_frequent=50, figsize=(10, 5), xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, file_name=None, *args, **kwargs):
+    if type(trace_dists) != list:
+        raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s prior or posterior.')
+
     def _r_hat(values):
         m, n = values.shape[0], values.shape[1]  # m: number of chains, n: length of chains
         if m < 2:
@@ -654,9 +657,9 @@ def gelman_rubin(trace_dists, names=None, iters=None, n_most_frequent=50, figsiz
             ret[i] = _r_hat(values[:, :iter])
         return ret
 
-    trace_lengths = [trace.length for trace in trace_dists]
-    num_traces = min(trace_lengths)
-    if max(trace_lengths) != num_traces:
+    dist_lengths = [dist.length for dist in trace_dists]
+    num_traces = min(dist_lengths)
+    if max(dist_lengths) != num_traces:
         print('Distributions have unequal length, setting the length to minimum: {}'.format(num_traces))
 
     if iters is None:
