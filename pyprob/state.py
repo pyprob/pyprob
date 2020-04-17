@@ -129,15 +129,21 @@ def observe(distribution, value=None, name=None, address=None):
     elif value is not None:
         value = util.to_tensor(value)
     elif distribution is not None:
-        value = distribution.sample()
+        value = None
 
-    log_prob = _likelihood_importance * distribution.log_prob(value, sum=True)
-    if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
-        log_importance_weight = float(log_prob)
+    if value is None:
+        observed = False
+        log_prob = None
+        log_importance_weight = None
     else:
-        log_importance_weight = None  # TODO: Check the reason/behavior for this
+        observed = True
+        log_prob = _likelihood_importance * distribution.log_prob(value, sum=True)
+        if _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING or _inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
+            log_importance_weight = float(log_prob)
+        else:
+            log_importance_weight = None  # TODO: Check the reason/behavior for this
 
-    variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, observed=True, name=name)
+    variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, observed=observed, name=name)
     _current_trace.add(variable)
 
 

@@ -74,7 +74,7 @@ class ImportanceWeighting(enum.Enum):
     IW1 = 1
 
 
-def set_random_seed(seed=None):
+def seed(seed=None):
     if seed is None:
         seed = int((time.time()*1e6) % 1e8)
     global _random_seed
@@ -86,7 +86,7 @@ def set_random_seed(seed=None):
         torch.cuda.manual_seed(seed)
 
 
-set_random_seed()
+seed()
 
 
 def set_device(device='cpu'):
