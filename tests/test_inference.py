@@ -853,7 +853,7 @@
 #
 #
 # if __name__ == '__main__':
-#     pyprob.set_random_seed(123)
+#     pyprob.seed(123)
 #     pyprob.set_verbosity(2)
 #
 #     tests = []

@@ -127,7 +127,7 @@ def produce_results(replace, results_dir):
 
 
 if __name__ == '__main__':
-    pyprob.set_random_seed(1)
+    pyprob.seed(1)
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     print('Current dir: {}'.format(current_dir))

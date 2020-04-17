@@ -13,14 +13,14 @@ class UtilTestCase(unittest.TestCase):
 
         stochastic_samples = []
         for i in range(samples):
-            pyprob.set_random_seed(None)
+            pyprob.seed(None)
             dist = pyprob.distributions.Normal(0, 1)
             sample = dist.sample()
             stochastic_samples.append(float(sample))
 
         deterministic_samples = []
         for i in range(samples):
-            pyprob.set_random_seed(123)
+            pyprob.seed(123)
             dist = pyprob.distributions.Normal(0, 1)
             sample = dist.sample()
             deterministic_samples.append(float(sample))
@@ -31,6 +31,6 @@ class UtilTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    pyprob.set_random_seed(123)
+    pyprob.seed(123)
     pyprob.set_verbosity(1)
     unittest.main(verbosity=2)
