@@ -12,3 +12,4 @@ from .normal import Normal
 from .poisson import Poisson
 from .truncated_normal import TruncatedNormal
 from .uniform import Uniform
+from .weibull import Weibull
