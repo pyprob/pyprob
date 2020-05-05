@@ -4,7 +4,7 @@ import flatbuffers
 from termcolor import colored
 
 from . import util, state, __version__
-from .distributions import Uniform, Normal, Categorical, Poisson
+from .distributions import Uniform, Normal, Categorical, Poisson, Bernoulli, Beta, Exponential, Gamma, LogNormal, Binomial, Weibull
 from .ppx import Message as ppx_Message
 from .ppx import MessageBody as ppx_MessageBody
 from .ppx import Tensor as ppx_Tensor
@@ -13,6 +13,13 @@ from .ppx import Uniform as ppx_Uniform
 from .ppx import Normal as ppx_Normal
 from .ppx import Categorical as ppx_Categorical
 from .ppx import Poisson as ppx_Poisson
+from .ppx import Bernoulli as ppx_Bernoulli
+from .ppx import Beta as ppx_Beta
+from .ppx import Exponential as ppx_Exponential
+from .ppx import Gamma as ppx_Gamma
+from .ppx import LogNormal as ppx_LogNormal
+from .ppx import Binomial as ppx_Binomial
+from .ppx import Weibull as ppx_Weibull
 from .ppx import Handshake as ppx_Handshake
 from .ppx import HandshakeResult as ppx_HandshakeResult
 from .ppx import Run as ppx_Run
@@ -215,6 +222,46 @@ class ModelServer(object):
                     poisson.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
                     rate = self._protocol_tensor_to_variable(poisson.Rate())
                     dist = Poisson(rate)
+                elif distribution_type == ppx_Distribution.Distribution().Bernoulli:
+                    bernoulli = ppx_Bernoulli.Bernoulli()
+                    bernoulli.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    probs = self._protocol_tensor_to_variable(bernoulli.Probs())
+                    dist = Bernoulli(probs)
+                elif distribution_type == ppx_Distribution.Distribution().Beta:
+                    beta = ppx_Beta.Beta()
+                    beta.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    concentration1 = self._protocol_tensor_to_variable(beta.Concentration1())
+                    concentration0 = self._protocol_tensor_to_variable(beta.Concentration0())
+                    dist = Beta(concentration1, concentration0)
+                elif distribution_type == ppx_Distribution.Distribution().Exponential:
+                    exponential = ppx_Exponential.Exponential()
+                    exponential.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    rate = self._protocol_tensor_to_variable(exponential.Rate())
+                    dist = Exponential(rate)
+                elif distribution_type == ppx_Distribution.Distribution().Gamma:
+                    gamma = ppx_Gamma.Gamma()
+                    gamma.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    concentration = self._protocol_tensor_to_variable(gamma.Concentration())
+                    rate = self._protocol_tensor_to_variable(gamma.Rate())
+                    dist = Gamma(concentration, rate)
+                elif distribution_type == ppx_Distribution.Distribution().LogNormal:
+                    log_normal = ppx_LogNormal.LogNormal()
+                    log_normal.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    loc = self._protocol_tensor_to_variable(log_normal.Loc())
+                    scale = self._protocol_tensor_to_variable(log_normal.Scale())
+                    dist = LogNormal(loc, scale)
+                elif distribution_type == ppx_Distribution.Distribution().Binomial:
+                    binomial = ppx_Binomial.Binomial()
+                    binomial.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    total_count = self._protocol_tensor_to_variable(binomial.TotalCount())
+                    probs = self._protocol_tensor_to_variable(binomial.Probs())
+                    dist = Binomial(total_count, probs)
+                elif distribution_type == ppx_Distribution.Distribution().Weibull:
+                    weibull = ppx_Weibull.Weibull()
+                    weibull.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    scale = self._protocol_tensor_to_variable(weibull.Scale())
+                    concentration = self._protocol_tensor_to_variable(weibull.Concentration())
+                    dist = Weibull(scale, concentration)
                 else:
                     raise RuntimeError('ppx (Python): Sample from an unexpected distribution requested.')
                 result = state.sample(distribution=dist, control=control, replace=replace, name=name, address=address)
@@ -264,6 +311,46 @@ class ModelServer(object):
                     poisson.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
                     rate = self._protocol_tensor_to_variable(poisson.Rate())
                     dist = Poisson(rate)
+                elif distribution_type == ppx_Distribution.Distribution().Bernoulli:
+                    bernoulli = ppx_Bernoulli.Bernoulli()
+                    bernoulli.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    probs = self._protocol_tensor_to_variable(bernoulli.Probs())
+                    dist = Bernoulli(probs)
+                elif distribution_type == ppx_Distribution.Distribution().Beta:
+                    beta = ppx_Beta.Beta()
+                    beta.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    concentration1 = self._protocol_tensor_to_variable(beta.Concentration1())
+                    concentration0 = self._protocol_tensor_to_variable(beta.Concentration0())
+                    dist = Beta(concentration1, concentration0)
+                elif distribution_type == ppx_Distribution.Distribution().Exponential:
+                    exponential = ppx_Exponential.Exponential()
+                    exponential.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    rate = self._protocol_tensor_to_variable(exponential.Rate())
+                    dist = Exponential(rate)
+                elif distribution_type == ppx_Distribution.Distribution().Gamma:
+                    gamma = ppx_Gamma.Gamma()
+                    gamma.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    concentration = self._protocol_tensor_to_variable(gamma.Concentration())
+                    rate = self._protocol_tensor_to_variable(gamma.Rate())
+                    dist = Gamma(concentration, rate)
+                elif distribution_type == ppx_Distribution.Distribution().LogNormal:
+                    log_normal = ppx_LogNormal.LogNormal()
+                    log_normal.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    loc = self._protocol_tensor_to_variable(log_normal.Loc())
+                    scale = self._protocol_tensor_to_variable(log_normal.Scale())
+                    dist = LogNormal(loc, scale)
+                elif distribution_type == ppx_Distribution.Distribution().Binomial:
+                    binomial = ppx_Binomial.Binomial()
+                    binomial.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    total_count = self._protocol_tensor_to_variable(binomial.TotalCount())
+                    probs = self._protocol_tensor_to_variable(binomial.Probs())
+                    dist = Binomial(total_count, probs)
+                elif distribution_type == ppx_Distribution.Distribution().Weibull:
+                    weibull = ppx_Weibull.Weibull()
+                    weibull.Init(message_body.Distribution().Bytes, message_body.Distribution().Pos)
+                    scale = self._protocol_tensor_to_variable(weibull.Scale())
+                    concentration = self._protocol_tensor_to_variable(weibull.Concentration())
+                    dist = Weibull(scale, concentration)
                 else:
                     raise RuntimeError('ppx (Python): Sample from an unexpected distribution requested: {}'.format(distribution_type))
 
