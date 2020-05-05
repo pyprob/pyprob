@@ -115,6 +115,8 @@ def set_verbosity(v=2):
 
 
 def to_tensor(value, dtype=_dtype):
+    if value is None:
+        return None
     if not torch.is_tensor(value):
         if type(value) == np.int64:
             value = torch.tensor(float(value))
