@@ -318,6 +318,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist3_stddev_correct = 1.2
         dist_combined_mean_correct = 1.16667
         dist_combined_stddev_correct = 3.76858
+        dist_combined_weighted_correct = False
 
         empirical_samples = 100000
         dist1 = Normal(dist1_mean_correct, dist1_stddev_correct)
@@ -338,8 +339,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_combined_empirical = Empirical(concat_empiricals=[dist1_empirical, dist2_empirical, dist3_empirical])
         dist_combined_mean_empirical = float(dist_combined_empirical.mean)
         dist_combined_stddev_empirical = float(dist_combined_empirical.stddev)
+        dist_combined_weighted = dist_combined_empirical.weighted
 
-        util.eval_print('dist1_mean_empirical', 'dist1_stddev_empirical', 'dist1_mean_correct', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_stddev_empirical', 'dist2_mean_correct', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_stddev_empirical', 'dist3_mean_correct', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_stddev_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_correct')
+        util.eval_print('dist1_mean_empirical', 'dist1_stddev_empirical', 'dist1_mean_correct', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_stddev_empirical', 'dist2_mean_correct', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_stddev_empirical', 'dist3_mean_correct', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_stddev_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_correct', 'dist_combined_weighted', 'dist_combined_weighted_correct')
 
         self.assertAlmostEqual(dist1_mean_empirical, dist1_mean_correct, places=1)
         self.assertAlmostEqual(dist1_stddev_empirical, dist1_stddev_correct, places=1)
@@ -349,6 +351,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist3_stddev_empirical, dist3_stddev_correct, places=1)
         self.assertAlmostEqual(dist_combined_mean_empirical, dist_combined_mean_correct, places=1)
         self.assertAlmostEqual(dist_combined_stddev_empirical, dist_combined_stddev_correct, places=1)
+        self.assertEqual(dist_combined_weighted, dist_combined_weighted_correct)
 
     def test_distributions_empirical_disk_combine_unweighted(self):
         file_name_1 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
@@ -363,6 +366,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist3_stddev_correct = 1.2
         dist_combined_mean_correct = 1.16667
         dist_combined_stddev_correct = 3.76858
+        dist_combined_weighted_correct = False
 
         dist1 = Normal(dist1_mean_correct, dist1_stddev_correct)
         dist1_empirical = Empirical([dist1.sample() for i in range(int(empirical_samples / 10))], file_name=file_name_1)
@@ -385,8 +389,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_combined_empirical = Empirical(concat_empirical_file_names=[file_name_1, file_name_2, file_name_3], file_name=file_name_combined)
         dist_combined_mean_empirical = float(dist_combined_empirical.mean)
         dist_combined_stddev_empirical = float(dist_combined_empirical.stddev)
+        dist_combined_weighted = dist_combined_empirical.weighted
 
-        util.eval_print('dist1_mean_empirical', 'dist1_mean_correct', 'dist1_stddev_empirical', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_mean_correct', 'dist2_stddev_empirical', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_mean_correct', 'dist3_stddev_empirical', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_empirical', 'dist_combined_stddev_correct')
+        util.eval_print('dist1_mean_empirical', 'dist1_mean_correct', 'dist1_stddev_empirical', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_mean_correct', 'dist2_stddev_empirical', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_mean_correct', 'dist3_stddev_empirical', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_empirical', 'dist_combined_stddev_correct', 'dist_combined_weighted', 'dist_combined_weighted_correct')
 
         self.assertAlmostEqual(dist1_mean_empirical, dist1_mean_correct, places=0)
         self.assertAlmostEqual(dist1_stddev_empirical, dist1_stddev_correct, places=0)
@@ -396,6 +401,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist3_stddev_empirical, dist3_stddev_correct, places=0)
         self.assertAlmostEqual(dist_combined_mean_empirical, dist_combined_mean_correct, places=0)
         self.assertAlmostEqual(dist_combined_stddev_empirical, dist_combined_stddev_correct, places=0)
+        self.assertEqual(dist_combined_weighted, dist_combined_weighted_correct)
 
     def test_distributions_empirical_combine_weighted(self):
         dist1_values = [1, 2, 3]
@@ -412,6 +418,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist3_stddev_correct = 2.168320417404175
         dist_combined_mean_correct = 3.1346240043640137
         dist_combined_stddev_correct = 2.2721681594848633
+        dist_combined_weighted_correct = True
 
         dist1_empirical = Empirical(values=dist1_values, log_weights=dist1_log_weights)
         dist1_mean_empirical = float(dist1_empirical.mean)
@@ -428,8 +435,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_combined_empirical = Empirical(concat_empiricals=[dist1_empirical, dist2_empirical, dist3_empirical])
         dist_combined_mean_empirical = float(dist_combined_empirical.mean)
         dist_combined_stddev_empirical = float(dist_combined_empirical.stddev)
+        dist_combined_weighted = dist_combined_empirical.weighted
 
-        util.eval_print('dist1_mean_empirical', 'dist1_mean_correct', 'dist1_stddev_empirical', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_mean_correct', 'dist2_stddev_empirical', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_mean_correct', 'dist3_stddev_empirical', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_empirical', 'dist_combined_stddev_correct')
+        util.eval_print('dist1_mean_empirical', 'dist1_mean_correct', 'dist1_stddev_empirical', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_mean_correct', 'dist2_stddev_empirical', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_mean_correct', 'dist3_stddev_empirical', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_empirical', 'dist_combined_stddev_correct', 'dist_combined_weighted', 'dist_combined_weighted_correct')
 
         self.assertAlmostEqual(dist1_mean_empirical, dist1_mean_correct, places=1)
         self.assertAlmostEqual(dist1_stddev_empirical, dist1_stddev_correct, places=1)
@@ -439,6 +447,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist3_stddev_empirical, dist3_stddev_correct, places=1)
         self.assertAlmostEqual(dist_combined_mean_empirical, dist_combined_mean_correct, places=1)
         self.assertAlmostEqual(dist_combined_stddev_empirical, dist_combined_stddev_correct, places=1)
+        self.assertEqual(dist_combined_weighted, dist_combined_weighted_correct)
 
     def test_distributions_empirical_disk_combine_weighted(self):
         file_name_1 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
@@ -459,6 +468,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist3_stddev_correct = 2.168320417404175
         dist_combined_mean_correct = 3.1346240043640137
         dist_combined_stddev_correct = 2.2721681594848633
+        dist_combined_weighted_correct = True
 
         dist1_empirical = Empirical(values=dist1_values, log_weights=dist1_log_weights, file_name=file_name_1)
         dist1_mean_empirical = float(dist1_empirical.mean)
@@ -478,8 +488,9 @@ class DistributionsTestCase(unittest.TestCase):
         dist_combined_empirical = Empirical(concat_empirical_file_names=[file_name_1, file_name_2, file_name_3], file_name=file_name_combined)
         dist_combined_mean_empirical = float(dist_combined_empirical.mean)
         dist_combined_stddev_empirical = float(dist_combined_empirical.stddev)
+        dist_combined_weighted = dist_combined_empirical.weighted
 
-        util.eval_print('dist1_mean_empirical', 'dist1_mean_correct', 'dist1_stddev_empirical', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_mean_correct', 'dist2_stddev_empirical', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_mean_correct', 'dist3_stddev_empirical', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_empirical', 'dist_combined_stddev_correct')
+        util.eval_print('dist1_mean_empirical', 'dist1_mean_correct', 'dist1_stddev_empirical', 'dist1_stddev_correct', 'dist2_mean_empirical', 'dist2_mean_correct', 'dist2_stddev_empirical', 'dist2_stddev_correct', 'dist3_mean_empirical', 'dist3_mean_correct', 'dist3_stddev_empirical', 'dist3_stddev_correct', 'dist_combined_mean_empirical', 'dist_combined_mean_correct', 'dist_combined_stddev_empirical', 'dist_combined_stddev_correct', 'dist_combined_weighted', 'dist_combined_weighted_correct')
 
         self.assertAlmostEqual(dist1_mean_empirical, dist1_mean_correct, places=0)
         self.assertAlmostEqual(dist1_stddev_empirical, dist1_stddev_correct, places=0)
@@ -489,6 +500,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist3_stddev_empirical, dist3_stddev_correct, places=0)
         self.assertAlmostEqual(dist_combined_mean_empirical, dist_combined_mean_correct, places=0)
         self.assertAlmostEqual(dist_combined_stddev_empirical, dist_combined_stddev_correct, places=0)
+        self.assertEqual(dist_combined_weighted, dist_combined_weighted_correct)
 
     def test_distributions_empirical_save_load(self):
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))

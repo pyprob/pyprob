@@ -431,6 +431,10 @@ class Empirical(Distribution):
         return ret
 
     @property
+    def weighted(self):
+        return not self._uniform_weights
+
+    @property
     def mean(self):
         if self._mean is None:
             self._mean = self.expectation(lambda x: x)
