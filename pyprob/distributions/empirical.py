@@ -65,6 +65,7 @@ class Empirical(Distribution):
             self._length = self._concat_cum_sizes[-1]
             self._log_weights = torch.cat([util.to_tensor(emp._log_weights) for emp in self._concat_empiricals])
             self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+            self._check_uniform_weights()
             weights = self._categorical.probs
             self._effective_sample_size = 1. / weights.pow(2).sum()
             name = 'Concatenated empirical, length: {:,}, ESS: {:,.2f}'.format(self._length, self._effective_sample_size)
@@ -106,6 +107,7 @@ class Empirical(Distribution):
                     self._length = self._concat_cum_sizes[-1]
                     self._log_weights = torch.cat([util.to_tensor(emp._log_weights) for emp in self._concat_empiricals])
                     self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+                    self._check_uniform_weights()
                     self.name = self._shelf['name']
                     if 'metadata' in self._shelf:
                         self._metadata = self._shelf['metadata']
@@ -208,14 +210,17 @@ class Empirical(Distribution):
         else:
             raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
 
-    def finalize(self):
-        self._length = len(self._log_weights)
-        self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
-        self.add_metadata(op='finalize', length=self._length)
+    def _check_uniform_weights(self):
         if self._length > 0:
             self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
         else:
             self._uniform_weights = False
+
+    def finalize(self):
+        self._length = len(self._log_weights)
+        self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+        self.add_metadata(op='finalize', length=self._length)
+        self._check_uniform_weights()
         if self._type == EmpiricalType.FILE and not self._read_only:
             self._shelf['name'] = self.name
             self._shelf['metadata'] = self._metadata

@@ -456,6 +456,8 @@ def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="
         raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s prior or posterior.')
     if min_index is None:
         min_i = 0
+    else:
+        min_i = min_index
     iters = []
     log_probs = []
     for j in range(len(trace_dists)):
