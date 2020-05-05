@@ -708,7 +708,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_means_empirical, dist_means_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
-        self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.25))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_concentration, dist_concentration_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_scale, dist_scale_correct, atol=0.1))
