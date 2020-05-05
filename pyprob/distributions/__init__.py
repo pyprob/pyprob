@@ -5,6 +5,7 @@ from .categorical import Categorical
 from .empirical import Empirical
 from .exponential import Exponential
 from .gamma import Gamma
+from .log_normal import LogNormal
 from .mixture import Mixture
 from .normal import Normal
 from .poisson import Poisson
