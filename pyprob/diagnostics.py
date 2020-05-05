@@ -455,20 +455,18 @@ def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="
     if type(trace_dists) != list:
         raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s prior or posterior.')
     if min_index is None:
-        min_i = 0
-    else:
-        min_i = min_index
+        min_index = 0
     iters = []
     log_probs = []
     for j in range(len(trace_dists)):
         if type(trace_dists[j][0]) != Trace:
             raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s prior or posterior.')
         if max_index is None:
-            max_i = trace_dists[j].length
+            max_index = trace_dists[j].length
         else:
-            max_i = min(trace_dists[j].length, max_index)
-        num_traces = max_i - min_i
-        iters.append(list(range(min_i, max_i, max(1, int(num_traces / resolution)))))
+            max_index = min(trace_dists[j].length, max_index)
+        num_traces = max_index - min_index
+        iters.append(list(range(min_index, max_index, max(1, int(num_traces / resolution)))))
         time_start = time.time()
         prev_duration = 0
         len_str_num_traces = len(str(num_traces))

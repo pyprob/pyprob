@@ -79,6 +79,8 @@ class InferenceNetwork(nn.Module):
     def _init_layers_observe_embedding(self, observe_embeddings, example_trace):
         if len(observe_embeddings) == 0:
             raise ValueError('At least one observe embedding is needed to initialize inference network.')
+        if isinstance(observe_embeddings, set):
+            observe_embeddings = {o: {} for o in observe_embeddings}
         observe_embedding_total_dim = 0
         for name, value in observe_embeddings.items():
             variable = example_trace.named_variables[name]

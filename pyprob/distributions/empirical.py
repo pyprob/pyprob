@@ -111,6 +111,7 @@ class Empirical(Distribution):
                     self.name = self._shelf['name']
                     if 'metadata' in self._shelf:
                         self._metadata = self._shelf['metadata']
+                    self._file_last_key = -1
                     self._finalized = True
                     self._read_only = True
                 else:

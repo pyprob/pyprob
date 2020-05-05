@@ -129,7 +129,6 @@ class ModelTestCase(unittest.TestCase):
         self._model.reset_inference_network()
         print('Loading\n')
         self._model.load_inference_network(file_name)
-        # print(self._model._inference_network._optimizer)
         optimizer_state_step_after_load = list(self._model._inference_network._optimizer.state_dict()['state'].values())[0]['step']
         print('Training\n')
         self._model.learn_inference_network(num_traces=num_traces_end/2, num_traces_end=num_traces_end, batch_size=batch_size, observe_embeddings={'obs0': {'dim': 16}, 'obs1': {'dim': 16}}, optimizer_type=Optimizer.ADAM_LARC, learning_rate_scheduler_type=LearningRateScheduler.POLY2, learning_rate_init=learning_rate_init_correct, learning_rate_end=learning_rate_end_correct, log_file_name=file_name_3)
