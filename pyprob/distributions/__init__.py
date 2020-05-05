@@ -4,6 +4,7 @@ from .beta import Beta
 from .categorical import Categorical
 from .empirical import Empirical
 from .exponential import Exponential
+from .gamma import Gamma
 from .mixture import Mixture
 from .normal import Normal
 from .poisson import Poisson

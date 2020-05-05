@@ -93,7 +93,6 @@ def add_random_walk_metropolis_hastings_duration(val):
 
 class GaussianWithUnknownMeanTestCase(unittest.TestCase):
     def setUp(self):
-        docker_client = docker.from_env()
         server_address = 'ipc://@RemoteModelGaussianWithUnknownMean_' + str(uuid.uuid4())
         docker_client = docker.from_env()
         self._docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_gum {}'.format(server_address), network='host', detach=True)
@@ -209,7 +208,6 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
 
 class GaussianWithUnknownMeanMarsagliaWithReplacementTestCase(unittest.TestCase):
     def setUp(self):
-        docker_client = docker.from_env()
         server_address = 'ipc://@RemoteModelGaussianWithUnknownMeanMarsagliaWithReplacement_' + str(uuid.uuid4())
         docker_client = docker.from_env()
         self._docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia_replacement {}'.format(server_address), network='host', detach=True)
@@ -346,7 +344,6 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
         super().__init__(*args, **kwargs)
 
     def setUp(self):
-        docker_client = docker.from_env()
         server_address = 'ipc://@RemoteModelHiddenMarkovModel_' + str(uuid.uuid4())
         docker_client = docker.from_env()
         self._docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_hmm {}'.format(server_address), network='host', detach=True)
@@ -449,7 +446,6 @@ class HiddenMarkovModelTestCase(unittest.TestCase):
 
 class BranchingTestCase(unittest.TestCase):
     def setUp(self):
-        docker_client = docker.from_env()
         server_address = 'ipc://@RemoteModelBranching_' + str(uuid.uuid4())
         docker_client = docker.from_env()
         self._docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_branching {}'.format(server_address), network='host', detach=True)
