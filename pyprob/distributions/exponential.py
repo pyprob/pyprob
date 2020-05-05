@@ -14,4 +14,4 @@ class Exponential(Distribution):
 
     @property
     def rate(self):
-        return self._torch_dist.mean
+        return self._torch_dist.rate
