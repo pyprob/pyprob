@@ -1,6 +1,7 @@
 from .distribution import Distribution
 from .bernoulli import Bernoulli
 from .beta import Beta
+from .binomial import Binomial
 from .categorical import Categorical
 from .empirical import Empirical
 from .exponential import Exponential
