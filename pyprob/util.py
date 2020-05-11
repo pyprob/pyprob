@@ -402,3 +402,19 @@ def get_source(obj):
         return inspect.getsource(obj)
     except:
         return obj.__name__
+
+
+def distribution_short_name(dist_name):
+    short_names = {'Bernoulli': 'Ber', 'Beta': 'Beta', 'Binomial': 'Bin', 'Categorical': 'Cat', 'Empirical': 'Emp', 'Exponential': 'Exp', 'Gamma': 'Gam', 'LogNormal': 'LogN', 'Mixture': 'Mix', 'Normal': 'N', 'Poisson': 'Poi', 'TruncatedNormal': 'TruN', 'Uniform': 'U', 'Weibull': 'Wei'}
+    if dist_name in short_names:
+        return short_names[dist_name]
+    else:
+        return dist_name
+
+
+def float_to_string(number):
+    ret = '{:,.3g}'.format(number)
+    if ret == '1':
+        if abs(number-1) > 1e-9:
+            ret = '{:,.6g}'.format(number)
+    return ret

@@ -189,6 +189,12 @@ class Graph():
             graph_node_0.set_fontcolor('black')
             color_factor = 0.75 * (math.exp(1. - node_0.weight_normalized) - 1.) / (math.e - 1.)
             graph_node_0.set_penwidth(max(0.1, 4 * (1 - color_factor)))
+            if node_0.address_id != 'START' and node_0.address_id != 'END':
+                # label = '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0"><TR><TD>{}</TD></TR><TR><TD>{}</TD></TR></TABLE>>'.format(node_0.address_id, util.distribution_short_name(node_0.variable.distribution.name))
+                label = '<{}<BR /><FONT POINT-SIZE="10">{}</FONT>>'.format(node_0.address_id, util.distribution_short_name(node_0.variable.distribution.name))
+                # label = node_0.address_id
+                graph_node_0.set_label(label)
+                # graph_node_0.set('xlabel', util.distribution_short_name(node_0.variable.distribution.name))
 
             node_1 = edge.node_1
             nodes = graph.get_node(node_1.address_id)
@@ -211,7 +217,7 @@ class Graph():
                 graph_edge = pydotplus.Edge(graph_node_0, graph_node_1, weight=max(edge.weight, 1e-3))  # pydotplus fails with extremely small weights
                 graph.add_edge(graph_edge)
             # if background_graph is None:
-            graph_edge.set_label('\"{:,.3g}\"'.format(edge.weight))
+            graph_edge.set_label('\"{}\"'.format(util.float_to_string(edge.weight)))
             color_factor = 0.75 * (math.exp(1. - edge.weight_normalized) - 1.) / (math.e - 1.)
             graph_edge.set_color(util.rgb_to_hex((color_factor, color_factor, color_factor)))
             graph_edge.set_fontcolor('black')
@@ -230,6 +236,16 @@ class Graph():
         status = os.system('dot -Tpdf {} -o {}'.format(file_name_dot, file_name_pdf))
         if status != 0:
             print('Cannot not render to file {}. Check that GraphViz is installed.'.format(file_name_pdf))
+
+    def addresses(self):
+        d = {}
+        for node in self.nodes:
+            var = node.variable
+            if var is not None:
+                d[node.address_id] = var.address
+            else:
+                d[node.address_id] = ''
+        return d
 
     def sample_execution(self):
         node = self.get_node('START')

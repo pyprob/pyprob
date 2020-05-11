@@ -434,6 +434,17 @@ def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=No
     graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent, base_graph=base_graph, normalize_weights=normalize_weights)
     if file_name is not None:
         graph.render_to_file(file_name, background_graph=base_graph)
+        file_name_addresses = file_name + '_addresses.csv'
+        addresses = graph.addresses()
+        with open(file_name_addresses, 'w') as csvfile:
+            csv_titles = ['AddressID', 'Address']
+            csv_writer = csv.DictWriter(csvfile, fieldnames=csv_titles)
+            csv_writer.writeheader()
+            for k, v in addresses.items():
+                info = {}
+                info['AddressID'] = k
+                info['Address'] = v
+                csv_writer.writerow(info)
         for trace_id, trace_graph in graph.trace_graphs():
             trace_graph.render_to_file('{}_{}'.format(file_name, trace_id), background_graph=(graph if base_graph is None else base_graph))
     return graph
