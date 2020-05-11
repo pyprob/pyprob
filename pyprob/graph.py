@@ -7,6 +7,7 @@ from itertools import islice
 
 from . import util, diagnostics
 from .distributions import Empirical
+from .trace import Trace
 
 
 class Node():
@@ -53,6 +54,10 @@ class Edge():
 
 class Graph():
     def __init__(self, trace_dist, base_graph=None, use_address_base=True, n_most_frequent=None, normalize_weights=True):
+        if isinstance(trace_dist, Trace):
+            trace_dist = Empirical(values=[trace_dist])
+        if not isinstance(trace_dist, Empirical):
+            raise ValueError('Expecting trace_dist to be an Empirical distribution of Trace objects')
         self.nodes = []
         self.edges = []
         if base_graph is None:
@@ -196,7 +201,7 @@ class Graph():
                 graph_edge = pydotplus.Edge(graph_node_0, graph_node_1, weight=max(edge.weight, 1e-3))  # pydotplus fails with extremely small weights
                 graph.add_edge(graph_edge)
             # if background_graph is None:
-            graph_edge.set_label('\"{:,.3f}\"'.format(edge.weight))
+            graph_edge.set_label('\"{:,.3g}\"'.format(edge.weight))
             color_factor = 0.75 * (math.exp(1. - edge.weight) - 1.) / (math.e - 1.)
             graph_edge.set_color(util.rgb_to_hex((color_factor, color_factor, color_factor)))
             graph_edge.set_fontcolor('black')

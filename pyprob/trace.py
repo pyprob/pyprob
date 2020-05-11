@@ -135,8 +135,8 @@ class Trace():
         else:
             return 0
 
-    def address_counts(self, address_base=True):
-        if address_base:
+    def address_counts(self, use_address_base=True):
+        if use_address_base:
             addresses = [v.address_base for v in self.variables]
         else:
             addresses = [v.address for v in self.variables]
