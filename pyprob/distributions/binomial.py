@@ -11,7 +11,7 @@ class Binomial(Distribution):
         super().__init__(name='Binomial', address_suffix='Binomial', torch_dist=torch.distributions.Binomial(total_count=total_count, probs=probs, logits=logits))
 
     def __repr__(self):
-        return 'Binomial(total_count:{}, probs:{})'.format(self._total_count, self._torch_dist.probs)
+        return 'Binomial(total_count:{}, probs:{})'.format(self.total_count, self.probs)
 
     @property
     def total_count(self):
