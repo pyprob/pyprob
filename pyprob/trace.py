@@ -1,4 +1,5 @@
 import torch
+from collections import Counter
 
 from . import util
 
@@ -133,6 +134,13 @@ class Trace():
             return self.variables_dict_address_base[address_base].instance
         else:
             return 0
+
+    def address_counts(self, address_base=True):
+        if address_base:
+            addresses = [v.address_base for v in self.variables]
+        else:
+            addresses = [v.address for v in self.variables]
+        return Counter(addresses)
 
     def to(self, device):
         for variable in self.variables:
