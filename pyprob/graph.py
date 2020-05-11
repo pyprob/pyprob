@@ -15,6 +15,7 @@ class Node():
         self.address_id = address_id
         self.variable = variable
         self.weight = weight
+        self.weight_normalized = None
         self.outgoing_edges = []
         if variable is None:
             self.color = '#ffffff'
@@ -47,6 +48,7 @@ class Edge():
         self.node_0 = node_0
         self.node_1 = node_1
         self.weight = weight
+        self.weight_normalized = None
 
     def __repr__(self):
         return 'Edge(node_0: {}, node_1:{}, weight:{})'.format(self.node_0.address_id, self.node_1.address_id, self.weight)
@@ -119,6 +121,7 @@ class Graph():
 
             self.add_edge(node_0.add_outgoing_edge(node_1, weight))
 
+        self.compute_normalized_weights()
         if normalize_weights:
             self.normalize_weights()
 
@@ -131,7 +134,7 @@ class Graph():
     def add_edge(self, edge):
         self.edges.append(edge)
 
-    def normalize_weights(self):
+    def compute_normalized_weights(self):
         node_weight_total = 0
         for node in self.nodes:
             node_weight_total += node.weight
@@ -140,10 +143,17 @@ class Graph():
                 edge_weight_total += edge.weight
             if edge_weight_total > 0:
                 for edge in node.outgoing_edges:
-                    edge.weight /= edge_weight_total
+                    edge.weight_normalized = edge.weight / edge_weight_total
 
+        if node_weight_total > 0:
+            for node in self.nodes:
+                node.weight_normalized = node.weight / node_weight_total
+
+    def normalize_weights(self):
         for node in self.nodes:
-            node.weight /= node_weight_total
+            node.weight = node.weight_normalized
+            for edge in node.outgoing_edges:
+                edge.weight = edge.weight_normalized
 
     def trace_graphs(self):
         traces = self.trace_stats['traces']
@@ -177,7 +187,7 @@ class Graph():
             graph_node_0.set_fillcolor(node_0.color)
             graph_node_0.set_color('black')
             graph_node_0.set_fontcolor('black')
-            color_factor = 0.75 * (math.exp(1. - node_0.weight) - 1.) / (math.e - 1.)
+            color_factor = 0.75 * (math.exp(1. - node_0.weight_normalized) - 1.) / (math.e - 1.)
             graph_node_0.set_penwidth(max(0.1, 4 * (1 - color_factor)))
 
             node_1 = edge.node_1
@@ -191,7 +201,7 @@ class Graph():
             graph_node_1.set_fillcolor(node_1.color)
             graph_node_1.set_color('black')
             graph_node_1.set_fontcolor('black')
-            color_factor = 0.75 * (math.exp(1. - node_1.weight) - 1.) / (math.e - 1.)
+            color_factor = 0.75 * (math.exp(1. - node_1.weight_normalized) - 1.) / (math.e - 1.)
             graph_node_1.set_penwidth(max(0.25, 5 * (1 - color_factor)))
 
             edges = graph.get_edge(node_0.address_id, node_1.address_id)
@@ -202,7 +212,7 @@ class Graph():
                 graph.add_edge(graph_edge)
             # if background_graph is None:
             graph_edge.set_label('\"{:,.3g}\"'.format(edge.weight))
-            color_factor = 0.75 * (math.exp(1. - edge.weight) - 1.) / (math.e - 1.)
+            color_factor = 0.75 * (math.exp(1. - edge.weight_normalized) - 1.) / (math.e - 1.)
             graph_edge.set_color(util.rgb_to_hex((color_factor, color_factor, color_factor)))
             graph_edge.set_fontcolor('black')
             # else:
