@@ -122,6 +122,25 @@ def _trace_stats(trace_dist, use_address_base=True, reuse_ids_from_address_stats
     return {'traces': traces, 'traces_extra': traces_extra, 'trace_ids': trace_ids, 'address_stats': address_stats, 'trace_id_dist': trace_id_dist, 'trace_length_dist': trace_length_dist, 'trace_length_controlled_dist': trace_length_controlled_dist, 'trace_execution_time_dist': trace_execution_time_dist, 'address_id_dist': address_id_dist}
 
 
+def _remove_address_bases(trace, address_bases_to_remove):
+    ret = Trace()
+    for v in trace.variables:
+        if v.address_base not in address_bases_to_remove:
+            ret.add(v)
+    ret.end(trace.result, trace.execution_time_sec)
+    return ret
+
+
+def _remove_addresses_below_count(trace_dist, count):
+    address_stats = _address_stats(trace_dist)
+    address_bases_to_remove = []
+    for a in address_stats['addresses'].values():
+        if a['count'] < count:
+            address_base = a['variable'].address_base
+            address_bases_to_remove.append(address_base)
+    return trace_dist.map(lambda trace: _remove_address_bases(trace, address_bases_to_remove))
+
+
 def trace_histograms(trace_dist, use_address_base=True, figsize=(10, 5), bins=30, plot=False, plot_show=True, file_name=None):
     trace_stats = _trace_stats(trace_dist, use_address_base=use_address_base)
     traces = trace_stats['traces']
@@ -430,8 +449,8 @@ def network(inference_network, save_dir=None):
     return stats
 
 
-def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=None, file_name=None, normalize_weights=True):
-    graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent, base_graph=base_graph, normalize_weights=normalize_weights)
+def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=None, file_name=None, normalize_weights=True, min_address_count=None):
+    graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent, base_graph=base_graph, normalize_weights=normalize_weights, min_address_count=min_address_count)
     if file_name is not None:
         graph.render_to_file(file_name, background_graph=base_graph)
         file_name_addresses = file_name + '_addresses.csv'
