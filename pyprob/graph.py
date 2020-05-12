@@ -55,13 +55,15 @@ class Edge():
 
 
 class Graph():
-    def __init__(self, trace_dist, base_graph=None, use_address_base=True, n_most_frequent=None, normalize_weights=True):
+    def __init__(self, trace_dist=None, base_graph=None, use_address_base=True, n_most_frequent=None, normalize_weights=True):
+        self.nodes = []
+        self.edges = []
+        if trace_dist is None:
+            return
         if isinstance(trace_dist, Trace):
             trace_dist = Empirical(values=[trace_dist])
         if not isinstance(trace_dist, Empirical):
             raise ValueError('Expecting trace_dist to be an Empirical distribution of Trace objects')
-        self.nodes = []
-        self.edges = []
         if base_graph is None:
             self.address_stats = None
             self.trace_stats = None
@@ -256,3 +258,6 @@ class Graph():
             node = edge.node_1
             seq.append(node)
         return seq
+
+    def __repr__(self):
+        return 'Graph(nodes:{}, edges:{})'.format(len(self.nodes), len(self.edges))
