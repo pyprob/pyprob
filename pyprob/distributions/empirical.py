@@ -38,7 +38,7 @@ class Empirical(Distribution):
         self._file_name = file_name
         self._closed = False
         self._categorical = None
-        self._log_weights = []
+        self.log_weights = []
         self._length = 0
         self._uniform_weights = False
         self._type = None
@@ -63,8 +63,8 @@ class Empirical(Distribution):
                     raise TypeError('Expecting concat_empirical_file_names to be a list of file names.')
             self._concat_cum_sizes = np.cumsum([emp.length for emp in self._concat_empiricals])
             self._length = self._concat_cum_sizes[-1]
-            self._log_weights = torch.cat([util.to_tensor(emp._log_weights) for emp in self._concat_empiricals])
-            self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+            self.log_weights = torch.cat([util.to_tensor(emp._log_weights) for emp in self._concat_empiricals])
+            self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self.log_weights, dtype=torch.float64))
             self._check_uniform_weights()
             weights = self._categorical.probs
             self._effective_sample_size = 1. / weights.pow(2).sum()
@@ -96,7 +96,7 @@ class Empirical(Distribution):
         else:
             if file_name is None:
                 self._type = EmpiricalType.MEMORY
-                self._values = []
+                self.values = []
             else:
                 self._shelf = shelve.open(self._file_name, flag=shelf_flag, writeback=file_writeback)
                 if 'concat_empirical_file_names' in self._shelf:
@@ -105,8 +105,8 @@ class Empirical(Distribution):
                     self._concat_empiricals = [Empirical(file_name=f, file_read_only=True) for f in concat_empirical_file_names]
                     self._concat_cum_sizes = np.cumsum([emp.length for emp in self._concat_empiricals])
                     self._length = self._concat_cum_sizes[-1]
-                    self._log_weights = torch.cat([util.to_tensor(emp._log_weights) for emp in self._concat_empiricals])
-                    self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+                    self.log_weights = torch.cat([util.to_tensor(emp._log_weights) for emp in self._concat_empiricals])
+                    self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self.log_weights, dtype=torch.float64))
                     self._check_uniform_weights()
                     self.name = self._shelf['name']
                     if 'metadata' in self._shelf:
@@ -121,9 +121,9 @@ class Empirical(Distribution):
                     if 'metadata' in self._shelf:
                         self._metadata = self._shelf['metadata']
                     if 'log_weights' in self._shelf:
-                        self._log_weights = self._shelf['log_weights']
+                        self.log_weights = self._shelf['log_weights']
                         self._file_last_key = self._shelf['last_key']
-                        self._length = len(self._log_weights)
+                        self._length = len(self.log_weights)
                     else:
                         self._file_last_key = -1
                     self._file_sync_timeout = file_sync_timeout
@@ -160,6 +160,10 @@ class Empirical(Distribution):
         return self._length
 
     @property
+    def weights(self):
+        return self._categorical.probs
+
+    @property
     def metadata(self):
         return self._metadata
 
@@ -179,7 +183,7 @@ class Empirical(Distribution):
             if file_name is None:
                 status = 'Copy Empirical(file_name: {}) to Empirical(memory)'.format(self._file_name)
                 print(status)
-                ret = Empirical(values=self.get_values(), log_weights=self._log_weights, name=self.name)
+                ret = Empirical(values=self.get_values(), log_weights=self.log_weights, name=self.name)
                 ret._metadata = copy.deepcopy(self._metadata)
                 ret.add_metadata(op='copy', source='Empirical(file_name: {})'.format(self._file_name), target='Empirical(memory)')
                 return ret
@@ -188,7 +192,7 @@ class Empirical(Distribution):
                 print(status)
                 ret = Empirical(file_name=file_name, name=self.name)
                 for i in range(self._length):
-                    ret.add(value=self._get_value(i), log_weight=self._log_weights[i])
+                    ret.add(value=self._get_value(i), log_weight=self.log_weights[i])
                 ret.finalize()
                 ret._metadata = copy.deepcopy(self._metadata)
                 ret.add_metadata(op='copy', source='Empirical(file_name: {})'.format(self._file_name), target='Empirical(file_name: {})'.format(file_name))
@@ -204,7 +208,7 @@ class Empirical(Distribution):
             else:
                 status = 'Copy Empirical(memory) to Empirical(file_name: {})'.format(file_name)
                 print(status)
-                ret = Empirical(values=self._values, log_weights=self._log_weights, file_name=file_name, name=self.name)
+                ret = Empirical(values=self.values, log_weights=self.log_weights, file_name=file_name, name=self.name)
                 ret._metadata = copy.deepcopy(self._metadata)
                 ret.add_metadata(op='copy', source='Empirical(memory)', target='Empirical(file_name: {})'.format(file_name))
                 return ret
@@ -218,14 +222,14 @@ class Empirical(Distribution):
             self._uniform_weights = False
 
     def finalize(self):
-        self._length = len(self._log_weights)
-        self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self._log_weights, dtype=torch.float64))
+        self._length = len(self.log_weights)
+        self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self.log_weights, dtype=torch.float64))
         self.add_metadata(op='finalize', length=self._length)
         self._check_uniform_weights()
         if self._type == EmpiricalType.FILE and not self._read_only:
             self._shelf['name'] = self.name
             self._shelf['metadata'] = self._metadata
-            self._shelf['log_weights'] = self._log_weights
+            self._shelf['log_weights'] = self.log_weights
             self._shelf['last_key'] = self._file_last_key
             self._shelf.sync()
         self._finalized = True
@@ -245,11 +249,11 @@ class Empirical(Distribution):
         self._max = None
         self._effective_sample_size = None
         if log_weight is not None:
-            self._log_weights.append(util.to_tensor(log_weight))
+            self.log_weights.append(util.to_tensor(log_weight))
         elif weight is not None:
-            self._log_weights.append(torch.log(util.to_tensor(weight)))
+            self.log_weights.append(torch.log(util.to_tensor(weight)))
         else:
-            self._log_weights.append(util.to_tensor(0.))
+            self.log_weights.append(util.to_tensor(0.))
 
         if self._type == EmpiricalType.FILE:
             self._file_last_key += 1
@@ -259,7 +263,7 @@ class Empirical(Distribution):
                 self.finalize()
                 self._file_sync_countdown = self._file_sync_timeout
         else:
-            self._values.append(value)
+            self.values.append(value)
 
     def add_sequence(self, values, log_weights=None, weights=None):
         if self._read_only:
@@ -283,7 +287,7 @@ class Empirical(Distribution):
 
     def _get_value(self, index):
         if self._type == EmpiricalType.MEMORY:
-            return self._values[index]
+            return self.values[index]
         elif self._type == EmpiricalType.FILE:
             if index < 0:
                 index = self._length + index
@@ -303,7 +307,7 @@ class Empirical(Distribution):
     def get_values(self):
         self._check_finalized()
         if self._type == EmpiricalType.MEMORY:
-            return self._values
+            return self.values
         elif self._type == EmpiricalType.FILE:
             return [self._shelf[str(i)] for i in range(self._length)]
         else:
@@ -332,7 +336,7 @@ class Empirical(Distribution):
         self._check_finalized()
         if isinstance(index, slice):
             if self._type == EmpiricalType.MEMORY:
-                ret = Empirical(values=self._values[index], log_weights=self._log_weights[index], name=self.name)
+                ret = Empirical(values=self.values[index], log_weights=self.log_weights[index], name=self.name)
                 ret._metadata = copy.deepcopy(self._metadata)
                 ret.add_metadata(op='slice', index='{}'.format(index))
                 return ret
@@ -346,10 +350,10 @@ class Empirical(Distribution):
         ret = 0.
         if self._type == EmpiricalType.MEMORY:
             if self._uniform_weights:
-                ret = sum(map(func, self._values)) / self._length
+                ret = sum(map(func, self.values)) / self._length
             else:
                 for i in range(self._length):
-                    ret += util.to_tensor(func(self._values[i]), dtype=torch.float64) * self._categorical.probs[i]
+                    ret += util.to_tensor(func(self.values[i]), dtype=torch.float64) * self._categorical.probs[i]
         elif self._type == EmpiricalType.FILE:
             for i in range(self._length):
                 ret += util.to_tensor(func(self._shelf[str(i)]), dtype=torch.float64) * self._categorical.probs[i]
@@ -363,7 +367,7 @@ class Empirical(Distribution):
         values = []
         for i in range(self._length):
             values.append(func(self._get_value(i)))
-        ret = Empirical(values=values, log_weights=self._log_weights, name=self.name, *args, **kwargs)
+        ret = Empirical(values=values, log_weights=self.log_weights, name=self.name, *args, **kwargs)
         ret._metadata = copy.deepcopy(self._metadata)
         ret.add_metadata(op='map', length=len(self), func=util.get_source(func))
         return ret
@@ -465,7 +469,7 @@ class Empirical(Distribution):
                 util.progress_bar_end()
                 self._mode = sorted(counts.items(), key=lambda x: x[1], reverse=True)[0][0]
             else:
-                _, max_index = util.to_tensor(self._log_weights).max(-1)
+                _, max_index = util.to_tensor(self.log_weights).max(-1)
                 self._mode = self._get_value(int(max_index))
         return self._mode
 
@@ -539,17 +543,17 @@ class Empirical(Distribution):
         if self._type == EmpiricalType.MEMORY:
             distribution = collections.defaultdict(float)
             # This can be simplified once PyTorch supports content-based hashing of tensors. See: https://github.com/pytorch/pytorch/issues/2569
-            hashable = util.is_hashable(self._values[0])
+            hashable = util.is_hashable(self.values[0])
             if hashable:
                 for i in range(self.length):
                     found = False
                     for key, value in distribution.items():
-                        if torch.equal(util.to_tensor(key), util.to_tensor(self._values[i])):
+                        if torch.equal(util.to_tensor(key), util.to_tensor(self.values[i])):
                             # Differentiability warning: values[i] is discarded here. If we need to differentiate through all values, the gradients of values[i] and key should be tied here.
-                            distribution[key] = torch.logsumexp(torch.stack((value, self._log_weights[i])), dim=0)
+                            distribution[key] = torch.logsumexp(torch.stack((value, self.log_weights[i])), dim=0)
                             found = True
                     if not found:
-                        distribution[self._values[i]] = self._log_weights[i]
+                        distribution[self.values[i]] = self.log_weights[i]
                 values = list(distribution.keys())
                 log_weights = list(distribution.values())
                 ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
@@ -641,3 +645,6 @@ class Empirical(Distribution):
     def save_metadata(self, file_name):
         with open(file_name, 'w') as file:
             file.write(yaml.dump(self._metadata))
+
+    def __repr__(self):
+        return 'Empirical(items:{}, weighted:{})'.format(self.length, self.weighted)
