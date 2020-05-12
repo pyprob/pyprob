@@ -55,7 +55,7 @@ class Edge():
 
 
 class Graph():
-    def __init__(self, trace_dist=None, base_graph=None, use_address_base=True, n_most_frequent=None, normalize_weights=True, min_address_count=None):
+    def __init__(self, trace_dist=None, base_graph=None, use_address_base=True, n_most_frequent=None, normalize_weights=True, min_address_count=None, exclude_addresses_regex=None):
         self.nodes = []
         self.edges = []
         if trace_dist is None:
@@ -76,6 +76,9 @@ class Graph():
         # self.address_stats = diagnostics._address_stats(trace_dist, use_address_base=self.use_address_base)
         if min_address_count is not None:
             trace_dist = diagnostics._remove_addresses_below_count(trace_dist, min_address_count)
+
+        if exclude_addresses_regex is not None:
+            trace_dist = diagnostics._remove_addresses(trace_dist, exclude_addresses_regex)
 
         self.trace_stats = diagnostics._trace_stats(trace_dist, use_address_base=self.use_address_base, reuse_ids_from_address_stats=self.address_stats, reuse_ids_from_trace_stats=self.trace_stats)
         self.address_stats = self.trace_stats['address_stats']

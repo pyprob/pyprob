@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import time
 import sys
 import csv
+import re
 from torch.distributions.kl import kl_divergence
 
 from . import __version__, util
@@ -137,6 +138,16 @@ def _remove_addresses_below_count(trace_dist, count):
     for a in address_stats['addresses'].values():
         if a['count'] < count:
             address_base = a['variable'].address_base
+            address_bases_to_remove.append(address_base)
+    return trace_dist.map(lambda trace: _remove_address_bases(trace, address_bases_to_remove))
+
+
+def _remove_addresses(trace_dist, regex):
+    address_stats = _address_stats(trace_dist)
+    address_bases_to_remove = []
+    for a in address_stats['addresses'].values():
+        address_base = a['variable'].address_base
+        if len(re.findall(regex, address_base)) > 0:
             address_bases_to_remove.append(address_base)
     return trace_dist.map(lambda trace: _remove_address_bases(trace, address_bases_to_remove))
 
@@ -449,8 +460,8 @@ def network(inference_network, save_dir=None):
     return stats
 
 
-def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=None, file_name=None, normalize_weights=True, min_address_count=None):
-    graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent, base_graph=base_graph, normalize_weights=normalize_weights, min_address_count=min_address_count)
+def graph(trace_dist, use_address_base=True, n_most_frequent=None, base_graph=None, file_name=None, normalize_weights=True, min_address_count=None, exclude_addresses_regex=None):
+    graph = Graph(trace_dist=trace_dist, use_address_base=use_address_base, n_most_frequent=n_most_frequent, base_graph=base_graph, normalize_weights=normalize_weights, min_address_count=min_address_count, exclude_addresses_regex=exclude_addresses_regex)
     if file_name is not None:
         graph.render_to_file(file_name, background_graph=base_graph)
         file_name_addresses = file_name + '_addresses.csv'
