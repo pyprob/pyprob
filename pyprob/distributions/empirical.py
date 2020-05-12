@@ -63,7 +63,7 @@ class Empirical(Distribution):
                     raise TypeError('Expecting concat_empirical_file_names to be a list of file names.')
             self._concat_cum_sizes = np.cumsum([emp.length for emp in self._concat_empiricals])
             self._length = self._concat_cum_sizes[-1]
-            self.log_weights = torch.cat([util.to_tensor(emp._log_weights) for emp in self._concat_empiricals])
+            self.log_weights = torch.cat([util.to_tensor(emp.log_weights) for emp in self._concat_empiricals])
             self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self.log_weights, dtype=torch.float64))
             self._check_uniform_weights()
             weights = self._categorical.probs
@@ -105,7 +105,7 @@ class Empirical(Distribution):
                     self._concat_empiricals = [Empirical(file_name=f, file_read_only=True) for f in concat_empirical_file_names]
                     self._concat_cum_sizes = np.cumsum([emp.length for emp in self._concat_empiricals])
                     self._length = self._concat_cum_sizes[-1]
-                    self.log_weights = torch.cat([util.to_tensor(emp._log_weights) for emp in self._concat_empiricals])
+                    self.log_weights = torch.cat([util.to_tensor(emp.log_weights) for emp in self._concat_empiricals])
                     self._categorical = torch.distributions.Categorical(logits=util.to_tensor(self.log_weights, dtype=torch.float64))
                     self._check_uniform_weights()
                     self.name = self._shelf['name']
