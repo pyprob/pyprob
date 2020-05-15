@@ -564,8 +564,9 @@ def _n_most_frequent_addresses(trace_dist, n_most_frequent, num_traces=None):
         trace = trace_dist._get_value(i)
         util.progress_bar_update(i)
         for variable in trace.variables:
-            if variable.value.nelement() == 1:
-                address_counts[variable.address] += 1
+            if variable.value is not None:
+                if variable.value.nelement() == 1:
+                    address_counts[variable.address] += 1
     util.progress_bar_end()
     address_counts = {k: v for k, v in address_counts.items() if v >= num_traces}
     address_counts = OrderedDict(sorted(address_counts.items(), key=lambda x: x[1], reverse=True))
