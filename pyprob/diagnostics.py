@@ -704,7 +704,7 @@ def gelman_rubin(trace_dists, names=None, iters=None, n_most_frequent=50, figsiz
     dist_lengths = [dist.length for dist in trace_dists]
     num_traces = min(dist_lengths)
     if max(dist_lengths) != num_traces:
-        print('Distributions have unequal length, setting the length to minimum: {}'.format(num_traces))
+        print('Distributions have unequal lengths ({}), setting the length to minimum: {}'.format(dist_lengths, num_traces))
 
     if iters is None:
         iters = np.unique(np.logspace(0, np.log10(num_traces)).astype(int))
@@ -717,6 +717,18 @@ def gelman_rubin(trace_dists, names=None, iters=None, n_most_frequent=50, figsiz
                 variable_values[address]['values'] = np.vstack((variable_values[address]['values'], v['values']))
             else:
                 variable_values[address] = v
+
+    variable_values_new = {}
+    for address, v in variable_values.items():
+        values = v['values']
+        if values.ndim == 2 and values.shape[0] == len(trace_dists):
+            variable_values_new[address] = v
+        else:
+            print('Deselecting variable because it is not present in all trace distributions. address: {}, name: {}'.format(address, v['variable'].name))
+
+    variable_values = variable_values_new
+    if len(variable_values) == 0:
+        raise RuntimeError('Cannot compute the Gelman-Rubin diagnostic because there are no common addresses between the distributions')
 
     for i, (address, v) in enumerate(variable_values.items()):
         print('Computing R-hat for variable address: {}, name: {} ({} of {})'.format(v['variable'].address, v['variable'].name, i + 1, len(variable_values)))
