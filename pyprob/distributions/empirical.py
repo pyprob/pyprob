@@ -28,6 +28,7 @@ class Empirical(Distribution):
     def __init__(self, values=None, log_weights=None, weights=None, file_name=None, file_read_only=False, file_sync_timeout=25, file_writeback=False, concat_empiricals=None, concat_empirical_file_names=None, name='Empirical'):
         super().__init__(name)
         self._finalized = False
+        self._closed = False
         self._read_only = file_read_only
         if self._read_only:
             if not os.path.exists(file_name):
@@ -36,7 +37,6 @@ class Empirical(Distribution):
         else:
             shelf_flag = 'c'
         self._file_name = file_name
-        self._closed = False
         self._categorical = None
         self.log_weights = []
         self._length = 0
@@ -145,12 +145,14 @@ class Empirical(Distribution):
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
-        if not self._closed:
-            self.close()
+        if hasattr(self, '_closed'):
+            if not self._closed:
+                self.close()
 
     def __del__(self):
-        if not self._closed:
-            self.close()
+        if hasattr(self, '_closed'):
+            if not self._closed:
+                self.close()
 
     def __len__(self):
         return self._length
