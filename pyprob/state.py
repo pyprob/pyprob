@@ -97,6 +97,8 @@ def _inflate(distribution):
 
 def tag(value, name=None, address=None):
     global _current_trace
+    if _current_trace is None:
+        return
     if address is None:
         address_base = _extract_address(_current_trace_root_function_name) + '__None'
     else:
@@ -114,6 +116,8 @@ def tag(value, name=None, address=None):
 
 def observe(distribution, value=None, name=None, address=None):
     global _current_trace
+    if _current_trace is None:
+        return
     if address is None:
         address_base = _extract_address(_current_trace_root_function_name) + '__' + distribution._address_suffix
     else:
@@ -153,6 +157,9 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
     global _current_trace
     global _current_trace_previous_variable
     global _current_trace_replaced_variable_proposal_distributions
+
+    if _current_trace is None:
+        return distribution.sample()
 
     # Only replace if controlled
     if not control:
@@ -405,6 +412,9 @@ def _begin_trace():
 
 
 def _end_trace(result):
+    global _current_trace
     execution_time_sec = time.time() - _current_trace_execution_start
     _current_trace.end(result, execution_time_sec)
-    return _current_trace
+    trace = _current_trace
+    _current_trace = None
+    return trace
