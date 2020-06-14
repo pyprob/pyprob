@@ -315,19 +315,21 @@ class Empirical(Distribution):
         else:
             raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
 
-    def sample(self, min_index=None, max_index=None):
+    def sample(self, min_index=None, max_index=None):  # min_index is inclusive, max_index is exclusive
         self._check_finalized()
         if self._uniform_weights:
             if min_index is None:
                 min_index = 0
             if max_index is None:
-                max_index = self._length - 1
-            index = random.randint(min_index, max_index)
+                max_index = self._length
+            index = random.randint(min_index, max_index-1)  # max_index-1 is because random.randint treats upper bound as inclusive and we define max_index as exclusive
+            return self._get_value(index)
         else:
             if min_index is not None or max_index is not None:
-                raise NotImplementedError('Sample with min_index and/or max_index not implemented for Empirical with non-uniform weights.')
-            index = int(self._categorical.sample())
-        return self._get_value(index)
+                return self[min_index:max_index].sample()
+            else:
+                index = int(self._categorical.sample())
+                return self._get_value(index)
 
     def __iter__(self):
         self._check_finalized()
@@ -390,7 +392,7 @@ class Empirical(Distribution):
         ret.add_metadata(op='filter', length=len(self), length_after=len(filtered_values), func=util.get_source(func))
         return ret
 
-    def resample(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):
+    def resample(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):  # min_index is inclusive, max_index is exclusive
         self._check_finalized()
         # TODO: improve this with a better resampling algorithm
         if map_func is None:
@@ -405,14 +407,14 @@ class Empirical(Distribution):
         util.progress_bar_init(status, num_samples, 'Samples')
         for i in range(num_samples):
             util.progress_bar_update(i)
-            values.append(map_func(self.sample(min_index=None, max_index=None)))
+            values.append(map_func(self.sample(min_index=min_index, max_index=max_index)))
         util.progress_bar_end()
         ret = Empirical(values=values, name=self.name, *args, **kwargs)
         ret._metadata = copy.deepcopy(self._metadata)
         ret.add_metadata(op='resample', length=len(self), num_samples=int(num_samples), min_index=int(min_index), max_index=int(max_index), ess_before=ess_before_resample)
         return ret
 
-    def thin(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):
+    def thin(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):  # min_index is inclusive, max_index is exclusive
         self._check_finalized()
         if map_func is None:
             map_func = lambda x: x
