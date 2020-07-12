@@ -718,9 +718,19 @@ def autocorrelation(trace_dist, names=None, lags=None, n_most_frequent=None, fig
         raise TypeError('Expecting a trace distribution.')
 
     def _autocorrelation(values, lags):
-        ret = np.array([1. if lag == 0 else np.corrcoef(values[lag:], values[:-lag])[0][1] for lag in lags])
+        # ret = np.array([1. if lag == 0 else np.corrcoef(values[lag:], values[:-lag])[0][1] for lag in lags])
         # nan is encountered when there is no variance in the values, the foloowing might be used to assign autocorrelation of 1 to such cases
         # ret[np.isnan(ret)] = 1.
+        # The following code is by Francesco Pinto, improving behavior in cases where np.corrcoef was returning nan values
+        ret = []
+        sample_mean = values.mean()
+        for lag in lags:
+            numerator = 0
+            denominator = util._epsilon
+            for i in range(values.shape[0] - lag):
+                numerator += (values[i]-sample_mean)*(values[i+lag]-sample_mean)
+                denominator += (values[i]-sample_mean)**2
+            ret.append(numerator/denominator)
         return ret
 
     num_traces = trace_dist.length
