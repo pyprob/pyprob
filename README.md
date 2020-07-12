@@ -130,6 +130,7 @@ PyProb has been developed by the team
 * [Tuan Anh Le](http://www.tuananhle.co.uk/)
 * [Andreas Munk](https://ammunk.com/)
 * [Saeid Naderiparizi](https://www.cs.ubc.ca/~saeidnp/)
+* Francesco Pinto
 * [Lei Shao](https://www.intel.com/content/www/us/en/artificial-intelligence/bios/lei-shao.html)
 * [Jialin Liu](https://sites.google.com/site/jailinliu/)
 * [Lukas Heinrich](http://www.lukasheinrich.com/)
