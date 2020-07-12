@@ -347,7 +347,23 @@ class Empirical(Distribution):
                 ret.add_metadata(op='slice', index='{}'.format(index))
                 return ret
             else:
-                raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
+                min_index = index.start
+                max_index = index.stop
+                if min_index is None:
+                    min_index = 0
+                elif min_index < -self._length:
+                    min_index = 0
+                elif min_index < 0:
+                    min_index += self._length
+                if max_index is None:
+                    max_index = self._length
+                elif max_index > self._length:
+                    max_index = self._length
+                elif max_index < -self._length:
+                    max_index = 0
+                elif max_index < 0:
+                    max_index += self._length
+                return self.map(lambda x: x, min_index=min_index, max_index=max_index)
         else:
             return self._get_value(index)
 
@@ -368,27 +384,47 @@ class Empirical(Distribution):
                 ret += util.to_tensor(func(self._get_value(i)), dtype=torch.float64) * self._categorical.probs[i]
         return util.to_tensor(ret)
 
-    def map(self, func, *args, **kwargs):
+    def map(self, func, min_index=None, max_index=None, *args, **kwargs):
         self._check_finalized()
+        if min_index is None:
+            min_index = 0
+        if max_index is None:
+            max_index = self._length
+        indices = range(min_index, max_index)
+        status = 'Map, min_index: {}, max_index: {}'.format(min_index, max_index)
+        util.progress_bar_init(status, len(indices), 'Values')
         values = []
-        for i in range(self._length):
+        log_weights = []
+        for i in range(min_index, max_index):
+            util.progress_bar_update(i)
             values.append(func(self._get_value(i)))
-        ret = Empirical(values=values, log_weights=self.log_weights, name=self.name, *args, **kwargs)
+            log_weights.append(self._get_log_weight(i))
+        util.progress_bar_end()
+        ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
         ret._metadata = copy.deepcopy(self._metadata)
         ret.add_metadata(op='map', length=len(self), func=util.get_source(func))
         return ret
 
-    def filter(self, func, *args, **kwargs):
+    def filter(self, func, min_index=None, max_index=None, *args, **kwargs):
         self._check_finalized()
         if self.length == 0:
             return self
+        if min_index is None:
+            min_index = 0
+        if max_index is None:
+            max_index = self._length
+        indices = range(min_index, max_index)
         filtered_values = []
         filtered_log_weights = []
-        for i in range(self._length):
+        status = 'Filter, min_index: {}, max_index: {}'.format(min_index, max_index)
+        util.progress_bar_init(status, len(indices), 'Values')
+        for i in indices:
+            util.progress_bar_update(i)
             value = self._get_value(i)
             if func(value):
                 filtered_values.append(value)
                 filtered_log_weights.append(self._get_log_weight(i))
+        util.progress_bar_end()
         ret = Empirical(filtered_values, log_weights=filtered_log_weights, name=self.name, *args, **kwargs)
         ret._metadata = copy.deepcopy(self._metadata)
         ret.add_metadata(op='filter', length=len(self), length_after=len(filtered_values), func=util.get_source(func))
@@ -429,7 +465,7 @@ class Empirical(Distribution):
         values = []
         log_weights = []
         status = 'Thin, num_samples: {}, step: {}, min_index: {}, max_index: {}'.format(num_samples, step, min_index, max_index)
-        util.progress_bar_init(status, len(indices), 'Samples')
+        util.progress_bar_init(status, len(indices), 'Values')
         for i in range(len(indices)):
             util.progress_bar_update(i)
             values.append(map_func(self._get_value(indices[i])))

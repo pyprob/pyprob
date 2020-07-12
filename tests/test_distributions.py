@@ -293,6 +293,23 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertEqual(dist_first, dist_first_correct)
         self.assertEqual(dist_last, dist_last_correct)
 
+    def test_distributions_empirical_slice_and_index_disk(self):
+        dist_slice_elements_correct = [0, 1, 2]
+        dist_first_correct = 0
+        dist_last_correct = 5
+        file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+
+        dist = Empirical([0, 1, 2, 3, 4, 5], file_name=file_name)
+        dist_slice_elements = dist[0:3].get_values()
+        dist_first = dist[0]
+        dist_last = dist[-1]
+
+        util.eval_print('file_name', 'dist_slice_elements', 'dist_slice_elements_correct', 'dist_first', 'dist_first_correct', 'dist_last', 'dist_last_correct')
+
+        self.assertEqual(dist_slice_elements, dist_slice_elements_correct)
+        self.assertEqual(dist_first, dist_first_correct)
+        self.assertEqual(dist_last, dist_last_correct)
+
     def test_distributions_empirical_sample_min_max_index(self):
         dist_mean_1_correct = 2
         dist_mean_2_correct = 3
