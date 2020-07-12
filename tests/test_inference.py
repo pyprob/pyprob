@@ -772,7 +772,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         util.eval_print('samples', 'test_letters', 'map_estimates', 'effective_sample_sizes', 'accuracy', 'mean_effective_sample_size', 'mean_effective_sample_size_min', 'kl_divergence')
         add_importance_sampling_with_inference_network_ff_kl_divergence(kl_divergence)
 
-        self.assertGreater(accuracy, 0.9)
+        self.assertGreater(accuracy, 0.8)
         self.assertLess(kl_divergence, 0.25)
 
     def test_inference_mini_captcha_posterior_importance_sampling_with_inference_network_lstm(self):
@@ -802,7 +802,7 @@ class MiniCaptchaTestCase(unittest.TestCase):
         util.eval_print('samples', 'test_letters', 'map_estimates', 'effective_sample_sizes', 'accuracy', 'mean_effective_sample_size', 'mean_effective_sample_size_min', 'kl_divergence')
         add_importance_sampling_with_inference_network_lstm_kl_divergence(kl_divergence)
 
-        self.assertGreater(accuracy, 0.9)
+        self.assertGreater(accuracy, 0.8)
         self.assertLess(kl_divergence, 0.25)
 
     def test_inference_mini_captcha_posterior_lightweight_metropolis_hastings(self):

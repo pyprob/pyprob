@@ -632,6 +632,33 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(concat_emp_stddev, stddev_correct, places=1)
         self.assertAlmostEqual(concat_emp_ess, ess_correct, places=1)
 
+    def test_distributions_empirical_skweness_kurtosis(self):
+        values = [Normal(0, 1).sample() for _ in range(empirical_samples)]
+        emp = Empirical(values)
+
+        skewness_correct = 0.
+        kurtosis_correct = 3.
+        skewness = float(emp.skewness)
+        kurtosis = float(emp.kurtosis)
+
+        util.eval_print('skewness', 'kurtosis', 'skewness_correct', 'kurtosis_correct')
+
+        self.assertAlmostEqual(skewness_correct, skewness, delta=0.1)
+        self.assertAlmostEqual(kurtosis_correct, kurtosis, delta=0.1)
+
+        values = [Beta(0.5, 1).sample() for _ in range(empirical_samples)]
+        emp = Empirical(values)
+
+        skewness_correct = 0.638877
+        kurtosis_correct = 2.14286
+        skewness = float(emp.skewness)
+        kurtosis = float(emp.kurtosis)
+
+        util.eval_print('skewness', 'kurtosis', 'skewness_correct', 'kurtosis_correct')
+
+        self.assertAlmostEqual(skewness_correct, skewness, delta=0.1)
+        self.assertAlmostEqual(kurtosis_correct, kurtosis, delta=0.1)
+
     def test_distributions_binomial(self):
         dist_batch_shape_correct = torch.Size()
         dist_event_shape_correct = torch.Size()

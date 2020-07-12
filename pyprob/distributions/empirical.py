@@ -131,6 +131,8 @@ class Empirical(Distribution):
                     self.finalize()
         self._mean = None
         self._variance = None
+        self._skewness = None
+        self._kurtosis = None
         self._mode = None
         self._min = None
         self._max = None
@@ -454,6 +456,18 @@ class Empirical(Distribution):
             mean = self.mean
             self._variance = self.expectation(lambda x: (x - mean)**2)
         return self._variance
+
+    @property
+    def skewness(self):
+        if self._skewness is None:
+            self._skewness = self.expectation(lambda x: ((x-self.mean)/self.stddev)**3)
+        return self._skewness
+
+    @property
+    def kurtosis(self):
+        if self._kurtosis is None:
+            self._kurtosis = self.expectation(lambda x: ((x-self.mean)/self.stddev)**4)
+        return self._kurtosis
 
     @property
     def mode(self):
