@@ -492,16 +492,104 @@ def address_dictionary(address_dictionary, file_name):
                 file.write('{}, {}\n'.format(address_id, address))
 
 
+def trace_plot(trace_dists, variable_name=None, variable_address=None, resolution=1000, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Value', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, file_name=None, min_index=None, max_index=None, *args, **kwargs):
+    if variable_name is None and variable_address is None:
+        raise ValueError('Expecting variable_name or variable_address')
+    elif variable_name is not None and variable_address is not None:
+        raise ValueError('Expecting only one of variable_name, variable_address')
+    if type(trace_dists) != list:
+        if isinstance(trace_dists, Empirical):
+            trace_dists = [trace_dists]
+        else:
+            raise TypeError('Expecting an empirical distribution of traces (or a list of several such distributions)')
+    if min_index is None:
+        min_index = 0
+    iters = []
+    values = []
+    for j in range(len(trace_dists)):
+        if type(trace_dists[j][0]) != Trace:
+            raise TypeError('Expecting trace distributions')
+        if max_index is None:
+            max_index = trace_dists[j].length
+        else:
+            max_index = min(trace_dists[j].length, max_index)
+        num_traces = max_index - min_index
+        iters.append(list(range(min_index, max_index, max(1, int(num_traces / resolution)))))
+        time_start = time.time()
+        prev_duration = 0
+        len_str_num_traces = len(str(num_traces))
+        print('Loading trace log-probabilities to memory')
+        print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
+        vals = []
+        for i in iters[j]:
+            trace = trace_dists[j]._get_value(i)
+            if variable_name is not None:
+                if variable_name in trace.named_variables:
+                    val = trace.named_variables[variable_name].value
+                else:
+                    val = util.to_tensor(float('nan'))
+            else:
+                if variable_address in trace.variables_dict_address:
+                    val = trace.variables_dict_address[variable_address].value
+                else:
+                    val = util.to_tensor(float('nan'))
+            vals.append(val)
+            duration = time.time() - time_start
+            if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
+                prev_duration = duration
+                traces_per_second = (i + 1) / duration
+                print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
+                sys.stdout.flush()
+        print()
+        values.append(vals)
+
+    if plot:
+        if not plot_show:
+            mpl.rcParams['axes.unicode_minus'] = False
+            plt.switch_backend('agg')
+        fig = plt.figure(figsize=figsize)
+        if names is None:
+            names = ['{}'.format(trace_dists[i].name) for i in range(len(values))]
+        for i in range(len(values)):
+            plt.plot(iters[i], values[i], *args, **kwargs, label=names[i])
+        if log_xscale:
+            plt.xscale('log')
+        if log_yscale:
+            plt.yscale('log', nonposy='clip')
+        if xticks is not None:
+            plt.xticks(xticks)
+        if yticks is not None:
+            plt.xticks(yticks)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.legend(loc='best')
+        if variable_name is not None:
+            plt.title('Variable name: {}'.format(variable_name))
+        else:
+            plt.title('Variable address: {}'.format(variable_address))
+        fig.tight_layout()
+        if file_name is not None:
+            print('Plotting to file: {}'.format(file_name))
+            plt.savefig(file_name)
+        if plot_show:
+            plt.show()
+
+    return np.array(iters), np.array(values)
+
+
 def log_prob(trace_dists, resolution=1000, names=None, figsize=(10, 5), xlabel="Iteration", ylabel='Log probability', xticks=None, yticks=None, log_xscale=False, log_yscale=False, plot=False, plot_show=True, file_name=None, min_index=None, max_index=None, *args, **kwargs):
     if type(trace_dists) != list:
-        raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s prior or posterior.')
+        if isinstance(trace_dists, Empirical):
+            trace_dists = [trace_dists]
+        else:
+            raise TypeError('Expecting an empirical distribution of traces (or a list of several such distributions)')
     if min_index is None:
         min_index = 0
     iters = []
     log_probs = []
     for j in range(len(trace_dists)):
         if type(trace_dists[j][0]) != Trace:
-            raise TypeError('Expecting a list of posterior trace distributions, each from a call to a Model\'s prior or posterior.')
+            raise TypeError('Expecting trace distributions')
         if max_index is None:
             max_index = trace_dists[j].length
         else:
