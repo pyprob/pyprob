@@ -152,3 +152,9 @@ class Trace():
 
     def __eq__(self, other):
         return hash(self) == hash(other)
+
+    def __getitem__(self, variable_name):
+        if variable_name in self.named_variables:
+            return self.named_variables[variable_name].value
+        else:
+            raise RuntimeError('Trace does not include variable with name: {}'.format(variable_name))
