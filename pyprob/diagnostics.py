@@ -729,9 +729,11 @@ def autocorrelation(trace_dist, names=None, lags=None, n_most_frequent=None, fig
             numerator = 0
             denominator = util._epsilon
             for i in range(values.shape[0] - lag):
-                numerator += (values[i]-sample_mean)*(values[i+lag]-sample_mean)
-                denominator += (values[i]-sample_mean)**2
-            ret.append(numerator/denominator)
+                numerator += (values[i] - sample_mean) * (values[i + lag] - sample_mean)
+                denominator += (values[i] - sample_mean) ** 2
+            for i in range(values.shape[0] - lag, values.shape[0]):
+                denominator += (values[i] - sample_mean) ** 2
+            ret.append(numerator / denominator)
         return ret
 
     num_traces = trace_dist.length
