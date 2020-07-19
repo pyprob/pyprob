@@ -407,7 +407,7 @@ def get_source(obj):
 
 
 def distribution_short_name(dist_name):
-    short_names = {'Bernoulli': 'Ber', 'Beta': 'Beta', 'Binomial': 'Bin', 'Categorical': 'Cat', 'Empirical': 'Emp', 'Exponential': 'Exp', 'Gamma': 'Gam', 'LogNormal': 'LogN', 'Mixture': 'Mix', 'Normal': 'N', 'Poisson': 'Poi', 'TruncatedNormal': 'TruN', 'Uniform': 'U', 'Weibull': 'Wei'}
+    short_names = {'Bernoulli': 'Ber', 'Beta': 'Beta', 'Binomial': 'Bin', 'Categorical': 'Cat', 'Empirical': 'Emp', 'Exponential': 'Exp', 'Gamma': 'Gam', 'LogNormal': 'LogN', 'Mixture': 'Mix', 'Normal': 'N', 'Poisson': 'Poi', 'TruncatedNormal': 'TruN', 'Uniform': 'U', 'VonMises': 'VonM', 'Weibull': 'Wei'}
     if dist_name in short_names:
         return short_names[dist_name]
     else:
