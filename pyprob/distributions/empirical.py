@@ -135,6 +135,7 @@ class Empirical(Distribution):
         self._skewness = None
         self._kurtosis = None
         self._mode = None
+        self._median = None
         self._min = None
         self._max = None
         self._effective_sample_size = None
@@ -527,6 +528,18 @@ class Empirical(Distribution):
                 _, max_index = util.to_tensor(self.log_weights).max(-1)
                 self._mode = self._get_value(int(max_index))
         return self._mode
+
+    @property
+    def median(self):
+        self._check_finalized()
+        if self._median is None:
+            if self._uniform_weights:
+                values = torch.stack(self.get_values())
+                self._median = torch.median(values)
+            else:
+                # Resample to get an unweighted distribution
+                self._median = self.resample(1000).median
+        return self._median
 
     def arg_max(self, map_func):
         self._check_finalized()

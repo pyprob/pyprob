@@ -676,6 +676,20 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(skewness_correct, skewness, delta=0.1)
         self.assertAlmostEqual(kurtosis_correct, kurtosis, delta=0.1)
 
+    def test_distributions_empirical_median(self):
+        values = [Exponential(1.5).sample() for _ in range(empirical_samples)]
+        emp = Empirical(values)
+
+        mean_correct = 0.666667
+        median_correct = 0.462098
+        mean = float(emp.mean)
+        median = float(emp.median)
+
+        util.eval_print('mean', 'median', 'mean_correct', 'median_correct')
+
+        self.assertAlmostEqual(mean_correct, mean, delta=0.1)
+        self.assertAlmostEqual(median_correct, median, delta=0.1)
+
     def test_distributions_binomial(self):
         dist_batch_shape_correct = torch.Size()
         dist_event_shape_correct = torch.Size()
