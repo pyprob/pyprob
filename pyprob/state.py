@@ -3,6 +3,7 @@ import sys
 import opcode
 import random
 import time
+import warnings
 from termcolor import colored
 
 from .distributions import Normal, Categorical, Uniform, TruncatedNormal
@@ -225,15 +226,9 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                         log_prob = distribution.log_prob(value, sum=True)
                         proposal_log_prob = proposal_distribution.log_prob(value, sum=True)
                         if util.has_nan_or_inf(log_prob):
-                            print(colored('Warning: prior log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
-                            print('distribution', distribution)
-                            print('value', value)
-                            print('log_prob', log_prob)
+                            warnings.warn('Prior log_prob has NaN, inf, or -inf.\ndistribution: {}\n value: {}\n log_prob: {}'.format(distribution, value, log_prob))
                         if util.has_nan_or_inf(proposal_log_prob):
-                            print(colored('Warning: proposal log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
-                            print('distribution', proposal_distribution)
-                            print('value', value)
-                            print('log_prob', proposal_log_prob)
+                            warnings.warn('Proposal log_prob has NaN, inf, or -inf.\ndistribution: {}\n value: {}\nlog_prob: {}'.format(proposal_distribution, value, proposal_log_prob))
                         log_importance_weight = float(log_prob) - float(proposal_log_prob)
                         if update_previous_variable:
                             variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, replace=replace, name=name, observed=observed, reused=reused)
@@ -264,15 +259,9 @@ def sample(distribution, control=True, replace=False, name=None, address=None):
                         log_prob = distribution.log_prob(value, sum=True)
                         proposal_log_prob = proposal_distribution.log_prob(value, sum=True)
                         if util.has_nan_or_inf(log_prob):
-                            print(colored('Warning: prior log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
-                            print('distribution', distribution)
-                            print('value', value)
-                            print('log_prob', log_prob)
+                            warnings.warn('Prior log_prob has NaN, inf, or -inf.\ndistribution: {}\nvalue: {}\nlog_prob: {}'.format(distribution, value, log_prob))
                         if util.has_nan_or_inf(proposal_log_prob):
-                            print(colored('Warning: proposal log_prob has NaN, inf, or -inf.', 'red', attrs=['bold']))
-                            print('distribution', proposal_distribution)
-                            print('value', value)
-                            print('log_prob', proposal_log_prob)
+                            warnings.warn('Proposal log_prob has NaN, inf, or -inf.\ndistribution: {}\nvalue: {}\nlog_prob: {}'.format(proposal_distribution, value, proposal_log_prob))
                         log_importance_weight = float(log_prob) - float(proposal_log_prob)
                         if update_previous_variable:
                             variable = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, replace=replace, name=name, observed=observed, reused=reused)

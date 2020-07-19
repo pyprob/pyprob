@@ -8,6 +8,7 @@ import time
 import sys
 import csv
 import re
+import warnings
 from torch.distributions.kl import kl_divergence
 
 from . import __version__, util
@@ -444,7 +445,7 @@ def network(inference_network, save_dir=None):
                 if param_val.ndim == 1:
                     param_val = np.expand_dims(param_val, 1)
                 elif param_val.ndim > 2:
-                    print('Warning: reshaping parameter {} to 2D for plotting.'.format(param_name, param_val.ndim))
+                    warnings.warn('Reshaping parameter {} to 2D for plotting.'.format(param_name, param_val.ndim))
                     c = param_val.shape[0]
                     param_val = np.reshape(param_val, (c, -1))
                 fig = plt.figure(figsize=(10, 7))

@@ -1,4 +1,5 @@
 import torch
+import warnings
 from termcolor import colored
 
 from . import Distribution, Normal
@@ -45,7 +46,7 @@ class TruncatedNormal(Distribution):
         if self._batch_length == 1:
             lp = lp.squeeze(0)
         if util.has_nan_or_inf(lp):
-            print(colored('Warning: NaN, -Inf, or Inf encountered in TruncatedNormal log_prob.', 'red', attrs=['bold']))
+            warnings.warn('NaN, -Inf, or Inf encountered in TruncatedNormal log_prob.')
             print('distribution', self)
             print('value', value)
             print('log_prob', lp)
@@ -99,7 +100,7 @@ class TruncatedNormal(Distribution):
             attempt_count += 1
             if (attempt_count == 10000):
                 # Examples of better samplers: https://github.com/tensorflow/tensorflow/blob/502aad6f1934230911ed0d01515463c829bf845d/tensorflow/core/kernels/parameterized_truncated_normal_op.cc
-                print('Warning: trying to sample from the tail of a truncated normal distribution, which can take a long time. A more efficient implementation is pending.')
+                warnings.warn('Trying to sample from the tail of a truncated normal distribution, which can take a long time. A more efficient implementation is pending.')
             rand = util.to_tensor(torch.zeros(shape).uniform_())
             ret = self._standard_normal_dist.icdf(self._standard_normal_cdf_alpha + rand * (self._standard_normal_cdf_beta - self._standard_normal_cdf_alpha)) * self._stddev_non_truncated + self._mean_non_truncated
             lb = ret.ge(self._low).type_as(self._low)

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import warnings
 from termcolor import colored
 
 from . import InferenceNetwork, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
@@ -54,12 +55,12 @@ class InferenceNetworkFeedForward(InferenceNetwork):
             proposal_layer = self._layers_proposal[address]
             if proposal_min_train_iterations is not None:
                 if proposal_layer._total_train_iterations < proposal_min_train_iterations:
-                    print(colored('Warning: using prior, proposal not sufficiently trained ({}/{}) for address: {}'.format(proposal_layer._total_train_iterations, proposal_min_train_iterations, address), 'yellow', attrs=['bold']))
+                    warnings.warn('Using prior. Proposal not sufficiently trained ({}/{}) for address: {}'.format(proposal_layer._total_train_iterations, proposal_min_train_iterations, address))
                     return distribution
             proposal_distribution = proposal_layer.forward(self._infer_observe_embedding, [variable])
             return proposal_distribution
         else:
-            print(colored('Warning: using prior, no proposal layer for address: {}'.format(address), 'yellow', attrs=['bold']))
+            warnings.warn('Using prior. No proposal for address: {}'.format(address))
             return distribution
 
     def _loss(self, batch):
@@ -80,7 +81,7 @@ class InferenceNetworkFeedForward(InferenceNetwork):
                 proposal_distribution = proposal_layer.forward(observe_embedding, variables)
                 log_prob = proposal_distribution.log_prob(values)
                 if util.has_nan_or_inf(log_prob):
-                    print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))
+                    warnings.warn('NaN, -Inf, or Inf encountered in proposal log_prob.')
                     print('proposal_distribution', proposal_distribution)
                     print('values', values)
                     print('log_prob', log_prob)

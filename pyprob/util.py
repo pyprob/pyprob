@@ -11,7 +11,7 @@ import math
 from functools import reduce
 import operator
 import datetime
-import inspect
+import warnings
 import torch.multiprocessing
 
 from .distributions import Categorical
@@ -97,7 +97,7 @@ def set_device(device='cpu'):
             _device = device
             _cuda_enabled = True
         else:
-            print(colored('Warning: cannot enable CUDA device: {}'.format(device), 'red', attrs=['bold']))
+            warnings.warn('Cannot enable CUDA device: {}'.format(device))
     else:
         _device = device
         _cuda_enabled = False
@@ -323,7 +323,7 @@ def check_gnu_dbm():
 
 
 if not check_gnu_dbm():
-    print(colored(r'Warning: Empirical distributions on disk may perform slow because GNU DBM is not available. Please install and configure gdbm library for Python for better speed.', 'red', attrs=['bold']))
+    warnings.warn('Empirical distributions on disk may perform slow because GNU DBM is not available. Please install and configure gdbm library for Python for better speed.')
 
 
 def tile_rows_cols(num_items):

@@ -8,6 +8,7 @@ import shelve
 from glob import glob
 import numpy as np
 import uuid
+import warnings
 from termcolor import colored
 from collections import Counter, OrderedDict
 import random
@@ -192,7 +193,7 @@ class OfflineDataset(ConcatDataset):
                 datasets.append(dataset)
             except Exception as e:
                 print(e)
-                print(colored('Warning: dataset file potentially corrupt, omitting: {}'.format(file), 'red', attrs=['bold']))
+                warnings.warn('Dataset file potentially corrupt, omitting: {}'.format(file))
         super().__init__(datasets)
         print('OfflineDataset at: {}'.format(self._dataset_dir))
         print('Num. traces      : {:,}'.format(len(self)))
@@ -262,7 +263,7 @@ class OfflineDataset(ConcatDataset):
 
         if os.path.exists(sorted_dataset_dir):
             if len(glob(os.path.join(sorted_dataset_dir, '*'))) > 0:
-                print(colored('Warning: target directory is not empty: {})'.format(sorted_dataset_dir), 'red', attrs=['bold']))
+                warnings.warn('Target directory is not empty: {})'.format(sorted_dataset_dir))
         util.create_path(sorted_dataset_dir, directory=True)
         file_indices = list(util.chunks(list(self._sorted_indices), num_traces_per_file))
         num_traces = len(self)

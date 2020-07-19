@@ -4,6 +4,7 @@ import sys
 import os
 import math
 import random
+import warnings
 from termcolor import colored
 
 from .distributions import Empirical
@@ -58,7 +59,7 @@ class Model():
             else:
                 log_weight = trace.log_importance_weight
             if util.has_nan_or_inf(log_weight):
-                print(colored('Warning: encountered trace with nan, inf, or -inf log_weight, discarding trace', 'red', attrs=['bold']))
+                warnings.warn('Encountered trace with nan, inf, or -inf log_weight. Discarding trace.')
             else:
                 traces.add(map_func(trace), log_weight)
         if (util._verbosity > 1) and not silent:
@@ -128,7 +129,7 @@ class Model():
                 samples_all += candidate_trace.length_controlled
 
                 if state._metropolis_hastings_site_transition_log_prob is None:
-                    print(colored('Warning: trace did not hit the Metropolis Hastings site, ensure that the model is deterministic except pyprob.sample calls', 'red', attrs=['bold']))
+                    warnings.warn('Trace did not hit the Metropolis Hastings site, ensure that the model is deterministic except pyprob.sample calls')
                 else:
                     log_acceptance_ratio += torch.sum(state._metropolis_hastings_site_transition_log_prob)
 

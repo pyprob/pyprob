@@ -11,6 +11,7 @@ import math
 import os
 import enum
 import yaml
+import warnings
 from termcolor import colored
 
 from . import Distribution
@@ -512,7 +513,7 @@ class Empirical(Distribution):
             if self._uniform_weights:
                 counts = {}
                 util.progress_bar_init('Computing mode...', self._length, 'Values')
-                print(colored('Warning: weights are uniform and mode is correct only if values in Empirical are hashable', 'red', attrs=['bold']))
+                warnings.warn('Empirical has uniform weights and the mode will be correct only if values in Empirical are hashable.')
                 for i in range(self._length):
                     util.progress_bar_update(i)
                     value = self._get_value(i)

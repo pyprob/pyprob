@@ -13,6 +13,7 @@ import tempfile
 import tarfile
 import copy
 import math
+import warnings
 from threading import Thread
 from termcolor import colored
 
@@ -209,20 +210,20 @@ class InferenceNetwork(nn.Module):
             raise RuntimeError('Cannot load inference network.')
 
         if data['pyprob_version'] != __version__:
-            print(colored('Warning: different pyprob versions (loaded network: {}, current system: {})'.format(data['pyprob_version'], __version__), 'red', attrs=['bold']))
+            warnings.warn('Different pyprob versions (loaded network: {}, current system: {})'.format(data['pyprob_version'], __version__))
         if data['torch_version'] != torch.__version__:
-            print(colored('Warning: different PyTorch versions (loaded network: {}, current system: {})'.format(data['torch_version'], torch.__version__), 'red', attrs=['bold']))
+            warnings.warn('Different PyTorch versions (loaded network: {}, current system: {})'.format(data['torch_version'], torch.__version__))
 
         ret = data['inference_network']
         if util._cuda_enabled:
             if ret._on_cuda:
                 if ret._device != util._device:
-                    print(colored('Warning: loading CUDA (device {}) network to CUDA (device {})'.format(ret._device, util._device), 'red', attrs=['bold']))
+                    warnings.warn('Loading CUDA (device {}) network to CUDA (device {})'.format(ret._device, util._device))
             else:
-                print(colored('Warning: loading CPU network to CUDA (device {})'.format(util._device), 'red', attrs=['bold']))
+                warnings.warn('Loading CPU network to CUDA (device {})'.format(util._device))
         else:
             if ret._on_cuda:
-                print(colored('Warning: loading CUDA (device {}) network to CPU'.format(ret._device), 'red', attrs=['bold']))
+                warnings.warn('Loading CUDA (device {}) network to CPU'.format(ret._device))
         ret.to(device=util._device)
 
         # For compatibility loading NNs saved before 0.13.2.dev2
@@ -560,7 +561,7 @@ class InferenceNetwork(nn.Module):
                     if self._total_train_traces >= self._total_train_traces_end:
                         print(colored('\nStop condition reached. num_traces_end set during network generation: {}'.format(self._total_train_traces_end), 'red', attrs=['bold']))
                         if self._learning_rate_scheduler is not None:
-                            print(colored('Warning: continuing training with learning rate scheduler beyond num_traces_end, make sure this is intended'.format(self._total_train_traces_end), 'red', attrs=['bold']))
+                            warnings.warn('Continuing training with learning rate scheduler beyond num_traces_end, make sure this is intended'.format(self._total_train_traces_end))
                         # stop = True
 
                     if self._learning_rate_scheduler is not None:

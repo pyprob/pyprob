@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import warnings
 from termcolor import colored
 
 from . import InferenceNetwork, EmbeddingFeedForward, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
@@ -96,7 +97,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 prev_address_embedding = self._layers_address_embedding[prev_address]
                 prev_distribution_type_embedding = self._layers_distribution_type_embedding[prev_distribution.name]
             else:
-                print('Warning: address of previous variable unknown by inference network: {}'.format(prev_address))
+                warnings.warn('Address of previous variable unknown by inference network: {}'.format(prev_address))
                 success = False
 
         current_address = variable.address
@@ -105,7 +106,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
             current_address_embedding = self._layers_address_embedding[current_address]
             current_distribution_type_embedding = self._layers_distribution_type_embedding[current_distribution.name]
         else:
-            print('Warning: address of current variable unknown by inference network: {}'.format(current_address))
+            warnings.warn('Address of current variable unknown by inference network: {}'.format(current_address))
             success = False
 
         if success:
@@ -121,12 +122,12 @@ class InferenceNetworkLSTM(InferenceNetwork):
             proposal_layer = self._layers_proposal[current_address]
             if proposal_min_train_iterations is not None:
                 if proposal_layer._total_train_iterations < proposal_min_train_iterations:
-                    print(colored('Warning: using prior, proposal not sufficiently trained ({}/{}) for address: {}'.format(proposal_layer._total_train_iterations, proposal_min_train_iterations, current_address), 'yellow', attrs=['bold']))
+                    warnings.warn('Using prior. Proposal not sufficiently trained ({}/{}) for address: {}'.format(proposal_layer._total_train_iterations, proposal_min_train_iterations, current_address))
                     return current_distribution
             proposal_distribution = proposal_layer.forward(proposal_input, [variable])
             return proposal_distribution
         else:
-            print(colored('Warning: using prior as proposal for address: {}'.format(current_address), 'yellow', attrs=['bold']))
+            warnings.warn('Using prior. No proposal for address: {}'.format(current_address))
             return current_distribution
 
     def _loss(self, batch):
@@ -201,7 +202,7 @@ class InferenceNetworkLSTM(InferenceNetwork):
                 # print('importance_weights    ', importance_weights)
                 # print()
                 if util.has_nan_or_inf(log_prob):
-                    print(colored('Warning: NaN, -Inf, or Inf encountered in proposal log_prob.', 'red', attrs=['bold']))
+                    warnings.warn('NaN, -Inf, or Inf encountered in proposal log_prob.')
                     print('proposal_distribution', proposal_distribution)
                     print('values', values)
                     print('log_prob', log_prob)
