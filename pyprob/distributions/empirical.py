@@ -12,7 +12,6 @@ import os
 import enum
 import yaml
 import warnings
-from termcolor import colored
 
 from . import Distribution
 from .. import util
@@ -226,6 +225,9 @@ class Empirical(Distribution):
             self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
         else:
             self._uniform_weights = False
+
+    def from_distribution(distribution, num_samples):
+        return Empirical([distribution.sample() for _ in range(num_samples)])
 
     def finalize(self):
         self._length = len(self.log_weights)
@@ -534,8 +536,12 @@ class Empirical(Distribution):
         self._check_finalized()
         if self._median is None:
             if self._uniform_weights:
-                values = torch.stack(self.get_values())
-                self._median = torch.median(values)
+                if torch.is_tensor(self.values[0]):
+                    values = torch.stack(self.get_values())
+                    self._median = torch.median(values)
+                else:
+                    values = self.values_numpy()
+                    self._median = np.median(values)
             else:
                 # Resample to get an unweighted distribution
                 self._median = self.resample(1000).median
