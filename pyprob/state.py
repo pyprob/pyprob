@@ -378,6 +378,8 @@ def _init_traces(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflatio
     if observe is None:
         _current_trace_observed_variables = {}
     else:
+        if None in observe.values():
+            raise RuntimeError('Observe has missing value(s): {}'.format(observe))
         _current_trace_observed_variables = observe
     _current_trace_inference_network = inference_network
     if _current_trace_inference_network is None:
