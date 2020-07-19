@@ -8,7 +8,7 @@ import tempfile
 
 import pyprob
 from pyprob import util
-from pyprob.distributions import Empirical, Normal, Categorical, Uniform, Poisson, Beta, Bernoulli, Exponential, Gamma, LogNormal, Binomial, Weibull, Mixture, TruncatedNormal
+from pyprob.distributions import Empirical, Normal, Categorical, Uniform, Poisson, Beta, Bernoulli, Exponential, Gamma, LogNormal, Binomial, Weibull, VonMises, Mixture, TruncatedNormal
 
 
 empirical_samples = 25000
@@ -770,6 +770,40 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_concentration, dist_concentration_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_scale, dist_scale_correct, atol=0.1))
+
+    def test_distributions_von_mises(self):
+        dist_batch_shape_correct = torch.Size()
+        dist_event_shape_correct = torch.Size()
+        dist_sample_shape_correct = torch.Size()
+        dist_log_prob_shape_correct = torch.Size()
+        dist_locs_correct = 3.1415
+        dist_concentration_correct = 2.
+        dist_means_correct = 3.1415
+        dist_stddevs_correct = 0.5498
+        dist_log_probs_correct = -0.6619
+
+        dist = VonMises(loc=dist_locs_correct, concentration=dist_concentration_correct)
+        dist_concentration = util.to_numpy(dist.concentration)
+        dist_locs = util.to_numpy(dist.loc)
+        dist_means = util.to_numpy(dist.mean)
+        dist_stddevs = util.to_numpy(dist.stddev)
+        dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
+        dist_batch_shape = dist.batch_shape
+        dist_event_shape = dist.event_shape
+        dist_sample_shape = dist.sample().size()
+        dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
+
+        util.eval_print('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_means', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_concentration', 'dist_concentration_correct', 'dist_locs', 'dist_locs_correct')
+
+        self.assertEqual(dist_batch_shape, dist_batch_shape_correct)
+        self.assertEqual(dist_event_shape, dist_event_shape_correct)
+        self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
+        self.assertEqual(dist_log_prob_shape, dist_log_prob_shape_correct)
+        self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_concentration, dist_concentration_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_locs, dist_locs_correct, atol=0.1))
 
     def test_distributions_gamma(self):
         dist_batch_shape_correct = torch.Size()
