@@ -154,7 +154,7 @@ def observe(distribution, value=None, name=None, address=None):
     _current_trace.add(variable)
 
 
-def sample(distribution, control=True, replace=False, name=None, address=None):
+def sample(distribution, name=None, address=None, control=True, replace=False):
     global _current_trace
     global _current_trace_previous_variable
     global _current_trace_replaced_variable_proposal_distributions
