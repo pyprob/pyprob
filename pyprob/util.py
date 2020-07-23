@@ -184,6 +184,8 @@ progress_bar_prev_duration = None
 
 
 def progress_bar_init(message, num_iters, iter_name='Items'):
+    if (_verbosity == 0):
+        return
     global progress_bar_num_iters
     global progress_bar_len_str_num_iters
     global progress_bar_time_start
@@ -201,6 +203,8 @@ def progress_bar_init(message, num_iters, iter_name='Items'):
 
 
 def progress_bar_update(iter):
+    if (_verbosity == 0):
+        return
     global progress_bar_prev_duration
     if progress_bar_num_iters > 0:
         duration = time.time() - progress_bar_time_start
@@ -212,6 +216,8 @@ def progress_bar_update(iter):
 
 
 def progress_bar_end(message=None):
+    if (_verbosity == 0):
+        return
     progress_bar_update(progress_bar_num_iters)
     print()
     if message is not None:
