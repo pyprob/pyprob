@@ -146,6 +146,9 @@ class Trace():
         for variable in self.variables:
             variable.to(device)
 
+    def __len__(self):
+        return self.length
+
     def __hash__(self):
         h = [hash(variable) for variable in self.variables]
         return hash(sum(h))

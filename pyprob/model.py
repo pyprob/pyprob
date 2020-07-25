@@ -96,9 +96,11 @@ class Model():
             if map_func is None:
                 map_func = lambda trace: trace
             if initial_trace is None:
-                current_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, observe=observe, *args, **kwargs))
-            else:
-                current_trace = initial_trace
+                initial_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, observe=observe, *args, **kwargs))
+            if len(initial_trace) == 0:
+                raise RuntimeError('Cannot run MCMC inference with empty initial trace. Make sure the model has at least one pyprob.sample statement.')
+
+            current_trace = initial_trace
 
             time_start = time.time()
             traces_accepted = 0
