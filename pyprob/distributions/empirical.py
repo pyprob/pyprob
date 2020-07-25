@@ -704,6 +704,9 @@ class Empirical(Distribution):
         self._check_finalized()
         return util.to_numpy(self._categorical.logits)
 
+    def plot(self, *args, **kwargs):
+        self.plot_histogram(*args, **kwargs)
+
     def plot_histogram(self, figsize=(10, 5), xlabel=None, ylabel='Frequency', xticks=None, yticks=None, log_xscale=False, log_yscale=False, file_name=None, show=True, density=1, fig=None, *args, **kwargs):
         if fig is None:
             if not show:
