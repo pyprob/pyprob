@@ -12,8 +12,9 @@ import os
 import enum
 import yaml
 import warnings
+from sklearn import mixture
 
-from . import Distribution
+from . import Distribution, Normal, Mixture
 from .. import util
 
 
@@ -611,6 +612,20 @@ class Empirical(Distribution):
         if self._max is None:
             self._find_min_max()
         return self._max
+
+    def density_estimate(self, num_mixture_components=1, num_samples=1000, *args, **kwargs):
+        if self.weighted:
+            values = util.to_tensor([self.sample() for _ in range(num_samples)]).cpu().numpy()
+        else:
+            values = self.values_numpy()
+        if values.ndim != 1:
+            raise ValueError('Expecting values to be one-dimensional')
+        values = values.reshape(-1, 1)
+        m = mixture.GaussianMixture(n_components=num_mixture_components, covariance_type='diag', *args, **kwargs)
+        m.fit(values)
+        dists = [Normal(m.means_[i], m.covariances_[i]) for i in range(num_mixture_components)]
+        weights = [m.weights_[i] for i in range(num_mixture_components)]
+        return Mixture(dists, weights)
 
     def combine_duplicates(self, *args, **kwargs):
         self._check_finalized()

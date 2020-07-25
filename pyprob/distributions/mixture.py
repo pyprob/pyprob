@@ -63,6 +63,14 @@ class Mixture(Distribution):
             return util.to_tensor(ret)
 
     @property
+    def probs(self):
+        return self._probs
+
+    @property
+    def distributions(self):
+        return self._distributions
+
+    @property
     def mean(self):
         if self._mean is None:
             means = torch.stack([d.mean for d in self._distributions])

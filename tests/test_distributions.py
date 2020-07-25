@@ -193,6 +193,18 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_stddev, dist_stddev_correct, places=1)
         self.assertAlmostEqual(dist_stddev_combined, dist_stddev_correct, places=1)
 
+    def test_distributions_empirical_density_estimate(self):
+        values = [1, 2, 3]
+        dist_mixture_means_correct = [1, 2, 3]
+
+        dist = Empirical(values)
+        dist_mixture = dist.density_estimate(num_mixture_components=3)
+        dist_mixture_means = [float(d.mean) for d in dist_mixture.distributions]
+
+        util.eval_print('values', 'dist_mixture_means', 'dist_mixture_means_correct')
+
+        self.assertAlmostEqual(set(dist_mixture_means), set(dist_mixture_means_correct), places=1)
+
     def test_distributions_empirical_numpy(self):
         samples = 25
         dist_means_correct = 10
