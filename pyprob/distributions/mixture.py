@@ -30,7 +30,7 @@ class Mixture(Distribution):
         super().__init__(name='Mixture', address_suffix='Mixture({})'.format(', '.join([d._address_suffix for d in self._distributions])), batch_shape=batch_shape, event_shape=event_shape)
 
     def __repr__(self):
-        return 'Mixture(distributions:({}), probs:{})'.format(', '.join([repr(d) for d in self._distributions]), self._probs)
+        return 'Mixture(distributions=[{}], probs={})'.format(', '.join([repr(d) for d in self._distributions]), self._probs.cpu().numpy().tolist())
 
     def __len__(self):
         return self.length

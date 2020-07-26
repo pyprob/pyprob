@@ -11,7 +11,7 @@ class Normal(Distribution):
         super().__init__(name='Normal', address_suffix='Normal', torch_dist=torch.distributions.Normal(loc, scale))
 
     def __repr__(self):
-        return 'Normal(mean:{}, stddev:{})'.format(self.mean, self.stddev)
+        return 'Normal({}, {})'.format(self.mean.cpu().numpy().tolist(), self.stddev.cpu().numpy().tolist())
 
     def cdf(self, value):
         return self._torch_dist.cdf(value)

@@ -10,7 +10,7 @@ class Poisson(Distribution):
         super().__init__(name='Poisson', address_suffix='Poisson', torch_dist=torch.distributions.Poisson(rate))
 
     def __repr__(self):
-        return 'Poisson(rate: {})'.format(self.rate)
+        return 'Poisson({})'.format(self.rate.cpu().numpy().tolist())
 
     @property
     def rate(self):

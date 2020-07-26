@@ -1952,6 +1952,35 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
 
+    def test_distributions_repr(self):
+        def exec_return(code):
+            exec('global exec_return_result; exec_return_result = %s' % code)
+            global exec_return_result
+            return exec_return_result
+
+        dists = []
+        dists.append(Bernoulli(0.5))
+        dists.append(Binomial(2, 0.5))
+        dists.append(Categorical([0.2, 0.3, 0.5]))
+        dists.append(Exponential(1.5))
+        dists.append(Gamma(0, 1))
+        dists.append(LogNormal(0, 1))
+        dists.append(Mixture([Normal(0, 1), Normal(2, 3)], [0.4, 0.6]))
+        dists.append(Normal(0, 1))
+        dists.append(Poisson(5))
+        dists.append(TruncatedNormal(0, 1, 0.5, 0.6))
+        dists.append(Uniform(0.2, 0.6))
+        dists.append(VonMises(0.1, 1.1))
+        dists.append(Weibull(0.1, 1.1))
+
+        dists_repr = list(map(repr, dists))
+        dists_repr_exec = list(map(exec_return, dists_repr))
+        dists_repr_exec_repr = list(map(repr, dists_repr_exec))
+
+        util.eval_print('dists', 'dists_repr', 'dists_repr_exec')
+
+        self.assertEqual(dists_repr, dists_repr_exec_repr)
+
 
 if __name__ == '__main__':
     pyprob.seed(123)
