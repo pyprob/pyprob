@@ -623,7 +623,7 @@ class Empirical(Distribution):
         values = values.reshape(-1, 1)
         m = mixture.GaussianMixture(n_components=num_mixture_components, covariance_type='diag', *args, **kwargs)
         m.fit(values)
-        dists = [Normal(m.means_[i], m.covariances_[i]) for i in range(num_mixture_components)]
+        dists = [Normal(m.means_[i], np.sqrt(m.covariances_[i])) for i in range(num_mixture_components)]
         weights = [m.weights_[i] for i in range(num_mixture_components)]
         return Mixture(dists, weights)
 
