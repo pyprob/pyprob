@@ -390,6 +390,8 @@ class Empirical(Distribution):
         return util.to_tensor(ret)
 
     def map(self, func, min_index=None, max_index=None, *args, **kwargs):
+        if len(self) == 0:
+            return self
         self._check_finalized()
         if min_index is None:
             min_index = 0
@@ -433,6 +435,7 @@ class Empirical(Distribution):
         ret = Empirical(filtered_values, log_weights=filtered_log_weights, name=self.name, *args, **kwargs)
         ret._metadata = copy.deepcopy(self._metadata)
         ret.add_metadata(op='filter', length=len(self), length_after=len(filtered_values), func=util.get_source(func))
+        ret.finalize()
         return ret
 
     def resample(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):  # min_index is inclusive, max_index is exclusive
