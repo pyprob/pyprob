@@ -7,17 +7,15 @@ from . import util
 class Variable():
     def __init__(self, distribution=None, value=None, address_base=None, address=None, instance=None, log_prob=None, log_importance_weight=None, control=False, replace=False, name=None, observed=False, reused=False, tagged=False):
         self.distribution = distribution
-        if value is None:
-            self.value = None
-        else:
-            self.value = util.to_tensor(value)
+        # if value is None:
+        #     self.value = None
+        # else:
+        #     self.value = util.to_tensor(value)
+        self.value = value
         self.address_base = address_base
         self.address = address
         self.instance = instance
-        if log_prob is None:
-            self.log_prob = None
-        else:
-            self.log_prob = util.to_tensor(log_prob)
+        self.log_prob = util.to_tensor(log_prob)
         if log_importance_weight is None:
             self.log_importance_weight = None
         else:

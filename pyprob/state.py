@@ -109,8 +109,6 @@ def tag(value, name=None, address=None):
     instance = _current_trace.last_instance(address_base) + 1
     address = address_base + '__' + str(instance)
 
-    value = util.to_tensor(value)
-
     variable = Variable(distribution=None, value=value, address_base=address_base, address=address, instance=instance, log_prob=0., tagged=True, name=name)
     _current_trace.add(variable)
 
