@@ -159,3 +159,6 @@ class Trace():
             return self.named_variables[variable_name].value
         else:
             raise RuntimeError('Trace does not include variable with name: {}'.format(variable_name))
+
+    def __contains__(self, variable_name):
+        return variable_name in self.named_variables
