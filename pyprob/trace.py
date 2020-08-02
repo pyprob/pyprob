@@ -30,7 +30,7 @@ class Variable():
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned variables in offline training datasets
-        return 'Variable(name:{}, control:{}, replace:{}, observable:{}, observed:{}, tagged:{}, address:{}, distribution:{}, value:{}: log_prob:{})'.format(
+        return 'Variable(name:{}, control:{}, replace:{}, observable:{}, observed:{}, tagged:{}, address:{}, distribution:{}, value:{}, log_prob:{})'.format(
             self.name if hasattr(self, 'name') else 'Unknown',
             self.control if hasattr(self, 'control') else 'Unknown',
             self.replace if hasattr(self, 'replace') else 'Unknown',
