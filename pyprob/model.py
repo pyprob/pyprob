@@ -35,7 +35,7 @@ class Model():
             trace = state._end_trace(result)
             yield trace
 
-    def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=None, silent=False, observe=None, file_name=None, likelihood_importance=1., filter=filter, *args, **kwargs):
+    def _traces(self, num_traces=10, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflation.DISABLED, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, inference_network=None, map_func=None, silent=False, observe=None, file_name=None, likelihood_importance=1., *args, **kwargs):
         generator = self._trace_generator(trace_mode=trace_mode, prior_inflation=prior_inflation, inference_engine=inference_engine, inference_network=inference_network, observe=observe, likelihood_importance=likelihood_importance, *args, **kwargs)
         traces = Empirical(file_name=file_name)
         if map_func is None:
@@ -46,12 +46,9 @@ class Model():
             len_str_num_traces = len(str(num_traces))
             print('Time spent  | Time remain.| Progress             | {} | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1), 'ESS'.ljust(len_str_num_traces+2)))
             prev_duration = 0
-        i = 0
-        while i < num_traces:
+
+        for i in range(num_traces):
             trace = next(generator)
-            if filter is not None:
-                if not filter(trace):
-                    continue
             if trace_mode == TraceMode.PRIOR:
                 log_weight = 1.
             else:
@@ -84,25 +81,25 @@ class Model():
     def get_trace(self, *args, **kwargs):
         return next(self._trace_generator(*args, **kwargs))
 
-    def prior(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=None, file_name=None, likelihood_importance=1., filter=None, *args, **kwargs):
-        prior = self._traces(num_traces=num_traces, trace_mode=TraceMode.PRIOR, prior_inflation=prior_inflation, map_func=map_func, file_name=file_name, likelihood_importance=likelihood_importance, filter=filter, *args, **kwargs)
+    def prior(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=None, file_name=None, likelihood_importance=1., *args, **kwargs):
+        prior = self._traces(num_traces=num_traces, trace_mode=TraceMode.PRIOR, prior_inflation=prior_inflation, map_func=map_func, file_name=file_name, likelihood_importance=likelihood_importance, *args, **kwargs)
         prior.rename('Prior, traces: {:,}'.format(prior.length))
         prior.add_metadata(op='prior', num_traces=num_traces, prior_inflation=str(prior_inflation), likelihood_importance=likelihood_importance)
         return prior
 
-    def prior_results(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=lambda trace: trace.result, file_name=None, likelihood_importance=1., filter=None, *args, **kwargs):
-        return self.prior(num_traces=num_traces, prior_inflation=prior_inflation, map_func=map_func, file_name=file_name, likelihood_importance=likelihood_importance, filter=filter, *args, **kwargs)
+    def prior_results(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=lambda trace: trace.result, file_name=None, likelihood_importance=1., *args, **kwargs):
+        return self.prior(num_traces=num_traces, prior_inflation=prior_inflation, map_func=map_func, file_name=file_name, likelihood_importance=likelihood_importance, *args, **kwargs)
 
-    def posterior(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=None, observe=None, file_name=None, thinning_steps=None, likelihood_importance=1., filter=None, *args, **kwargs):
+    def posterior(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=None, observe=None, file_name=None, thinning_steps=None, likelihood_importance=1., *args, **kwargs):
         if inference_engine == InferenceEngine.IMPORTANCE_SAMPLING:
-            posterior = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, map_func=map_func, observe=observe, file_name=file_name, likelihood_importance=likelihood_importance, filter=filter, *args, **kwargs)
+            posterior = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=None, map_func=map_func, observe=observe, file_name=file_name, likelihood_importance=likelihood_importance, *args, **kwargs)
             posterior.rename('Posterior, IS, traces: {:,}, ESS: {:,.2f}'.format(posterior.length, posterior.effective_sample_size))
             posterior.add_metadata(op='posterior', num_traces=num_traces, inference_engine=str(inference_engine), effective_sample_size=posterior.effective_sample_size, likelihood_importance=likelihood_importance)
         elif inference_engine == InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK:
             if self._inference_network is None:
                 raise RuntimeError('Cannot run inference engine IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK because no inference network for this model is available. Use learn_inference_network or load_inference_network first.')
             with torch.no_grad():
-                posterior = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=self._inference_network, map_func=map_func, observe=observe, file_name=file_name, likelihood_importance=likelihood_importance, filter=filter, *args, **kwargs)
+                posterior = self._traces(num_traces=num_traces, trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, inference_network=self._inference_network, map_func=map_func, observe=observe, file_name=file_name, likelihood_importance=likelihood_importance, *args, **kwargs)
             posterior.rename('Posterior, IC, traces: {:,}, train. traces: {:,}, ESS: {:,.2f}'.format(posterior.length, self._inference_network._total_train_traces, posterior.effective_sample_size))
             posterior.add_metadata(op='posterior', num_traces=num_traces, inference_engine=str(inference_engine), effective_sample_size=posterior.effective_sample_size, likelihood_importance=likelihood_importance, train_traces=self._inference_network._total_train_traces)
         else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
@@ -127,8 +124,8 @@ class Model():
                 len_str_num_traces = len(str(num_traces))
                 print('Time spent  | Time remain.| Progress             | {} | Accepted|Smp reuse| Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
                 prev_duration = 0
-            i = 0
-            while i < num_traces:
+
+            for i in range(num_traces):
                 if util._verbosity > 1:
                     duration = time.time() - time_start
                     if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
@@ -137,9 +134,7 @@ class Model():
                         print('{} | {} | {} | {}/{} | {} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:,.2f}%'.format(100 * (traces_accepted / (i + 1))).rjust(7), '{:,.2f}%'.format(100 * samples_reused / max(1, samples_all)).rjust(7), traces_per_second), end='\r')
                         sys.stdout.flush()
                 candidate_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, metropolis_hastings_trace=current_trace, observe=observe, *args, **kwargs))
-                if filter is not None:
-                    if not filter(candidate_trace):
-                        continue
+
                 log_acceptance_ratio = math.log(current_trace.length_controlled) - math.log(candidate_trace.length_controlled) + candidate_trace.log_prob_observed - current_trace.log_prob_observed
                 for variable in candidate_trace.variables_controlled:
                     if variable.reused:
@@ -161,8 +156,6 @@ class Model():
                 if i % thinning_steps == 0:
                     posterior.add(map_func(current_trace))
 
-                i += 1
-
             if util._verbosity > 1:
                 print()
 
@@ -171,8 +164,8 @@ class Model():
             posterior.add_metadata(op='posterior', num_traces=num_traces, inference_engine=str(inference_engine), likelihood_importance=likelihood_importance, thinning_steps=thinning_steps, num_traces_accepted=traces_accepted, num_samples_reuised=samples_reused, num_samples=samples_all)
         return posterior
 
-    def posterior_results(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, thinning_steps=None, filter=None, *args, **kwargs):
-        return self.posterior(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, file_name=file_name, thinning_steps=thinning_steps, filter=filter, *args, **kwargs)
+    def posterior_results(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, thinning_steps=None, *args, **kwargs):
+        return self.posterior(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, file_name=file_name, thinning_steps=thinning_steps, *args, **kwargs)
 
     def reset_inference_network(self):
         self._inference_network = None
@@ -225,6 +218,9 @@ class Model():
         dataset = OnlineDataset(self, None, prior_inflation=prior_inflation)
         dataset.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces, num_traces_per_file=num_traces_per_file, *args, **kwargs)
 
+    def filter(self, filter, filter_timeout=1e6):
+        return ConstrainedModel(self, filter=filter, filter_timeout=filter_timeout)
+
 
 class RemoteModel(Model):
     def __init__(self, server_address='tcp://127.0.0.1:5555', before_forward_func=None, after_forward_func=None, *args, **kwargs):
@@ -249,3 +245,25 @@ class RemoteModel(Model):
         if self._after_forward_func is not None:
             self._after_forward_func()
         return ret
+
+
+class ConstrainedModel(Model):
+    def __init__(self, base_model, filter, filter_timeout=1e6):
+        self._base_model = base_model
+        self._filter = filter
+        self._filter_timeout = int(filter_timeout)
+        # self.name = self._base_model.name
+        # self._inference_network = self._base_model._inference_network
+        # self._address_dictionary = self._base_model._address_dictionary
+
+    def _trace_generator(self, *args, **kwargs):
+        i = 0
+        while True:
+            i += 1
+            if i > self._filter_timeout:
+                warnings.warn('ConstrainedModel taking longer than timeout ({}) to sample a trace satisfying the filter')
+            trace = next(self._base_model._trace_generator(*args, **kwargs))
+            if self._filter(trace):
+                yield trace
+            else:
+                continue
