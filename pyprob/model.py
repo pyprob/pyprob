@@ -40,10 +40,11 @@ class Model():
         traces = Empirical(file_name=file_name)
         if map_func is None:
             map_func = lambda trace: trace
+        log_weights = util.to_tensor(torch.zeros(num_traces))
         time_start = time.time()
         if (util._verbosity > 1) and not silent:
             len_str_num_traces = len(str(num_traces))
-            print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
+            print('Time spent  | Time remain.| Progress             | {} | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1), 'ESS'.ljust(len_str_num_traces+2)))
             prev_duration = 0
         for i in range(num_traces):
             if (util._verbosity > 1) and not silent:
@@ -51,7 +52,8 @@ class Model():
                 if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
                     prev_duration = duration
                     traces_per_second = (i + 1) / duration
-                    print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
+                    effective_sample_size = 1./torch.distributions.Categorical(logits=log_weights[:i+1]).probs.pow(2).sum()
+                    print('{} | {} | {} | {}/{} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:.2f}'.format(effective_sample_size).rjust(len_str_num_traces+2), traces_per_second), end='\r')
                     sys.stdout.flush()
             trace = next(generator)
             if trace_mode == TraceMode.PRIOR:
@@ -60,8 +62,11 @@ class Model():
                 log_weight = trace.log_importance_weight
             if util.has_nan_or_inf(log_weight):
                 warnings.warn('Encountered trace with nan, inf, or -inf log_weight. Discarding trace.')
+                if i > 0:
+                    log_weights[i] = log_weights[-1]
             else:
                 traces.add(map_func(trace), log_weight)
+                log_weights[i] = log_weight
         if (util._verbosity > 1) and not silent:
             print()
         traces.finalize()
