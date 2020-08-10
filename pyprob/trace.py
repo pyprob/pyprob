@@ -1,4 +1,5 @@
 import torch
+import pickle
 from collections import Counter
 
 from . import util
@@ -143,6 +144,11 @@ class Trace():
     def to(self, device):
         for variable in self.variables:
             variable.to(device)
+
+    def variable_sizes(self):
+        vars_sorted = sorted(self.variables, key=lambda v: len(pickle.dumps(v)), reverse=True)
+        vars_sorted_sizes = list(map(lambda v: len(pickle.dumps(v)), vars_sorted))
+        return vars_sorted, vars_sorted_sizes
 
     def __len__(self):
         return self.length
