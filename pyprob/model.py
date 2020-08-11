@@ -78,7 +78,7 @@ class Model():
         traces.finalize()
         return traces
 
-    def get_trace(self, *args, **kwargs):
+    def sample(self, *args, **kwargs):
         return next(self._trace_generator(*args, **kwargs))
 
     def prior(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=None, file_name=None, likelihood_importance=1., *args, **kwargs):
