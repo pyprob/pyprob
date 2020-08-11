@@ -78,6 +78,10 @@ class Model():
         traces.finalize()
         return traces
 
+    def get_trace(self, *args, **kwargs):
+        warnings.warn('Model.get_trace will be deprecated in future releases. Use Model.sample instead.')
+        return next(self._trace_generator(*args, **kwargs))
+
     def sample(self, *args, **kwargs):
         return next(self._trace_generator(*args, **kwargs))
 
