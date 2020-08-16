@@ -391,7 +391,7 @@ class Empirical(Distribution):
         return util.to_tensor(ret)
 
     # Idea by Giacomo Acciarini, August 2020
-    def reobserve(self, observe=None, likelihood_func=None, likelihood_importance=1., min_index=None, max_index=None, *args, **kwargs):
+    def reobserve(self, likelihood_funcs=None, observe=None, likelihood_importance=1., min_index=None, max_index=None, *args, **kwargs):
         if len(self) == 0:
             return self
         self._check_finalized()
@@ -402,8 +402,8 @@ class Empirical(Distribution):
             observe = {}
         else:
             warnings.warn('Updating observed values with the ones supplied. If any part of the model code is conditional on the observed value, the resulting posterior will not be correct.')
-        if likelihood_func is None:
-            likelihood_func = lambda v: v.distribution
+        if likelihood_funcs is None:
+            likelihood_funcs = {}
         if min_index is None:
             min_index = 0
         if max_index is None:
@@ -432,7 +432,11 @@ class Empirical(Distribution):
                         # print('Not observed')
                         value = v.value
                         observed = False
-                    distribution = likelihood_func(v)
+                    if v.name in likelihood_funcs:
+                        likelihood_func = likelihood_funcs[v.name]
+                        distribution = likelihood_func(v)
+                    else:
+                        distribution = v.distribution
                     if value is None:
                         log_prob = None
                         log_importance_weight = None
