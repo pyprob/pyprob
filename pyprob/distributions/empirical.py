@@ -16,6 +16,7 @@ from sklearn import mixture
 
 from . import Distribution, Normal, Mixture
 from .. import util
+from ..trace import Trace, Variable
 
 
 class EmpiricalType(enum.Enum):
@@ -388,6 +389,99 @@ class Empirical(Distribution):
             for i in range(self._length):
                 ret += util.to_tensor(func(self._get_value(i)), dtype=torch.float64) * self._categorical.probs[i]
         return util.to_tensor(ret)
+
+    # Idea by Giacomo Acciarini, August 2020
+    def reobserve(self, observe=None, likelihood_func=None, likelihood_importance=1., min_index=None, max_index=None, *args, **kwargs):
+        if len(self) == 0:
+            return self
+        self._check_finalized()
+        last_op = list(self.metadata.values())[-1]
+        if not ((last_op['op'] == 'posterior') and ('IMPORTANCE_SAMPLING' in last_op['inference_engine'])):
+            raise ValueError('Can only be used immediately following a posterior with an importance-sampling-based inference engine. Metadata of the given distribution indicates otherwise: {}'.format(self.metadata))
+        if observe is None:
+            observe = {}
+        else:
+            warnings.warn('Updating observed values with the ones supplied. If any part of the model code is conditional on the observed value, the resulting posterior will not be correct.')
+        if likelihood_func is None:
+            likelihood_func = lambda v: v.distribution
+        if min_index is None:
+            min_index = 0
+        if max_index is None:
+            max_index = self._length
+        indices = range(min_index, max_index)
+        status = 'Reobserve, min_index: {}, max_index: {}'.format(min_index, max_index)
+        util.progress_bar_init(status, len(indices), 'Values')
+        values = []
+        log_weights = []
+        for i in range(min_index, max_index):
+            util.progress_bar_update(i)
+            trace = self._get_value(i)
+            new_trace = Trace()
+            for v in trace.variables:
+                if v.observable:
+                    # print('Observable variable with name: {}'.format(v.name))
+                    if v.name in observe:
+                        value = observe[v.name]
+                        # print('Observe new value: {}'.format(value))
+                        observed = True
+                    elif v.observed:
+                        value = v.value
+                        # print('Observe existing value: {}'.format(value))
+                        observed = True
+                    else:
+                        # print('Not observed')
+                        value = v.value
+                        observed = False
+                    distribution = likelihood_func(v)
+                    if value is None:
+                        log_prob = None
+                        log_importance_weight = None
+                    else:
+                        log_prob = likelihood_importance * distribution.log_prob(value, sum=True)
+                        log_importance_weight = float(log_prob)
+                    # print('log_prob: {}'.format(log_prob))
+                    address_base = v.address_base
+                    address = v.address
+                    instance = v.instance
+                    control = v.control
+                    replace = v.replace
+                    name = v.name
+                    reused = v.reused
+                    tagged = v.tagged
+                    v = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, replace=replace, name=name, observed=observed, reused=reused, tagged=tagged)
+                new_trace.add(v)
+            new_trace.end(result=trace.result, execution_time_sec=trace.execution_time_sec)
+            values.append(new_trace)
+            log_weights.append(new_trace.log_importance_weight)
+        util.progress_bar_end()
+        ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
+        ret._metadata = copy.deepcopy(self._metadata)
+        ret.add_metadata(op='reobserve', length=len(self), observe=observe, likelihood_func=util.get_source(likelihood_func))
+        return ret
+
+    def reweight(self, func, min_index=None, max_index=None, *args, **kwargs):
+        if len(self) == 0:
+            return self
+        self._check_finalized()
+        if min_index is None:
+            min_index = 0
+        if max_index is None:
+            max_index = self._length
+        indices = range(min_index, max_index)
+        status = 'Reweight, min_index: {}, max_index: {}'.format(min_index, max_index)
+        util.progress_bar_init(status, len(indices), 'Values')
+        values = []
+        log_weights = []
+        for i in range(min_index, max_index):
+            util.progress_bar_update(i)
+            v = self._get_value(i)
+            values.append(v)
+            log_weights.append(func(v))
+        util.progress_bar_end()
+        ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
+        ret._metadata = copy.deepcopy(self._metadata)
+        ret.add_metadata(op='reweight', length=len(self), func=util.get_source(func))
+        return ret
 
     def map(self, func, min_index=None, max_index=None, *args, **kwargs):
         if len(self) == 0:
