@@ -40,19 +40,14 @@ class Model():
         traces = Empirical(file_name=file_name)
         if map_func is None:
             map_func = lambda trace: trace
+        log_weights = util.to_tensor(torch.zeros(num_traces))
         time_start = time.time()
         if (util._verbosity > 1) and not silent:
             len_str_num_traces = len(str(num_traces))
-            print('Time spent  | Time remain.| Progress             | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
+            print('Time spent  | Time remain.| Progress             | {} | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1), 'ESS'.ljust(len_str_num_traces+2)))
             prev_duration = 0
+
         for i in range(num_traces):
-            if (util._verbosity > 1) and not silent:
-                duration = time.time() - time_start
-                if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
-                    prev_duration = duration
-                    traces_per_second = (i + 1) / duration
-                    print('{} | {} | {} | {}/{} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, traces_per_second), end='\r')
-                    sys.stdout.flush()
             trace = next(generator)
             if trace_mode == TraceMode.PRIOR:
                 log_weight = 1.
@@ -60,14 +55,34 @@ class Model():
                 log_weight = trace.log_importance_weight
             if util.has_nan_or_inf(log_weight):
                 warnings.warn('Encountered trace with nan, inf, or -inf log_weight. Discarding trace.')
+                if i > 0:
+                    log_weights[i] = log_weights[-1]
             else:
                 traces.add(map_func(trace), log_weight)
+                log_weights[i] = log_weight
+
+            if (util._verbosity > 1) and not silent:
+                duration = time.time() - time_start
+                if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
+                    prev_duration = duration
+                    traces_per_second = (i + 1) / duration
+                    effective_sample_size = float(1./torch.distributions.Categorical(logits=log_weights[:i+1]).probs.pow(2).sum())
+                    if util.has_nan_or_inf(effective_sample_size):
+                        effective_sample_size = 0
+                    print('{} | {} | {} | {}/{} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:.2f}'.format(effective_sample_size).rjust(len_str_num_traces+2), traces_per_second), end='\r')
+                    sys.stdout.flush()
+
+            i += 1
         if (util._verbosity > 1) and not silent:
             print()
         traces.finalize()
         return traces
 
     def get_trace(self, *args, **kwargs):
+        warnings.warn('Model.get_trace will be deprecated in future releases. Use Model.sample instead.')
+        return next(self._trace_generator(*args, **kwargs))
+
+    def sample(self, *args, **kwargs):
         return next(self._trace_generator(*args, **kwargs))
 
     def prior(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=None, file_name=None, likelihood_importance=1., *args, **kwargs):
@@ -96,9 +111,11 @@ class Model():
             if map_func is None:
                 map_func = lambda trace: trace
             if initial_trace is None:
-                current_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, observe=observe, *args, **kwargs))
-            else:
-                current_trace = initial_trace
+                initial_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, observe=observe, *args, **kwargs))
+            if len(initial_trace) == 0:
+                raise RuntimeError('Cannot run MCMC inference with empty initial trace. Make sure the model has at least one pyprob.sample statement.')
+
+            current_trace = initial_trace
 
             time_start = time.time()
             traces_accepted = 0
@@ -111,6 +128,7 @@ class Model():
                 len_str_num_traces = len(str(num_traces))
                 print('Time spent  | Time remain.| Progress             | {} | Accepted|Smp reuse| Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1)))
                 prev_duration = 0
+
             for i in range(num_traces):
                 if util._verbosity > 1:
                     duration = time.time() - time_start
@@ -120,6 +138,7 @@ class Model():
                         print('{} | {} | {} | {}/{} | {} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:,.2f}%'.format(100 * (traces_accepted / (i + 1))).rjust(7), '{:,.2f}%'.format(100 * samples_reused / max(1, samples_all)).rjust(7), traces_per_second), end='\r')
                         sys.stdout.flush()
                 candidate_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, metropolis_hastings_trace=current_trace, observe=observe, *args, **kwargs))
+
                 log_acceptance_ratio = math.log(current_trace.length_controlled) - math.log(candidate_trace.length_controlled) + candidate_trace.log_prob_observed - current_trace.log_prob_observed
                 for variable in candidate_trace.variables_controlled:
                     if variable.reused:
@@ -203,6 +222,9 @@ class Model():
         dataset = OnlineDataset(self, None, prior_inflation=prior_inflation)
         dataset.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces, num_traces_per_file=num_traces_per_file, *args, **kwargs)
 
+    def filter(self, filter, filter_timeout=1e6):
+        return ConstrainedModel(self, filter=filter, filter_timeout=filter_timeout)
+
 
 class RemoteModel(Model):
     def __init__(self, server_address='tcp://127.0.0.1:5555', before_forward_func=None, after_forward_func=None, *args, **kwargs):
@@ -227,3 +249,25 @@ class RemoteModel(Model):
         if self._after_forward_func is not None:
             self._after_forward_func()
         return ret
+
+
+class ConstrainedModel(Model):
+    def __init__(self, base_model, filter, filter_timeout=1e6):
+        self._base_model = base_model
+        self._filter = filter
+        self._filter_timeout = int(filter_timeout)
+        # self.name = self._base_model.name
+        # self._inference_network = self._base_model._inference_network
+        # self._address_dictionary = self._base_model._address_dictionary
+
+    def _trace_generator(self, *args, **kwargs):
+        i = 0
+        while True:
+            i += 1
+            if i > self._filter_timeout:
+                warnings.warn('ConstrainedModel taking longer than timeout ({}) to sample a trace satisfying the filter')
+            trace = next(self._base_model._trace_generator(*args, **kwargs))
+            if self._filter(trace):
+                yield trace
+            else:
+                continue

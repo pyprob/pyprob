@@ -40,7 +40,7 @@ distributions for importance sampling. We are planning to add other inference en
 ### Prerequisites:
 
 * Python 3.5 or higher. We recommend [Anaconda](https://www.continuum.io/).
-* PyTorch 1.0.0 or higher, installed by following instructions on the [PyTorch
+* PyTorch 1.5.1 or higher, installed by following instructions on the [PyTorch
   web site](http://pytorch.org/).
 
 ### Install from source

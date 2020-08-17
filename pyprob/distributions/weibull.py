@@ -11,7 +11,7 @@ class Weibull(Distribution):
         super().__init__(name='Weibull', address_suffix='Weibull', torch_dist=torch.distributions.Weibull(scale=scale, concentration=concentration))
 
     def __repr__(self):
-        return 'Weibull(scale:{}, concentration:{})'.format(self._torch_dist.scale, self._torch_dist.concentration)
+        return 'Weibull(scale={}, concentration={})'.format(self.scale.cpu().numpy().tolist(), self.concentration.cpu().numpy().tolist())
 
     @property
     def concentration(self):

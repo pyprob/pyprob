@@ -109,8 +109,6 @@ def tag(value, name=None, address=None):
     instance = _current_trace.last_instance(address_base) + 1
     address = address_base + '__' + str(instance)
 
-    value = util.to_tensor(value)
-
     variable = Variable(distribution=None, value=value, address_base=address_base, address=address, instance=instance, log_prob=0., tagged=True, name=name)
     _current_trace.add(variable)
 
@@ -154,7 +152,7 @@ def observe(distribution, value=None, name=None, address=None):
     _current_trace.add(variable)
 
 
-def sample(distribution, control=True, replace=False, name=None, address=None):
+def sample(distribution, name=None, address=None, control=True, replace=False):
     global _current_trace
     global _current_trace_previous_variable
     global _current_trace_replaced_variable_proposal_distributions
@@ -367,7 +365,7 @@ def _init_traces(func, trace_mode=TraceMode.PRIOR, prior_inflation=PriorInflatio
     if observe is None:
         _current_trace_observed_variables = {}
     else:
-        if None in observe.values():
+        if any([v is None for v in observe.values()]):
             raise RuntimeError('Observe has missing value(s): {}'.format(observe))
         _current_trace_observed_variables = observe
     _current_trace_inference_network = inference_network

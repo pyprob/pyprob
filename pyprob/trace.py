@@ -1,4 +1,5 @@
 import torch
+import pickle
 from collections import Counter
 
 from . import util
@@ -7,17 +8,15 @@ from . import util
 class Variable():
     def __init__(self, distribution=None, value=None, address_base=None, address=None, instance=None, log_prob=None, log_importance_weight=None, control=False, replace=False, name=None, observed=False, reused=False, tagged=False):
         self.distribution = distribution
-        if value is None:
-            self.value = None
-        else:
-            self.value = util.to_tensor(value)
+        # if value is None:
+        #     self.value = None
+        # else:
+        #     self.value = util.to_tensor(value)
+        self.value = value
         self.address_base = address_base
         self.address = address
         self.instance = instance
-        if log_prob is None:
-            self.log_prob = None
-        else:
-            self.log_prob = util.to_tensor(log_prob)
+        self.log_prob = util.to_tensor(log_prob)
         if log_importance_weight is None:
             self.log_importance_weight = None
         else:
@@ -32,7 +31,7 @@ class Variable():
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned variables in offline training datasets
-        return 'Variable(name:{}, control:{}, replace:{}, observable:{}, observed:{}, tagged:{}, address:{}, distribution:{}, value:{}: log_prob:{})'.format(
+        return 'Variable(name:{}, control:{}, replace:{}, observable:{}, observed:{}, tagged:{}, address:{}, distribution:{}, value:{}, log_prob:{})'.format(
             self.name if hasattr(self, 'name') else 'Unknown',
             self.control if hasattr(self, 'control') else 'Unknown',
             self.replace if hasattr(self, 'replace') else 'Unknown',
@@ -146,6 +145,14 @@ class Trace():
         for variable in self.variables:
             variable.to(device)
 
+    def variable_sizes(self):
+        vars_sorted = sorted(self.variables, key=lambda v: len(pickle.dumps(v)), reverse=True)
+        vars_sorted_sizes = list(map(lambda v: len(pickle.dumps(v)), vars_sorted))
+        return vars_sorted, vars_sorted_sizes
+
+    def __len__(self):
+        return self.length
+
     def __hash__(self):
         h = [hash(variable) for variable in self.variables]
         return hash(sum(h))
@@ -158,3 +165,6 @@ class Trace():
             return self.named_variables[variable_name].value
         else:
             raise RuntimeError('Trace does not include variable with name: {}'.format(variable_name))
+
+    def __contains__(self, variable_name):
+        return variable_name in self.named_variables

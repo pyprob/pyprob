@@ -12,10 +12,11 @@ import os
 import enum
 import yaml
 import warnings
-from termcolor import colored
+from sklearn import mixture
 
-from . import Distribution
+from . import Distribution, Normal, Mixture
 from .. import util
+from ..trace import Trace, Variable
 
 
 class EmpiricalType(enum.Enum):
@@ -135,6 +136,7 @@ class Empirical(Distribution):
         self._skewness = None
         self._kurtosis = None
         self._mode = None
+        self._median = None
         self._min = None
         self._max = None
         self._effective_sample_size = None
@@ -225,6 +227,9 @@ class Empirical(Distribution):
             self._uniform_weights = torch.eq(self._categorical.logits, self._categorical.logits[0]).all()
         else:
             self._uniform_weights = False
+
+    def from_distribution(distribution, num_samples):
+        return Empirical([distribution.sample() for _ in range(num_samples)])
 
     def finalize(self):
         self._length = len(self.log_weights)
@@ -385,7 +390,106 @@ class Empirical(Distribution):
                 ret += util.to_tensor(func(self._get_value(i)), dtype=torch.float64) * self._categorical.probs[i]
         return util.to_tensor(ret)
 
+    # Idea by Giacomo Acciarini, August 2020
+    def reobserve(self, likelihood_funcs=None, observe=None, likelihood_importance=1., min_index=None, max_index=None, *args, **kwargs):
+        if len(self) == 0:
+            return self
+        self._check_finalized()
+        last_op = list(self.metadata.values())[-1]
+        if not ((last_op['op'] == 'posterior') and ('IMPORTANCE_SAMPLING' in last_op['inference_engine'])):
+            raise ValueError('Can only be used immediately following a posterior with an importance-sampling-based inference engine. Metadata of the given distribution indicates otherwise: {}'.format(self.metadata))
+        if observe is None:
+            observe = {}
+        else:
+            warnings.warn('Updating observed values with the ones supplied. If any part of the model code is conditional on the observed value, the resulting posterior will not be correct.')
+        if likelihood_funcs is None:
+            likelihood_funcs = {}
+        if min_index is None:
+            min_index = 0
+        if max_index is None:
+            max_index = self._length
+        indices = range(min_index, max_index)
+        status = 'Reobserve, min_index: {}, max_index: {}'.format(min_index, max_index)
+        util.progress_bar_init(status, len(indices), 'Values')
+        values = []
+        log_weights = []
+        for i in range(min_index, max_index):
+            util.progress_bar_update(i)
+            trace = self._get_value(i)
+            new_trace = Trace()
+            for v in trace.variables:
+                if v.observable:
+                    # print('Observable variable with name: {}'.format(v.name))
+                    if v.name in observe:
+                        value = observe[v.name]
+                        # print('Observe new value: {}'.format(value))
+                        observed = True
+                    elif v.observed:
+                        value = v.value
+                        # print('Observe existing value: {}'.format(value))
+                        observed = True
+                    else:
+                        # print('Not observed')
+                        value = v.value
+                        observed = False
+                    if v.name in likelihood_funcs:
+                        likelihood_func = likelihood_funcs[v.name]
+                        distribution = likelihood_func(v)
+                    else:
+                        distribution = v.distribution
+                    if value is None:
+                        log_prob = None
+                        log_importance_weight = None
+                    else:
+                        log_prob = likelihood_importance * distribution.log_prob(value, sum=True)
+                        log_importance_weight = float(log_prob)
+                    # print('log_prob: {}'.format(log_prob))
+                    address_base = v.address_base
+                    address = v.address
+                    instance = v.instance
+                    control = v.control
+                    replace = v.replace
+                    name = v.name
+                    reused = v.reused
+                    tagged = v.tagged
+                    v = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, replace=replace, name=name, observed=observed, reused=reused, tagged=tagged)
+                new_trace.add(v)
+            new_trace.end(result=trace.result, execution_time_sec=trace.execution_time_sec)
+            values.append(new_trace)
+            log_weights.append(new_trace.log_importance_weight)
+        util.progress_bar_end()
+        ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
+        ret._metadata = copy.deepcopy(self._metadata)
+        ret.add_metadata(op='reobserve', length=len(self), observe=observe, likelihood_func=util.get_source(likelihood_func))
+        return ret
+
+    def reweight(self, func, min_index=None, max_index=None, *args, **kwargs):
+        if len(self) == 0:
+            return self
+        self._check_finalized()
+        if min_index is None:
+            min_index = 0
+        if max_index is None:
+            max_index = self._length
+        indices = range(min_index, max_index)
+        status = 'Reweight, min_index: {}, max_index: {}'.format(min_index, max_index)
+        util.progress_bar_init(status, len(indices), 'Values')
+        values = []
+        log_weights = []
+        for i in range(min_index, max_index):
+            util.progress_bar_update(i)
+            v = self._get_value(i)
+            values.append(v)
+            log_weights.append(func(v))
+        util.progress_bar_end()
+        ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
+        ret._metadata = copy.deepcopy(self._metadata)
+        ret.add_metadata(op='reweight', length=len(self), func=util.get_source(func))
+        return ret
+
     def map(self, func, min_index=None, max_index=None, *args, **kwargs):
+        if len(self) == 0:
+            return self
         self._check_finalized()
         if min_index is None:
             min_index = 0
@@ -429,6 +533,7 @@ class Empirical(Distribution):
         ret = Empirical(filtered_values, log_weights=filtered_log_weights, name=self.name, *args, **kwargs)
         ret._metadata = copy.deepcopy(self._metadata)
         ret.add_metadata(op='filter', length=len(self), length_after=len(filtered_values), func=util.get_source(func))
+        ret.finalize()
         return ret
 
     def resample(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):  # min_index is inclusive, max_index is exclusive
@@ -528,6 +633,22 @@ class Empirical(Distribution):
                 self._mode = self._get_value(int(max_index))
         return self._mode
 
+    @property
+    def median(self):
+        self._check_finalized()
+        if self._median is None:
+            if self._uniform_weights:
+                if torch.is_tensor(self.values[0]):
+                    values = torch.stack(self.get_values())
+                    self._median = torch.median(values)
+                else:
+                    values = self.values_numpy()
+                    self._median = np.median(values)
+            else:
+                # Resample to get an unweighted distribution
+                self._median = self.resample(1000).median
+        return self._median
+
     def arg_max(self, map_func):
         self._check_finalized()
         max_val = map_func(self._get_value(0))
@@ -592,6 +713,20 @@ class Empirical(Distribution):
         if self._max is None:
             self._find_min_max()
         return self._max
+
+    def density_estimate(self, num_mixture_components=1, num_samples=1000, *args, **kwargs):
+        if self.weighted:
+            values = util.to_tensor([self.sample() for _ in range(num_samples)]).cpu().numpy()
+        else:
+            values = self.values_numpy()
+        if values.ndim != 1:
+            raise ValueError('Expecting values to be one-dimensional')
+        values = values.reshape(-1, 1)
+        m = mixture.GaussianMixture(n_components=num_mixture_components, covariance_type='diag', *args, **kwargs)
+        m.fit(values)
+        dists = [Normal(m.means_[i][0], np.sqrt(m.covariances_[i])[0]) for i in range(num_mixture_components)]
+        weights = [m.weights_[i] for i in range(num_mixture_components)]
+        return Mixture(dists, weights)
 
     def combine_duplicates(self, *args, **kwargs):
         self._check_finalized()
@@ -669,6 +804,9 @@ class Empirical(Distribution):
     def log_weights_numpy(self):
         self._check_finalized()
         return util.to_numpy(self._categorical.logits)
+
+    def plot(self, *args, **kwargs):
+        self.plot_histogram(*args, **kwargs)
 
     def plot_histogram(self, figsize=(10, 5), xlabel=None, ylabel='Frequency', xticks=None, yticks=None, log_xscale=False, log_yscale=False, file_name=None, show=True, density=1, fig=None, *args, **kwargs):
         if fig is None:

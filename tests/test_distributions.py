@@ -8,7 +8,7 @@ import tempfile
 
 import pyprob
 from pyprob import util
-from pyprob.distributions import Empirical, Normal, Categorical, Uniform, Poisson, Beta, Bernoulli, Exponential, Gamma, LogNormal, Binomial, Weibull, Mixture, TruncatedNormal
+from pyprob.distributions import Empirical, Normal, Categorical, Uniform, Poisson, Beta, Bernoulli, Exponential, Gamma, LogNormal, Binomial, Weibull, VonMises, Mixture, TruncatedNormal
 
 
 empirical_samples = 25000
@@ -192,6 +192,18 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_mean_combined, dist_mean_correct, places=1)
         self.assertAlmostEqual(dist_stddev, dist_stddev_correct, places=1)
         self.assertAlmostEqual(dist_stddev_combined, dist_stddev_correct, places=1)
+
+    def test_distributions_empirical_density_estimate(self):
+        values = [1, 2, 3]
+        dist_mixture_means_correct = [1, 2, 3]
+
+        dist = Empirical(values)
+        dist_mixture = dist.density_estimate(num_mixture_components=3)
+        dist_mixture_means = [float(d.mean) for d in dist_mixture.distributions]
+
+        util.eval_print('values', 'dist_mixture_means', 'dist_mixture_means_correct')
+
+        self.assertAlmostEqual(set(dist_mixture_means), set(dist_mixture_means_correct), places=1)
 
     def test_distributions_empirical_numpy(self):
         samples = 25
@@ -676,6 +688,20 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(skewness_correct, skewness, delta=0.1)
         self.assertAlmostEqual(kurtosis_correct, kurtosis, delta=0.1)
 
+    def test_distributions_empirical_median(self):
+        values = [Exponential(1.5).sample() for _ in range(empirical_samples)]
+        emp = Empirical(values)
+
+        mean_correct = 0.666667
+        median_correct = 0.462098
+        mean = float(emp.mean)
+        median = float(emp.median)
+
+        util.eval_print('mean', 'median', 'mean_correct', 'median_correct')
+
+        self.assertAlmostEqual(mean_correct, mean, delta=0.1)
+        self.assertAlmostEqual(median_correct, median, delta=0.1)
+
     def test_distributions_binomial(self):
         dist_batch_shape_correct = torch.Size()
         dist_event_shape_correct = torch.Size()
@@ -756,6 +782,40 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_concentration, dist_concentration_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_scale, dist_scale_correct, atol=0.1))
+
+    def test_distributions_von_mises(self):
+        dist_batch_shape_correct = torch.Size()
+        dist_event_shape_correct = torch.Size()
+        dist_sample_shape_correct = torch.Size()
+        dist_log_prob_shape_correct = torch.Size()
+        dist_locs_correct = 3.1415
+        dist_concentration_correct = 2.
+        dist_means_correct = 3.1415
+        dist_stddevs_correct = 0.5498
+        dist_log_probs_correct = -0.6619
+
+        dist = VonMises(loc=dist_locs_correct, concentration=dist_concentration_correct)
+        dist_concentration = util.to_numpy(dist.concentration)
+        dist_locs = util.to_numpy(dist.loc)
+        dist_means = util.to_numpy(dist.mean)
+        dist_stddevs = util.to_numpy(dist.stddev)
+        dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
+        dist_batch_shape = dist.batch_shape
+        dist_event_shape = dist.event_shape
+        dist_sample_shape = dist.sample().size()
+        dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
+
+        util.eval_print('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_means', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct', 'dist_concentration', 'dist_concentration_correct', 'dist_locs', 'dist_locs_correct')
+
+        self.assertEqual(dist_batch_shape, dist_batch_shape_correct)
+        self.assertEqual(dist_event_shape, dist_event_shape_correct)
+        self.assertEqual(dist_sample_shape, dist_sample_shape_correct)
+        self.assertEqual(dist_log_prob_shape, dist_log_prob_shape_correct)
+        self.assertTrue(np.allclose(dist_means, dist_means_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_concentration, dist_concentration_correct, atol=0.1))
+        self.assertTrue(np.allclose(dist_locs, dist_locs_correct, atol=0.1))
 
     def test_distributions_gamma(self):
         dist_batch_shape_correct = torch.Size()
@@ -1891,6 +1951,35 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_stddevs, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_stddevs_empirical, dist_stddevs_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
+
+    def test_distributions_repr(self):
+        def exec_return(code):
+            exec('global exec_return_result; exec_return_result = %s' % code)
+            global exec_return_result
+            return exec_return_result
+
+        dists = []
+        dists.append(Bernoulli(0.5))
+        dists.append(Binomial(2, 0.5))
+        dists.append(Categorical([0.2, 0.3, 0.5]))
+        dists.append(Exponential(1.5))
+        dists.append(Gamma(0, 1))
+        dists.append(LogNormal(0, 1))
+        dists.append(Mixture([Normal(0, 1), Normal(2, 3)], [0.4, 0.6]))
+        dists.append(Normal(0, 1))
+        dists.append(Poisson(5))
+        dists.append(TruncatedNormal(0, 1, 0.5, 0.6))
+        dists.append(Uniform(0.2, 0.6))
+        dists.append(VonMises(0.1, 1.1))
+        dists.append(Weibull(0.1, 1.1))
+
+        dists_repr = list(map(repr, dists))
+        dists_repr_exec = list(map(exec_return, dists_repr))
+        dists_repr_exec_repr = list(map(repr, dists_repr_exec))
+
+        util.eval_print('dists', 'dists_repr', 'dists_repr_exec')
+
+        self.assertEqual(dists_repr, dists_repr_exec_repr)
 
 
 if __name__ == '__main__':

@@ -3,7 +3,6 @@ from .bernoulli import Bernoulli
 from .beta import Beta
 from .binomial import Binomial
 from .categorical import Categorical
-from .empirical import Empirical
 from .exponential import Exponential
 from .gamma import Gamma
 from .log_normal import LogNormal
@@ -12,4 +11,6 @@ from .normal import Normal
 from .poisson import Poisson
 from .truncated_normal import TruncatedNormal
 from .uniform import Uniform
+from .von_mises import VonMises
 from .weibull import Weibull
+from .empirical import Empirical
