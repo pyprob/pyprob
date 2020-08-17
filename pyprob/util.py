@@ -54,7 +54,7 @@ class ObserveEmbedding(enum.Enum):
     FEEDFORWARD = 0
     CNN2D5C = 1
     CNN3D5C = 2
-
+    CUSTOM = 3
 
 class Optimizer(enum.Enum):
     ADAM = 0

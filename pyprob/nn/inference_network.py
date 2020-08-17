@@ -24,7 +24,7 @@ from .. import __version__, util, Optimizer, LearningRateScheduler, ObserveEmbed
 
 class InferenceNetwork(nn.Module):
     # observe_embeddings example: {'obs1': {'embedding':ObserveEmbedding.FEEDFORWARD, 'reshape': [10, 10], 'dim': 32, 'depth': 2}}
-    def __init__(self, model, observe_embeddings={}, network_type=''):
+    def __init__(self, model, observe_embeddings={}, network_type='', embedding_model = None):
         super().__init__()
         self._model = model
         self._layers_observe_embedding = nn.ModuleDict()
@@ -76,6 +76,7 @@ class InferenceNetwork(nn.Module):
         self._distributed_backend = None
         self._distributed_world_size = None
         self._network_type = network_type
+        self.embedding_model = embedding_model
 
     def _init_layers_observe_embedding(self, observe_embeddings, example_trace):
         if len(observe_embeddings) == 0:
@@ -119,6 +120,11 @@ class InferenceNetwork(nn.Module):
                 layer = EmbeddingCNN2D5C(input_shape=input_shape, output_shape=output_shape)
             elif embedding == ObserveEmbedding.CNN3D5C:
                 layer = EmbeddingCNN3D5C(input_shape=input_shape, output_shape=output_shape)
+            elif embedding == ObserveEmbedding.CUSTOM:
+                if self.embedding_model is None:
+                    raise ValueError('Custom model cannot be None')
+                else:
+                    layer = self.embedding_model
             else:
                 raise ValueError('Unknown embedding: {}'.format(embedding))
             layer.to(device=util._device)
