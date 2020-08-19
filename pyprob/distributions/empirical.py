@@ -434,7 +434,7 @@ class Empirical(Distribution):
                         observed = False
                     if v.name in likelihood_funcs:
                         likelihood_func = likelihood_funcs[v.name]
-                        distribution = likelihood_func(v)
+                        distribution = likelihood_func(v, trace)
                     else:
                         distribution = v.distribution
                     if value is None:
