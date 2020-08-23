@@ -35,8 +35,8 @@ class Variable():
             self.observable if hasattr(self, 'observable') else 'Unknown',
             self.observed if hasattr(self, 'observed') else 'Unknown',
             self.tagged if hasattr(self, 'tagged') else 'Unknown',
-            self.address if hasattr(self, 'address') else 'Unknown',
             self.control if hasattr(self, 'control') else 'Unknown',
+            self.address if hasattr(self, 'address') else 'Unknown',
             str(self.distribution) if hasattr(self, 'distribution') else 'Unknown',
             str(self.value) if hasattr(self, 'value') else 'Unknown',
             str(self.log_prob) if hasattr(self, 'log_prob') else 'Unknown')
@@ -77,8 +77,8 @@ class Trace():
         # The 'Unknown' cases below are for handling pruned traces in offline training datasets
         return 'Trace(variables:{:,}, observeable:{}, observed:{}, tagged:{}, controlled:{:,}, uncontrolled:{}, log_prob:{}, log_importance_weight:{})'.format(
             self.length,
-            '{:,}'.format(len(self.variables_observed)) if hasattr(self, 'variables_observed') else 'Unknown',
             '{:,}'.format(len(self.variables_observable)) if hasattr(self, 'variables_observable') else 'Unknown',
+            '{:,}'.format(len(self.variables_observed)) if hasattr(self, 'variables_observed') else 'Unknown',
             '{:,}'.format(len(self.variables_tagged)) if hasattr(self, 'variables_tagged') else 'Unknown',
             self.length_controlled,
             '{:,}'.format(len(self.variables_uncontrolled)) if hasattr(self, 'variables_uncontrolled') else 'Unknown',
