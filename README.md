@@ -69,11 +69,6 @@ cd pyprob
 docker build -t pyprob .
 ```
 
-An image with the latest passing commit is automatically pushed to `pyprob/pyprob:latest` at https://hub.docker.com/r/pyprob/pyprob/. You can pull this as follows:
-```
-docker pull pyprob/pyprob
-```
-
 ## Documentation and examples
 
 Documentation coming soon.
