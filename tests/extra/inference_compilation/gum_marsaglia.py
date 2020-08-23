@@ -24,8 +24,10 @@ class GaussianWithUnknownMeanMarsaglia(Model):
         s = 1
         i = 0
         while True:
-            x = pyprob.sample(uniform, replace=self.replace)
-            y = pyprob.sample(uniform, replace=self.replace)
+            # x = pyprob.sample(uniform, replace=self.replace)
+            # y = pyprob.sample(uniform, replace=self.replace)
+            x = pyprob.sample(uniform)
+            y = pyprob.sample(uniform)
             s = x*x + y*y
             i += 1
             if float(s) < 1:

@@ -63,7 +63,6 @@ def _address_stats(trace_dist, use_address_base=True, reuse_ids_from_address_sta
     addresses_extra['num_distribution_elements'] = len(trace_dist)
     addresses_extra['addresses'] = len(addresses)
     addresses_extra['addresses_controlled'] = len([1 for value in list(addresses.values()) if value['variable'].control])
-    addresses_extra['addresses_replaced'] = len([1 for value in list(addresses.values()) if value['variable'].replace])
     addresses_extra['addresses_observable'] = len([1 for value in list(addresses.values()) if value['variable'].observable])
     addresses_extra['addresses_observed'] = len([1 for value in list(addresses.values()) if value['variable'].observed])
     addresses_extra['addresses_tagged'] = len([1 for value in list(addresses.values()) if value['variable'].tagged])
@@ -325,10 +324,10 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
             addresses_file_name = file_name + '.csv'
             print('Saving addresses to file: {}'.format(addresses_file_name))
             with open(addresses_file_name, 'w') as file:
-                file.write('address_id, count, name, controlled, replaced, observable, observed, {}\n'.format('address_base' if use_address_base else 'address'))
+                file.write('address_id, count, name, controlled, observable, observed, {}\n'.format('address_base' if use_address_base else 'address'))
                 for key, value in address_stats_combined.items():
                     name = '' if value['variable'].name is None else value['variable'].name
-                    file.write('{}, {}, {}, {}, {}, {}, {}, {}\n'.format(value['address_id'], value['count'], name, value['variable'].control, value['variable'].replace, value['variable'].observable, value['variable'].observed, key))
+                    file.write('{}, {}, {}, {}, {}, {}, {}, {}\n'.format(value['address_id'], value['count'], name, value['variable'].control, value['variable'].observable, value['variable'].observed, key))
         if plot_show:
             plt.show()
 

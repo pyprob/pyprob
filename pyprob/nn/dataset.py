@@ -66,7 +66,6 @@ class OnlineDataset(Dataset):
         del(trace.variables)
         # trace.variables_controlled = []
         del(trace.variables_uncontrolled)
-        del(trace.variables_replaced)
         del(trace.variables_observed)
         del(trace.variables_observable)
         del(trace.variables_tagged)
@@ -91,7 +90,6 @@ class OnlineDataset(Dataset):
             del(variable.instance)
             del(variable.log_prob)
             del(variable.control)
-            del(variable.replace)
             del(variable.name)
             del(variable.observable)
             del(variable.observed)
@@ -114,7 +112,6 @@ class OnlineDataset(Dataset):
                 del(variable.instance)
                 del(variable.log_prob)
                 del(variable.control)
-                del(variable.replace)
                 del(variable.name)
                 del(variable.observable)
                 del(variable.observed)

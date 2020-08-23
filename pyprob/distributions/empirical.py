@@ -448,11 +448,10 @@ class Empirical(Distribution):
                     address = v.address
                     instance = v.instance
                     control = v.control
-                    replace = v.replace
                     name = v.name
                     reused = v.reused
                     tagged = v.tagged
-                    v = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, replace=replace, name=name, observed=observed, reused=reused, tagged=tagged)
+                    v = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, name=name, observed=observed, reused=reused, tagged=tagged)
                 new_trace.add(v)
             new_trace.end(result=trace.result, execution_time_sec=trace.execution_time_sec)
             values.append(new_trace)
