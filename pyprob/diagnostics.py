@@ -652,7 +652,7 @@ def _n_most_frequent_addresses(trace_dist, n_most_frequent, num_traces=None):
         trace = trace_dist._get_value(i)
         util.progress_bar_update(i)
         for variable in trace.variables:
-            if variable.value is not None:
+            if (not variable.tagged) and (variable.value is not None):
                 if variable.value.nelement() == 1:
                     address_counts[variable.address] += 1
     util.progress_bar_end()
@@ -681,7 +681,7 @@ def _variable_values(trace_dist, names=None, n_most_frequent=None, num_traces=No
     # Select named variables to process
     for name in names:
         variable = trace_dist[0].named_variables[name]
-        if variable.value is not None:
+        if (not variable.tagged) and (variable.value is not None):
             if variable.value.nelement() == 1:
                 if variable.address not in variable_values:
                     variable_values[variable.address] = {'variable': None, 'values': np.ones(num_traces) * np.nan}
@@ -692,7 +692,7 @@ def _variable_values(trace_dist, names=None, n_most_frequent=None, num_traces=No
         addresses = _n_most_frequent_addresses(trace_dist, n_most_frequent, num_traces)
         for address in addresses:
             variable = trace_dist[0].variables_dict_address[address]
-            if variable.value is not None:
+            if (not variable.tagged) and (variable.value is not None):
                 if variable.value.nelement() == 1:
                     if variable.address not in variable_values:
                         variable_values[variable.address] = {'variable': None, 'values': np.ones(num_traces) * np.nan}
@@ -989,11 +989,13 @@ def jensen_shannon(trace_dist_p, trace_dist_q, names=None, n_most_frequent=50,
                 else:
                     trace_variables_dict = trace.variables_dict_address
                 if address in trace_variables_dict:
-                    if trace_variables_dict[address].value.nelement() == 1:
-                        if variable_info[address]['variable'] is None:
-                            variable_info[address]['variable'] = trace_variables_dict[address]
-                        variable_info[address]['values'].append(trace_variables_dict[address].value)
-                        variable_info[address]['log_weights'].append(trace_weight)
+                    variable = trace_variables_dict[address]
+                    if (not variable.tagged) and (variable.value is not None):
+                        if variable.value.nelement() == 1:
+                            if variable_info[address]['variable'] is None:
+                                variable_info[address]['variable'] = variable
+                            variable_info[address]['values'].append(variable.value)
+                            variable_info[address]['log_weights'].append(trace_weight)
 
         ret_val = {address: {'variable': info['variable'],
                              'dist': Empirical(info['values'], log_weights=info['log_weights'])}
@@ -1006,14 +1008,16 @@ def jensen_shannon(trace_dist_p, trace_dist_q, names=None, n_most_frequent=50,
         addresses = address_stats['addresses']
         ordered_addresses = OrderedDict(sorted(addresses.items(), key=lambda x: x[1]['count'], reverse=True))
         res = []
-        i = 0
+        # i = 0
         for candidate_address, variable_info in ordered_addresses.items():
             # variable_info is the value associated with 'addresses' key in address_stats (has ['count', 'weight', 'address_id', 'variable'] as keys)
             if len(res) >= n:
                 break
-            if variable_info['variable'].value.nelement() == 1:
-                # Ignore multi-dimensional random variables
-                res.append(candidate_address)
+            variable = variable_info['variable']
+            if (not variable.tagged) and (variable.value is not None):
+                if variable.value.nelement() == 1:
+                    # Ignore multi-dimensional random variables
+                    res.append(candidate_address)
         return res
 
     def get_renamed_variable_empiricals(trace_dists, names, n_most_frequent, use_address_base):
