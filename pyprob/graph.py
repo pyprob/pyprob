@@ -21,10 +21,7 @@ class Node():
             self.color = '#ffffff'
         else:
             if variable.control:
-                if variable.replace:
-                    self.color = '#adff2f'
-                else:
-                    self.color = '#fa8072'
+                self.color = '#fa8072'
             elif variable.observable:
                 self.color = '#1effff'
                 if variable.observed:

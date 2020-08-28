@@ -3,9 +3,9 @@ import torch.nn as nn
 import warnings
 from termcolor import colored
 
-from . import InferenceNetwork, EmbeddingFeedForward, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
+from . import InferenceNetwork, EmbeddingFeedForward, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalBernoulliBernoulli, ProposalPoissonTruncatedNormalMixture
 from .. import util
-from ..distributions import Normal, Uniform, Categorical, Poisson
+from ..distributions import Normal, Uniform, Categorical, Poisson, Bernoulli
 
 
 class InferenceNetworkLSTM(InferenceNetwork):
@@ -48,19 +48,22 @@ class InferenceNetworkLSTM(InferenceNetwork):
                     self._layers_distribution_type_embedding[distribution.name] = emb
 
                 if address not in self._layers_proposal:
-                    variable_shape = variable.value.shape
+                    # variable_shape = variable.value.shape
                     if isinstance(distribution, Normal):
-                        proposal_layer = ProposalNormalNormalMixture(self._lstm_dim, variable_shape, mixture_components=self._proposal_mixture_components)
+                        proposal_layer = ProposalNormalNormalMixture(self._lstm_dim, mixture_components=self._proposal_mixture_components)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     elif isinstance(distribution, Uniform):
-                        proposal_layer = ProposalUniformTruncatedNormalMixture(self._lstm_dim, variable_shape, mixture_components=self._proposal_mixture_components)
+                        proposal_layer = ProposalUniformTruncatedNormalMixture(self._lstm_dim, mixture_components=self._proposal_mixture_components)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     elif isinstance(distribution, Poisson):
-                        proposal_layer = ProposalPoissonTruncatedNormalMixture(self._lstm_dim, variable_shape, mixture_components=self._proposal_mixture_components)
+                        proposal_layer = ProposalPoissonTruncatedNormalMixture(self._lstm_dim, mixture_components=self._proposal_mixture_components)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     elif isinstance(distribution, Categorical):
                         proposal_layer = ProposalCategoricalCategorical(self._lstm_dim, distribution.num_categories)
                         sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, input_is_one_hot_index=True, input_one_hot_dim=distribution.num_categories, num_layers=1)
+                    elif isinstance(distribution, Bernoulli):
+                        proposal_layer = ProposalBernoulliBernoulli(self._lstm_dim)
+                        sample_embedding_layer = EmbeddingFeedForward(variable.value.shape, self._sample_embedding_dim, num_layers=1)
                     else:
                         raise RuntimeError('Distribution currently unsupported: {}'.format(distribution.name))
                     proposal_layer.to(device=util._device)

@@ -3,9 +3,9 @@ import torch.nn as nn
 import warnings
 from termcolor import colored
 
-from . import InferenceNetwork, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalPoissonTruncatedNormalMixture
+from . import InferenceNetwork, ProposalNormalNormalMixture, ProposalUniformTruncatedNormalMixture, ProposalCategoricalCategorical, ProposalBernoulliBernoulli, ProposalPoissonTruncatedNormalMixture
 from .. import util
-from ..distributions import Normal, Uniform, Categorical, Poisson
+from ..distributions import Normal, Uniform, Categorical, Poisson, Bernoulli
 
 
 class InferenceNetworkFeedForward(InferenceNetwork):
@@ -25,17 +25,19 @@ class InferenceNetworkFeedForward(InferenceNetwork):
             for variable in example_trace.variables_controlled:
                 address = variable.address
                 distribution = variable.distribution
-                variable_shape = variable.value.shape
+                # variable_shape = variable.value.shape
                 if address not in self._layers_proposal:
                     print('New layers, address: {}, distribution: {}'.format(util.truncate_str(address), distribution.name))
                     if isinstance(distribution, Normal):
-                        layer = ProposalNormalNormalMixture(self._observe_embedding_dim, variable_shape, mixture_components=self._proposal_mixture_components)
+                        layer = ProposalNormalNormalMixture(self._observe_embedding_dim, mixture_components=self._proposal_mixture_components)
                     elif isinstance(distribution, Uniform):
-                        layer = ProposalUniformTruncatedNormalMixture(self._observe_embedding_dim, variable_shape, mixture_components=self._proposal_mixture_components)
+                        layer = ProposalUniformTruncatedNormalMixture(self._observe_embedding_dim, mixture_components=self._proposal_mixture_components)
                     elif isinstance(distribution, Poisson):
-                        layer = ProposalPoissonTruncatedNormalMixture(self._observe_embedding_dim, variable_shape, mixture_components=self._proposal_mixture_components)
+                        layer = ProposalPoissonTruncatedNormalMixture(self._observe_embedding_dim, mixture_components=self._proposal_mixture_components)
                     elif isinstance(distribution, Categorical):
                         layer = ProposalCategoricalCategorical(self._observe_embedding_dim, distribution.num_categories)
+                    elif isinstance(distribution, Bernoulli):
+                        layer = ProposalBernoulliBernoulli(self._observe_embedding_dim)
                     else:
                         raise RuntimeError('Distribution currently unsupported: {}'.format(distribution.name))
                     layer.to(device=util._device)

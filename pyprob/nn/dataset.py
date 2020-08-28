@@ -66,7 +66,6 @@ class OnlineDataset(Dataset):
         del(trace.variables)
         # trace.variables_controlled = []
         del(trace.variables_uncontrolled)
-        del(trace.variables_replaced)
         del(trace.variables_observed)
         del(trace.variables_observable)
         del(trace.variables_tagged)
@@ -91,7 +90,6 @@ class OnlineDataset(Dataset):
             del(variable.instance)
             del(variable.log_prob)
             del(variable.control)
-            del(variable.replace)
             del(variable.name)
             del(variable.observable)
             del(variable.observed)
@@ -114,14 +112,13 @@ class OnlineDataset(Dataset):
                 del(variable.instance)
                 del(variable.log_prob)
                 del(variable.control)
-                del(variable.replace)
                 del(variable.name)
                 del(variable.observable)
                 del(variable.observed)
                 del(variable.reused)
                 del(variable.tagged)
 
-    def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, *args, **kwargs):
+    def save_dataset(self, dataset_dir, num_traces, num_traces_per_file, prune_traces=True, *args, **kwargs):
         num_files = math.ceil(num_traces / num_traces_per_file)
         util.progress_bar_init('Saving offline dataset, traces:{}, traces per file:{}, files:{}'.format(num_traces, num_traces_per_file, num_files), num_traces, 'Traces')
         i = 0
@@ -131,7 +128,8 @@ class OnlineDataset(Dataset):
             shelf = shelve.open(file_name, flag='c')
             for j in range(num_traces_per_file):
                 trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK, prior_inflation=self._prior_inflation, *args, **kwargs))
-                self._prune_trace(trace)
+                if prune_traces:
+                    self._prune_trace(trace)
                 shelf[str(j)] = trace
                 shelf['__length'] = j + 1
             shelf.close()
@@ -251,7 +249,7 @@ class OfflineDataset(ConcatDataset):
         print('Sorting done')
         return hashes.cpu().numpy(), sorted_indices.cpu().numpy()
 
-    def save_sorted(self, sorted_dataset_dir, num_traces_per_file=None, num_files=None, begin_file_index=None, end_file_index=None):
+    def save_sorted(self, sorted_dataset_dir, num_traces_per_file=None, num_files=None, begin_file_index=None, end_file_index=None, device=None):
         if num_traces_per_file is not None:
             if num_files is not None:
                 raise ValueError('Expecting either num_traces_per_file or num_files')
@@ -288,7 +286,10 @@ class OfflineDataset(ConcatDataset):
             shelf = ConcurrentShelf(file_name)
             shelf.lock(write=True)
             for new_i, old_i in enumerate(file_indices[i]):
-                shelf[str(new_i)] = self[old_i]
+                trace = self[old_i]
+                if device is not None:
+                    trace = trace.to(device)
+                shelf[str(new_i)] = trace
             shelf['__length'] = len(file_indices[i])
             shelf.unlock()
             util.progress_bar_update(j)

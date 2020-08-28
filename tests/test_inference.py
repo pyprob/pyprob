@@ -260,8 +260,10 @@ class GaussianWithUnknownMeanMarsagliaTestCase(unittest.TestCase):
                 uniform = Uniform(-1, 1)
                 s = 1
                 while float(s) >= 1:
-                    x = pyprob.sample(uniform, replace=True)
-                    y = pyprob.sample(uniform, replace=True)
+                    # x = pyprob.sample(uniform, replace=True)
+                    # y = pyprob.sample(uniform, replace=True)
+                    x = pyprob.sample(uniform)
+                    y = pyprob.sample(uniform)
                     s = x*x + y*y
                 return mean + stddev * (x * torch.sqrt(-2 * torch.log(s) / s))
 
