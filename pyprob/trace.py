@@ -1,5 +1,6 @@
 import torch
 import pickle
+import copy
 from collections import Counter
 
 from . import util
@@ -41,11 +42,22 @@ class Variable():
             str(self.value) if hasattr(self, 'value') else 'Unknown',
             str(self.log_prob) if hasattr(self, 'log_prob') else 'Unknown')
 
+    def clone(self):
+        return copy.deepcopy(self)
+
     def to(self, device):
-        if self.value is not None:
-            self.value.to(device=device)
-        # if self.distribution is not None:
-        #     self.distribution.to(device=device)
+        # The 'hasattr' checks below are for handling pruned variables in offline training datasets
+        ret = self.clone()
+        if hasattr(ret, 'value'):
+            if (ret.value is not None) and torch.is_tensor(ret.value):
+                ret.value = ret.value.to(device=device)
+        if hasattr(ret, 'log_prob'):
+            if (ret.log_prob is not None) and torch.is_tensor(ret.log_prob):
+                ret.log_prob = ret.log_prob.to(device=device)
+        # if hasattr(ret, 'distribution'):
+        #     if ret.distribution is not None:
+        #         ret.distribution = ret.distribution.to(device=device)
+        return ret
 
     def __hash__(self):
         return hash(self.address + str(self.value) + str(self.control) + str(self.observed) + str(self.tagged))
@@ -124,9 +136,42 @@ class Trace():
             addresses = [v.address for v in self.variables]
         return Counter(addresses)
 
+    def clone(self):
+        return copy.deepcopy(self)
+
     def to(self, device):
-        for variable in self.variables:
-            variable.to(device)
+        # The 'hasattr' checks below are for handling pruned variables in offline training datasets
+        ret = self.clone()
+        if hasattr(ret, 'variables'):
+            for i, variable in enumerate(ret.variables):
+                ret.variables[i] = variable.to(device)
+        if hasattr(ret, 'variables_controlled'):
+            for i, variable in enumerate(ret.variables_controlled):
+                ret.variables_controlled[i] = variable.to(device)
+        if hasattr(ret, 'variables_uncontrolled'):
+            for i, variable in enumerate(ret.variables_uncontrolled):
+                ret.variables_uncontrolled[i] = variable.to(device)
+        if hasattr(ret, 'variables_observed'):
+            for i, variable in enumerate(ret.variables_observed):
+                ret.variables_observed[i] = variable.to(device)
+        if hasattr(ret, 'variables_observable'):
+            for i, variable in enumerate(ret.variables_observable):
+                ret.variables_observable[i] = variable.to(device)
+        if hasattr(ret, 'variables_tagged'):
+            for i, variable in enumerate(ret.variables_tagged):
+                ret.variables_tagged[i] = variable.to(device)
+
+        if hasattr(ret, 'variables_dict_address'):
+            for key, variable in ret.variables_dict_address.items():
+                ret.variables_dict_address[key] = variable.to(device)
+        if hasattr(ret, 'variables_dict_address_base'):
+            for key, variable in ret.variables_dict_address_base.items():
+                ret.variables_dict_address_base[key] = variable.to(device)
+        if hasattr(ret, 'named_variables'):
+            for key, variable in ret.named_variables.items():
+                ret.named_variables[key] = variable.to(device)
+
+        return ret
 
     def variable_sizes(self):
         vars_sorted = sorted(self.variables, key=lambda v: len(pickle.dumps(v)), reverse=True)
