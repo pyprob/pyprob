@@ -92,6 +92,9 @@ class Distribution():
     def expectation(self, func):
         raise NotImplementedError()
 
+    def to(self, device):
+        raise NotImplementedError()
+
     @staticmethod
     def kl_divergence(distribution_1, distribution_2):
         if distribution_1._torch_dist is None or distribution_2._torch_dist is None:

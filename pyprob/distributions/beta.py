@@ -46,3 +46,6 @@ class Beta(Distribution):
     @property
     def variance(self):
         return super().variance * self._range * self._range
+
+    def to(self, device):
+        return Beta(concentration1=self.concentration1.to(device), concentration0=self.concentration0.to(device), low=self.low.to(device), high=self.high.to(device))

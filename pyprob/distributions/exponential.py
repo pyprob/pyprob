@@ -15,3 +15,6 @@ class Exponential(Distribution):
     @property
     def rate(self):
         return self._torch_dist.rate
+
+    def to(self, device):
+        return Exponential(rate=self.rate.to(device))

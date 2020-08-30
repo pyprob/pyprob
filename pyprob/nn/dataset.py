@@ -282,7 +282,7 @@ class OfflineDataset(ConcatDataset):
         for i in range(begin_file_index, end_file_index):
             j += 1
             file_name = file_names[i]
-            print(file_name)
+            print('\n'+file_name)
             shelf = ConcurrentShelf(file_name)
             shelf.lock(write=True)
             for new_i, old_i in enumerate(file_indices[i]):

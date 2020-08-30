@@ -20,3 +20,6 @@ class LogNormal(Distribution):
     @property
     def scale(self):
         return self._torch_dist.scale
+
+    def to(self, device):
+        return LogNormal(loc=self.loc.to(device), scale=self.scale.to(device))

@@ -13,8 +13,19 @@ class Normal(Distribution):
     def __repr__(self):
         return 'Normal({}, {})'.format(self.mean.cpu().numpy().tolist(), self.stddev.cpu().numpy().tolist())
 
+    @property
+    def loc(self):
+        return self._torch_dist.loc
+
+    @property
+    def scale(self):
+        return self._torch_dist.scale
+
     def cdf(self, value):
         return self._torch_dist.cdf(value)
 
     def icdf(self, value):
         return self._torch_dist.icdf(value)
+
+    def to(self, device):
+        return Normal(loc=self.loc.to(device), scale=self.scale.to(device))

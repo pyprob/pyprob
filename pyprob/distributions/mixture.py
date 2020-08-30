@@ -89,3 +89,6 @@ class Mixture(Distribution):
             else:
                 self._variance = torch.diag(torch.mm(self._probs, variances))
         return self._variance
+
+    def to(self, device):
+        return Mixture(distributions=[d.to(device) for d in self.distributions], probs=self.probs.to(device))
