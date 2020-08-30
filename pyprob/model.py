@@ -265,7 +265,7 @@ class ConstrainedModel(Model):
         while True:
             i += 1
             if i > self._filter_timeout:
-                warnings.warn('ConstrainedModel taking longer than timeout ({}) to sample a trace satisfying the filter')
+                raise RuntimeError('ConstrainedModel could not sample a trace satisfying the filter. Timeout ({}) reached.'.format(self._filter_timeout))
             trace = next(self._base_model._trace_generator(*args, **kwargs))
             if self._filter(trace):
                 yield trace
