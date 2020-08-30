@@ -20,3 +20,6 @@ class VonMises(Distribution):
     @property
     def concentration(self):
         return self._torch_dist.concentration
+
+    def to(self, device):
+        return VonMises(loc=self.loc.to(device), concentration=self.concentration.to(device))

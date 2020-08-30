@@ -54,9 +54,9 @@ class Variable():
         if hasattr(ret, 'log_prob'):
             if (ret.log_prob is not None) and torch.is_tensor(ret.log_prob):
                 ret.log_prob = ret.log_prob.to(device=device)
-        # if hasattr(ret, 'distribution'):
-        #     if ret.distribution is not None:
-        #         ret.distribution = ret.distribution.to(device=device)
+        if hasattr(ret, 'distribution'):
+            if ret.distribution is not None:
+                ret.distribution = ret.distribution.to(device=device)
         return ret
 
     def __hash__(self):

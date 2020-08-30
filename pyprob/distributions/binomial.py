@@ -24,3 +24,6 @@ class Binomial(Distribution):
     @property
     def logits(self):
         return self._torch_dist.logits
+
+    def to(self, device):
+        return Binomial(total_count=self.total_count, probs=self.probs.to(device))

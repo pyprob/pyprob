@@ -20,3 +20,6 @@ class Weibull(Distribution):
     @property
     def scale(self):
         return self._torch_dist.scale
+
+    def to(self, device):
+        return Weibull(scale=self.scale.to(device), concentration=self.concentration.to(device))

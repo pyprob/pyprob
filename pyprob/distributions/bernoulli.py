@@ -20,3 +20,6 @@ class Bernoulli(Distribution):
     @property
     def logits(self):
         return self._torch_dist.logits
+
+    def to(self, device):
+        return Bernoulli(probs=self.probs.to(device))

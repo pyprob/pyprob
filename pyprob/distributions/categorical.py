@@ -34,3 +34,6 @@ class Categorical(Distribution):
     @property
     def logits(self):
         return self._logits
+
+    def to(self, device):
+        return Categorical(probs=self.probs.to(device))

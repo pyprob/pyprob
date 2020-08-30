@@ -110,3 +110,6 @@ class TruncatedNormal(Distribution):
         if self._batch_length == 1:
             ret = ret.squeeze(0)
         return ret
+
+    def to(self, device):
+        return TruncatedNormal(mean_non_truncated=self.mean_non_truncated.to(device), stddev_non_truncated=self.stddev_non_truncated.to(device), low=self.low.to(device), high=self.high.to(device))
