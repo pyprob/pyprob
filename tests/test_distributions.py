@@ -8,7 +8,7 @@ import tempfile
 
 import pyprob
 from pyprob import util
-from pyprob.distributions import Empirical, Normal, Categorical, Uniform, Poisson, Beta, Bernoulli, Exponential, Gamma, LogNormal, Binomial, Weibull, VonMises, Mixture, TruncatedNormal
+from pyprob.distributions import Empirical, Normal, Categorical, Uniform, Poisson, Beta, Bernoulli, Exponential, Gamma, LogNormal, Binomial, Weibull, VonMises, Mixture, TruncatedNormal, Factor
 
 
 empirical_samples = 25000
@@ -1981,6 +1981,21 @@ class DistributionsTestCase(unittest.TestCase):
 
         self.assertEqual(dists_repr, dists_repr_exec_repr)
 
+    def test_distribution_factor(self):
+        log_prob_correct = 0.56
+        dist = Factor(log_prob_correct)
+        log_prob = float(dist.log_prob())
+        util.eval_print('dist', 'log_prob', 'log_prob_correct')
+        self.assertTrue(np.allclose(log_prob_correct, log_prob))
+
+    def test_distribution_factor_func(self):
+        log_prob_func = lambda x: x*x
+        dist = Factor(log_prob_func=log_prob_func)
+        value = 0.66
+        log_prob = float(dist.log_prob(value))
+        log_prob_correct = float(log_prob_func(value))
+        util.eval_print('dist', 'log_prob', 'log_prob_correct')
+        self.assertTrue(np.allclose(log_prob_correct, log_prob))
 
 if __name__ == '__main__':
     pyprob.seed(123)

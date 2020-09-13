@@ -6,7 +6,7 @@ import time
 import warnings
 from termcolor import colored
 
-from .distributions import Normal, Categorical, Uniform, TruncatedNormal
+from .distributions import Normal, Categorical, Uniform, TruncatedNormal, Factor
 from .trace import Variable, Trace
 from . import util, TraceMode, PriorInflation, InferenceEngine
 
@@ -111,6 +111,11 @@ def tag(value, name=None, address=None):
     _current_trace.add(variable)
 
 
+def factor(log_prob=None, log_prob_func=None, name=None, address=None):
+    dist = Factor(log_prob=log_prob, log_prob_func=log_prob_func)
+    observe(dist, name=name, address=address)
+
+
 def observe(distribution, value=None, name=None, address=None):
     global _current_trace
     if _current_trace is None:
@@ -134,7 +139,7 @@ def observe(distribution, value=None, name=None, address=None):
     else:
         value = None
 
-    if value is None:
+    if value is None and not isinstance(distribution, Factor):
         observed = False
         log_prob = None
         log_importance_weight = None
