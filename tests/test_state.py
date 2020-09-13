@@ -6,6 +6,9 @@ from pyprob import util, state, Model, InferenceEngine
 from pyprob.distributions import Categorical, Normal
 
 importance_sampling_samples = 3000
+lightweight_metropolis_hastings_samples = 5000
+lightweight_metropolis_hastings_burn_in = 500
+
 
 class StateTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
@@ -87,6 +90,25 @@ class FactorTestCase(unittest.TestCase):
         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
         self.assertLess(kl_divergence, 0.25)
 
+    def test_factor_gum_posterior_lightweight_metropolis_hastings(self):
+        samples = lightweight_metropolis_hastings_samples
+        burn_in = lightweight_metropolis_hastings_burn_in
+        true_posterior = Normal(7.25, math.sqrt(1/1.2))
+        posterior_mean_correct = float(true_posterior.mean)
+        posterior_stddev_correct = float(true_posterior.stddev)
+
+        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})[burn_in:]
+
+        posterior_mean = float(posterior.mean)
+        posterior_stddev = float(posterior.stddev)
+        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
+
+        util.eval_print('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, delta=0.75)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, delta=0.75)
+        self.assertLess(kl_divergence, 0.25)
+
     def test_factor2_gum_posterior_importance_sampling(self):
         samples = importance_sampling_samples
         true_posterior = Normal(7.25, math.sqrt(1/1.2))
@@ -112,6 +134,25 @@ class FactorTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, delta=0.75)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, delta=0.75)
         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
+        self.assertLess(kl_divergence, 0.25)
+
+    def test_factor2_gum_posterior_lightweight_metropolis_hastings(self):
+        samples = lightweight_metropolis_hastings_samples
+        burn_in = lightweight_metropolis_hastings_burn_in
+        true_posterior = Normal(7.25, math.sqrt(1/1.2))
+        posterior_mean_correct = float(true_posterior.mean)
+        posterior_stddev_correct = float(true_posterior.stddev)
+
+        posterior = self._model2.posterior_results(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS)[burn_in:]
+
+        posterior_mean = float(posterior.mean)
+        posterior_stddev = float(posterior.stddev)
+        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
+
+        util.eval_print('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, delta=0.75)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, delta=0.75)
         self.assertLess(kl_divergence, 0.25)
 
 
