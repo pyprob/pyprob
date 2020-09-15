@@ -333,11 +333,13 @@ class Empirical(Distribution):
             index = random.randint(min_index, max_index-1)  # max_index-1 is because random.randint treats upper bound as inclusive and we define max_index as exclusive
             return self._get_value(index)
         else:
-            if min_index is not None or max_index is not None:
-                return self[min_index:max_index].sample()
-            else:
+            if (min_index is None or min_index == 0) and (max_index is None or max_index == self.length):
+                # We don't need to slice
                 index = int(self._categorical.sample())
                 return self._get_value(index)
+            else:
+                # We need to slice
+                return self[min_index:max_index].sample()
 
     def __iter__(self):
         self._check_finalized()
@@ -550,7 +552,7 @@ class Empirical(Distribution):
         util.progress_bar_init(status, num_samples, 'Samples')
         for i in range(num_samples):
             util.progress_bar_update(i)
-            values.append(map_func(self.sample(min_index=min_index, max_index=max_index)))
+            values.append(self.sample(min_index=min_index, max_index=max_index))
         util.progress_bar_end()
         ret = Empirical(values=values, name=self.name, *args, **kwargs)
         ret._metadata = copy.deepcopy(self._metadata)
