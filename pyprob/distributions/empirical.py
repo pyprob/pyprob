@@ -398,7 +398,11 @@ class Empirical(Distribution):
             return self
         self._check_finalized()
         last_op = list(self.metadata.values())[-1]
-        if not ((last_op['op'] == 'posterior') and ('IMPORTANCE_SAMPLING' in last_op['inference_engine'])):
+        can_reobserve = False
+        if 'op' in last_op:
+            if (last_op['op'] == 'posterior') and ('IMPORTANCE_SAMPLING' in last_op['inference_engine']):
+                can_reobserve = True
+        if not can_reobserve:
             raise ValueError('Can only be used immediately following a posterior with an importance-sampling-based inference engine. Metadata of the given distribution indicates otherwise: {}'.format(self.metadata))
         if observe is None:
             observe = {}
