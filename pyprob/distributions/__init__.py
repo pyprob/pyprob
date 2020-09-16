@@ -4,6 +4,7 @@ from .beta import Beta
 from .binomial import Binomial
 from .categorical import Categorical
 from .exponential import Exponential
+from .factor import Factor
 from .gamma import Gamma
 from .log_normal import LogNormal
 from .mixture import Mixture
