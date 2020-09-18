@@ -4,7 +4,7 @@
 
 -----------------------------------------
 
-[![Build Status](https://travis-ci.org/pyprob/pyprob.svg?branch=master)](https://travis-ci.org/pyprob/pyprob)
+[![Build Status](https://github.com/pyprob/pyprob/workflows/build/badge.svg)](https://github.com/pyprob/pyprob/actions)
 [![codecov](https://codecov.io/gh/pyprob/pyprob/branch/master/graph/badge.svg)](https://codecov.io/gh/pyprob/pyprob)
 [![PyPI version](https://badge.fury.io/py/pyprob.svg)](https://badge.fury.io/py/pyprob)
 [![Documentation Status](https://readthedocs.org/projects/pyprob/badge/?version=latest)](https://pyprob.readthedocs.io/en/latest/?badge=latest)
