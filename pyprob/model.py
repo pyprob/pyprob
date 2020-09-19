@@ -24,6 +24,9 @@ class Model():
         else:
             self._address_dictionary = AddressDictionary(address_dict_file_name)
 
+    def __repr__(self):
+        return 'Model(name:{})'.format(self.name)
+
     def forward(self):
         raise RuntimeError('Model instances must provide a forward method.')
 

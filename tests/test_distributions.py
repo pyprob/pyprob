@@ -7,11 +7,23 @@ import uuid
 import tempfile
 
 import pyprob
-from pyprob import util
+from pyprob import util, Model
 from pyprob.distributions import Empirical, Normal, Categorical, Uniform, Poisson, Beta, Bernoulli, Exponential, Gamma, LogNormal, Binomial, Weibull, VonMises, Mixture, TruncatedNormal, Factor
 
 
 empirical_samples = 25000
+
+
+class GaussianWithUnknownMean(Model):
+    def __init__(self):
+        super().__init__('Gaussian with unknown mean')
+
+    def forward(self):
+        mu = pyprob.sample(Normal(1, math.sqrt(5)), name='mu')
+        likelihood = Normal(mu, math.sqrt(2))
+        pyprob.observe(likelihood, name='obs0')
+        pyprob.observe(likelihood, name='obs1')
+        return mu
 
 
 class DistributionsTestCase(unittest.TestCase):
@@ -701,6 +713,75 @@ class DistributionsTestCase(unittest.TestCase):
 
         self.assertAlmostEqual(mean_correct, mean, delta=0.1)
         self.assertAlmostEqual(median_correct, median, delta=0.1)
+
+    def test_distributions_empirical_trace_index(self):
+        model = GaussianWithUnknownMean()
+        samples = 1000
+
+        prior_mu_mean_correct = 1
+
+        prior = model.prior(samples)
+        prior_mu = prior['mu']
+        prior_mu_mean = float(prior_mu.mean)
+
+        util.eval_print('samples', 'prior_mu_mean', 'prior_mu_mean_correct')
+
+        self.assertAlmostEqual(prior_mu_mean_correct, prior_mu_mean, delta=0.5)
+
+    def test_distributions_empirical_reobserve(self):
+        file_name_1 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        file_name_2 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+
+        model = GaussianWithUnknownMean()
+        samples = 500
+
+        posterior_mean_correct = 7.25
+        posterior_stddev_correct = math.sqrt(1/1.2)
+
+        posterior_reobserved_mean_correct = 4.0111
+        posterior_reobserved_stddev_correct = 1.4619
+
+        posterior = model.posterior(samples, observe={'obs0': 8, 'obs1': 9}, file_name=file_name_1)
+        posterior_mu = posterior['mu']
+        posterior_mean = float(posterior_mu.mean)
+        posterior_stddev = float(posterior_mu.stddev)
+        posterior_reobserved = posterior.reobserve(likelihood_funcs={'obs0': lambda v, trace: Normal(trace['mu']+1, math.sqrt(5.)), 'obs1': lambda v, trace: Normal(trace['mu']+5, math.sqrt(15.))}, file_name=file_name_2)
+        posterior_reobserved_mu = posterior_reobserved['mu']
+        posterior_reobserved_mean = float(posterior_reobserved_mu.mean)
+        posterior_reobserved_stddev = float(posterior_reobserved_mu.stddev)
+
+        util.eval_print('file_name_1', 'file_name_2', 'samples', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_reobserved_mean', 'posterior_reobserved_mean_correct', 'posterior_reobserved_stddev', 'posterior_reobserved_stddev_correct')
+
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, delta=0.75)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, delta=0.75)
+        self.assertAlmostEqual(posterior_reobserved_mean, posterior_reobserved_mean_correct, delta=0.75)
+        self.assertAlmostEqual(posterior_reobserved_stddev, posterior_reobserved_stddev_correct, delta=0.75)
+
+    def test_distributions_empirical_reobserve_disk(self):
+        model = GaussianWithUnknownMean()
+        samples = 1000
+
+        posterior_mean_correct = 7.25
+        posterior_stddev_correct = math.sqrt(1/1.2)
+
+        posterior_reobserved_mean_correct = 4.0111
+        posterior_reobserved_stddev_correct = 1.4619
+
+        posterior = model.posterior(samples, observe={'obs0': 8, 'obs1': 9})
+        posterior_mu = posterior['mu']
+        posterior_mean = float(posterior_mu.mean)
+        posterior_stddev = float(posterior_mu.stddev)
+        posterior_reobserved = posterior.reobserve(likelihood_funcs={'obs0': lambda v, trace: Normal(trace['mu']+1, math.sqrt(5.)), 'obs1': lambda v, trace: Normal(trace['mu']+5, math.sqrt(15.))})
+        posterior_reobserved_mu = posterior_reobserved['mu']
+        posterior_reobserved_mean = float(posterior_reobserved_mu.mean)
+        posterior_reobserved_stddev = float(posterior_reobserved_mu.stddev)
+
+        util.eval_print('samples', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_reobserved_mean', 'posterior_reobserved_mean_correct', 'posterior_reobserved_stddev', 'posterior_reobserved_stddev_correct')
+
+        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, delta=0.75)
+        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, delta=0.75)
+        self.assertAlmostEqual(posterior_reobserved_mean, posterior_reobserved_mean_correct, delta=0.75)
+        self.assertAlmostEqual(posterior_reobserved_stddev, posterior_reobserved_stddev_correct, delta=0.75)
 
     def test_distributions_binomial(self):
         dist_batch_shape_correct = torch.Size()

@@ -372,8 +372,15 @@ class Empirical(Distribution):
                 elif max_index < 0:
                     max_index += self._length
                 return self.map(lambda x: x, min_index=min_index, max_index=max_index)
-        else:
+        elif isinstance(index, int):
             return self._get_value(index)
+        elif isinstance(index, str):
+            if isinstance(self[0], Trace):
+                return self.map(lambda trace: trace[index])
+            else:
+                raise RuntimeError('A string index can only be used with an Empirical that contains execution traces.')
+        else:
+            raise RuntimeError('Cannot use the given value ({}) as index'.format(index))
 
     def expectation(self, func):
         self._check_finalized()
@@ -393,10 +400,12 @@ class Empirical(Distribution):
         return util.to_tensor(ret)
 
     # Idea by Giacomo Acciarini, August 2020
-    def reobserve(self, likelihood_funcs=None, observe=None, likelihood_importance=1., min_index=None, max_index=None, *args, **kwargs):
+    def reobserve(self, likelihood_funcs=None, observe=None, likelihood_importance=1., min_index=None, max_index=None, file_name=None):
         if len(self) == 0:
             return self
         self._check_finalized()
+        if not isinstance(self[0], Trace):
+            raise RuntimeError('Reobserve can only be used with Empiricals that contain execution traces.')
         last_op = list(self.metadata.values())[-1]
         can_reobserve = False
         if 'op' in last_op:
@@ -417,8 +426,7 @@ class Empirical(Distribution):
         indices = range(min_index, max_index)
         status = 'Reobserve, min_index: {}, max_index: {}'.format(min_index, max_index)
         util.progress_bar_init(status, len(indices), 'Values')
-        values = []
-        log_weights = []
+        ret = Empirical(name=self.name, file_name=file_name)
         for i in range(min_index, max_index):
             util.progress_bar_update(i)
             trace = self._get_value(i)
@@ -441,15 +449,17 @@ class Empirical(Distribution):
                     if v.name in likelihood_funcs:
                         likelihood_func = likelihood_funcs[v.name]
                         distribution = likelihood_func(v, trace)
+                        if value is None:
+                            log_prob = None
+                            log_importance_weight = None
+                        else:
+                            log_prob = likelihood_importance * distribution.log_prob(value, sum=True)
+                            log_importance_weight = float(log_prob)
                     else:
                         distribution = v.distribution
-                    if value is None:
-                        log_prob = None
-                        log_importance_weight = None
-                    else:
-                        log_prob = likelihood_importance * distribution.log_prob(value, sum=True)
-                        log_importance_weight = float(log_prob)
-                    # print('log_prob: {}'.format(log_prob))
+                        log_prob = v.log_prob
+                        log_importance_weight = v.log_importance_weight
+
                     address_base = v.address_base
                     address = v.address
                     instance = v.instance
@@ -460,10 +470,9 @@ class Empirical(Distribution):
                     v = Variable(distribution=distribution, value=value, address_base=address_base, address=address, instance=instance, log_prob=log_prob, log_importance_weight=log_importance_weight, control=control, name=name, observed=observed, reused=reused, tagged=tagged)
                 new_trace.add(v)
             new_trace.end(result=trace.result, execution_time_sec=trace.execution_time_sec)
-            values.append(new_trace)
-            log_weights.append(new_trace.log_importance_weight)
+            ret.add(new_trace, new_trace.log_importance_weight)
         util.progress_bar_end()
-        ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
+        ret.finalize()
         ret._metadata = copy.deepcopy(self._metadata)
         ret.add_metadata(op='reobserve', length=len(self), observe=observe, likelihood_func=util.get_source(likelihood_func))
         return ret

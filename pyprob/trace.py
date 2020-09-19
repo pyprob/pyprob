@@ -31,7 +31,7 @@ class Variable():
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned variables in offline training datasets
-        return 'Variable(name:{}, observable:{}, observed:{}, tagged:{}, control:{}, address:{}, distribution:{}, value:{}, log_prob:{})'.format(
+        return 'Variable(name:{}, observable:{}, observed:{}, tagged:{}, control:{}, address:{}, distribution:{}, value:{}, log_importance_weight:{}, log_prob:{})'.format(
             self.name if hasattr(self, 'name') else 'Unknown',
             self.observable if hasattr(self, 'observable') else 'Unknown',
             self.observed if hasattr(self, 'observed') else 'Unknown',
@@ -40,6 +40,7 @@ class Variable():
             self.address if hasattr(self, 'address') else 'Unknown',
             str(self.distribution) if hasattr(self, 'distribution') else 'Unknown',
             str(self.value) if hasattr(self, 'value') else 'Unknown',
+            str(self.log_importance_weight) if hasattr(self, 'log_importance_weight') else 'Unknown',
             str(self.log_prob) if hasattr(self, 'log_prob') else 'Unknown')
 
     def clone(self):
