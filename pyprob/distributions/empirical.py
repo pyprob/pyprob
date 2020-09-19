@@ -471,13 +471,13 @@ class Empirical(Distribution):
                 new_trace.add(v)
             new_trace.end(result=trace.result, execution_time_sec=trace.execution_time_sec)
             ret.add(new_trace, new_trace.log_importance_weight)
-        util.progress_bar_end()
         ret.finalize()
+        util.progress_bar_end()
         ret._metadata = copy.deepcopy(self._metadata)
         ret.add_metadata(op='reobserve', length=len(self), observe=observe, likelihood_func=util.get_source(likelihood_func))
         return ret
 
-    def reweight(self, func, min_index=None, max_index=None, *args, **kwargs):
+    def reweight(self, func, min_index=None, max_index=None, file_name=None):
         if len(self) == 0:
             return self
         self._check_finalized()
@@ -488,20 +488,18 @@ class Empirical(Distribution):
         indices = range(min_index, max_index)
         status = 'Reweight, min_index: {}, max_index: {}'.format(min_index, max_index)
         util.progress_bar_init(status, len(indices), 'Values')
-        values = []
-        log_weights = []
+        ret = Empirical(name=self.name, file_name=file_name)
         for i in range(min_index, max_index):
             util.progress_bar_update(i)
             v = self._get_value(i)
-            values.append(v)
-            log_weights.append(func(v))
+            ret.add(v, func(v))
+        ret.finalize()
         util.progress_bar_end()
-        ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
         ret._metadata = copy.deepcopy(self._metadata)
         ret.add_metadata(op='reweight', length=len(self), func=util.get_source(func))
         return ret
 
-    def map(self, func, min_index=None, max_index=None, *args, **kwargs):
+    def map(self, func, min_index=None, max_index=None, file_name=None):
         if len(self) == 0:
             return self
         self._check_finalized()
@@ -512,19 +510,17 @@ class Empirical(Distribution):
         indices = range(min_index, max_index)
         status = 'Map, min_index: {}, max_index: {}'.format(min_index, max_index)
         util.progress_bar_init(status, len(indices), 'Values')
-        values = []
-        log_weights = []
+        ret = Empirical(name=self.name, file_name=file_name)
         for i in range(min_index, max_index):
             util.progress_bar_update(i)
-            values.append(func(self._get_value(i)))
-            log_weights.append(self._get_log_weight(i))
+            ret.add(func(self._get_value(i)), self._get_log_weight(i))
+        ret.finalize()
         util.progress_bar_end()
-        ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
         ret._metadata = copy.deepcopy(self._metadata)
         ret.add_metadata(op='map', length=len(self), func=util.get_source(func))
         return ret
 
-    def filter(self, func, min_index=None, max_index=None, *args, **kwargs):
+    def filter(self, func, min_index=None, max_index=None, file_name=None):
         self._check_finalized()
         if self.length == 0:
             return self
@@ -533,24 +529,22 @@ class Empirical(Distribution):
         if max_index is None:
             max_index = self._length
         indices = range(min_index, max_index)
-        filtered_values = []
-        filtered_log_weights = []
         status = 'Filter, min_index: {}, max_index: {}'.format(min_index, max_index)
         util.progress_bar_init(status, len(indices), 'Values')
+        ret = Empirical(name=self.name, file_name=file_name)
         for i in indices:
             util.progress_bar_update(i)
             value = self._get_value(i)
             if func(value):
-                filtered_values.append(value)
-                filtered_log_weights.append(self._get_log_weight(i))
+                ret.add(value, self._get_log_weight(i))
+        ret.finalize()
         util.progress_bar_end()
-        ret = Empirical(filtered_values, log_weights=filtered_log_weights, name=self.name, *args, **kwargs)
         ret._metadata = copy.deepcopy(self._metadata)
-        ret.add_metadata(op='filter', length=len(self), length_after=len(filtered_values), func=util.get_source(func))
+        ret.add_metadata(op='filter', length=len(self), length_after=len(ret), func=util.get_source(func))
         ret.finalize()
         return ret
 
-    def resample(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):  # min_index is inclusive, max_index is exclusive
+    def resample(self, num_samples, map_func=None, min_index=None, max_index=None, file_name=None):  # min_index is inclusive, max_index is exclusive
         self._check_finalized()
         # TODO: improve this with a better resampling algorithm
         if map_func is None:
@@ -559,20 +553,20 @@ class Empirical(Distribution):
             min_index = 0
         if max_index is None:
             max_index = self.length
-        values = []
         ess_before_resample = float(self.effective_sample_size)
         status = 'Resample, num_samples: {}, min_index: {}, max_index: {}, ess_before_resample: {}'.format(num_samples, min_index, max_index, ess_before_resample)
         util.progress_bar_init(status, num_samples, 'Samples')
+        ret = Empirical(name=self.name, file_name=file_name)
         for i in range(num_samples):
             util.progress_bar_update(i)
-            values.append(self.sample(min_index=min_index, max_index=max_index))
+            ret.add(self.sample(min_index=min_index, max_index=max_index))
+        ret.finalize()
         util.progress_bar_end()
-        ret = Empirical(values=values, name=self.name, *args, **kwargs)
         ret._metadata = copy.deepcopy(self._metadata)
         ret.add_metadata(op='resample', length=len(self), num_samples=int(num_samples), min_index=int(min_index), max_index=int(max_index), ess_before=ess_before_resample)
         return ret
 
-    def thin(self, num_samples, map_func=None, min_index=None, max_index=None, *args, **kwargs):  # min_index is inclusive, max_index is exclusive
+    def thin(self, num_samples, map_func=None, min_index=None, max_index=None, file_name=None):  # min_index is inclusive, max_index is exclusive
         self._check_finalized()
         if map_func is None:
             map_func = lambda x: x
@@ -582,16 +576,16 @@ class Empirical(Distribution):
             max_index = self.length
         step = max(1, math.floor((max_index - min_index) / num_samples))
         indices = range(min_index, max_index, step)
-        values = []
-        log_weights = []
         status = 'Thin, num_samples: {}, step: {}, min_index: {}, max_index: {}'.format(num_samples, step, min_index, max_index)
         util.progress_bar_init(status, len(indices), 'Values')
+        ret = Empirical(name=self.name, file_name=file_name)
         for i in range(len(indices)):
             util.progress_bar_update(i)
-            values.append(map_func(self._get_value(indices[i])))
-            log_weights.append(self._get_log_weight(indices[i]))
+            v = map_func(self._get_value(indices[i]))
+            lw = self._get_log_weight(indices[i])
+            ret.add(v, lw)
+        ret.finalize()
         util.progress_bar_end()
-        ret = Empirical(values=values, log_weights=log_weights, name=self.name, *args, **kwargs)
         ret._metadata = copy.deepcopy(self._metadata)
         ret.add_metadata(op='thin', length=len(self), num_samples=int(num_samples), step=int(step), min_index=int(min_index), max_index=int(max_index))
         return ret
