@@ -733,7 +733,7 @@ class DistributionsTestCase(unittest.TestCase):
         file_name_2 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
 
         model = GaussianWithUnknownMean()
-        samples = 500
+        samples = 1500
 
         posterior_mean_correct = 7.25
         posterior_stddev_correct = math.sqrt(1/1.2)
@@ -759,7 +759,7 @@ class DistributionsTestCase(unittest.TestCase):
 
     def test_distributions_empirical_reobserve_disk(self):
         model = GaussianWithUnknownMean()
-        samples = 1000
+        samples = 1500
 
         posterior_mean_correct = 7.25
         posterior_stddev_correct = math.sqrt(1/1.2)
