@@ -1,4 +1,4 @@
-name: Build / test / codecov
+name: build
 
 on:
   push:

@@ -5,8 +5,8 @@ import pyprob
 from pyprob import util, state, Model, InferenceEngine
 from pyprob.distributions import Categorical, Normal
 
-importance_sampling_samples = 3000
-lightweight_metropolis_hastings_samples = 5000
+importance_sampling_samples = 4000
+lightweight_metropolis_hastings_samples = 7500
 lightweight_metropolis_hastings_burn_in = 500
 
 
