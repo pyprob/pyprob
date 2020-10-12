@@ -14,7 +14,7 @@ class Beta(Distribution):
         self._range = self._high - self._low
 
     def __repr__(self):
-        return 'Beta(concentration1={}, concentration0={}, low={}, high={})'.format(self.concentration1.cpu().numpy().tolist(), self.concentration0.cpu().numpy().tolist(), self.low.cpu().numpy().tolist(), self.high.cpu().numpy().tolist())
+        return 'Beta(concentration1={}, concentration0={}, low={}, high={})'.format(self.concentration1.detach().cpu().numpy().tolist(), self.concentration0.detach().cpu().numpy().tolist(), self.low.detach().cpu().numpy().tolist(), self.high.detach().cpu().numpy().tolist())
 
     @property
     def concentration1(self):

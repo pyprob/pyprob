@@ -11,7 +11,7 @@ class Gamma(Distribution):
         super().__init__(name='Gamma', address_suffix='Gamma', torch_dist=torch.distributions.Gamma(concentration=concentration, rate=rate))
 
     def __repr__(self):
-        return 'Gamma(concentration={}, rate={})'.format(self.concentration.cpu().numpy().tolist(), self.rate.cpu().numpy().tolist())
+        return 'Gamma(concentration={}, rate={})'.format(self.concentration.detach().cpu().numpy().tolist(), self.rate.detach().cpu().numpy().tolist())
 
     @property
     def concentration(self):

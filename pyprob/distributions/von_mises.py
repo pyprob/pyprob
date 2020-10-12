@@ -11,7 +11,7 @@ class VonMises(Distribution):
         super().__init__(name='VonMises', address_suffix='VonMises', torch_dist=torch.distributions.VonMises(loc, concentration))
 
     def __repr__(self):
-        return 'VonMises(loc={}, concentration={})'.format(self.loc.cpu().numpy().tolist(), self.concentration.cpu().numpy().tolist())
+        return 'VonMises(loc={}, concentration={})'.format(self.loc.detach().cpu().numpy().tolist(), self.concentration.detach().cpu().numpy().tolist())
 
     @property
     def loc(self):

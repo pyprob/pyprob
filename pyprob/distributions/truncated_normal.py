@@ -35,7 +35,7 @@ class TruncatedNormal(Distribution):
         super().__init__(name='TruncatedNormal', address_suffix='TruncatedNormal', batch_shape=batch_shape, event_shape=event_shape)
 
     def __repr__(self):
-        return 'TruncatedNormal(mean_non_truncated={}, stddev_non_truncated={}, low={}, high={})'.format(self.mean_non_truncated.cpu().numpy().tolist(), self.stddev_non_truncated.cpu().numpy().tolist(), self.low.cpu().numpy().tolist(), self.high.cpu().numpy().tolist())
+        return 'TruncatedNormal(mean_non_truncated={}, stddev_non_truncated={}, low={}, high={})'.format(self.mean_non_truncated.detach().cpu().numpy().tolist(), self.stddev_non_truncated.detach().cpu().numpy().tolist(), self.low.detach().cpu().numpy().tolist(), self.high.detach().cpu().numpy().tolist())
 
     def log_prob(self, value, sum=False):
         value = util.to_tensor(value)

@@ -11,7 +11,7 @@ class Normal(Distribution):
         super().__init__(name='Normal', address_suffix='Normal', torch_dist=torch.distributions.Normal(loc, scale))
 
     def __repr__(self):
-        return 'Normal({}, {})'.format(self.mean.cpu().numpy().tolist(), self.stddev.cpu().numpy().tolist())
+        return 'Normal({}, {})'.format(self.mean.detach().cpu().numpy().tolist(), self.stddev.detach().cpu().numpy().tolist())
 
     @property
     def loc(self):

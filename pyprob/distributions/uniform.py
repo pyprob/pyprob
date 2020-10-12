@@ -11,7 +11,7 @@ class Uniform(Distribution):
         super().__init__(name='Uniform', address_suffix='Uniform', torch_dist=torch.distributions.Uniform(low, high))
 
     def __repr__(self):
-        return 'Uniform(low={}, high={})'.format(self.low.cpu().numpy().tolist(), self.high.cpu().numpy().tolist())
+        return 'Uniform(low={}, high={})'.format(self.low.detach().cpu().numpy().tolist(), self.high.detach().cpu().numpy().tolist())
 
     @property
     def low(self):

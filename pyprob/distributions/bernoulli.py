@@ -11,7 +11,7 @@ class Bernoulli(Distribution):
         super().__init__(name='Bernoulli', address_suffix='Bernoulli', torch_dist=torch.distributions.Bernoulli(probs=probs, logits=logits))
 
     def __repr__(self):
-        return 'Bernoulli({})'.format(self._torch_dist.probs.cpu().numpy().tolist())
+        return 'Bernoulli({})'.format(self._torch_dist.probs.detach().cpu().numpy().tolist())
 
     @property
     def probs(self):

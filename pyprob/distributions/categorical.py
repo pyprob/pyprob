@@ -21,7 +21,7 @@ class Categorical(Distribution):
         super().__init__(name='Categorical', address_suffix='Categorical(len_probs:{})'.format(self._probs.size(-1)), torch_dist=torch_dist)
 
     def __repr__(self):
-        return 'Categorical(probs={})'.format(self.probs.cpu().numpy().tolist())
+        return 'Categorical(probs={})'.format(self.probs.detach().cpu().numpy().tolist())
 
     @property
     def num_categories(self):
