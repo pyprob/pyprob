@@ -33,6 +33,8 @@ class Empirical(Distribution):
         self._closed = False
         self._read_only = file_read_only
         if self._read_only:
+            if file_name is None:
+                raise ValueError('Cannot set file_read_only=True when there is no file_name argument')
             if not os.path.exists(file_name):
                 raise ValueError('File not found: {}'.format(file_name))
             shelf_flag = 'r'
