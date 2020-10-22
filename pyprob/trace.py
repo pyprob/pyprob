@@ -88,7 +88,7 @@ class Trace():
 
     def __repr__(self):
         # The 'Unknown' cases below are for handling pruned traces in offline training datasets
-        return 'Trace(variables:{:,}, observeable:{}, observed:{}, tagged:{}, controlled:{:,}, uncontrolled:{}, log_prob:{}, log_importance_weight:{})'.format(
+        return 'Trace(variables:{:,}, observable:{}, observed:{}, tagged:{}, controlled:{:,}, uncontrolled:{}, log_prob:{}, log_importance_weight:{})'.format(
             self.length,
             '{:,}'.format(len(self.variables_observable)) if hasattr(self, 'variables_observable') else 'Unknown',
             '{:,}'.format(len(self.variables_observed)) if hasattr(self, 'variables_observed') else 'Unknown',
