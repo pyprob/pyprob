@@ -1,4 +1,1 @@
-sphinx==3.2.1
-sphinx_rtd_theme==0.5.2
-jupyter-sphinx==0.3.2
-myst-nb==0.12.3
+.[docs]  # Install PyProb from current directory
