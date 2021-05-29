@@ -31,7 +31,10 @@ setup(
     author_email='gunes@robots.ox.ac.uk',
     packages=find_packages(),
     install_requires=['torch>=1.5.1', 'numpy', 'scikit-learn', 'matplotlib', 'termcolor==1.1.0', 'pyzmq>=19.0.0', 'flatbuffers==1.12', 'pydotplus==2.0.2', 'pyyaml>=3.13'],
-    extras_require={'dev': ['pytest', 'pytest-cov', 'pytest-xdist', 'docker', 'sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'sphinxcontrib-bibtex']},
+    extras_require={
+        'dev': ['pytest', 'pytest-cov', 'pytest-xdist', 'docker'],
+        'docs': ['sphinx==3.2.1', 'sphinx_rtd_theme==0.5.2', 'jupyter-sphinx==0.3.2', 'myst-nb==0.12.3']
+        },
     url='https://github.com/pyprob/pyprob',
     classifiers=['License :: OSI Approved :: BSD License', 'Programming Language :: Python :: 3'],
     license='BSD',
