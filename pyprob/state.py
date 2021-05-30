@@ -4,7 +4,6 @@ import opcode
 import random
 import time
 import warnings
-from termcolor import colored
 
 from .distributions import Normal, Categorical, Uniform, TruncatedNormal, Factor
 from .trace import Variable, Trace

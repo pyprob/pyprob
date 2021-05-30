@@ -323,10 +323,6 @@ def check_gnu_dbm():
     return True
 
 
-if not check_gnu_dbm():
-    warnings.warn('Empirical distributions on disk may perform slow because GNU DBM is not available. Please install and configure gdbm library for Python for better speed.')
-
-
 def tile_rows_cols(num_items):
     cols = math.ceil(math.sqrt(num_items))
     rows = 0

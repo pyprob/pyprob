@@ -1900,7 +1900,8 @@ class DistributionsTestCase(unittest.TestCase):
         dist_probs_correct = 0.2
         dist_means_correct = 0.2
         dist_stddevs_correct = 0.4
-        dist_log_probs_correct = -0.5004
+        dist_values = 1.
+        dist_log_probs_correct = -1.6094
 
         dist = Bernoulli(probs=dist_probs_correct)
         dist_batch_shape = dist.batch_shape
@@ -1911,8 +1912,8 @@ class DistributionsTestCase(unittest.TestCase):
         dist_means_empirical = util.to_numpy(dist_empirical.mean)
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
-        dist_log_probs = util.to_numpy(dist.log_prob(dist_means_correct))
-        dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
+        dist_log_probs = util.to_numpy(dist.log_prob(dist_values))
+        dist_log_prob_shape = dist.log_prob(dist_values).size()
 
         util.eval_print('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
 
@@ -1947,7 +1948,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddevs = util.to_numpy(dist.stddev)
         dist_stddevs_empirical = util.to_numpy(dist_empirical.stddev)
         dist_log_probs = util.to_numpy(dist.log_prob(dist_values))
-        dist_log_prob_shape = dist.log_prob(dist_means_correct).size()
+        dist_log_prob_shape = dist.log_prob(dist_values).size()
 
         util.eval_print('dist_batch_shape', 'dist_batch_shape_correct', 'dist_event_shape', 'dist_event_shape_correct', 'dist_sample_shape', 'dist_sample_shape_correct', 'dist_log_prob_shape', 'dist_log_prob_shape_correct', 'dist_means', 'dist_means_empirical', 'dist_means_correct', 'dist_stddevs', 'dist_stddevs_empirical', 'dist_stddevs_correct', 'dist_log_probs', 'dist_log_probs_correct')
 
@@ -2044,7 +2045,7 @@ class DistributionsTestCase(unittest.TestCase):
         dists.append(Binomial(2, 0.5))
         dists.append(Categorical([0.2, 0.3, 0.5]))
         dists.append(Exponential(1.5))
-        dists.append(Gamma(0, 1))
+        dists.append(Gamma(1, 1))
         dists.append(LogNormal(0, 1))
         dists.append(Mixture([Normal(0, 1), Normal(2, 3)], [0.4, 0.6]))
         dists.append(Normal(0, 1))
