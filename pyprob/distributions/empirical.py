@@ -148,6 +148,10 @@ class Empirical(Distribution):
                 self.add_sequence(values, log_weights, weights)
                 self.finalize()
 
+        if self._type == EmpiricalType.FILE or self._type == EmpiricalType.CONCAT_FILE:
+            if not util.check_gnu_dbm():
+                warnings.warn('Empirical distributions on disk may perform slow because GNU DBM is not available. Please install and configure gdbm library for Python for better speed.')
+
     def __enter__(self):
         return self
 
