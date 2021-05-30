@@ -54,7 +54,7 @@ PyProb is distributed under the BSD License.
 
 ## Authors
 
-PyProb has been developed by the following core team. For the full list of contributors, see: https://github.com/pyprob/pyprob/graphs/contributors
+PyProb has been developed by the following core team. For the full list of contributors, see https://github.com/pyprob/pyprob/graphs/contributors
 
 * [Atılım Güneş Baydin](http://www.robots.ox.ac.uk/~gunes/)
 * [Tuan Anh Le](http://www.tuananhle.co.uk/)
