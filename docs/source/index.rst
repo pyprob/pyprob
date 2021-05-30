@@ -1,18 +1,22 @@
-.. PyProb documentation master file, created by
-   sphinx-quickstart on Mon May 17 15:25:19 2021.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+PyProb reference documentation
+==============================
 
-Welcome to PyProb's documentation!
-==================================
+PyProb is a probabilistic programming system designed for use with existing simulators and high-performance computing. It is based on PyTorch.
+
+The documentation is currently a work in progress.
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
+   :caption: Getting started
 
    notebooks/inference
 
 
+.. toctree::
+   :maxdepth: 3
+   :caption: API documentation
+
+   pyprob package <_autosummary/pyprob>
 
 Indices and tables
 ==================
