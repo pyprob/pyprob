@@ -9,11 +9,18 @@ The documentation is currently a work in progress.
    :maxdepth: 1
    :caption: Getting started
 
-   notebooks/inference
+   inference
 
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 1
+   :caption: Examples
+
+   examples/example1
+
+
+.. toctree::
+   :maxdepth: 1
    :caption: API documentation
 
    pyprob package <_autosummary/pyprob>
@@ -23,4 +30,3 @@ Indices and tables
 
 * :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`
