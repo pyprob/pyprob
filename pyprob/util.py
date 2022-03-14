@@ -334,6 +334,22 @@ class _SemiDBMReadOnly(semidbm.db._SemiDBM):
     def __setitem__(self, key, value):
         self._method_not_allowed('setitem')
 
+    # Modification to improve the read-only mode
+    # https://github.com/benpankow/semidbm/commit/de634ddf933e81c16ca51907037a1c91fbf7497b
+    def _load_db(self):
+        DATA_OPEN_FLAGS_READONLY = os.O_RDONLY
+        if sys.platform.startswith('win'):
+            # On windows we need to specify that we should be
+            # reading the file as a binary file so it doesn't
+            # change any line ending characters.
+            DATA_OPEN_FLAGS_READONLY = DATA_OPEN_FLAGS_READONLY | os.O_BINARY
+        self._index = self._load_index(self._data_filename)
+        self._data_fd = os.open(self._data_filename, DATA_OPEN_FLAGS_READONLY)
+        self._current_offset = os.lseek(self._data_fd, 0, os.SEEK_END)
+
+    def _write_headers(self, filename):
+        pass
+
     def sync(self):
         # For compatibility with previous GDBM-based code, we want .sync() to be a no-op in a read-only DBM, instead of failing
         # self._method_not_allowed('sync')
