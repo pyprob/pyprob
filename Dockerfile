@@ -4,8 +4,8 @@ ENV PYTHON_VERSION=3.7
 ENV CC=gcc-5
 ENV CXX=g++-5
 
-RUN apt-get update && apt-get install -y curl python3 python3-pip python3-gdbm
-RUN pip3 install torch==1.4.0+cpu torchvision==0.5.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+RUN apt-get update && apt-get install -y curl python3 python3-pip python3-gdbm zlib1g-dev libjpeg8-dev
+RUN pip3 install torch==1.10.2+cpu torchvision==0.11.3+cpu torchaudio==0.10.2+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
 
 RUN ln -s $(which python3) /usr/bin/python
 WORKDIR /home

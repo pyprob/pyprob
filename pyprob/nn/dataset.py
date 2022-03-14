@@ -4,7 +4,7 @@ import torch.distributed as dist
 import math
 import os
 import sys
-import shelve
+# import shelve
 from glob import glob
 import numpy as np
 import uuid
@@ -125,7 +125,7 @@ class OnlineDataset(Dataset):
         while i < num_traces:
             i += num_traces_per_file
             file_name = os.path.join(dataset_dir, 'pyprob_traces_{}_{}'.format(num_traces_per_file, str(uuid.uuid4())))
-            shelf = shelve.open(file_name, flag='c')
+            shelf = util.open_shelf(file_name, flag='c')
             for j in range(num_traces_per_file):
                 trace = next(self._model._trace_generator(trace_mode=TraceMode.PRIOR_FOR_INFERENCE_NETWORK, prior_inflation=self._prior_inflation, *args, **kwargs))
                 if prune_traces:
@@ -160,7 +160,7 @@ class OfflineDatasetFile(Dataset):
                 # cache is full, delete the last entry
                 n, s = OfflineDatasetFile.cache.popitem(last=False)
                 s.close()
-            shelf = shelve.open(self._file_name, flag='r')
+            shelf = util.open_shelf(self._file_name, flag='r')
             OfflineDatasetFile.cache[self._file_name] = shelf
             return shelf
 
@@ -201,14 +201,14 @@ class OfflineDataset(ConcatDataset):
         else:
             file_name = os.path.join(self._dataset_dir, 'pyprob_hashes')
             try:
-                hashes_file = shelve.open(file_name, 'r')
+                hashes_file = util.open_shelf(file_name, 'r')
                 hashes_exist = 'hashes' in hashes_file
                 hashes_file.close()
             except:
                 hashes_exist = False
             if hashes_exist:
                 print('Using pre-computed hashes in: {}'.format(file_name))
-                hashes_file = shelve.open(file_name, 'r')
+                hashes_file = util.open_shelf(file_name, 'r')
                 self._hashes = hashes_file['hashes']
                 self._sorted_indices = hashes_file['sorted_indices']
                 hashes_file.close()
@@ -218,7 +218,7 @@ class OfflineDataset(ConcatDataset):
                     raise RuntimeError('Length of pre-computed hashes ({}) and length of offline dataset ({}) do not match. Dataset files have been altered. Delete and re-generate pre-computed hash file: {}'.format(len(self._sorted_indices), len(self), file_name))
             else:
                 print('No pre-computed hashes found, generating: {}'.format(file_name))
-                hashes_file = shelve.open(file_name, 'c')
+                hashes_file = util.open_shelf(file_name, 'c')
                 hashes, sorted_indices = self._compute_hashes()
                 hashes_file['hashes'] = hashes
                 hashes_file['sorted_indices'] = sorted_indices

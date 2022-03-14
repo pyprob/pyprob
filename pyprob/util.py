@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 import random
+import shelve
+import semidbm
 from termcolor import colored
 import inspect
 import os
@@ -321,6 +323,49 @@ def check_gnu_dbm():
         print('Cannot import dbm.gnu:', e)
         return False
     return True
+
+# Modification of semidbm code to support .sync() in a read-only DBM instance instead of failing.
+# semidbm is Copyright (c) 2011 James Saryerwinnie and distributed under the BSD license
+# https://github.com/jamesls/semidbm/blob/adcd3b2ad4aa24093402f4d9d8c41b71334cda5f/semidbm/db.py#L233
+class _SemiDBMReadOnly(semidbm.db._SemiDBM):
+    def __delitem__(self, key):
+        self._method_not_allowed('delitem')
+
+    def __setitem__(self, key, value):
+        self._method_not_allowed('setitem')
+
+    def sync(self):
+        # For compatibility with previous GDBM-based code, we want .sync() to be a no-op in a read-only DBM, instead of failing
+        # self._method_not_allowed('sync')
+        pass
+
+    def compact(self):
+        self._method_not_allowed('compact')
+
+    def _method_not_allowed(self, method_name):
+        raise DBMError("Can't %s: db opened in read only mode." % method_name)
+
+    def close(self, compact=False):
+        os.close(self._data_fd)
+
+# Modification of semidbm code to support .sync() in a read-only DBM instance instead of failing.
+# semidbm is Copyright (c) 2011 James Saryerwinnie and distributed under the BSD license
+# https://github.com/jamesls/semidbm/blob/adcd3b2ad4aa24093402f4d9d8c41b71334cda5f/semidbm/db.py#L320
+def open_semidbm(filename, flag='r', mode=0o666, verify_checksums=False):
+    kwargs = semidbm.db._create_default_params(verify_checksums=verify_checksums)
+    if flag == 'r':
+        return _SemiDBMReadOnly(filename, **kwargs)
+    elif flag == 'c':
+        return semidbm.db._SemiDBM(filename, **kwargs)
+    elif flag == 'w':
+        return semidbm.db._SemiDBMReadWrite(filename, **kwargs)
+    elif flag == 'n':
+        return semidbm.db._SemiDBMNew(filename, **kwargs)
+    else:
+        raise ValueError("flag argument must be 'r', 'c', 'w', or 'n'")
+
+def open_shelf(file_name, flag, writeback=False):
+    return shelve.Shelf(open_semidbm(filename=file_name, flag=flag), writeback=writeback)
 
 
 def tile_rows_cols(num_items):
