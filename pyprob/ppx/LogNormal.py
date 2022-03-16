@@ -10,12 +10,16 @@ class LogNormal(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsLogNormal(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = LogNormal()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsLogNormal(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def LogNormalBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -46,7 +50,19 @@ class LogNormal(object):
             return obj
         return None
 
-def LogNormalStart(builder): builder.StartObject(2)
-def LogNormalAddLoc(builder, loc): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(loc), 0)
-def LogNormalAddScale(builder, scale): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(scale), 0)
-def LogNormalEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(2)
+def LogNormalStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddLoc(builder, loc): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(loc), 0)
+def LogNormalAddLoc(builder, loc):
+    """This method is deprecated. Please switch to AddLoc."""
+    return AddLoc(builder, loc)
+def AddScale(builder, scale): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(scale), 0)
+def LogNormalAddScale(builder, scale):
+    """This method is deprecated. Please switch to AddScale."""
+    return AddScale(builder, scale)
+def End(builder): return builder.EndObject()
+def LogNormalEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)

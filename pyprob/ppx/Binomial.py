@@ -10,12 +10,16 @@ class Binomial(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsBinomial(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = Binomial()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsBinomial(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def BinomialBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -46,7 +50,19 @@ class Binomial(object):
             return obj
         return None
 
-def BinomialStart(builder): builder.StartObject(2)
-def BinomialAddTotalCount(builder, totalCount): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(totalCount), 0)
-def BinomialAddProbs(builder, probs): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(probs), 0)
-def BinomialEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(2)
+def BinomialStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddTotalCount(builder, totalCount): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(totalCount), 0)
+def BinomialAddTotalCount(builder, totalCount):
+    """This method is deprecated. Please switch to AddTotalCount."""
+    return AddTotalCount(builder, totalCount)
+def AddProbs(builder, probs): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(probs), 0)
+def BinomialAddProbs(builder, probs):
+    """This method is deprecated. Please switch to AddProbs."""
+    return AddProbs(builder, probs)
+def End(builder): return builder.EndObject()
+def BinomialEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)

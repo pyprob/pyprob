@@ -10,12 +10,16 @@ class Observe(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsObserve(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = Observe()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsObserve(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def ObserveBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -66,10 +70,31 @@ class Observe(object):
             return obj
         return None
 
-def ObserveStart(builder): builder.StartObject(5)
-def ObserveAddAddress(builder, address): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(address), 0)
-def ObserveAddName(builder, name): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(name), 0)
-def ObserveAddDistributionType(builder, distributionType): builder.PrependUint8Slot(2, distributionType, 0)
-def ObserveAddDistribution(builder, distribution): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(distribution), 0)
-def ObserveAddValue(builder, value): builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(value), 0)
-def ObserveEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(5)
+def ObserveStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddAddress(builder, address): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(address), 0)
+def ObserveAddAddress(builder, address):
+    """This method is deprecated. Please switch to AddAddress."""
+    return AddAddress(builder, address)
+def AddName(builder, name): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(name), 0)
+def ObserveAddName(builder, name):
+    """This method is deprecated. Please switch to AddName."""
+    return AddName(builder, name)
+def AddDistributionType(builder, distributionType): builder.PrependUint8Slot(2, distributionType, 0)
+def ObserveAddDistributionType(builder, distributionType):
+    """This method is deprecated. Please switch to AddDistributionType."""
+    return AddDistributionType(builder, distributionType)
+def AddDistribution(builder, distribution): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(distribution), 0)
+def ObserveAddDistribution(builder, distribution):
+    """This method is deprecated. Please switch to AddDistribution."""
+    return AddDistribution(builder, distribution)
+def AddValue(builder, value): builder.PrependUOffsetTRelativeSlot(4, flatbuffers.number_types.UOffsetTFlags.py_type(value), 0)
+def ObserveAddValue(builder, value):
+    """This method is deprecated. Please switch to AddValue."""
+    return AddValue(builder, value)
+def End(builder): return builder.EndObject()
+def ObserveEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)

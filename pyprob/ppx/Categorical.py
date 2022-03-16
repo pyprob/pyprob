@@ -10,12 +10,16 @@ class Categorical(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsCategorical(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = Categorical()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsCategorical(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def CategoricalBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -35,6 +39,15 @@ class Categorical(object):
             return obj
         return None
 
-def CategoricalStart(builder): builder.StartObject(1)
-def CategoricalAddProbs(builder, probs): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(probs), 0)
-def CategoricalEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(1)
+def CategoricalStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddProbs(builder, probs): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(probs), 0)
+def CategoricalAddProbs(builder, probs):
+    """This method is deprecated. Please switch to AddProbs."""
+    return AddProbs(builder, probs)
+def End(builder): return builder.EndObject()
+def CategoricalEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)

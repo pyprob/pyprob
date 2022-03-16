@@ -10,12 +10,16 @@ class Uniform(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsUniform(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = Uniform()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsUniform(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def UniformBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -46,7 +50,19 @@ class Uniform(object):
             return obj
         return None
 
-def UniformStart(builder): builder.StartObject(2)
-def UniformAddLow(builder, low): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(low), 0)
-def UniformAddHigh(builder, high): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(high), 0)
-def UniformEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(2)
+def UniformStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddLow(builder, low): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(low), 0)
+def UniformAddLow(builder, low):
+    """This method is deprecated. Please switch to AddLow."""
+    return AddLow(builder, low)
+def AddHigh(builder, high): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(high), 0)
+def UniformAddHigh(builder, high):
+    """This method is deprecated. Please switch to AddHigh."""
+    return AddHigh(builder, high)
+def End(builder): return builder.EndObject()
+def UniformEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)

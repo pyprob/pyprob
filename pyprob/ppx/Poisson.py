@@ -10,12 +10,16 @@ class Poisson(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsPoisson(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = Poisson()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsPoisson(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def PoissonBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -35,6 +39,15 @@ class Poisson(object):
             return obj
         return None
 
-def PoissonStart(builder): builder.StartObject(1)
-def PoissonAddRate(builder, rate): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(rate), 0)
-def PoissonEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(1)
+def PoissonStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddRate(builder, rate): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(rate), 0)
+def PoissonAddRate(builder, rate):
+    """This method is deprecated. Please switch to AddRate."""
+    return AddRate(builder, rate)
+def End(builder): return builder.EndObject()
+def PoissonEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)

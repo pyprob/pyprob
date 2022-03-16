@@ -10,12 +10,16 @@ class HandshakeResult(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsHandshakeResult(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = HandshakeResult()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsHandshakeResult(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def HandshakeResultBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -38,7 +42,19 @@ class HandshakeResult(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-def HandshakeResultStart(builder): builder.StartObject(2)
-def HandshakeResultAddSystemName(builder, systemName): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(systemName), 0)
-def HandshakeResultAddModelName(builder, modelName): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(modelName), 0)
-def HandshakeResultEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(2)
+def HandshakeResultStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddSystemName(builder, systemName): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(systemName), 0)
+def HandshakeResultAddSystemName(builder, systemName):
+    """This method is deprecated. Please switch to AddSystemName."""
+    return AddSystemName(builder, systemName)
+def AddModelName(builder, modelName): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(modelName), 0)
+def HandshakeResultAddModelName(builder, modelName):
+    """This method is deprecated. Please switch to AddModelName."""
+    return AddModelName(builder, modelName)
+def End(builder): return builder.EndObject()
+def HandshakeResultEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)

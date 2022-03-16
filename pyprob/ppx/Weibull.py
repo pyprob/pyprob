@@ -10,12 +10,16 @@ class Weibull(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsWeibull(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = Weibull()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsWeibull(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def WeibullBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -46,7 +50,19 @@ class Weibull(object):
             return obj
         return None
 
-def WeibullStart(builder): builder.StartObject(2)
-def WeibullAddScale(builder, scale): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(scale), 0)
-def WeibullAddConcentration(builder, concentration): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(concentration), 0)
-def WeibullEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(2)
+def WeibullStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddScale(builder, scale): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(scale), 0)
+def WeibullAddScale(builder, scale):
+    """This method is deprecated. Please switch to AddScale."""
+    return AddScale(builder, scale)
+def AddConcentration(builder, concentration): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(concentration), 0)
+def WeibullAddConcentration(builder, concentration):
+    """This method is deprecated. Please switch to AddConcentration."""
+    return AddConcentration(builder, concentration)
+def End(builder): return builder.EndObject()
+def WeibullEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)

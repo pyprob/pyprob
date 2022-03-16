@@ -10,12 +10,16 @@ class Exponential(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsExponential(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = Exponential()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsExponential(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def ExponentialBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -35,6 +39,15 @@ class Exponential(object):
             return obj
         return None
 
-def ExponentialStart(builder): builder.StartObject(1)
-def ExponentialAddRate(builder, rate): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(rate), 0)
-def ExponentialEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(1)
+def ExponentialStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddRate(builder, rate): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(rate), 0)
+def ExponentialAddRate(builder, rate):
+    """This method is deprecated. Please switch to AddRate."""
+    return AddRate(builder, rate)
+def End(builder): return builder.EndObject()
+def ExponentialEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)

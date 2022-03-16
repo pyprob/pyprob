@@ -10,12 +10,16 @@ class SampleResult(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsSampleResult(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = SampleResult()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsSampleResult(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def SampleResultBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -35,6 +39,15 @@ class SampleResult(object):
             return obj
         return None
 
-def SampleResultStart(builder): builder.StartObject(1)
-def SampleResultAddResult(builder, result): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(result), 0)
-def SampleResultEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(1)
+def SampleResultStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddResult(builder, result): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(result), 0)
+def SampleResultAddResult(builder, result):
+    """This method is deprecated. Please switch to AddResult."""
+    return AddResult(builder, result)
+def End(builder): return builder.EndObject()
+def SampleResultEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)
