@@ -88,7 +88,7 @@ class FactorTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, delta=0.75)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, delta=0.75)
         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
-        self.assertLess(kl_divergence, 0.25)
+        self.assertLess(kl_divergence, 0.33)
 
     def test_factor_gum_posterior_lightweight_metropolis_hastings(self):
         samples = lightweight_metropolis_hastings_samples
@@ -107,7 +107,7 @@ class FactorTestCase(unittest.TestCase):
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, delta=0.75)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, delta=0.75)
-        self.assertLess(kl_divergence, 0.25)
+        self.assertLess(kl_divergence, 0.33)
 
     def test_factor2_gum_posterior_importance_sampling(self):
         samples = importance_sampling_samples
@@ -134,7 +134,7 @@ class FactorTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, delta=0.75)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, delta=0.75)
         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
-        self.assertLess(kl_divergence, 0.25)
+        self.assertLess(kl_divergence, 0.33)
 
     def test_factor2_gum_posterior_lightweight_metropolis_hastings(self):
         samples = lightweight_metropolis_hastings_samples
@@ -153,7 +153,7 @@ class FactorTestCase(unittest.TestCase):
 
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, delta=0.75)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, delta=0.75)
-        self.assertLess(kl_divergence, 0.25)
+        self.assertLess(kl_divergence, 0.33)
 
 
 class PriorInflationTestCase(unittest.TestCase):

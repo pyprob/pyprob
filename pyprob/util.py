@@ -2,7 +2,10 @@ import torch
 import numpy as np
 import random
 import shelve
-import semidbm
+import sqlite3
+import zlib
+import pickle
+from sqlitedict import SqliteDict
 from termcolor import colored
 import inspect
 import os
@@ -25,6 +28,7 @@ _dtype = torch.float
 _cuda_enabled = False
 _verbosity = 2
 _print_refresh_rate = 0.25  # seconds
+_zlib_level = -1
 _epsilon = 1e-8
 _log_epsilon = math.log(_epsilon)  # log(1e-8) = -18.420680743952367
 
@@ -109,6 +113,11 @@ def set_device(device='cpu'):
 def set_verbosity(v=2):
     global _verbosity
     _verbosity = v
+
+
+def set_compression(level=-1):
+    global _zlib_level
+    _zlib_level = level
 
 
 def to_tensor(value, dtype=_dtype):
@@ -324,64 +333,16 @@ def check_gnu_dbm():
         return False
     return True
 
-# Modification of semidbm code to support .sync() in a read-only DBM instance instead of failing.
-# semidbm is Copyright (c) 2011 James Saryerwinnie and distributed under the BSD license
-# https://github.com/jamesls/semidbm/blob/adcd3b2ad4aa24093402f4d9d8c41b71334cda5f/semidbm/db.py#L233
-class _SemiDBMReadOnly(semidbm.db._SemiDBM):
-    def __delitem__(self, key):
-        self._method_not_allowed('delitem')
 
-    def __setitem__(self, key, value):
-        self._method_not_allowed('setitem')
+def sqlite_encode(o):
+    return sqlite3.Binary(zlib.compress(pickle.dumps(o, pickle.HIGHEST_PROTOCOL), level=_zlib_level))
 
-    # Modification to improve the read-only mode
-    # https://github.com/benpankow/semidbm/commit/de634ddf933e81c16ca51907037a1c91fbf7497b
-    def _load_db(self):
-        DATA_OPEN_FLAGS_READONLY = os.O_RDONLY
-        if sys.platform.startswith('win'):
-            # On windows we need to specify that we should be
-            # reading the file as a binary file so it doesn't
-            # change any line ending characters.
-            DATA_OPEN_FLAGS_READONLY = DATA_OPEN_FLAGS_READONLY | os.O_BINARY
-        self._index = self._load_index(self._data_filename)
-        self._data_fd = os.open(self._data_filename, DATA_OPEN_FLAGS_READONLY)
-        self._current_offset = os.lseek(self._data_fd, 0, os.SEEK_END)
-
-    def _write_headers(self, filename):
-        pass
-
-    def sync(self):
-        # For compatibility with previous GDBM-based code, we want .sync() to be a no-op in a read-only DBM, instead of failing
-        # self._method_not_allowed('sync')
-        pass
-
-    def compact(self):
-        self._method_not_allowed('compact')
-
-    def _method_not_allowed(self, method_name):
-        raise DBMError("Can't %s: db opened in read only mode." % method_name)
-
-    def close(self, compact=False):
-        os.close(self._data_fd)
-
-# Modification of semidbm code to support .sync() in a read-only DBM instance instead of failing.
-# semidbm is Copyright (c) 2011 James Saryerwinnie and distributed under the BSD license
-# https://github.com/jamesls/semidbm/blob/adcd3b2ad4aa24093402f4d9d8c41b71334cda5f/semidbm/db.py#L320
-def open_semidbm(filename, flag='r', mode=0o666, verify_checksums=False):
-    kwargs = semidbm.db._create_default_params(verify_checksums=verify_checksums)
-    if flag == 'r':
-        return _SemiDBMReadOnly(filename, **kwargs)
-    elif flag == 'c':
-        return semidbm.db._SemiDBM(filename, **kwargs)
-    elif flag == 'w':
-        return semidbm.db._SemiDBMReadWrite(filename, **kwargs)
-    elif flag == 'n':
-        return semidbm.db._SemiDBMNew(filename, **kwargs)
-    else:
-        raise ValueError("flag argument must be 'r', 'c', 'w', or 'n'")
+def sqlite_decode(o):
+    return pickle.loads(zlib.decompress(bytes(o)))
 
 def open_shelf(file_name, flag, writeback=False):
-    return shelve.Shelf(open_semidbm(filename=file_name, flag=flag), writeback=writeback)
+    s = SqliteDict(file_name, encode=sqlite_encode, decode=sqlite_decode, flag=flag, outer_stack=False)
+    return shelve.Shelf(s, writeback=writeback)
 
 
 def tile_rows_cols(num_items):
