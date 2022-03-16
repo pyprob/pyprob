@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import copy
-import shelve
+# import shelve
 import collections
 from collections import OrderedDict
 import matplotlib as mpl
@@ -92,7 +92,7 @@ class Empirical(Distribution):
                     raise RuntimeError('Empirical file already exists, cannot write new concatenated Empirical: {}'.format(self._file_name))
                 else:
                     self._type = EmpiricalType.CONCAT_FILE
-                    self._shelf = shelve.open(self._file_name, flag=shelf_flag, writeback=False)
+                    self._shelf = util.open_shelf(self._file_name, flag=shelf_flag, writeback=False)
                     self._shelf['concat_empirical_file_names'] = concat_empirical_file_names
                     self._shelf['name'] = self.name
                     self._shelf['metadata'] = self._metadata
@@ -102,7 +102,7 @@ class Empirical(Distribution):
                 self._type = EmpiricalType.MEMORY
                 self.values = []
             else:
-                self._shelf = shelve.open(self._file_name, flag=shelf_flag, writeback=file_writeback)
+                self._shelf = util.open_shelf(self._file_name, flag=shelf_flag, writeback=file_writeback)
                 if 'concat_empirical_file_names' in self._shelf:
                     self._type = EmpiricalType.CONCAT_FILE
                     concat_empirical_file_names = self._shelf['concat_empirical_file_names']
@@ -148,9 +148,9 @@ class Empirical(Distribution):
                 self.add_sequence(values, log_weights, weights)
                 self.finalize()
 
-        if self._type == EmpiricalType.FILE or self._type == EmpiricalType.CONCAT_FILE:
-            if not util.check_gnu_dbm():
-                warnings.warn('Empirical distributions on disk may perform slow because GNU DBM is not available. Please install and configure gdbm library for Python for better speed.')
+        # if self._type == EmpiricalType.FILE or self._type == EmpiricalType.CONCAT_FILE:
+        #     if not util.check_gnu_dbm():
+        #         warnings.warn('Empirical distributions on disk may perform slow because GNU DBM is not available. Please install and configure gdbm library for Python for better speed.')
 
     def __enter__(self):
         return self
@@ -187,7 +187,8 @@ class Empirical(Distribution):
         if self._type == EmpiricalType.FILE:
             self.finalize()
             if not self._closed:
-                self._shelf.close()
+                if not self._read_only:
+                    self._shelf.close()
                 self._closed = True
 
     def copy(self, file_name=None):

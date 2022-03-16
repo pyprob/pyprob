@@ -2,7 +2,7 @@ import os
 import sys
 from setuptools import setup, find_packages
 PACKAGE_NAME = 'pyprob'
-MINIMUM_PYTHON_VERSION = 3, 5
+MINIMUM_PYTHON_VERSION = 3, 6
 
 
 def check_python_version():
@@ -30,7 +30,7 @@ setup(
     author='PyProb contributors',
     author_email='gunes@robots.ox.ac.uk',
     packages=find_packages(),
-    install_requires=['torch>=1.5.1', 'numpy', 'scikit-learn', 'matplotlib', 'termcolor==1.1.0', 'pyzmq>=19.0.0', 'flatbuffers==1.12', 'pydotplus==2.0.2', 'pyyaml>=3.13'],
+    install_requires=['torch>=1.5.1', 'numpy', 'scikit-learn', 'matplotlib', 'termcolor==1.1.0', 'pyzmq>=19.0.0', 'flatbuffers==1.12', 'pydotplus==2.0.2', 'pyyaml>=3.13', 'sqlitedict>=2.0.0'],
     extras_require={
         'dev': ['pytest', 'pytest-cov', 'pytest-xdist', 'docker'],
         'docs': ['sphinx==3.2.1', 'sphinx_rtd_theme==0.5.2', 'jupyter-sphinx==0.3.2', 'myst-nb==0.12.3']

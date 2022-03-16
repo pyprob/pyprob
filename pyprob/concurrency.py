@@ -1,7 +1,9 @@
 from collections.abc import Mapping
-import shelve
+# import shelve
 import random
 import time
+
+from . import util
 
 
 class ConcurrentShelf(Mapping):
@@ -23,7 +25,7 @@ class ConcurrentShelf(Mapping):
             if time.time() - start > self._time_out_seconds:
                 raise RuntimeError('ConcurrentShelf time out, cannot gain access to shelf on disk')
             try:
-                shelf = shelve.open(self._file_name, flag=flag)
+                shelf = util.open_shelf(self._file_name, flag=flag)
                 return shelf
             except Exception as e:
                 if '[Errno 11] Resource temporarily unavailable' in str(e):

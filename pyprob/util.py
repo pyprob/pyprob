@@ -1,6 +1,11 @@
 import torch
 import numpy as np
 import random
+import shelve
+import sqlite3
+import zlib
+import pickle
+from sqlitedict import SqliteDict
 from termcolor import colored
 import inspect
 import os
@@ -23,6 +28,7 @@ _dtype = torch.float
 _cuda_enabled = False
 _verbosity = 2
 _print_refresh_rate = 0.25  # seconds
+_zlib_level = -1
 _epsilon = 1e-8
 _log_epsilon = math.log(_epsilon)  # log(1e-8) = -18.420680743952367
 
@@ -107,6 +113,11 @@ def set_device(device='cpu'):
 def set_verbosity(v=2):
     global _verbosity
     _verbosity = v
+
+
+def set_compression(level=-1):
+    global _zlib_level
+    _zlib_level = level
 
 
 def to_tensor(value, dtype=_dtype):
@@ -321,6 +332,17 @@ def check_gnu_dbm():
         print('Cannot import dbm.gnu:', e)
         return False
     return True
+
+
+def sqlite_encode(o):
+    return sqlite3.Binary(zlib.compress(pickle.dumps(o, pickle.HIGHEST_PROTOCOL), level=_zlib_level))
+
+def sqlite_decode(o):
+    return pickle.loads(zlib.decompress(bytes(o)))
+
+def open_shelf(file_name, flag, writeback=False):
+    s = SqliteDict(file_name, encode=sqlite_encode, decode=sqlite_decode, flag=flag, outer_stack=False)
+    return shelve.Shelf(s, writeback=writeback)
 
 
 def tile_rows_cols(num_items):

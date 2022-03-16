@@ -1889,7 +1889,7 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(dist_lows, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_lows_empirical, dist_lows_correct, atol=0.1))
         self.assertTrue(np.allclose(dist_highs, dist_highs_correct, atol=0.1))
-        self.assertTrue(np.allclose(dist_highs_empirical, dist_highs_correct, atol=0.25))
+        self.assertTrue(np.allclose(dist_highs_empirical, dist_highs_correct, atol=0.33))
         self.assertTrue(np.allclose(dist_log_probs, dist_log_probs_correct, atol=0.1))
 
     def test_distributions_bernoulli(self):
