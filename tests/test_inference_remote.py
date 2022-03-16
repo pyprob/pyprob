@@ -206,119 +206,119 @@ class GaussianWithUnknownMeanTestCase(unittest.TestCase):
         self.assertLess(kl_divergence, 0.25)
 
 
-class GaussianWithUnknownMeanMarsagliaWithReplacementTestCase(unittest.TestCase):
-    def setUp(self):
-        server_address = 'ipc://@RemoteModelGaussianWithUnknownMeanMarsagliaWithReplacement_' + str(uuid.uuid4())
-        docker_client = docker.from_env()
-        self._docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia_replacement {}'.format(server_address), network='host', detach=True)
-        self._model = RemoteModel(server_address)
-
-    def tearDown(self):
-        self._model.close()
-        self._docker_container.kill()
-
-    def test_inference_remote_gum_marsaglia_replacement_posterior_importance_sampling(self):
-        samples = importance_sampling_samples
-        true_posterior = Normal(7.25, math.sqrt(1/1.2))
-        posterior_mean_correct = float(true_posterior.mean)
-        posterior_stddev_correct = float(true_posterior.stddev)
-        prior_mean_correct = 1.
-        prior_stddev_correct = math.sqrt(5)
-        posterior_effective_sample_size_min = samples * 0.001
-
-        start = time.time()
-        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
-        add_importance_sampling_duration(time.time() - start)
-
-        posterior_mean = float(posterior.mean)
-        posterior_mean_unweighted = float(posterior.unweighted().mean)
-        posterior_stddev = float(posterior.stddev)
-        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
-        posterior_effective_sample_size = float(posterior.effective_sample_size)
-        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
-
-        util.eval_print('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
-        add_importance_sampling_kl_divergence(kl_divergence)
-
-        self.assertAlmostEqual(posterior_mean_unweighted, prior_mean_correct, places=0)
-        self.assertAlmostEqual(posterior_stddev_unweighted, prior_stddev_correct, places=0)
-        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
-        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
-        self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
-        self.assertLess(kl_divergence, 0.25)
-
-    def test_inference_remote_gum_marsaglia_replacement_posterior_importance_sampling_with_inference_network(self):
-        samples = importance_sampling_samples
-        true_posterior = Normal(7.25, math.sqrt(1/1.2))
-        posterior_mean_correct = float(true_posterior.mean)
-        posterior_stddev_correct = float(true_posterior.stddev)
-        posterior_effective_sample_size_min = samples * 0.03
-
-        self._model.reset_inference_network()
-        self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs0': {'dim': 256, 'depth': 1}, 'obs1': {'dim': 256, 'depth': 1}})
-
-        start = time.time()
-        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs0': 8, 'obs1': 9})
-        add_importance_sampling_with_inference_network_duration(time.time() - start)
-
-        posterior_mean = float(posterior.mean)
-        posterior_mean_unweighted = float(posterior.unweighted().mean)
-        posterior_stddev = float(posterior.stddev)
-        posterior_stddev_unweighted = float(posterior.unweighted().stddev)
-        posterior_effective_sample_size = float(posterior.effective_sample_size)
-        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
-
-        util.eval_print('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
-        add_importance_sampling_with_inference_network_kl_divergence(kl_divergence)
-
-        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
-        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
-        self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
-        self.assertLess(kl_divergence, 0.25)
-
-    def test_inference_remote_gum_marsaglia_replacement_posterior_lightweight_metropolis_hastings(self):
-        samples = lightweight_metropolis_hastings_samples
-        burn_in = lightweight_metropolis_hastings_burn_in
-        true_posterior = Normal(7.25, math.sqrt(1/1.2))
-        posterior_mean_correct = float(true_posterior.mean)
-        posterior_stddev_correct = float(true_posterior.stddev)
-
-        start = time.time()
-        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})[burn_in:]
-        add_lightweight_metropolis_hastings_duration(time.time() - start)
-
-        posterior_mean = float(posterior.mean)
-        posterior_stddev = float(posterior.stddev)
-        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
-
-        util.eval_print('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
-        add_lightweight_metropolis_hastings_kl_divergence(kl_divergence)
-
-        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
-        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
-        self.assertLess(kl_divergence, 0.25)
-
-    def test_inference_remote_gum_marsaglia_replacement_posterior_random_walk_metropolis_hastings(self):
-        samples = random_walk_metropolis_hastings_samples
-        burn_in = random_walk_metropolis_hastings_burn_in
-        true_posterior = Normal(7.25, math.sqrt(1/1.2))
-        posterior_mean_correct = float(true_posterior.mean)
-        posterior_stddev_correct = float(true_posterior.stddev)
-
-        start = time.time()
-        posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})[burn_in:]
-        add_random_walk_metropolis_hastings_duration(time.time() - start)
-
-        posterior_mean = float(posterior.mean)
-        posterior_stddev = float(posterior.stddev)
-        kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
-
-        util.eval_print('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
-        add_random_walk_metropolis_hastings_kl_divergence(kl_divergence)
-
-        self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
-        self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
-        self.assertLess(kl_divergence, 0.25)
+# class GaussianWithUnknownMeanMarsagliaWithReplacementTestCase(unittest.TestCase):
+#     def setUp(self):
+#         server_address = 'ipc://@RemoteModelGaussianWithUnknownMeanMarsagliaWithReplacement_' + str(uuid.uuid4())
+#         docker_client = docker.from_env()
+#         self._docker_container = docker_client.containers.run('pyprob/pyprob_cpp', '/home/pyprob_cpp/build/pyprob_cpp/test_gum_marsaglia_replacement {}'.format(server_address), network='host', detach=True)
+#         self._model = RemoteModel(server_address)
+#
+#     def tearDown(self):
+#         self._model.close()
+#         self._docker_container.kill()
+#
+#     def test_inference_remote_gum_marsaglia_replacement_posterior_importance_sampling(self):
+#         samples = importance_sampling_samples
+#         true_posterior = Normal(7.25, math.sqrt(1/1.2))
+#         posterior_mean_correct = float(true_posterior.mean)
+#         posterior_stddev_correct = float(true_posterior.stddev)
+#         prior_mean_correct = 1.
+#         prior_stddev_correct = math.sqrt(5)
+#         posterior_effective_sample_size_min = samples * 0.001
+#
+#         start = time.time()
+#         posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, observe={'obs0': 8, 'obs1': 9})
+#         add_importance_sampling_duration(time.time() - start)
+#
+#         posterior_mean = float(posterior.mean)
+#         posterior_mean_unweighted = float(posterior.unweighted().mean)
+#         posterior_stddev = float(posterior.stddev)
+#         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+#         posterior_effective_sample_size = float(posterior.effective_sample_size)
+#         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
+#
+#         util.eval_print('samples', 'prior_mean_correct', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'prior_stddev_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
+#         add_importance_sampling_kl_divergence(kl_divergence)
+#
+#         self.assertAlmostEqual(posterior_mean_unweighted, prior_mean_correct, places=0)
+#         self.assertAlmostEqual(posterior_stddev_unweighted, prior_stddev_correct, places=0)
+#         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+#         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+#         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
+#         self.assertLess(kl_divergence, 0.25)
+#
+#     def test_inference_remote_gum_marsaglia_replacement_posterior_importance_sampling_with_inference_network(self):
+#         samples = importance_sampling_samples
+#         true_posterior = Normal(7.25, math.sqrt(1/1.2))
+#         posterior_mean_correct = float(true_posterior.mean)
+#         posterior_stddev_correct = float(true_posterior.stddev)
+#         posterior_effective_sample_size_min = samples * 0.03
+#
+#         self._model.reset_inference_network()
+#         self._model.learn_inference_network(num_traces=importance_sampling_with_inference_network_training_traces, observe_embeddings={'obs0': {'dim': 256, 'depth': 1}, 'obs1': {'dim': 256, 'depth': 1}})
+#
+#         start = time.time()
+#         posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING_WITH_INFERENCE_NETWORK, observe={'obs0': 8, 'obs1': 9})
+#         add_importance_sampling_with_inference_network_duration(time.time() - start)
+#
+#         posterior_mean = float(posterior.mean)
+#         posterior_mean_unweighted = float(posterior.unweighted().mean)
+#         posterior_stddev = float(posterior.stddev)
+#         posterior_stddev_unweighted = float(posterior.unweighted().stddev)
+#         posterior_effective_sample_size = float(posterior.effective_sample_size)
+#         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
+#
+#         util.eval_print('samples', 'posterior_mean_unweighted', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev_unweighted', 'posterior_stddev', 'posterior_stddev_correct', 'posterior_effective_sample_size', 'posterior_effective_sample_size_min', 'kl_divergence')
+#         add_importance_sampling_with_inference_network_kl_divergence(kl_divergence)
+#
+#         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+#         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+#         self.assertGreater(posterior_effective_sample_size, posterior_effective_sample_size_min)
+#         self.assertLess(kl_divergence, 0.25)
+#
+#     def test_inference_remote_gum_marsaglia_replacement_posterior_lightweight_metropolis_hastings(self):
+#         samples = lightweight_metropolis_hastings_samples
+#         burn_in = lightweight_metropolis_hastings_burn_in
+#         true_posterior = Normal(7.25, math.sqrt(1/1.2))
+#         posterior_mean_correct = float(true_posterior.mean)
+#         posterior_stddev_correct = float(true_posterior.stddev)
+#
+#         start = time.time()
+#         posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})[burn_in:]
+#         add_lightweight_metropolis_hastings_duration(time.time() - start)
+#
+#         posterior_mean = float(posterior.mean)
+#         posterior_stddev = float(posterior.stddev)
+#         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
+#
+#         util.eval_print('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+#         add_lightweight_metropolis_hastings_kl_divergence(kl_divergence)
+#
+#         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+#         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+#         self.assertLess(kl_divergence, 0.25)
+#
+#     def test_inference_remote_gum_marsaglia_replacement_posterior_random_walk_metropolis_hastings(self):
+#         samples = random_walk_metropolis_hastings_samples
+#         burn_in = random_walk_metropolis_hastings_burn_in
+#         true_posterior = Normal(7.25, math.sqrt(1/1.2))
+#         posterior_mean_correct = float(true_posterior.mean)
+#         posterior_stddev_correct = float(true_posterior.stddev)
+#
+#         start = time.time()
+#         posterior = self._model.posterior_results(samples, inference_engine=InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS, observe={'obs0': 8, 'obs1': 9})[burn_in:]
+#         add_random_walk_metropolis_hastings_duration(time.time() - start)
+#
+#         posterior_mean = float(posterior.mean)
+#         posterior_stddev = float(posterior.stddev)
+#         kl_divergence = float(pyprob.distributions.Distribution.kl_divergence(true_posterior, Normal(posterior.mean, posterior.stddev)))
+#
+#         util.eval_print('samples', 'burn_in', 'posterior_mean', 'posterior_mean_correct', 'posterior_stddev', 'posterior_stddev_correct', 'kl_divergence')
+#         add_random_walk_metropolis_hastings_kl_divergence(kl_divergence)
+#
+#         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
+#         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
+#         self.assertLess(kl_divergence, 0.25)
 
 
 class HiddenMarkovModelTestCase(unittest.TestCase):

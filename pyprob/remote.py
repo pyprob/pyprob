@@ -108,13 +108,13 @@ class ModelServer(object):
         ppx_Tensor.TensorStartDataVector(builder, len(data))
         for d in reversed(data):
             builder.PrependFloat64(d)
-        data = builder.EndVector(len(data))
+        data = builder.EndVector()
 
         # pack shape
         ppx_Tensor.TensorStartShapeVector(builder, len(shape))
         for s in reversed(shape):
             builder.PrependInt32(s)
-        shape = builder.EndVector(len(shape))
+        shape = builder.EndVector()
 
         ppx_Tensor.TensorStart(builder)
         ppx_Tensor.TensorAddData(builder, data)
@@ -198,7 +198,6 @@ class ModelServer(object):
                 if name == '':
                     name = None
                 control = bool(message_body.Control())
-                replace = bool(message_body.Replace())
                 distribution_type = message_body.DistributionType()
                 if distribution_type == ppx_Distribution.Distribution().Uniform:
                     uniform = ppx_Uniform.Uniform()
@@ -264,7 +263,7 @@ class ModelServer(object):
                     dist = Weibull(scale, concentration)
                 else:
                     raise RuntimeError('ppx (Python): Sample from an unexpected distribution requested.')
-                result = state.sample(distribution=dist, control=control, replace=replace, name=name, address=address)
+                result = state.sample(distribution=dist, control=control, name=name, address=address)
                 builder = flatbuffers.Builder(64)
                 result = self._variable_to_protocol_tensor(builder, result)
                 ppx_SampleResult.SampleResultStart(builder)
