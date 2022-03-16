@@ -38,10 +38,6 @@ class RemoteModelDistributionsTestCase(unittest.TestCase):
         prior_weibull_mean_correct = Weibull(1.1, 0.6).mean
 
         prior = self._model.prior(num_samples)
-        print(prior)
-        print(prior[0])
-        print(prior[0].variables)
-        print(prior[0].named_variables)
         prior_normal = prior.map(lambda trace: trace.named_variables['normal'].value)
         prior_uniform = prior.map(lambda trace: trace.named_variables['uniform'].value)
         prior_categorical = prior.map(lambda trace: trace.named_variables['categorical'].value)
