@@ -10,12 +10,16 @@ class Tensor(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsTensor(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = Tensor()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsTensor(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def TensorBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -78,9 +82,27 @@ class Tensor(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         return o == 0
 
-def TensorStart(builder): builder.StartObject(2)
-def TensorAddData(builder, data): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(data), 0)
-def TensorStartDataVector(builder, numElems): return builder.StartVector(8, numElems, 8)
-def TensorAddShape(builder, shape): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(shape), 0)
-def TensorStartShapeVector(builder, numElems): return builder.StartVector(4, numElems, 4)
-def TensorEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(2)
+def TensorStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddData(builder, data): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(data), 0)
+def TensorAddData(builder, data):
+    """This method is deprecated. Please switch to AddData."""
+    return AddData(builder, data)
+def StartDataVector(builder, numElems): return builder.StartVector(8, numElems, 8)
+def TensorStartDataVector(builder, numElems):
+    """This method is deprecated. Please switch to Start."""
+    return StartDataVector(builder, numElems)
+def AddShape(builder, shape): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(shape), 0)
+def TensorAddShape(builder, shape):
+    """This method is deprecated. Please switch to AddShape."""
+    return AddShape(builder, shape)
+def StartShapeVector(builder, numElems): return builder.StartVector(4, numElems, 4)
+def TensorStartShapeVector(builder, numElems):
+    """This method is deprecated. Please switch to Start."""
+    return StartShapeVector(builder, numElems)
+def End(builder): return builder.EndObject()
+def TensorEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)

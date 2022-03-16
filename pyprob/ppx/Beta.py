@@ -10,12 +10,16 @@ class Beta(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsBeta(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = Beta()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsBeta(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def BetaBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -29,7 +33,7 @@ class Beta(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from .Tensor import Tensor
+            from ppx.Tensor import Tensor
             obj = Tensor()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -40,13 +44,25 @@ class Beta(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from .Tensor import Tensor
+            from ppx.Tensor import Tensor
             obj = Tensor()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
-def BetaStart(builder): builder.StartObject(2)
-def BetaAddConcentration1(builder, concentration1): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(concentration1), 0)
-def BetaAddConcentration0(builder, concentration0): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(concentration0), 0)
-def BetaEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(2)
+def BetaStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddConcentration1(builder, concentration1): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(concentration1), 0)
+def BetaAddConcentration1(builder, concentration1):
+    """This method is deprecated. Please switch to AddConcentration1."""
+    return AddConcentration1(builder, concentration1)
+def AddConcentration0(builder, concentration0): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(concentration0), 0)
+def BetaAddConcentration0(builder, concentration0):
+    """This method is deprecated. Please switch to AddConcentration0."""
+    return AddConcentration0(builder, concentration0)
+def End(builder): return builder.EndObject()
+def BetaEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)

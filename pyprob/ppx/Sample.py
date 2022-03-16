@@ -10,12 +10,16 @@ class Sample(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsSample(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = Sample()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsSample(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def SampleBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -62,18 +66,31 @@ class Sample(object):
             return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
         return True
 
-    # Sample
-    def Replace(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
-        if o != 0:
-            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
-        return False
-
-def SampleStart(builder): builder.StartObject(6)
-def SampleAddAddress(builder, address): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(address), 0)
-def SampleAddName(builder, name): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(name), 0)
-def SampleAddDistributionType(builder, distributionType): builder.PrependUint8Slot(2, distributionType, 0)
-def SampleAddDistribution(builder, distribution): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(distribution), 0)
-def SampleAddControl(builder, control): builder.PrependBoolSlot(4, control, 1)
-def SampleAddReplace(builder, replace): builder.PrependBoolSlot(5, replace, 0)
-def SampleEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(5)
+def SampleStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddAddress(builder, address): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(address), 0)
+def SampleAddAddress(builder, address):
+    """This method is deprecated. Please switch to AddAddress."""
+    return AddAddress(builder, address)
+def AddName(builder, name): builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(name), 0)
+def SampleAddName(builder, name):
+    """This method is deprecated. Please switch to AddName."""
+    return AddName(builder, name)
+def AddDistributionType(builder, distributionType): builder.PrependUint8Slot(2, distributionType, 0)
+def SampleAddDistributionType(builder, distributionType):
+    """This method is deprecated. Please switch to AddDistributionType."""
+    return AddDistributionType(builder, distributionType)
+def AddDistribution(builder, distribution): builder.PrependUOffsetTRelativeSlot(3, flatbuffers.number_types.UOffsetTFlags.py_type(distribution), 0)
+def SampleAddDistribution(builder, distribution):
+    """This method is deprecated. Please switch to AddDistribution."""
+    return AddDistribution(builder, distribution)
+def AddControl(builder, control): builder.PrependBoolSlot(4, control, 1)
+def SampleAddControl(builder, control):
+    """This method is deprecated. Please switch to AddControl."""
+    return AddControl(builder, control)
+def End(builder): return builder.EndObject()
+def SampleEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)

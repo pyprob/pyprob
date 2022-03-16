@@ -10,12 +10,16 @@ class Handshake(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsHandshake(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = Handshake()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsHandshake(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def HandshakeBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -31,6 +35,15 @@ class Handshake(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-def HandshakeStart(builder): builder.StartObject(1)
-def HandshakeAddSystemName(builder, systemName): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(systemName), 0)
-def HandshakeEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(1)
+def HandshakeStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddSystemName(builder, systemName): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(systemName), 0)
+def HandshakeAddSystemName(builder, systemName):
+    """This method is deprecated. Please switch to AddSystemName."""
+    return AddSystemName(builder, systemName)
+def End(builder): return builder.EndObject()
+def HandshakeEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)

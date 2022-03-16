@@ -10,12 +10,16 @@ class RunResult(object):
     __slots__ = ['_tab']
 
     @classmethod
-    def GetRootAsRunResult(cls, buf, offset):
+    def GetRootAs(cls, buf, offset=0):
         n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, offset)
         x = RunResult()
         x.Init(buf, n + offset)
         return x
 
+    @classmethod
+    def GetRootAsRunResult(cls, buf, offset=0):
+        """This method is deprecated. Please switch to GetRootAs."""
+        return cls.GetRootAs(buf, offset)
     @classmethod
     def RunResultBufferHasIdentifier(cls, buf, offset, size_prefixed=False):
         return flatbuffers.util.BufferHasIdentifier(buf, offset, b"\x50\x50\x58\x46", size_prefixed=size_prefixed)
@@ -29,12 +33,21 @@ class RunResult(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from .Tensor import Tensor
+            from ppx.Tensor import Tensor
             obj = Tensor()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
-def RunResultStart(builder): builder.StartObject(1)
-def RunResultAddResult(builder, result): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(result), 0)
-def RunResultEnd(builder): return builder.EndObject()
+def Start(builder): builder.StartObject(1)
+def RunResultStart(builder):
+    """This method is deprecated. Please switch to Start."""
+    return Start(builder)
+def AddResult(builder, result): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(result), 0)
+def RunResultAddResult(builder, result):
+    """This method is deprecated. Please switch to AddResult."""
+    return AddResult(builder, result)
+def End(builder): return builder.EndObject()
+def RunResultEnd(builder):
+    """This method is deprecated. Please switch to End."""
+    return End(builder)
