@@ -225,8 +225,12 @@ class Model():
         dataset = OnlineDataset(self, None, prior_inflation=prior_inflation)
         dataset.save_dataset(dataset_dir=dataset_dir, num_traces=num_traces, num_traces_per_file=num_traces_per_file, *args, **kwargs)
 
-    def filter(self, filter, filter_timeout=1e6):
-        return ConstrainedModel(self, filter=filter, filter_timeout=filter_timeout)
+    def condition(self, criterion, criterion_timeout=1e6):
+        return ConditionalModel(self, criterion=criterion, criterion_timeout=criterion_timeout)
+
+    def filter(self, *args, **kwargs):
+        warnings.warn('Model.filter will be deprecated in future releases. Use Model.condition instead.')
+        return self.condition(*args, **kwargs)
 
 
 class RemoteModel(Model):
@@ -254,23 +258,31 @@ class RemoteModel(Model):
         return ret
 
 
-class ConstrainedModel(Model):
-    def __init__(self, base_model, filter, filter_timeout=1e6):
+class ConditionalModel(Model):
+    def __init__(self, base_model, criterion, criterion_timeout=1e6):
         self._base_model = base_model
-        self._filter = filter
-        self._filter_timeout = int(filter_timeout)
+        self._criterion = criterion
+        self._criterion_timeout = int(criterion_timeout)
+        self._traces_total = 1.
+        self._traces_accepted = 1.
         # self.name = self._base_model.name
         # self._inference_network = self._base_model._inference_network
         # self._address_dictionary = self._base_model._address_dictionary
+
+    @property
+    def acceptance_ratio(self):
+        return self._traces_accepted / self._traces_total
 
     def _trace_generator(self, *args, **kwargs):
         i = 0
         while True:
             i += 1
-            if i > self._filter_timeout:
-                raise RuntimeError('ConstrainedModel could not sample a trace satisfying the filter. Timeout ({}) reached.'.format(self._filter_timeout))
+            if i > self._criterion_timeout:
+                raise RuntimeError('ConditionalModel could not sample a trace satisfying the criterion. Timeout ({}) reached.'.format(self._criterion_timeout))
             trace = next(self._base_model._trace_generator(*args, **kwargs))
-            if self._filter(trace):
+            self._traces_total += 1.
+            if self._criterion(trace):
+                self._traces_accepted += 1.
                 yield trace
             else:
                 continue

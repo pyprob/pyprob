@@ -527,7 +527,7 @@ class Empirical(Distribution):
         ret.add_metadata(op='map', length=len(self), func=util.get_source(func))
         return ret
 
-    def filter(self, func, min_index=None, max_index=None, file_name=None):
+    def condition(self, criterion, min_index=None, max_index=None, file_name=None):
         self._check_finalized()
         if self.length == 0:
             return self
@@ -536,20 +536,24 @@ class Empirical(Distribution):
         if max_index is None:
             max_index = self._length
         indices = range(min_index, max_index)
-        status = 'Filter, min_index: {}, max_index: {}'.format(min_index, max_index)
+        status = 'Condition, min_index: {}, max_index: {}'.format(min_index, max_index)
         util.progress_bar_init(status, len(indices), 'Values')
         ret = Empirical(name=self.name, file_name=file_name)
         for i in indices:
             util.progress_bar_update(i)
             value = self._get_value(i)
-            if func(value):
+            if criterion(value):
                 ret.add(value, self._get_log_weight(i))
         ret.finalize()
         util.progress_bar_end()
         ret._metadata = copy.deepcopy(self._metadata)
-        ret.add_metadata(op='filter', length=len(self), length_after=len(ret), func=util.get_source(func))
+        ret.add_metadata(op='condition', length=len(self), length_after=len(ret), criterion=util.get_source(criterion))
         ret.finalize()
         return ret
+
+    def filter(self, *args, **kwargs):
+        warnings.warn('Empirical.filter will be deprecated in future releases. Use Empirical.condition instead.')
+        return self.condition(*args, **kwargs)
 
     def resample(self, num_samples, map_func=None, min_index=None, max_index=None, file_name=None):  # min_index is inclusive, max_index is exclusive
         self._check_finalized()
