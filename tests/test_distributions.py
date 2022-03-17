@@ -783,6 +783,34 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_reobserved_mean, posterior_reobserved_mean_correct, delta=0.75)
         self.assertAlmostEqual(posterior_reobserved_stddev, posterior_reobserved_stddev_correct, delta=0.75)
 
+
+    def test_distributions_empirical_condition(self):
+        class JointModel(Model):
+            def __init__(self):
+                super().__init__('Joint model')
+
+            def forward(self):
+                a = pyprob.sample(Bernoulli(0.5), name='a')
+                b = pyprob.sample(Bernoulli(0.25 if a else 0.75), name='b')
+
+        model = JointModel()
+        samples = 2000
+        
+        prior = model.prior(samples)
+        prior_b = prior.map(lambda trace: trace['b'])
+        conditional_b = prior.condition(lambda trace: trace['a']).map(lambda trace: trace['b'])
+
+        prior_b_mean = float(prior_b.mean)
+        conditional_b_mean = float(conditional_b.mean)
+        prior_b_mean_correct = 0.5
+        conditional_b_mean_correct = 0.25
+
+        util.eval_print('samples', 'prior_b_mean', 'conditional_b_mean', 'prior_b_mean_correct', 'conditional_b_mean_correct')
+
+        self.assertAlmostEqual(prior_b_mean_correct, prior_b_mean, places=1)
+        self.assertAlmostEqual(conditional_b_mean_correct, conditional_b_mean, places=1)
+
+
     def test_distributions_binomial(self):
         dist_batch_shape_correct = torch.Size()
         dist_event_shape_correct = torch.Size()

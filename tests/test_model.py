@@ -7,7 +7,7 @@ import uuid
 
 import pyprob
 from pyprob import util, Model, InferenceEngine
-from pyprob.distributions import Normal, Uniform, Empirical
+from pyprob.distributions import Normal, Uniform, Empirical, Bernoulli
 
 
 importance_sampling_samples = 5000
@@ -373,6 +373,43 @@ class ModelObservationStyle2TestCase(unittest.TestCase):
         self.assertAlmostEqual(posterior_mean, posterior_mean_correct, places=0)
         self.assertAlmostEqual(posterior_stddev, posterior_stddev_correct, places=0)
         self.assertLess(kl_divergence, 0.25)
+
+
+class ModelConditionTestCase(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        class JointModel(Model):
+            def __init__(self):
+                super().__init__('Joint model')
+
+            def forward(self):
+                a = pyprob.sample(Bernoulli(0.5), name='a')
+                b = pyprob.sample(Bernoulli(0.25 if a else 0.75), name='b')
+
+        self._model = JointModel()
+        super().__init__(*args, **kwargs)
+
+    def test_model_condition(self):
+        samples = 2000
+        
+        prior = self._model.prior(samples)
+        conditional_model = self._model.condition(lambda trace: trace['a'])
+        conditional = conditional_model.prior(samples)
+
+        prior_b = prior.map(lambda trace: trace['b'])
+        conditional_b = conditional.map(lambda trace: trace['b'])
+
+        prior_b_mean = float(prior_b.mean)
+        conditional_b_mean = float(conditional_b.mean)
+        prior_b_mean_correct = 0.5
+        conditional_b_mean_correct = 0.25
+        acceptance_ratio = conditional_model.acceptance_ratio
+        acceptance_ratio_correct = 0.5
+
+        util.eval_print('samples', 'prior_b_mean', 'conditional_b_mean', 'acceptance_ratio', 'prior_b_mean_correct', 'conditional_b_mean_correct', 'acceptance_ratio_correct')
+
+        self.assertAlmostEqual(prior_b_mean_correct, prior_b_mean, places=1)
+        self.assertAlmostEqual(conditional_b_mean_correct, conditional_b_mean, places=1)
+        self.assertAlmostEqual(acceptance_ratio_correct, acceptance_ratio, places=1)
 
 
 if __name__ == '__main__':

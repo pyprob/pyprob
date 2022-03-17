@@ -245,10 +245,10 @@ def address_histograms(trace_dists, ground_truth_trace=None, figsize=(15, 12), b
             try:
                 if use_address_base:
                     address_base = variable.address_base
-                    dist = trace_dist.filter(lambda trace: address_base in trace.variables_dict_address_base).map(lambda trace: util.to_tensor(trace.variables_dict_address_base[address_base].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
+                    dist = trace_dist.condition(lambda trace: address_base in trace.variables_dict_address_base).map(lambda trace: util.to_tensor(trace.variables_dict_address_base[address_base].value)).condition(lambda v: torch.is_tensor(v)).condition(lambda v: v.nelement() == 1)
                 else:
                     address = variable.address
-                    dist = trace_dist.filter(lambda trace: address in trace.variables_dict_address).map(lambda trace: util.to_tensor(trace.variables_dict_address[address].value)).filter(lambda v: torch.is_tensor(v)).filter(lambda v: v.nelement() == 1)
+                    dist = trace_dist.condition(lambda trace: address in trace.variables_dict_address).map(lambda trace: util.to_tensor(trace.variables_dict_address[address].value)).condition(lambda v: torch.is_tensor(v)).condition(lambda v: v.nelement() == 1)
                 dist.rename(address_id + '' if variable.name is None else '{} ({})'.format(address_id, variable.name))
                 if dist.length == 0:
                     can_render = False
