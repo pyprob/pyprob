@@ -5,7 +5,6 @@ import os
 import math
 import uuid
 import tempfile
-import time
 
 import pyprob
 from pyprob import util, Model
