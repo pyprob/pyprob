@@ -6,6 +6,7 @@ import math
 import random
 import warnings
 from termcolor import colored
+import torch.multiprocessing as multiprocessing
 
 from .distributions import Empirical
 from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, Optimizer, LearningRateScheduler, AddressDictionary
@@ -286,3 +287,100 @@ class ConditionalModel(Model):
                 yield trace
             else:
                 continue
+
+
+class _ParallelModelWorker():
+    def __init__(self, model, kwargs):
+        self._model = model
+        self._kwargs = kwargs
+
+    def run(self, args):
+        seed, num_traces, file_name = args[0], args[1], args[2]
+        util.seed(seed)
+        self._kwargs.update(file_name=file_name)
+        self._kwargs.update(num_traces=num_traces)
+        self._kwargs.update(silent=True)
+        traces = self._model._traces(**self._kwargs)
+        log_weights = traces.log_weights_numpy()
+        return log_weights
+
+
+class ParallelModel(Model):
+    def __init__(self, base_model, num_workers=None):
+        self._base_model = base_model
+        if num_workers is None:
+            self._num_workers = multiprocessing.cpu_count()
+        else:
+            self._num_workers = num_workers
+
+    def _trace_generator(self, *args, **kwargs):
+        return self._base_model._trace_generator(*args, **kwargs)
+
+    def _traces(self, num_traces, file_name=None, silent=False, **kwargs):
+        if file_name is None:
+            file_mode = False
+            file_name = util.temp_file_name()
+            # /run/user/1000 points to a ram file system in many linux distributions
+            # file_name = os.path.join('/run/user/1000', str(uuid.uuid4()))
+        else:
+            file_mode = True
+
+        num_chunks = self._num_workers
+        num_traces_per_chunk = num_traces // num_chunks
+        left_over = num_traces - num_traces_per_chunk*num_chunks
+        chunks = []
+        file_names = []
+        seed = util.time_seed()
+        for i in range(num_chunks):
+            chunk = num_traces_per_chunk
+            if i == num_chunks-1 and left_over > 0:
+                chunk += left_over
+            fn = '{}_chunk_{}_of_{}'.format(file_name, i+1, num_chunks)
+            file_names.append(fn)
+            chunks.append((seed+i, chunk, fn))
+
+        time_start = time.time()
+        if (util._verbosity > 1) and not silent:
+            len_str_num_traces = len(str(num_traces))
+            print('Time spent  | Time remain.| Progress             | {} | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1), 'ESS'.ljust(len_str_num_traces+2)))
+            prev_duration = 0
+
+        i = -1
+        lwi = 0
+        log_weights = util.to_tensor(torch.zeros(num_traces))
+        pool = multiprocessing.Pool(self._num_workers)
+        for j, lw in enumerate(pool.imap_unordered(_ParallelModelWorker(self._base_model, kwargs).run, chunks)):
+            i_prev = i
+            i += chunks[j][1]
+            lw = torch.from_numpy(lw)
+            log_weights[lwi:lwi+len(lw)] = lw
+            lwi += len(lw)
+
+            if (util._verbosity > 1) and not silent:
+                duration = time.time() - time_start
+                if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
+                    prev_duration = duration
+                    traces_per_second = (i + 1) / duration
+                    effective_sample_size = util.effective_sample_size(log_weights[:lwi])
+                    if util.has_nan_or_inf(effective_sample_size):
+                        effective_sample_size = 0
+                    print('{} | {} | {} | {}/{} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:.2f}'.format(effective_sample_size).rjust(len_str_num_traces+2), traces_per_second), end='\r')
+                    sys.stdout.flush()
+
+        pool.close()
+        pool.join()
+        if (util._verbosity > 1) and not silent:
+            print()
+
+        if file_mode:
+            # Keep files around
+            traces = Empirical(concat_empirical_file_names=file_names, file_name=file_name)
+        else:
+            # Copy everything to memory, delete intermediate files
+            traces = Empirical(concat_empirical_file_names=file_names)
+            traces.close()
+            traces = traces.copy()
+            for file_name in file_names:
+                os.remove(file_name)
+
+        return traces

@@ -13,6 +13,8 @@ import sys
 import enum
 import time
 import math
+import tempfile
+import uuid
 from functools import reduce
 import operator
 import datetime
@@ -75,9 +77,17 @@ class LearningRateScheduler(enum.Enum):
     POLY2 = 2
 
 
+def temp_file_name():
+    return os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+
+
+def time_seed():
+    return int((time.time()*1e6) % 1e8)
+
+
 def seed(seed=None):
     if seed is None:
-        seed = int((time.time()*1e6) % 1e8)
+        seed = time_seed()
     global _random_seed
     _random_seed = seed
     random.seed(seed)
