@@ -341,7 +341,7 @@ def sqlite_decode(o):
     return pickle.loads(zlib.decompress(bytes(o)))
 
 def open_shelf(file_name, flag, writeback=False):
-    s = SqliteDict(file_name, encode=sqlite_encode, decode=sqlite_decode, flag=flag, outer_stack=False)
+    s = SqliteDict(file_name, encode=sqlite_encode, decode=sqlite_decode, flag=flag, outer_stack=False, journal_mode='OFF')
     return shelve.Shelf(s, writeback=writeback)
 
 
@@ -383,6 +383,10 @@ def chunks(l, n):
 def clamp_probs(probs):
     eps = torch.finfo(probs.dtype).eps
     return probs.clamp(min=eps, max=1 - eps)
+
+
+def effective_sample_size(log_weights):
+    return float(1./torch.distributions.Categorical(logits=log_weights).probs.pow(2).sum())
 
 
 def init_distributed_print(rank, world_size, debug_print=True):

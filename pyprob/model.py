@@ -69,7 +69,7 @@ class Model():
                 if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
                     prev_duration = duration
                     traces_per_second = (i + 1) / duration
-                    effective_sample_size = float(1./torch.distributions.Categorical(logits=log_weights[:i+1]).probs.pow(2).sum())
+                    effective_sample_size = util.effective_sample_size(log_weights[:i+1])
                     if util.has_nan_or_inf(effective_sample_size):
                         effective_sample_size = 0
                     print('{} | {} | {} | {}/{} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:.2f}'.format(effective_sample_size).rjust(len_str_num_traces+2), traces_per_second), end='\r')
