@@ -5,7 +5,7 @@ import os
 import math
 import random
 import warnings
-from termcolor import colored
+import torch.multiprocessing as multiprocessing
 
 from .distributions import Empirical
 from . import util, state, TraceMode, PriorInflation, InferenceEngine, InferenceNetwork, Optimizer, LearningRateScheduler, AddressDictionary
@@ -13,6 +13,12 @@ from .nn import InferenceNetwork as InferenceNetworkBase
 from .nn import OnlineDataset, OfflineDataset, InferenceNetworkFeedForward, InferenceNetworkLSTM
 from .remote import ModelServer
 
+
+def trace_result(trace):
+    return trace.result
+
+def trace_id(trace):
+    return trace
 
 class Model():
     def __init__(self, name='Unnamed PyProb model', address_dict_file_name=None):
@@ -42,7 +48,7 @@ class Model():
         generator = self._trace_generator(trace_mode=trace_mode, prior_inflation=prior_inflation, inference_engine=inference_engine, inference_network=inference_network, observe=observe, likelihood_importance=likelihood_importance, *args, **kwargs)
         traces = Empirical(file_name=file_name)
         if map_func is None:
-            map_func = lambda trace: trace
+            map_func = trace_id
         log_weights = util.to_tensor(torch.zeros(num_traces))
         time_start = time.time()
         if (util._verbosity > 1) and not silent:
@@ -69,7 +75,7 @@ class Model():
                 if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
                     prev_duration = duration
                     traces_per_second = (i + 1) / duration
-                    effective_sample_size = float(1./torch.distributions.Categorical(logits=log_weights[:i+1]).probs.pow(2).sum())
+                    effective_sample_size = util.effective_sample_size(log_weights[:i+1])
                     if util.has_nan_or_inf(effective_sample_size):
                         effective_sample_size = 0
                     print('{} | {} | {} | {}/{} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:.2f}'.format(effective_sample_size).rjust(len_str_num_traces+2), traces_per_second), end='\r')
@@ -94,7 +100,7 @@ class Model():
         prior.add_metadata(op='prior', num_traces=num_traces, prior_inflation=str(prior_inflation), likelihood_importance=likelihood_importance)
         return prior
 
-    def prior_results(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=lambda trace: trace.result, file_name=None, likelihood_importance=1., *args, **kwargs):
+    def prior_results(self, num_traces=10, prior_inflation=PriorInflation.DISABLED, map_func=trace_result, file_name=None, likelihood_importance=1., *args, **kwargs):
         return self.prior(num_traces=num_traces, prior_inflation=prior_inflation, map_func=map_func, file_name=file_name, likelihood_importance=likelihood_importance, *args, **kwargs)
 
     def posterior(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=None, observe=None, file_name=None, thinning_steps=None, likelihood_importance=1., *args, **kwargs):
@@ -112,7 +118,7 @@ class Model():
         else:  # inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS
             posterior = Empirical(file_name=file_name)
             if map_func is None:
-                map_func = lambda trace: trace
+                map_func = trace_id
             if initial_trace is None:
                 initial_trace = next(self._trace_generator(trace_mode=TraceMode.POSTERIOR, inference_engine=inference_engine, observe=observe, *args, **kwargs))
             if len(initial_trace) == 0:
@@ -171,7 +177,7 @@ class Model():
             posterior.add_metadata(op='posterior', num_traces=num_traces, inference_engine=str(inference_engine), likelihood_importance=likelihood_importance, thinning_steps=thinning_steps, num_traces_accepted=traces_accepted, num_samples_reuised=samples_reused, num_samples=samples_all)
         return posterior
 
-    def posterior_results(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=lambda trace: trace.result, observe=None, file_name=None, thinning_steps=None, *args, **kwargs):
+    def posterior_results(self, num_traces=10, inference_engine=InferenceEngine.IMPORTANCE_SAMPLING, initial_trace=None, map_func=trace_result, observe=None, file_name=None, thinning_steps=None, *args, **kwargs):
         return self.posterior(num_traces=num_traces, inference_engine=inference_engine, initial_trace=initial_trace, map_func=map_func, observe=observe, file_name=file_name, thinning_steps=thinning_steps, *args, **kwargs)
 
     def reset_inference_network(self):
@@ -232,6 +238,9 @@ class Model():
         warnings.warn('Model.filter will be deprecated in future releases. Use Model.condition instead.')
         return self.condition(*args, **kwargs)
 
+    def parallel(self, num_workers=None):
+        return ParallelModel(self, num_workers=num_workers)
+
 
 class RemoteModel(Model):
     def __init__(self, server_address='tcp://127.0.0.1:5555', before_forward_func=None, after_forward_func=None, *args, **kwargs):
@@ -286,3 +295,109 @@ class ConditionalModel(Model):
                 yield trace
             else:
                 continue
+
+
+class _ParallelModelWorker():
+    def __init__(self, model, kwargs):
+        self._model = model
+        self._kwargs = kwargs
+
+    def run(self, args):
+        seed, num_traces, file_name = args[0], args[1], args[2]
+        util.seed(seed)
+        self._kwargs.update(file_name=file_name)
+        self._kwargs.update(num_traces=num_traces)
+        self._kwargs.update(silent=True)
+        traces = self._model._traces(**self._kwargs)
+        log_weights = traces.log_weights_numpy()
+        return log_weights
+
+
+class ParallelModel(Model):
+    def __init__(self, base_model, num_workers=None):
+        self._base_model = base_model
+        if num_workers is None:
+            self._num_workers = multiprocessing.cpu_count()
+        else:
+            self._num_workers = num_workers
+
+
+    def posterior(self, *args, **kwargs):
+        inference_engine = kwargs.get('inference_engine', None)
+        print('inference_engine', inference_engine)
+        print()
+        if inference_engine == InferenceEngine.LIGHTWEIGHT_METROPOLIS_HASTINGS or inference_engine == InferenceEngine.RANDOM_WALK_METROPOLIS_HASTINGS:
+            raise ValueError('{} currently not supported by ParallelModel'.format(inference_engine))
+        return self._base_model.posterior(*args, **kwargs)
+
+    def _trace_generator(self, *args, **kwargs):
+        return self._base_model._trace_generator(*args, **kwargs)
+
+    def _traces(self, num_traces, file_name=None, silent=False, **kwargs):
+        if file_name is None:
+            file_mode = False
+            file_name = util.temp_file_name()
+            # /run/user/1000 points to a ram file system in many linux distributions
+            # file_name = os.path.join('/run/user/1000', str(uuid.uuid4()))
+        else:
+            file_mode = True
+
+        num_chunks = self._num_workers
+        num_traces_per_chunk = num_traces // num_chunks
+        left_over = num_traces - num_traces_per_chunk*num_chunks
+        chunks = []
+        file_names = []
+        seed = util.time_seed()
+        for i in range(num_chunks):
+            chunk = num_traces_per_chunk
+            if i == num_chunks-1 and left_over > 0:
+                chunk += left_over
+            fn = '{}_chunk_{}_of_{}'.format(file_name, i+1, num_chunks)
+            file_names.append(fn)
+            chunks.append((seed+i, chunk, fn))
+
+        time_start = time.time()
+        if (util._verbosity > 1) and not silent:
+            len_str_num_traces = len(str(num_traces))
+            print('Time spent  | Time remain.| Progress             | {} | {} | Traces/sec'.format('Trace'.ljust(len_str_num_traces * 2 + 1), 'ESS'.ljust(len_str_num_traces+2)))
+            prev_duration = 0
+
+        i = -1
+        lwi = 0
+        log_weights = util.to_tensor(torch.zeros(num_traces))
+        pool = multiprocessing.Pool(self._num_workers)
+        for j, lw in enumerate(pool.imap(_ParallelModelWorker(self._base_model, kwargs).run, chunks)):
+            chunk_len = chunks[j][1]
+            i += chunk_len
+            lw = torch.from_numpy(lw)[-chunk_len:]
+            log_weights[lwi:lwi+chunk_len] = lw
+            lwi += chunk_len
+
+            if (util._verbosity > 1) and not silent:
+                duration = time.time() - time_start
+                if (duration - prev_duration > util._print_refresh_rate) or (i == num_traces - 1):
+                    prev_duration = duration
+                    traces_per_second = (i + 1) / duration
+                    effective_sample_size = util.effective_sample_size(log_weights[:lwi])
+                    if util.has_nan_or_inf(effective_sample_size):
+                        effective_sample_size = 0
+                    print('{} | {} | {} | {}/{} | {} | {:,.2f}       '.format(util.days_hours_mins_secs_str(duration), util.days_hours_mins_secs_str((num_traces - i) / traces_per_second), util.progress_bar(i+1, num_traces), str(i+1).rjust(len_str_num_traces), num_traces, '{:.2f}'.format(effective_sample_size).rjust(len_str_num_traces+2), traces_per_second), end='\r')
+                    sys.stdout.flush()
+
+        pool.close()
+        pool.join()
+        if (util._verbosity > 1) and not silent:
+            print()
+
+        if file_mode:
+            # Keep files around
+            traces = Empirical(concat_empirical_file_names=file_names, file_name=file_name)
+        else:
+            # Copy everything to memory, delete intermediate files
+            traces = Empirical(concat_empirical_file_names=file_names)
+            traces.close()
+            traces = traces.copy()
+            for file_name in file_names:
+                os.remove(file_name)
+
+        return traces

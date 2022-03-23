@@ -71,6 +71,11 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_unweighted_stddev, dist_unweighted_stddev_correct, places=1)
 
     def test_distributions_empirical_copy(self):
+        # This tests the following copy ops
+        # file -> mem
+        # file -> file
+        # mem -> mem
+        # mem -> file
         file_name_1 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
         file_name_2 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
         values = util.to_tensor([1, 2, 3])
@@ -110,6 +115,98 @@ class DistributionsTestCase(unittest.TestCase):
         self.assertAlmostEqual(dist_4_stddev, dist_stddev_correct, places=1)
         self.assertAlmostEqual(dist_5_mean, dist_mean_correct, places=1)
         self.assertAlmostEqual(dist_5_stddev, dist_stddev_correct, places=1)
+
+    def test_distributions_empirical_copy_concatmem(self):
+        # This tests the following copy ops
+        # concatmem -> mem
+        # concatmem -> file
+
+        values_correct = [0., 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        log_weights_correct = [-10, -15, -200, -2, -3, -22, -100, 1, 2, -0.3]
+
+        file_names = [os.path.join(tempfile.mkdtemp(), str(uuid.uuid4())) for i in range(0, 4)]
+        empiricals = []
+        empiricals.append(Empirical(values=values_correct[0:3], log_weights=log_weights_correct[0:3], file_name=file_names[0]))
+        empiricals.append(Empirical(values=values_correct[3:5], log_weights=log_weights_correct[3:5], file_name=file_names[1]))
+        empiricals.append(Empirical(values=values_correct[5:9], log_weights=log_weights_correct[5:9], file_name=file_names[2]))
+        empiricals.append(Empirical(values=values_correct[9:10], log_weights=log_weights_correct[9:10], file_name=file_names[3]))
+        [emp.close() for emp in empiricals]
+
+        concat_emp = Empirical(concat_empirical_file_names=file_names)
+        concat_emp_mean = float(concat_emp.mean)
+        concat_emp_stddev = float(concat_emp.stddev)
+        concat_emp_ess = float(concat_emp.effective_sample_size)
+
+        concat_emp_copy = concat_emp.copy()
+        concat_emp_copy_mean = float(concat_emp_copy.mean)
+        concat_emp_copy_stddev = float(concat_emp_copy.stddev)
+        concat_emp_copy_ess = float(concat_emp_copy.effective_sample_size)
+
+        file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        concat_emp_copy_file = concat_emp.copy(file_name)
+        concat_emp_copy_file_mean = float(concat_emp_copy_file.mean)
+        concat_emp_copy_file_stddev = float(concat_emp_copy_file.stddev)
+        concat_emp_copy_file_ess = float(concat_emp_copy_file.effective_sample_size)
+        concat_emp_copy_file.close()
+
+        [os.remove(file_name) for file_name in file_names]
+        os.remove(file_name)
+
+        util.eval_print('file_names', 'values_correct', 'log_weights_correct', 'concat_emp_mean', 'concat_emp_stddev', 'concat_emp_ess', 'concat_emp_copy_mean', 'concat_emp_copy_stddev', 'concat_emp_copy_ess', 'concat_emp_copy_file_mean', 'concat_emp_copy_file_stddev', 'concat_emp_copy_file_ess')
+
+        self.assertAlmostEqual(concat_emp_mean, concat_emp_copy_mean, places=1)
+        self.assertAlmostEqual(concat_emp_stddev, concat_emp_copy_stddev, places=1)
+        self.assertAlmostEqual(concat_emp_ess, concat_emp_copy_ess, places=1)
+        self.assertAlmostEqual(concat_emp_mean, concat_emp_copy_file_mean, places=1)
+        self.assertAlmostEqual(concat_emp_stddev, concat_emp_copy_file_stddev, places=1)
+        self.assertAlmostEqual(concat_emp_ess, concat_emp_copy_file_ess, places=1)
+
+    def test_distributions_empirical_copy_concatfile(self):
+        # This tests the following copy ops
+        # concatfile -> mem
+        # concatfile -> file
+
+        values_correct = [0., 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        log_weights_correct = [-10, -15, -200, -2, -3, -22, -100, 1, 2, -0.3]
+
+        file_names = [os.path.join(tempfile.mkdtemp(), str(uuid.uuid4())) for i in range(0, 4)]
+        empiricals = []
+        empiricals.append(Empirical(values=values_correct[0:3], log_weights=log_weights_correct[0:3], file_name=file_names[0]))
+        empiricals.append(Empirical(values=values_correct[3:5], log_weights=log_weights_correct[3:5], file_name=file_names[1]))
+        empiricals.append(Empirical(values=values_correct[5:9], log_weights=log_weights_correct[5:9], file_name=file_names[2]))
+        empiricals.append(Empirical(values=values_correct[9:10], log_weights=log_weights_correct[9:10], file_name=file_names[3]))
+        [emp.close() for emp in empiricals]
+
+        file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        concat_emp = Empirical(concat_empirical_file_names=file_names, file_name=file_name)
+        concat_emp_mean = float(concat_emp.mean)
+        concat_emp_stddev = float(concat_emp.stddev)
+        concat_emp_ess = float(concat_emp.effective_sample_size)
+
+        concat_emp_copy = concat_emp.copy()
+        concat_emp_copy_mean = float(concat_emp_copy.mean)
+        concat_emp_copy_stddev = float(concat_emp_copy.stddev)
+        concat_emp_copy_ess = float(concat_emp_copy.effective_sample_size)
+
+        file_name2 = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
+        concat_emp_copy_file = concat_emp.copy(file_name2)
+        concat_emp_copy_file_mean = float(concat_emp_copy_file.mean)
+        concat_emp_copy_file_stddev = float(concat_emp_copy_file.stddev)
+        concat_emp_copy_file_ess = float(concat_emp_copy_file.effective_sample_size)
+        concat_emp_copy_file.close()
+
+        [os.remove(file_name) for file_name in file_names]
+        os.remove(file_name)
+        os.remove(file_name2)
+
+        util.eval_print('file_names', 'values_correct', 'log_weights_correct', 'concat_emp_mean', 'concat_emp_stddev', 'concat_emp_ess', 'concat_emp_copy_mean', 'concat_emp_copy_stddev', 'concat_emp_copy_ess', 'concat_emp_copy_file_mean', 'concat_emp_copy_file_stddev', 'concat_emp_copy_file_ess')
+
+        self.assertAlmostEqual(concat_emp_mean, concat_emp_copy_mean, places=1)
+        self.assertAlmostEqual(concat_emp_stddev, concat_emp_copy_stddev, places=1)
+        self.assertAlmostEqual(concat_emp_ess, concat_emp_copy_ess, places=1)
+        self.assertAlmostEqual(concat_emp_mean, concat_emp_copy_file_mean, places=1)
+        self.assertAlmostEqual(concat_emp_stddev, concat_emp_copy_file_stddev, places=1)
+        self.assertAlmostEqual(concat_emp_ess, concat_emp_copy_file_ess, places=1)
 
     def test_distributions_empirical_disk(self):
         file_name = os.path.join(tempfile.mkdtemp(), str(uuid.uuid4()))
@@ -562,6 +659,7 @@ class DistributionsTestCase(unittest.TestCase):
         dist_stddev_empirical = float(dist_empirical.stddev)
         dist_expectation_sin = float(dist.expectation(torch.sin))
         dist_map_sin_mean = float(dist.map(torch.sin).mean)
+        dist.close()
         os.remove(file_name)
 
         util.eval_print('file_name', 'dist_mean', 'dist_mean_empirical', 'dist_mean_correct', 'dist_stddev', 'dist_stddev_empirical', 'dist_stddev_correct', 'dist_expectation_sin', 'dist_expectation_sin_correct', 'dist_map_sin_mean', 'dist_map_sin_mean_correct')
@@ -795,7 +893,7 @@ class DistributionsTestCase(unittest.TestCase):
 
         model = JointModel()
         samples = 2000
-        
+
         prior = model.prior(samples)
         prior_b = prior.map(lambda trace: trace['b'])
         conditional_b = prior.condition(lambda trace: trace['a']).map(lambda trace: trace['b'])

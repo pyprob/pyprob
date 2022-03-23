@@ -59,7 +59,7 @@ class Empirical(Distribution):
             else:
                 if type(concat_empirical_file_names) == list:
                     if type(concat_empirical_file_names[0]) == str:
-                        concat_empirical_file_names = list(map(os.path.abspath, concat_empirical_file_names))
+                        # concat_empirical_file_names = list(map(os.path.abspath, concat_empirical_file_names))
                         self._concat_empiricals = [Empirical(file_name=f, file_read_only=True) for f in concat_empirical_file_names]
                     else:
                         raise TypeError('Expecting concat_empirical_file_names to be a list of file names.')
@@ -96,7 +96,7 @@ class Empirical(Distribution):
                     self._shelf['concat_empirical_file_names'] = concat_empirical_file_names
                     self._shelf['name'] = self.name
                     self._shelf['metadata'] = self._metadata
-                    self._shelf.close()
+                    # self._shelf.close()
         else:
             if file_name is None:
                 self._type = EmpiricalType.MEMORY
@@ -184,17 +184,26 @@ class Empirical(Distribution):
         self._metadata['{}'.format(len(self._metadata))] = kwargs
 
     def close(self):
-        if self._type == EmpiricalType.FILE:
-            self.finalize()
+        if self._type == EmpiricalType.FILE or self._type == EmpiricalType.CONCAT_FILE:
             if not self._closed:
-                if not self._read_only:
-                    self._shelf.close()
+                self.finalize()
+                # if not self._read_only:
+                self._shelf.close()
                 self._closed = True
 
     def copy(self, file_name=None):
         self._check_finalized()
+        # file -> mem
+        # file -> file
+        # mem -> mem
+        # mem -> file
+        # concatfile -> mem
+        # concatfile -> file
+        # concatmem -> mem
+        # concatmem -> file
         if self._type == EmpiricalType.FILE:
             if file_name is None:
+                # FILE -> MEM
                 status = 'Copy Empirical(file_name: {}) to Empirical(memory)'.format(self._file_name)
                 print(status)
                 ret = Empirical(values=self.get_values(), log_weights=self.log_weights, name=self.name)
@@ -202,6 +211,7 @@ class Empirical(Distribution):
                 ret.add_metadata(op='copy', source='Empirical(file_name: {})'.format(self._file_name), target='Empirical(memory)')
                 return ret
             else:
+                # FILE -> FILE
                 status = 'Copy Empirical(file_name: {}) to Empirical(file_name: {})'.format(self._file_name, file_name)
                 print(status)
                 ret = Empirical(file_name=file_name, name=self.name)
@@ -213,6 +223,7 @@ class Empirical(Distribution):
                 return ret
         elif self._type == EmpiricalType.MEMORY:
             if file_name is None:
+                # MEM -> MEM
                 status = 'Copy Empirical(memory) to Empirical(memory)'
                 print(status)
                 ret = copy.copy(self)
@@ -220,11 +231,57 @@ class Empirical(Distribution):
                 ret.add_metadata(op='copy', source='Empirical(memory)', target='Empirical(memory)')
                 return ret
             else:
+                # MEM -> FILE
                 status = 'Copy Empirical(memory) to Empirical(file_name: {})'.format(file_name)
                 print(status)
                 ret = Empirical(values=self.values, log_weights=self.log_weights, file_name=file_name, name=self.name)
                 ret._metadata = copy.deepcopy(self._metadata)
                 ret.add_metadata(op='copy', source='Empirical(memory)', target='Empirical(file_name: {})'.format(file_name))
+                return ret
+        elif self._type == EmpiricalType.CONCAT_FILE:
+            if file_name is None:
+                # CONCATFILE -> MEM
+                # print('CONCATFILE -> MEM')
+                # for k, v in self._shelf.items():
+                #     print(k, v)
+                # import sys
+                # sys.stdout.flush()
+                status = 'Copy Empirical(concat_empirical_file_names: {}) to Empirical(memory)'.format(self._shelf['concat_empirical_file_names'])
+                print(status)
+                ret = Empirical(values=self.get_values(), log_weights=self.log_weights, name=self.name)
+                ret._metadata = copy.deepcopy(self._metadata)
+                ret.add_metadata(op='copy', source='Empirical(concat_empirical_file_names: {})'.format(self._shelf['concat_empirical_file_names']), target='Empirical(memory)')
+                return ret
+            else:
+                # CONCATFILE -> FILE
+                status = 'Copy Empirical(concat_empirical_file_names: {}) to Empirical(file_name: {})'.format(self._shelf['concat_empirical_file_names'], self._file_name, file_name)
+                print(status)
+                ret = Empirical(file_name=file_name, name=self.name)
+                for i in range(self._length):
+                    ret.add(value=self._get_value(i), log_weight=self.log_weights[i])
+                ret.finalize()
+                ret._metadata = copy.deepcopy(self._metadata)
+                ret.add_metadata(op='copy', source='Empirical(concat_empirical_file_names: {})'.format(self._shelf['concat_empirical_file_names']), target='Empirical(file_name: {})'.format(file_name))
+                return ret
+        elif self._type == EmpiricalType.CONCAT_MEMORY:
+            if file_name is None:
+                # CONCATMEM -> MEM
+                status = 'Copy Empirical(concat_memory) to Empirical(memory)'
+                print(status)
+                ret = Empirical(values=self.get_values(), log_weights=self.log_weights, name=self.name)
+                ret._metadata = copy.deepcopy(self._metadata)
+                ret.add_metadata(op='copy', source='Empirical(concat_memory)', target='Empirical(memory)')
+                return ret
+            else:
+                # CONCATMEM -> FILE
+                status = 'Copy Empirical(concat_memory) to Empirical(file_name: {})'.format(file_name)
+                print(status)
+                ret = Empirical(file_name=file_name, name=self.name)
+                for i in range(self._length):
+                    ret.add(value=self._get_value(i), log_weight=self.log_weights[i])
+                ret.finalize()
+                ret._metadata = copy.deepcopy(self._metadata)
+                ret.add_metadata(op='copy', source='Empirical(concat_memory)', target='Empirical(file_name: {})'.format(file_name))
                 return ret
         else:
             raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
@@ -325,10 +382,12 @@ class Empirical(Distribution):
         self._check_finalized()
         if self._type == EmpiricalType.MEMORY:
             return self.values
-        elif self._type == EmpiricalType.FILE:
-            return [self._shelf[str(i)] for i in range(self._length)]
         else:
-            raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
+            return [self._get_value(i) for i in range(self._length)]
+        # elif self._type == EmpiricalType.FILE:
+        #     return [self._shelf[str(i)] for i in range(self._length)]
+        # else:
+        #     raise NotImplementedError('Not implemented for type: {}'.format(str(self._type)))
 
     def sample(self, min_index=None, max_index=None):  # min_index is inclusive, max_index is exclusive
         self._check_finalized()
