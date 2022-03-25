@@ -274,9 +274,10 @@ class ConditionalModel(Model):
         self._criterion_timeout = int(criterion_timeout)
         self._traces_total = 1.
         self._traces_accepted = 1.
-        # self.name = self._base_model.name
-        # self._inference_network = self._base_model._inference_network
-        # self._address_dictionary = self._base_model._address_dictionary
+
+        
+    def __repr__(self):
+        return 'ConditionalModel({})'.format(self._base_model)
 
     @property
     def acceptance_ratio(self):
@@ -321,6 +322,8 @@ class ParallelModel(Model):
         else:
             self._num_workers = num_workers
 
+    def __repr__(self):
+        return 'ParallelModel({})'.format(self._base_model)
 
     def posterior(self, *args, **kwargs):
         inference_engine = kwargs.get('inference_engine', None)
